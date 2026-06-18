@@ -34,8 +34,21 @@ class RegistrationStates(StatesGroup):
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext) -> None:
+async def cmd_start(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
     await state.clear()
+
+    user = await get_user_by_telegram_id(pool, message.from_user.id)
+    if user:
+        from bot.keyboards.game_accounts import build_main_menu_keyboard
+        status_emoji = "🟢" if user["status"] == "ACTIVE" else "🔴"
+        await message.answer(
+            f"欢迎回来，{user['first_name']}！\n"
+            f"状态：{status_emoji} {user['status']}\n\n"
+            f"请选择操作：",
+            reply_markup=build_main_menu_keyboard(),
+        )
+        return
+
     await message.answer(
         "欢迎注册会员\n\n请选择：",
         reply_markup=registration_start_keyboard(),
