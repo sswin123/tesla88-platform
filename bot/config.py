@@ -16,6 +16,8 @@ class Config:
     postgres_db: str
     postgres_user: str
     postgres_password: str
+    cs_username: str
+    account_change_cooldown_hours: int
 
 
 def load_config() -> Config:
@@ -27,4 +29,8 @@ def load_config() -> Config:
         postgres_db=os.environ["POSTGRES_DB"],
         postgres_user=os.environ["POSTGRES_USER"],
         postgres_password=os.environ["POSTGRES_PASSWORD"],
+        cs_username=os.environ.get("CS_USERNAME", "support"),
+        account_change_cooldown_hours=int(
+            os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "24")
+        ),
     )

@@ -67,3 +67,51 @@ CREATE TABLE IF NOT EXISTS free_list (
 );
 
 CREATE INDEX IF NOT EXISTS idx_free_list_phone ON free_list(phone);
+
+-- ============================================================
+-- Game Account Pool — Phase 1 Extension
+-- ============================================================
+
+-- Migration: add total_bonus to users (Phase 4 Promotion placeholder)
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS total_bonus NUMERIC(15,2) DEFAULT 0.00;
+
+-- Account pool: pre-loaded game accounts
+CREATE TABLE IF NOT EXISTS account_pool (
+    id               SERIAL PRIMARY KEY,
+    provider         VARCHAR(20)  NOT NULL
+                     CHECK (provider IN ('918Kiss','Mega888','Pussy888','Newtown','Ace333','Live22')),
+    username         VARCHAR(100) NOT NULL,
+    password         VARCHAR(100) NOT NULL,
+    status           VARCHAR(10)  NOT NULL DEFAULT 'AVAILABLE'
+                     CHECK (status IN ('AVAILABLE','ASSIGNED','DISABLED')),
+    assigned_user_id INTEGER      REFERENCES users(id),
+    assigned_at      TIMESTAMPTZ,
+    note             VARCHAR(255),
+    created_at       TIMESTAMPTZ  DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ  DEFAULT NOW(),
+    UNIQUE(provider, username)
+);
+
+CREATE INDEX IF NOT EXISTS idx_account_pool_provider_status
+    ON account_pool(provider, status);
+
+DROP TRIGGER IF EXISTS trg_account_pool_updated_at ON account_pool;
+CREATE TRIGGER trg_account_pool_updated_at
+    BEFORE UPDATE ON account_pool
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- User game account assignments
+CREATE TABLE IF NOT EXISTS user_game_accounts (
+    id              SERIAL PRIMARY KEY,
+    user_id         INTEGER NOT NULL REFERENCES users(id),
+    provider        VARCHAR(20) NOT NULL
+                    CHECK (provider IN ('918Kiss','Mega888','Pussy888','Newtown','Ace333','Live22')),
+    account_pool_id INTEGER NOT NULL REFERENCES account_pool(id),
+    assigned_at     TIMESTAMPTZ DEFAULT NOW(),
+    assigned_by     BIGINT,
+    last_changed_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_uga_user_id ON user_game_accounts(user_id);
