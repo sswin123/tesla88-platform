@@ -38,6 +38,7 @@ async def add_admin(
         VALUES ($1, $2, $3)
         ON CONFLICT (telegram_id) DO UPDATE
             SET role = EXCLUDED.role, added_by = EXCLUDED.added_by
+            WHERE admins.role != 'SUPER_ADMIN'
         RETURNING *
         """,
         telegram_id, role, added_by,

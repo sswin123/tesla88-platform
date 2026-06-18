@@ -66,15 +66,18 @@ async def process_import_file(
         await processing_msg.edit_text("CSV 文件为空或格式不正确（需含 'phone' 列）。")
         return
 
-    result = await bulk_import_phones(pool, phones)
-
-    await processing_msg.edit_text(
-        f"导入完成 ✅\n\n"
-        f"总记录：{result.total:,}\n"
-        f"新增：{result.inserted:,}\n"
-        f"重复：{result.duplicates:,}\n"
-        f"失败（格式错误）：{result.failed:,}"
-    )
+    try:
+        result = await bulk_import_phones(pool, phones)
+        await processing_msg.edit_text(
+            f"导入完成 ✅\n\n"
+            f"总记录：{result.total:,}\n"
+            f"新增：{result.inserted:,}\n"
+            f"重复：{result.duplicates:,}\n"
+            f"失败（格式错误）：{result.failed:,}"
+        )
+    except Exception:
+        await processing_msg.edit_text("❌ 数据库写入失败，请重试。")
+        return
 
 
 @router.message(ImportFreeListStates.waiting_file)

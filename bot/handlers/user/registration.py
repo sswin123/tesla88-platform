@@ -138,8 +138,7 @@ async def process_bank_account(
 
     existing = await get_user_by_bank_account(pool, bank_account)
     if existing:
-        await state.clear()
-        await message.answer("此银行账号已被使用。")
+        await message.answer("此银行账号已被使用，请输入其他账号：")
         return
 
     await state.update_data(bank_account=bank_account)
@@ -163,17 +162,22 @@ async def process_bank_holder(
 
     eligible = await check_phone_in_free_list(pool, data["phone"])
 
-    user = await create_user(
-        pool,
-        telegram_id=message.from_user.id,
-        telegram_username=message.from_user.username,
-        first_name=message.from_user.first_name or "Unknown",
-        phone=data["phone"],
-        bank_name=data["bank_name"],
-        bank_account=data["bank_account"],
-        bank_holder_name=bank_holder_name,
-        eligible_free_credit=eligible,
-    )
+    try:
+        user = await create_user(
+            pool,
+            telegram_id=message.from_user.id,
+            telegram_username=message.from_user.username,
+            first_name=message.from_user.first_name or "Unknown",
+            phone=data["phone"],
+            bank_name=data["bank_name"],
+            bank_account=data["bank_account"],
+            bank_holder_name=bank_holder_name,
+            eligible_free_credit=eligible,
+        )
+    except asyncpg.exceptions.UniqueViolationError:
+        await state.clear()
+        await message.answer("注册失败：信息冲突，请重新注册。")
+        return
 
     free_text = "✅ 符合" if eligible else "❌ 不符合"
     await message.answer(
