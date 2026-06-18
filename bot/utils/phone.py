@@ -1,8 +1,7 @@
 import re
-from typing import Optional
 
 
-def normalize_phone(phone: str) -> Optional[str]:
+def normalize_phone(phone: str) -> str | None:
     """Normalize Malaysian phone to 60xxxxxxxxx. Returns None if format invalid."""
     cleaned = phone.strip().replace(" ", "").replace("-", "")
 
