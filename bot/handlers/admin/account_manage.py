@@ -30,18 +30,18 @@ def _parse_provider_username(text: str) -> tuple[str, str] | None:
 async def cmd_disable_account(message: Message, pool: asyncpg.Pool) -> None:
     parsed = _parse_provider_username(message.text or "")
     if not parsed:
-        await message.answer("用法：/disable_account <Provider> <Username>\n例如：/disable_account 918Kiss 918001")
+        await message.answer("用法：/disable_account <provider> <username>")
         return
 
     provider, username = parsed
     account = await get_account_by_provider_username(pool, provider, username)
 
     if not account:
-        await message.answer(f"未找到账号：{provider} / {username}")
+        await message.answer(f"未找到 {provider} 账号：{username}")
         return
 
     if account["status"] == "DISABLED":
-        await message.answer(f"该账号已是停用状态：{provider} {username}")
+        await message.answer("该账号已是停用状态。")
         return
 
     if account["status"] == "AVAILABLE":
@@ -79,13 +79,13 @@ async def handle_force_disable(callback: CallbackQuery, pool: asyncpg.Pool) -> N
         return
 
     await force_disable_account(pool, account_pool_id)
-    await callback.message.edit_text("✅ 账号已强制停用，绑定已解除。")
+    await callback.message.edit_text("✅ 已强制停用并解除绑定。")
     await callback.answer()
 
 
 @router.callback_query(F.data == "game_force_cancel")
 async def handle_force_cancel(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("操作已取消。")
+    await callback.message.edit_text("❌ 已取消。")
     await callback.answer()
 
 
@@ -93,19 +93,19 @@ async def handle_force_cancel(callback: CallbackQuery) -> None:
 async def cmd_enable_account(message: Message, pool: asyncpg.Pool) -> None:
     parsed = _parse_provider_username(message.text or "")
     if not parsed:
-        await message.answer("用法：/enable_account <Provider> <Username>\n例如：/enable_account 918Kiss 918001")
+        await message.answer("用法：/enable_account <provider> <username>")
         return
 
     provider, username = parsed
     account = await get_account_by_provider_username(pool, provider, username)
 
     if not account:
-        await message.answer(f"未找到账号：{provider} / {username}")
+        await message.answer(f"未找到 {provider} 账号：{username}")
         return
 
     if account["status"] != "DISABLED":
         await message.answer(
-            f"该账号当前状态为 {account['status']}，无需启用。"
+            f"该账号不是停用状态（当前状态：{account['status']}）。"
         )
         return
 
