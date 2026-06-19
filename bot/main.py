@@ -15,8 +15,12 @@ from bot.handlers.admin.manage_admins import router as manage_router
 from bot.handlers.admin.search import router as search_router
 from bot.handlers.admin.stats import router as stats_router
 from bot.handlers.admin.update_bank import router as update_bank_router
+from bot.handlers.admin.review import router as review_router
+from bot.handlers.user.deposit import router as deposit_router
 from bot.handlers.user.game_accounts import router as game_accounts_router
 from bot.handlers.user.registration import router as registration_router
+from bot.handlers.user.transaction_history import router as transaction_history_router
+from bot.handlers.user.withdrawal import router as withdrawal_router
 from bot.middlewares.admin_middleware import AdminMiddleware
 from db.connection import create_pool
 from db.repositories.admin_repo import create_or_ensure_super_admin
@@ -49,6 +53,9 @@ async def main() -> None:
     # User routers first — registration catches /start and F.text menu buttons
     dp.include_router(registration_router)
     dp.include_router(game_accounts_router)
+    dp.include_router(deposit_router)
+    dp.include_router(withdrawal_router)
+    dp.include_router(transaction_history_router)
 
     # Admin routers
     dp.include_router(search_router)
@@ -60,6 +67,7 @@ async def main() -> None:
     dp.include_router(import_accounts_router)
     dp.include_router(account_stats_router)
     dp.include_router(account_manage_router)
+    dp.include_router(review_router)
 
     logger.info("Bot starting — polling...")
     try:

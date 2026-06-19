@@ -115,3 +115,72 @@ CREATE TABLE IF NOT EXISTS user_game_accounts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_uga_user_id ON user_game_accounts(user_id);
+
+-- ============================================================
+-- Phase 2: Deposit / Withdrawal System
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS bonus_types (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(100) NOT NULL,
+    percentage   NUMERIC(5,2)  NOT NULL DEFAULT 0,
+    max_bonus    NUMERIC(10,2) NOT NULL DEFAULT 0,
+    min_deposit  NUMERIC(10,2) NOT NULL DEFAULT 0,
+    provider     VARCHAR(20)   DEFAULT NULL
+                 CHECK (provider IN ('918Kiss','Mega888','Pussy888','Newtown','Ace333','Live22') OR provider IS NULL),
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO bonus_types (name, percentage, max_bonus, min_deposit, provider, sort_order)
+VALUES
+    ('Welcome Bonus 50%', 50.00, 50.00, 30.00, NULL, 1),
+    ('Reload Bonus 10%',  10.00, 30.00, 50.00, NULL, 2)
+ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS deposit_requests (
+    id                   SERIAL PRIMARY KEY,
+    user_id              INTEGER       NOT NULL REFERENCES users(id),
+    provider             VARCHAR(20)   NOT NULL
+                         CHECK (provider IN ('918Kiss','Mega888','Pussy888','Newtown','Ace333','Live22')),
+    game_username        VARCHAR(100)  NOT NULL,
+    deposit_amount       NUMERIC(10,2) NOT NULL,
+    bonus_type_id        INTEGER REFERENCES bonus_types(id),
+    bonus_amount         NUMERIC(10,2) NOT NULL DEFAULT 0,
+    credit_amount        NUMERIC(10,2) NOT NULL,
+    payment_bank         VARCHAR(100)  NOT NULL,
+    receipt_file_id      VARCHAR(255)  NOT NULL,
+    status               VARCHAR(20)   NOT NULL DEFAULT 'PENDING'
+                         CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+    reviewed_by          BIGINT,
+    admin_note           TEXT,
+    notification_msg_id  BIGINT,
+    created_at           TIMESTAMPTZ   DEFAULT NOW(),
+    reviewed_at          TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_deposit_user_status ON deposit_requests(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_deposit_status      ON deposit_requests(status);
+
+CREATE TABLE IF NOT EXISTS withdrawal_requests (
+    id                   SERIAL PRIMARY KEY,
+    user_id              INTEGER       NOT NULL REFERENCES users(id),
+    provider             VARCHAR(20)   NOT NULL
+                         CHECK (provider IN ('918Kiss','Mega888','Pussy888','Newtown','Ace333','Live22')),
+    game_username        VARCHAR(100)  NOT NULL,
+    withdraw_amount      NUMERIC(10,2) NOT NULL,
+    bank_name            VARCHAR(100)  NOT NULL,
+    bank_account         VARCHAR(50)   NOT NULL,
+    bank_holder_name     VARCHAR(100)  NOT NULL,
+    status               VARCHAR(20)   NOT NULL DEFAULT 'PENDING'
+                         CHECK (status IN ('PENDING','PAID','REJECTED')),
+    reviewed_by          BIGINT,
+    admin_note           TEXT,
+    notification_msg_id  BIGINT,
+    created_at           TIMESTAMPTZ   DEFAULT NOW(),
+    reviewed_at          TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_withdrawal_user_status ON withdrawal_requests(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_status      ON withdrawal_requests(status);

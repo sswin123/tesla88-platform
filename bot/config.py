@@ -18,6 +18,9 @@ class Config:
     postgres_password: str
     cs_username: str
     account_change_cooldown_hours: int
+    admin_chat_id: int
+    min_deposit_amount: float
+    min_withdrawal_amount: float
 
 
 def load_config() -> Config:
@@ -33,4 +36,7 @@ def load_config() -> Config:
         account_change_cooldown_hours=int(
             os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "24")
         ),
+        admin_chat_id=int(os.environ["ADMIN_CHAT_ID"]),
+        min_deposit_amount=float(os.environ.get("MIN_DEPOSIT_AMOUNT", "30")),
+        min_withdrawal_amount=float(os.environ.get("MIN_WITHDRAWAL_AMOUNT", "50")),
     )
