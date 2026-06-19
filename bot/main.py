@@ -25,6 +25,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+# Debug-level logs for admin auth chain
+logging.getLogger("bot.middlewares.admin_middleware").setLevel(logging.DEBUG)
+logging.getLogger("bot.filters").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

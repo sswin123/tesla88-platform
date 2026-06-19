@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import logging
+
 from aiogram.filters import BaseFilter
 from aiogram.types import CallbackQuery, Message
+
+logger = logging.getLogger(__name__)
 
 
 class IsAdmin(BaseFilter):
@@ -13,6 +17,17 @@ class IsAdmin(BaseFilter):
         event: Message | CallbackQuery,
         admin_record=None,
     ) -> bool:
+        user_id = event.from_user.id if event.from_user else None
         if not admin_record:
+            logger.debug(
+                "IsAdmin DENIED: user=%s no admin_record (required=%s)",
+                user_id, self.roles,
+            )
             return False
-        return admin_record["role"] in self.roles
+        result = admin_record["role"] in self.roles
+        logger.debug(
+            "IsAdmin %s: user=%s role=%s required=%s",
+            "GRANTED" if result else "DENIED",
+            user_id, admin_record["role"], self.roles,
+        )
+        return result
