@@ -64,9 +64,9 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
     lines = ["🎮 我的游戏账号"]
     for acc in accounts:
         lines.append(
-            f"\n{html.escape(acc['provider'])}\n"
-            f"账号：<code>{html.escape(acc['username'])}</code>\n"
-            f"密码：<code>{html.escape(acc['password'])}</code>"
+            f"\n🎮 {html.escape(acc['provider'])}\n"
+            f"👤 账号：<code>{html.escape(acc['username'])}</code>\n"
+            f"🔑 密码：<code>{html.escape(acc['password'])}</code>"
         )
 
     if claimable:

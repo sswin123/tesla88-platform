@@ -53,20 +53,21 @@ def build_game_accounts_keyboard(
     rows: list[list[InlineKeyboardButton]] = []
 
     for acc in accounts:
+        p = acc["provider"]
         rows.append([
             InlineKeyboardButton(
-                text="📋 复制账号",
-                callback_data=f"game_copy_user:{acc['provider']}",
+                text=f"📋 复制{p}账号",
+                callback_data=f"game_copy_user:{p}",
             ),
             InlineKeyboardButton(
-                text="📋 复制密码",
-                callback_data=f"game_copy_pass:{acc['provider']}",
+                text=f"📋 复制{p}密码",
+                callback_data=f"game_copy_pass:{p}",
             ),
         ])
         rows.append([
             InlineKeyboardButton(
-                text=f"🔄 更换 {acc['provider']}",
-                callback_data=f"game_change:{acc['provider']}",
+                text=f"🔄 更换{p}",
+                callback_data=f"game_change:{p}",
             )
         ])
 
