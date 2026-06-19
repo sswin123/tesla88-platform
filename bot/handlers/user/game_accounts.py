@@ -69,7 +69,7 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
         lines.append(f"\n\n可领取（有库存）：{'、'.join(claimable)}")
 
     if not accounts and not claimable:
-        lines.append("\n\n所有平台账号库存暂时不足，请稍后再试或联系客服。")
+        lines.append("\n\n🎮 当前没有可领取的账号，请联系客服。")
 
     keyboard = build_game_accounts_keyboard(accounts, claimable)
     await message.answer(
