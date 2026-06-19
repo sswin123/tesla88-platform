@@ -4,12 +4,13 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 import asyncpg
 
 from bot.keyboards.registration import (
     BANK_FULL_NAMES,
+    back_keyboard,
     build_bank_keyboard,
     registration_start_keyboard,
 )
@@ -24,11 +25,18 @@ from db.repositories.user_repo import (
 
 router = Router()
 
+_PHONE_PROMPT = (
+    "请输入您的电话号码：\n\n"
+    "支持格式：\n"
+    "  0123456789\n"
+    "  60123456789\n"
+    "  +60123456789"
+)
+
 
 class RegistrationStates(StatesGroup):
     waiting_phone = State()
     waiting_bank = State()
-    waiting_bank_custom = State()
     waiting_bank_account = State()
     waiting_bank_holder = State()
 
@@ -67,15 +75,55 @@ async def cb_register_start(
         return
 
     await state.set_state(RegistrationStates.waiting_phone)
-    await callback.message.edit_text(
-        "请输入您的电话号码：\n\n"
+    await callback.message.answer(_PHONE_PROMPT, reply_markup=back_keyboard())
+    await callback.answer()
+
+
+# ── Back navigation ───────────────────────────────────────────────────────────
+
+@router.message(RegistrationStates.waiting_phone, F.text == "⬅️ 返回")
+async def reg_back_to_start(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("欢迎注册会员\n\n请选择：", reply_markup=registration_start_keyboard())
+
+
+@router.message(RegistrationStates.waiting_bank, F.text == "⬅️ 返回")
+async def reg_back_to_phone(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    phone = data.get("phone", "")
+    hint = f"（上次输入：{phone}）\n\n" if phone else ""
+    await state.set_state(RegistrationStates.waiting_phone)
+    await message.answer(
+        f"请重新输入电话号码：\n\n{hint}"
         "支持格式：\n"
         "  0123456789\n"
         "  60123456789\n"
-        "  +60123456789"
+        "  +60123456789",
+        reply_markup=back_keyboard(),
     )
-    await callback.answer()
 
+
+@router.message(RegistrationStates.waiting_bank_account, F.text == "⬅️ 返回")
+async def reg_back_to_bank(message: Message, state: FSMContext) -> None:
+    await state.set_state(RegistrationStates.waiting_bank)
+    await message.answer(
+        "请重新选择银行或电子钱包：",
+        reply_markup=build_bank_keyboard("reg_bank"),
+    )
+
+
+@router.message(RegistrationStates.waiting_bank_holder, F.text == "⬅️ 返回")
+async def reg_back_to_account(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    bank_name = data.get("bank_name", "")
+    await state.set_state(RegistrationStates.waiting_bank_account)
+    await message.answer(
+        f"已选择：{bank_name}\n\n请重新输入银行账号：",
+        reply_markup=back_keyboard(),
+    )
+
+
+# ── Forward navigation ────────────────────────────────────────────────────────
 
 @router.message(RegistrationStates.waiting_phone)
 async def process_phone(
@@ -97,7 +145,7 @@ async def process_phone(
     existing = await get_user_by_phone(pool, phone)
     if existing:
         await state.clear()
-        await message.answer("此电话号码已注册。")
+        await message.answer("此电话号码已注册。", reply_markup=ReplyKeyboardRemove())
         return
 
     await state.update_data(phone=phone)
@@ -111,31 +159,14 @@ async def process_phone(
 @router.callback_query(RegistrationStates.waiting_bank, F.data.startswith("reg_bank:"))
 async def process_bank_selection(callback: CallbackQuery, state: FSMContext) -> None:
     bank_key = callback.data.split(":", 1)[1]
-
-    if bank_key == "Other":
-        await state.set_state(RegistrationStates.waiting_bank_custom)
-        await callback.message.edit_text("请输入银行或电子钱包名称：")
-        await callback.answer()
-        return
-
     bank_name = BANK_FULL_NAMES[bank_key]
     await state.update_data(bank_name=bank_name)
     await state.set_state(RegistrationStates.waiting_bank_account)
-    await callback.message.edit_text(
-        f"已选择：{bank_name}\n\n请输入银行账号："
+    await callback.message.answer(
+        f"已选择：{bank_name}\n\n请输入银行账号：",
+        reply_markup=back_keyboard(),
     )
     await callback.answer()
-
-
-@router.message(RegistrationStates.waiting_bank_custom)
-async def process_bank_custom(message: Message, state: FSMContext) -> None:
-    bank_name = (message.text or "").strip()
-    if not bank_name:
-        await message.answer("银行名称不能为空，请重新输入：")
-        return
-    await state.update_data(bank_name=bank_name)
-    await state.set_state(RegistrationStates.waiting_bank_account)
-    await message.answer(f"已填写：{bank_name}\n\n请输入银行账号：")
 
 
 @router.message(RegistrationStates.waiting_bank_account)
@@ -156,7 +187,7 @@ async def process_bank_account(
 
     await state.update_data(bank_account=bank_account)
     await state.set_state(RegistrationStates.waiting_bank_holder)
-    await message.answer("请输入银行户口姓名（请与银行资料一致）：")
+    await message.answer("请输入银行户口姓名（请与银行资料一致）：", reply_markup=back_keyboard())
 
 
 @router.message(RegistrationStates.waiting_bank_holder)
@@ -189,7 +220,7 @@ async def process_bank_holder(
         )
     except asyncpg.exceptions.UniqueViolationError:
         await state.clear()
-        await message.answer("注册失败：信息冲突，请重新注册。")
+        await message.answer("注册失败：信息冲突，请重新注册。", reply_markup=ReplyKeyboardRemove())
         return
 
     free_text = "✅ 符合" if eligible else "❌ 不符合"
@@ -200,5 +231,6 @@ async def process_bank_holder(
         f"银行：{data['bank_name']}\n"
         f"账号：{data['bank_account']}\n"
         f"户口姓名：{bank_holder_name}\n"
-        f"免费资格：{free_text}"
+        f"免费资格：{free_text}",
+        reply_markup=ReplyKeyboardRemove(),
     )

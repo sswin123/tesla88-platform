@@ -10,7 +10,7 @@ import asyncpg
 from bot.config import Config
 from bot.constants import PROVIDERS
 from bot.keyboards.game_accounts import build_game_accounts_keyboard, build_provider_select_keyboard
-from bot.utils.formatters import format_user_info
+from bot.utils.formatters import format_user_profile
 from db.repositories.account_repo import (
     assign_account,
     get_provider_available_counts,
@@ -29,7 +29,7 @@ async def handle_my_profile(message: Message, pool: asyncpg.Pool) -> None:
     if not user:
         await message.answer("您尚未注册。请发送 /start 开始注册。")
         return
-    await message.answer(format_user_info(user))
+    await message.answer(format_user_profile(user))
 
 
 @router.message(F.text == "📞 联系客服")

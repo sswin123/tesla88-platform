@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 BANKS = [
     "Maybank", "CIMB Bank", "Public Bank", "RHB Bank",
@@ -12,7 +17,7 @@ BANKS = [
 
 EWALLETS = [
     "Touch 'n Go", "ShopeePay", "Boost", "GrabPay",
-    "MAE Wallet", "BigPay", "Setel Wallet",
+    "MAE Wallet", "BigPay",
 ]
 
 BANK_FULL_NAMES: dict[str, str] = {
@@ -42,13 +47,19 @@ BANK_FULL_NAMES: dict[str, str] = {
     "GrabPay": "GrabPay",
     "MAE Wallet": "MAE Wallet",
     "BigPay": "BigPay",
-    "Setel Wallet": "Setel Wallet",
-    "Other": "Other",
 }
 
 
+def back_keyboard() -> ReplyKeyboardMarkup:
+    """Single ⬅️ 返回 reply keyboard for text-input steps."""
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="⬅️ 返回")]],
+        resize_keyboard=True,
+    )
+
+
 def build_bank_keyboard(prefix: str = "bank") -> InlineKeyboardMarkup:
-    """Build 2-column bank selection keyboard. 'Other' is full-width last row."""
+    """Build 2-column bank selection keyboard."""
     all_options = BANKS + EWALLETS
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
@@ -63,10 +74,6 @@ def build_bank_keyboard(prefix: str = "bank") -> InlineKeyboardMarkup:
 
     if row:
         rows.append(row)
-
-    rows.append([InlineKeyboardButton(
-        text="Other", callback_data=f"{prefix}:Other"
-    )])
 
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
