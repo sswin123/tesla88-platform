@@ -43,14 +43,19 @@ def format_user_info(user: Any) -> str:
 
 def format_user_profile(user: Any) -> str:
     """Simplified profile for user-facing 📋 我的资料."""
-    status_emoji = "🟢" if user["status"] == "ACTIVE" else "🔴"
+    created_at = user["created_at"]
+    created_str = (
+        created_at.strftime("%Y-%m-%d %H:%M")
+        if isinstance(created_at, datetime)
+        else str(created_at)
+    )
     return (
         f"👤 会员资料\n\n"
-        f"📱 {user['phone']}\n"
-        f"🏦 {user['bank_name']}\n"
-        f"💳 {user['bank_account']}\n"
-        f"👤 {user['bank_holder_name']}\n"
-        f"{status_emoji} {user['status']}"
+        f"📱 电话号码：{user['phone']}\n"
+        f"🏦 银行名称：{user['bank_name']}\n"
+        f"💳 银行账号：{user['bank_account']}\n"
+        f"👤 户口姓名：{user['bank_holder_name']}\n"
+        f"📅 注册时间：{created_str}"
     )
 
 

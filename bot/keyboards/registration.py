@@ -9,15 +9,11 @@ from aiogram.types import (
 
 BANKS = [
     "Maybank", "CIMB Bank", "Public Bank", "RHB Bank",
-    "Hong Leong Bank", "AmBank", "Bank Islam", "Bank Muamalat",
-    "Bank Rakyat", "BSN", "Affin Bank", "Alliance Bank",
-    "OCBC Bank", "UOB Bank", "HSBC Bank", "Standard Chartered",
-    "KFH", "Agrobank", "Al Rajhi Bank", "MBSB Bank",
+    "Hong Leong Bank", "AmBank", "Bank Islam", "BSN",
 ]
 
-EWALLETS = [
-    "Touch 'n Go", "ShopeePay", "Boost", "GrabPay",
-    "MAE Wallet", "BigPay",
+EWALLETS: list[str] = [
+    "Touch 'n Go", "ShopeePay", "Boost", "GrabPay", "MAE Wallet", "BigPay",
 ]
 
 BANK_FULL_NAMES: dict[str, str] = {
@@ -28,25 +24,14 @@ BANK_FULL_NAMES: dict[str, str] = {
     "Hong Leong Bank": "Hong Leong Bank",
     "AmBank": "AmBank",
     "Bank Islam": "Bank Islam",
-    "Bank Muamalat": "Bank Muamalat",
-    "Bank Rakyat": "Bank Rakyat",
     "BSN": "BSN (Bank Simpanan Nasional)",
-    "Affin Bank": "Affin Bank",
-    "Alliance Bank": "Alliance Bank",
-    "OCBC Bank": "OCBC Bank",
-    "UOB Bank": "UOB Bank",
-    "HSBC Bank": "HSBC Bank",
-    "Standard Chartered": "Standard Chartered Bank",
-    "KFH": "Kuwait Finance House (KFH)",
-    "Agrobank": "Agrobank",
-    "Al Rajhi Bank": "Al Rajhi Bank",
-    "MBSB Bank": "MBSB Bank",
     "Touch 'n Go": "Touch 'n Go eWallet",
     "ShopeePay": "ShopeePay",
     "Boost": "Boost",
     "GrabPay": "GrabPay",
     "MAE Wallet": "MAE Wallet",
     "BigPay": "BigPay",
+    "Other": "Other",
 }
 
 
@@ -59,7 +44,7 @@ def back_keyboard() -> ReplyKeyboardMarkup:
 
 
 def build_bank_keyboard(prefix: str = "bank") -> InlineKeyboardMarkup:
-    """Build 2-column bank selection keyboard."""
+    """Build 2-column bank/ewallet keyboard with Other at bottom."""
     all_options = BANKS + EWALLETS
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
@@ -74,6 +59,8 @@ def build_bank_keyboard(prefix: str = "bank") -> InlineKeyboardMarkup:
 
     if row:
         rows.append(row)
+
+    rows.append([InlineKeyboardButton(text="Other", callback_data=f"{prefix}:Other")])
 
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 import asyncpg
 
+from bot.keyboards.game_accounts import build_main_menu_keyboard
 from bot.keyboards.registration import (
     BANK_FULL_NAMES,
     back_keyboard,
@@ -37,6 +38,7 @@ _PHONE_PROMPT = (
 class RegistrationStates(StatesGroup):
     waiting_phone = State()
     waiting_bank = State()
+    waiting_bank_custom = State()
     waiting_bank_account = State()
     waiting_bank_holder = State()
 
@@ -47,7 +49,6 @@ async def cmd_start(message: Message, state: FSMContext, pool: asyncpg.Pool) -> 
 
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if user:
-        from bot.keyboards.game_accounts import build_main_menu_keyboard
         status_emoji = "🟢" if user["status"] == "ACTIVE" else "🔴"
         await message.answer(
             f"欢迎回来，{user['first_name']}！\n"
@@ -100,6 +101,15 @@ async def reg_back_to_phone(message: Message, state: FSMContext) -> None:
         "  60123456789\n"
         "  +60123456789",
         reply_markup=back_keyboard(),
+    )
+
+
+@router.message(RegistrationStates.waiting_bank_custom, F.text == "⬅️ 返回")
+async def reg_back_to_bank_from_custom(message: Message, state: FSMContext) -> None:
+    await state.set_state(RegistrationStates.waiting_bank)
+    await message.answer(
+        "请重新选择银行或电子钱包：",
+        reply_markup=build_bank_keyboard("reg_bank"),
     )
 
 
@@ -156,10 +166,21 @@ async def process_phone(
     )
 
 
+# "Other" handler must come BEFORE the general reg_bank handler
+@router.callback_query(RegistrationStates.waiting_bank, F.data == "reg_bank:Other")
+async def process_bank_other(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(RegistrationStates.waiting_bank_custom)
+    await callback.message.answer(
+        "请输入您的银行或电子钱包名称：",
+        reply_markup=back_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(RegistrationStates.waiting_bank, F.data.startswith("reg_bank:"))
 async def process_bank_selection(callback: CallbackQuery, state: FSMContext) -> None:
     bank_key = callback.data.split(":", 1)[1]
-    bank_name = BANK_FULL_NAMES[bank_key]
+    bank_name = BANK_FULL_NAMES.get(bank_key, bank_key)
     await state.update_data(bank_name=bank_name)
     await state.set_state(RegistrationStates.waiting_bank_account)
     await callback.message.answer(
@@ -167,6 +188,20 @@ async def process_bank_selection(callback: CallbackQuery, state: FSMContext) -> 
         reply_markup=back_keyboard(),
     )
     await callback.answer()
+
+
+@router.message(RegistrationStates.waiting_bank_custom)
+async def process_bank_custom(message: Message, state: FSMContext) -> None:
+    bank_name = (message.text or "").strip()
+    if not bank_name:
+        await message.answer("银行名称不能为空，请重新输入：")
+        return
+    await state.update_data(bank_name=bank_name)
+    await state.set_state(RegistrationStates.waiting_bank_account)
+    await message.answer(
+        f"已选择：{bank_name}\n\n请输入银行账号：",
+        reply_markup=back_keyboard(),
+    )
 
 
 @router.message(RegistrationStates.waiting_bank_account)
@@ -207,7 +242,7 @@ async def process_bank_holder(
     eligible = await check_phone_in_free_list(pool, data["phone"])
 
     try:
-        user = await create_user(
+        await create_user(
             pool,
             telegram_id=message.from_user.id,
             telegram_username=message.from_user.username,
@@ -223,14 +258,13 @@ async def process_bank_holder(
         await message.answer("注册失败：信息冲突，请重新注册。", reply_markup=ReplyKeyboardRemove())
         return
 
-    free_text = "✅ 符合" if eligible else "❌ 不符合"
     await message.answer(
         f"✅ 注册成功！\n\n"
-        f"用户ID：#{user['id']}\n"
-        f"电话：{data['phone']}\n"
-        f"银行：{data['bank_name']}\n"
-        f"账号：{data['bank_account']}\n"
-        f"户口姓名：{bank_holder_name}\n"
-        f"免费资格：{free_text}",
-        reply_markup=ReplyKeyboardRemove(),
+        f"📱 电话：{data['phone']}\n"
+        f"🏦 银行：{data['bank_name']}\n"
+        f"💳 账号：{data['bank_account']}\n"
+        f"👤 户口姓名：{bank_holder_name}\n\n"
+        f"欢迎加入会员系统。\n\n"
+        f"请从下方菜单开始使用。",
+        reply_markup=build_main_menu_keyboard(),
     )

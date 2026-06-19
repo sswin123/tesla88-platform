@@ -108,9 +108,9 @@ async def handle_claim_account(
 
     await callback.message.answer(
         f"✅ 领取成功\n\n"
-        f"游戏平台：{html.escape(provider)}\n"
-        f"账号：<code>{html.escape(account['username'])}</code>\n"
-        f"密码：<code>{html.escape(account['password'])}</code>",
+        f"🎮 平台：{html.escape(provider)}\n"
+        f"👤 账号：<code>{html.escape(account['username'])}</code>\n"
+        f"🔑 密码：<code>{html.escape(account['password'])}</code>",
         parse_mode="HTML",
     )
     await callback.answer()
@@ -196,10 +196,10 @@ async def handle_change_account(
 
     await callback.message.answer(
         f"✅ 更换成功\n\n"
-        f"游戏平台：{html.escape(provider)}\n"
-        f"旧账号：{html.escape(old_username)}\n"
-        f"新账号：<code>{html.escape(new_account['username'])}</code>\n"
-        f"密码：<code>{html.escape(new_account['password'])}</code>",
+        f"🎮 平台：{html.escape(provider)}\n\n"
+        f"📤 旧账号：{html.escape(old_username)}\n"
+        f"📥 新账号：<code>{html.escape(new_account['username'])}</code>\n"
+        f"🔑 密码：<code>{html.escape(new_account['password'])}</code>",
         reply_markup=keyboard,
         parse_mode="HTML",
     )
