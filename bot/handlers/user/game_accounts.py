@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
@@ -64,13 +66,13 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
     lines = ["🎮 我的游戏账号"]
     for acc in accounts:
         lines.append(
-            f"\n{acc['provider']}\n"
-            f"账号：`{acc['username']}`\n"
-            f"密码：`{acc['password']}`"
+            f"\n{html.escape(acc['provider'])}\n"
+            f"账号：<code>{html.escape(acc['username'])}</code>\n"
+            f"密码：<code>{html.escape(acc['password'])}</code>"
         )
 
     if claimable:
-        lines.append(f"\n\n可领取（有库存）：{'、'.join(claimable)}")
+        lines.append(f"\n\n可领取（有库存）：{'、'.join(html.escape(p) for p in claimable)}")
 
     if not accounts and not claimable:
         lines.append("\n\n🎮 当前没有可领取的账号，请联系客服。")
@@ -79,7 +81,7 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
     await message.answer(
         "\n".join(lines),
         reply_markup=keyboard,
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
@@ -108,10 +110,10 @@ async def handle_claim_account(
 
     await callback.message.answer(
         f"✅ 领取成功\n\n"
-        f"游戏平台：{provider}\n"
-        f"账号：`{account['username']}`\n"
-        f"密码：`{account['password']}`",
-        parse_mode="Markdown",
+        f"游戏平台：{html.escape(provider)}\n"
+        f"账号：<code>{html.escape(account['username'])}</code>\n"
+        f"密码：<code>{html.escape(account['password'])}</code>",
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -196,11 +198,11 @@ async def handle_change_account(
 
     await callback.message.answer(
         f"✅ 更换成功\n\n"
-        f"游戏平台：{provider}\n"
-        f"旧账号：{old_username}\n"
-        f"新账号：`{new_account['username']}`\n"
-        f"密码：`{new_account['password']}`",
+        f"游戏平台：{html.escape(provider)}\n"
+        f"旧账号：{html.escape(old_username)}\n"
+        f"新账号：<code>{html.escape(new_account['username'])}</code>\n"
+        f"密码：<code>{html.escape(new_account['password'])}</code>",
         reply_markup=keyboard,
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     await callback.answer()

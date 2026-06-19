@@ -70,7 +70,7 @@ async def cmd_disable_account(message: Message, pool: asyncpg.Pool) -> None:
     )
 
 
-@router.callback_query(F.data.startswith("game_force_disable:"))
+@router.callback_query(F.data.startswith("game_force_disable:"), IsAdmin(["SUPER_ADMIN"]))
 async def handle_force_disable(callback: CallbackQuery, pool: asyncpg.Pool) -> None:
     try:
         account_pool_id = int(callback.data.split(":", 1)[1])
@@ -83,7 +83,7 @@ async def handle_force_disable(callback: CallbackQuery, pool: asyncpg.Pool) -> N
     await callback.answer()
 
 
-@router.callback_query(F.data == "game_force_cancel")
+@router.callback_query(F.data == "game_force_cancel", IsAdmin(["SUPER_ADMIN"]))
 async def handle_force_cancel(callback: CallbackQuery) -> None:
     await callback.message.edit_text("❌ 已取消。")
     await callback.answer()
