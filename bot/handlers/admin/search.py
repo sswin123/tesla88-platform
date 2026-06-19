@@ -7,8 +7,9 @@ from aiogram.types import Message
 import asyncpg
 
 from bot.filters import IsAdmin
-from bot.utils.formatters import format_user_info
+from bot.utils.formatters import format_game_accounts, format_user_info
 from bot.utils.phone import normalize_phone
+from db.repositories.account_repo import get_user_game_accounts
 from db.repositories.user_repo import (
     get_user_by_bank_account,
     get_user_by_id,
@@ -35,7 +36,10 @@ async def cmd_search_phone(message: Message, pool: asyncpg.Pool):
         await message.answer("未找到该电话号码的会员。")
         return
 
-    await message.answer(format_user_info(user))
+    accounts = await get_user_game_accounts(pool, user["id"])
+    await message.answer(
+        format_user_info(user) + "\n\n" + format_game_accounts(accounts)
+    )
 
 
 @router.message(Command("search_bank"), IsAdmin())
@@ -51,7 +55,10 @@ async def cmd_search_bank(message: Message, pool: asyncpg.Pool):
         await message.answer("未找到该银行账号的会员。")
         return
 
-    await message.answer(format_user_info(user))
+    accounts = await get_user_game_accounts(pool, user["id"])
+    await message.answer(
+        format_user_info(user) + "\n\n" + format_game_accounts(accounts)
+    )
 
 
 @router.message(Command("search_user"), IsAdmin())
@@ -72,4 +79,7 @@ async def cmd_search_user(message: Message, pool: asyncpg.Pool):
         await message.answer("未找到该用户ID的会员。")
         return
 
-    await message.answer(format_user_info(user))
+    accounts = await get_user_game_accounts(pool, user["id"])
+    await message.answer(
+        format_user_info(user) + "\n\n" + format_game_accounts(accounts)
+    )
