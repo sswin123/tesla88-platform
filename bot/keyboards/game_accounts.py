@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 from aiogram.types import (
-    CopyTextButton,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
@@ -57,11 +56,11 @@ def build_game_accounts_keyboard(
         rows.append([
             InlineKeyboardButton(
                 text="📋 复制账号",
-                copy_text=CopyTextButton(text=acc["username"]),
+                callback_data=f"game_copy_user:{acc['provider']}",
             ),
             InlineKeyboardButton(
                 text="📋 复制密码",
-                copy_text=CopyTextButton(text=acc["password"]),
+                callback_data=f"game_copy_pass:{acc['provider']}",
             ),
         ])
         rows.append([

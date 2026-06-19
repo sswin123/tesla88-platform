@@ -9,8 +9,6 @@ import asyncpg
 
 from bot.config import Config
 from bot.constants import PROVIDERS
-from aiogram.types import CopyTextButton
-
 from bot.keyboards.game_accounts import build_game_accounts_keyboard, build_provider_select_keyboard
 from bot.utils.formatters import format_user_info
 from db.repositories.account_repo import (
@@ -188,11 +186,11 @@ async def handle_change_account(
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(
             text="📋 复制账号",
-            copy_text=CopyTextButton(text=new_account["username"]),
+            callback_data=f"game_copy_user:{provider}",
         ),
         InlineKeyboardButton(
             text="📋 复制密码",
-            copy_text=CopyTextButton(text=new_account["password"]),
+            callback_data=f"game_copy_pass:{provider}",
         ),
     ]])
 
@@ -205,4 +203,36 @@ async def handle_change_account(
         reply_markup=keyboard,
         parse_mode="HTML",
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("game_copy_user:"))
+async def handle_copy_username(callback: CallbackQuery, pool: asyncpg.Pool) -> None:
+    provider = callback.data.split(":", 1)[1]
+    user = await get_user_by_telegram_id(pool, callback.from_user.id)
+    if not user:
+        await callback.answer("您尚未注册。", show_alert=True)
+        return
+    accounts = await get_user_game_accounts(pool, user["id"])
+    account = next((a for a in accounts if a["provider"] == provider), None)
+    if not account:
+        await callback.answer("找不到该平台账号。", show_alert=True)
+        return
+    await callback.message.answer(f"账号：<code>{html.escape(account['username'])}</code>", parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("game_copy_pass:"))
+async def handle_copy_password(callback: CallbackQuery, pool: asyncpg.Pool) -> None:
+    provider = callback.data.split(":", 1)[1]
+    user = await get_user_by_telegram_id(pool, callback.from_user.id)
+    if not user:
+        await callback.answer("您尚未注册。", show_alert=True)
+        return
+    accounts = await get_user_game_accounts(pool, user["id"])
+    account = next((a for a in accounts if a["provider"] == provider), None)
+    if not account:
+        await callback.answer("找不到该平台账号。", show_alert=True)
+        return
+    await callback.message.answer(f"密码：<code>{html.escape(account['password'])}</code>", parse_mode="HTML")
     await callback.answer()
