@@ -65,14 +65,26 @@ async def cb_dep_approve(
         return
 
     admin_name = callback.from_user.username or str(callback.from_user.id)
+    bonus_amount = float(req["bonus_amount"])
+    credit_amount = float(req["credit_amount"])
+    deposit_amount = float(req["deposit_amount"])
+    game_username = req["game_username"]
 
     # Edit the original notification caption (deposit = photo message)
     if req["notification_msg_id"]:
         new_caption = (
-            f"💰 充值申请 #{request_id}\n"
+            f"💰 充值申请 #{request_id}\n\n"
             f"✅ 已批准\n\n"
-            f"审核人：\n@{admin_name}\n\n"
-            f"审核时间：\n{_now_str()}"
+            f"👤 {html.escape(req['bank_holder_name'])}\n"
+            f"📱 {html.escape(req['phone'])}\n\n"
+            f"🎮 {html.escape(req['provider'])}\n"
+            f"🆔 {html.escape(game_username)}\n\n"
+            f"💵 RM {deposit_amount:,.2f}\n\n"
+            f"🎁 RM {bonus_amount:,.2f}\n\n"
+            f"🪙 RM {credit_amount:,.2f}\n\n"
+            f"━━━━━━━━━━━━━━\n\n"
+            f"👨‍💼 审核员\n@{admin_name}\n\n"
+            f"🕒 审核时间\n{_now_str()}"
         )
         try:
             await bot.edit_message_caption(
@@ -80,30 +92,23 @@ async def cb_dep_approve(
                 message_id=req["notification_msg_id"],
                 caption=new_caption,
                 reply_markup=None,
+                parse_mode="HTML",
             )
         except Exception:
             pass
 
     # DM user
-    bonus_amount = float(req["bonus_amount"])
-    credit_amount = float(req["credit_amount"])
-    deposit_amount = float(req["deposit_amount"])
-    game_username = req["game_username"]
-
-    if bonus_amount > 0:
-        bonus_line = f"🎁 Bonus：RM {bonus_amount:.2f}\n🪙 上分：RM {credit_amount:.2f}"
-    else:
-        bonus_line = f"🪙 上分：RM {credit_amount:.2f}"
-
     try:
         await bot.send_message(
             chat_id=req["telegram_id"],
             text=(
-                f"✅ 您的充值申请 #{request_id} 已批准\n\n"
-                f"🎮 平台：{html.escape(req['provider'])}\n"
-                f"👤 游戏账号：{html.escape(game_username)}\n\n"
-                f"💵 充值：RM {deposit_amount:.2f}\n"
-                f"{bonus_line}\n\n"
+                f"✅ 充值申请已批准\n\n"
+                f"申请编号：\n#{request_id}\n\n"
+                f"🎮 平台：\n{html.escape(req['provider'])}\n\n"
+                f"🆔 游戏账号：\n{html.escape(game_username)}\n\n"
+                f"💵 充值：\nRM {deposit_amount:,.2f}\n\n"
+                f"🎁 Bonus：\nRM {bonus_amount:,.2f}\n\n"
+                f"🪙 实际上分：\nRM {credit_amount:,.2f}\n\n"
                 f"请查看游戏平台余额。"
             ),
             parse_mode="HTML",
@@ -280,11 +285,17 @@ async def process_reject_reason(
         # Edit original notification caption
         if req["notification_msg_id"]:
             new_caption = (
-                f"💰 充值申请 #{request_id}\n"
+                f"💰 充值申请 #{request_id}\n\n"
                 f"❌ 已拒绝\n\n"
-                f"拒绝原因：\n{html.escape(reason)}\n\n"
-                f"审核人：\n@{admin_name}\n\n"
-                f"审核时间：\n{_now_str()}"
+                f"👤 {html.escape(req['bank_holder_name'])}\n"
+                f"📱 {html.escape(req['phone'])}\n\n"
+                f"🎮 {html.escape(req['provider'])}\n"
+                f"🆔 {html.escape(req['game_username'])}\n\n"
+                f"━━━━━━━━━━━━━━\n\n"
+                f"原因：\n{html.escape(reason)}\n\n"
+                f"━━━━━━━━━━━━━━\n\n"
+                f"👨‍💼 审核员\n@{admin_name}\n\n"
+                f"🕒 审核时间\n{_now_str()}"
             )
             try:
                 await bot.edit_message_caption(
@@ -302,9 +313,10 @@ async def process_reject_reason(
             await bot.send_message(
                 chat_id=req["telegram_id"],
                 text=(
-                    f"❌ 申请已拒绝\n\n"
-                    f"申请编号：#{request_id}\n\n"
-                    f"原因：\n{html.escape(reason)}"
+                    f"❌ 充值申请已拒绝\n\n"
+                    f"申请编号：\n#{request_id}\n\n"
+                    f"原因：\n\n{html.escape(reason)}\n\n"
+                    f"如有疑问请联系客服。"
                 ),
                 parse_mode="HTML",
             )

@@ -251,23 +251,29 @@ async def process_deposit_receipt(
 
     if bonus_amount > 0:
         bonus_block = (
-            f"\n🎁 优惠：\n{html.escape(bonus_name)}\n\n"
-            f"🎁 Bonus：\nRM {bonus_amount:.2f}\n\n"
+            f"🎁 Bonus\n"
+            f"{html.escape(bonus_name)}\n\n"
+            f"+RM {bonus_amount:,.2f}\n\n"
         )
     else:
-        bonus_block = ""
+        bonus_block = "🎁 Bonus\n无优惠\n\n"
 
     caption = (
         f"💰 新充值申请 #{req['id']}\n\n"
-        f"👤 会员姓名：\n{html.escape(bank_holder_name)}\n\n"
-        f"📱 会员电话：\n{html.escape(phone)}\n\n"
-        f"🎮 平台：\n{html.escape(provider)}\n\n"
-        f"👤 游戏账号：\n{html.escape(game_username)}\n\n"
-        f"💵 充值金额：\nRM {deposit_amount:.2f}\n\n"
+        f"👤 {html.escape(bank_holder_name)}\n"
+        f"📱 {html.escape(phone)}\n\n"
+        f"🎮 {html.escape(provider)}\n"
+        f"🆔 {html.escape(game_username)}\n\n"
+        f"━━━━━━━━━━━━━━\n\n"
+        f"💵 充值金额\n"
+        f"RM {deposit_amount:,.2f}\n\n"
         f"{bonus_block}"
-        f"🪙 需上分：\nRM {credit_amount:.2f}\n\n"
-        f"🏦 付款银行：\n{html.escape(payment_bank)}\n\n"
-        f"═══════════════"
+        f"🪙 实际上分\n"
+        f"RM {credit_amount:,.2f}\n\n"
+        f"━━━━━━━━━━━━━━\n\n"
+        f"🏦 {html.escape(payment_bank)}\n\n"
+        f"📅 {req['created_at'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"━━━━━━━━━━━━━━"
     )
 
     target_chat = config.admin_chat_id if config.admin_chat_id else config.super_admin_id
