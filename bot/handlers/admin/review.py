@@ -70,18 +70,24 @@ async def cb_dep_approve(
     deposit_amount = float(req["deposit_amount"])
     game_username = req["game_username"]
 
+    bonus_amount_line = f"🎁 Bonus\n+RM {bonus_amount:,.2f}\n\n" if bonus_amount > 0 else ""
+
     # Edit the original notification caption (deposit = photo message)
     if req["notification_msg_id"]:
         new_caption = (
             f"💰 充值申请 #{request_id}\n\n"
             f"✅ 已批准\n\n"
             f"👤 {html.escape(req['bank_holder_name'])}\n"
+            f"🆔 UID: {req['user_id']}\n"
             f"📱 {html.escape(req['phone'])}\n\n"
             f"🎮 {html.escape(req['provider'])}\n"
             f"🆔 {html.escape(game_username)}\n\n"
-            f"💵 RM {deposit_amount:,.2f}\n\n"
-            f"🎁 RM {bonus_amount:,.2f}\n\n"
-            f"🪙 RM {credit_amount:,.2f}\n\n"
+            f"━━━━━━━━━━━━━━\n\n"
+            f"💵 充值\n"
+            f"RM {deposit_amount:,.2f}\n\n"
+            f"{bonus_amount_line}"
+            f"🪙 实际上分\n"
+            f"RM {credit_amount:,.2f}\n\n"
             f"━━━━━━━━━━━━━━\n\n"
             f"👨‍💼 审核员\n@{admin_name}\n\n"
             f"🕒 审核时间\n{_now_str()}"
@@ -288,6 +294,7 @@ async def process_reject_reason(
                 f"💰 充值申请 #{request_id}\n\n"
                 f"❌ 已拒绝\n\n"
                 f"👤 {html.escape(req['bank_holder_name'])}\n"
+                f"🆔 UID: {req['user_id']}\n"
                 f"📱 {html.escape(req['phone'])}\n\n"
                 f"🎮 {html.escape(req['provider'])}\n"
                 f"🆔 {html.escape(req['game_username'])}\n\n"

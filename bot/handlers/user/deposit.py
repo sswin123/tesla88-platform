@@ -249,28 +249,24 @@ async def process_deposit_receipt(
     bank_holder_name = data["bank_holder_name"]
     phone = data["phone"]
 
-    if bonus_amount > 0:
-        bonus_block = (
-            f"🎁 Bonus\n"
-            f"{html.escape(bonus_name)}\n\n"
-            f"+RM {bonus_amount:,.2f}\n\n"
-        )
-    else:
-        bonus_block = "🎁 Bonus\n无优惠\n\n"
+    bonus_amount_line = f"🎁 Bonus\n+RM {bonus_amount:,.2f}\n\n" if bonus_amount > 0 else ""
+    bonus_name_display = html.escape(bonus_name) if bonus_amount > 0 else "无优惠"
 
     caption = (
         f"💰 新充值申请 #{req['id']}\n\n"
         f"👤 {html.escape(bank_holder_name)}\n"
+        f"🆔 UID: {data['user_id']}\n"
         f"📱 {html.escape(phone)}\n\n"
         f"🎮 {html.escape(provider)}\n"
         f"🆔 {html.escape(game_username)}\n\n"
         f"━━━━━━━━━━━━━━\n\n"
-        f"💵 充值金额\n"
+        f"💵 充值\n"
         f"RM {deposit_amount:,.2f}\n\n"
-        f"{bonus_block}"
+        f"{bonus_amount_line}"
         f"🪙 实际上分\n"
         f"RM {credit_amount:,.2f}\n\n"
         f"━━━━━━━━━━━━━━\n\n"
+        f"🏷 优惠：\n{bonus_name_display}\n\n"
         f"🏦 {html.escape(payment_bank)}\n\n"
         f"📅 {req['created_at'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         f"━━━━━━━━━━━━━━"
