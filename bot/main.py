@@ -2,6 +2,13 @@ from __future__ import annotations
 import asyncio
 import logging
 
+# Configure logging BEFORE any project imports so all module-level loggers
+# inherit the handler added to the root logger here.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -25,10 +32,6 @@ from bot.middlewares.admin_middleware import AdminMiddleware
 from db.connection import create_pool
 from db.repositories.admin_repo import create_or_ensure_super_admin
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 

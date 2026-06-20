@@ -4,8 +4,6 @@ import html
 import logging
 
 from aiogram import Bot, F, Router
-
-logger = logging.getLogger(__name__)
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -29,6 +27,7 @@ from db.repositories.deposit_repo import (
 )
 from db.repositories.user_repo import get_user_by_telegram_id
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
@@ -274,7 +273,7 @@ async def process_deposit_receipt(
     target_chat = config.admin_chat_id if config.admin_chat_id else config.super_admin_id
 
     logger.info(
-        "Sending deposit notification #%s to chat %s",
+        "Sending deposit notification request=%s chat_id=%s",
         req["id"],
         target_chat,
     )
@@ -288,12 +287,15 @@ async def process_deposit_receipt(
             parse_mode="HTML",
         )
         await update_deposit_notification_msg_id(pool, req["id"], notif.message_id)
-    except Exception as exc:
-        logger.error(
-            "Deposit notification failed for request #%s to chat %s: %s",
+        logger.info(
+            "Deposit notification sent request=%s msg_id=%s",
             req["id"],
-            target_chat,
-            exc,
+            notif.message_id,
+        )
+    except Exception:
+        logger.exception(
+            "Deposit notification failed request=%s",
+            req["id"],
         )
 
     await message.answer(

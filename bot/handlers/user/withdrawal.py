@@ -4,8 +4,6 @@ import html
 import logging
 
 from aiogram import Bot, F, Router
-
-logger = logging.getLogger(__name__)
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -28,6 +26,7 @@ from db.repositories.withdrawal_repo import (
 )
 from db.repositories.user_repo import get_user_by_telegram_id
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
@@ -173,7 +172,7 @@ async def cb_withdrawal_confirm(
     target_chat = config.admin_chat_id if config.admin_chat_id else config.super_admin_id
 
     logger.info(
-        "Sending withdrawal notification #%s to chat %s",
+        "Sending withdrawal notification request=%s chat_id=%s",
         req["id"],
         target_chat,
     )
@@ -186,12 +185,15 @@ async def cb_withdrawal_confirm(
             parse_mode="HTML",
         )
         await update_withdrawal_notification_msg_id(pool, req["id"], notif.message_id)
-    except Exception as exc:
-        logger.error(
-            "Withdrawal notification failed for request #%s to chat %s: %s",
+        logger.info(
+            "Withdrawal notification sent request=%s msg_id=%s",
             req["id"],
-            target_chat,
-            exc,
+            notif.message_id,
+        )
+    except Exception:
+        logger.exception(
+            "Withdrawal notification failed request=%s",
+            req["id"],
         )
 
     await callback.message.edit_text(
