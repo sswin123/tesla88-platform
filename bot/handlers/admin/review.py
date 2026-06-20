@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import html
+import logging
 import re
+import traceback
 from datetime import datetime
 
 from aiogram import Bot, F, Router
@@ -12,6 +14,8 @@ import asyncpg
 
 from bot.config import Config
 from bot.filters import IsAdmin
+
+logger = logging.getLogger(__name__)
 from db.repositories.deposit_repo import (
     approve_deposit,
     get_deposit_request,
@@ -418,39 +422,36 @@ async def cmd_clear_withdrawal_pending(message: Message, pool: asyncpg.Pool) -> 
 
 @router.message(Command("test_admin_chat"), IsAdmin(["SUPER_ADMIN"]))
 async def cmd_test_admin_chat(message: Message, bot: Bot, config: Config) -> None:
-    """UAT: verify ADMIN_CHAT_ID is reachable by the bot."""
+    """UAT: send a real message to ADMIN_CHAT_ID and report message_id."""
     chat_id = config.admin_chat_id
-    bot_info = await bot.get_me()
-
-    diag = (
-        f"🔧 Admin Chat 诊断\n\n"
-        f"BOT_ID：{bot_info.id}\n"
-        f"BOT_USERNAME：@{bot_info.username}\n\n"
-        f"ADMIN_CHAT_ID：{chat_id}\n"
-        f"类型：{type(chat_id).__name__}\n"
-        f"repr：{chat_id!r}\n\n"
-    )
 
     if not chat_id:
-        await message.answer(diag + "⚠️ ADMIN_CHAT_ID 未配置（值为 0）\n通知将发送至 SUPER_ADMIN 私聊。")
+        await message.answer(
+            f"⚠️ ADMIN_CHAT_ID 未配置（值为 0）\n"
+            f"通知将发送至 SUPER_ADMIN 私聊。"
+        )
         return
 
     try:
-        sent = await bot.send_message(chat_id=chat_id, text="[ADMIN CHAT TEST]")
-        await bot.delete_message(chat_id=chat_id, message_id=sent.message_id)
-        await message.answer(diag + "✅ ADMIN_CHAT_ID 有效\nBot 可以发送消息到该群组。")
-    except Exception as exc:
+        msg = await bot.send_message(
+            chat_id=chat_id,
+            text=f"TEST MESSAGE {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        )
+        logger.info(
+            "TEST SEND SUCCESS chat=%s msg=%s",
+            chat_id,
+            msg.message_id,
+        )
         await message.answer(
-            diag
-            + f"❌ 发送失败\n\n"
-            f"异常类型：{type(exc).__name__}\n"
-            f"详细信息：{exc}\n\n"
-            f"常见原因：\n"
-            f"• chat not found — Bot 未加入该群组，或 ID 错误\n"
-            f"• bot is not a member — 需先将 Bot 添加为群成员\n"
-            f"• forbidden — Bot 被踢出或没有发消息权限\n\n"
-            f"解决方法：\n"
-            f"1. 将 Bot 添加到 Admin 群组\n"
-            f"2. 在群组中发任意消息，右键「复制链接」获取真实 chat_id\n"
-            f"   格式：https://t.me/c/XXXXXXXXXX/1 → chat_id = -100XXXXXXXXXX"
+            f"发送成功\n\n"
+            f"chat_id: {chat_id}\n"
+            f"message_id: {msg.message_id}"
+        )
+    except Exception:
+        logger.exception("TEST SEND FAILED chat=%s", chat_id)
+        await message.answer(
+            f"❌ 发送失败\n\n"
+            f"chat_id: {chat_id}\n\n"
+            f"<pre>{html.escape(traceback.format_exc())}</pre>",
+            parse_mode="HTML",
         )
