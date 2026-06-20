@@ -19,6 +19,7 @@ class Config:
     cs_username: str
     account_change_cooldown_hours: int
     admin_chat_id: int
+    support_chat_id: int
     min_deposit_amount: float
     min_withdrawal_amount: float
 
@@ -37,6 +38,7 @@ def load_config() -> Config:
             os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "24")
         ),
         admin_chat_id=int(os.environ.get("ADMIN_CHAT_ID", "0")),
+        support_chat_id=int(os.environ.get("SUPPORT_CHAT_ID", "0")),
         min_deposit_amount=float(os.environ.get("MIN_DEPOSIT_AMOUNT", "30")),
         min_withdrawal_amount=float(os.environ.get("MIN_WITHDRAWAL_AMOUNT", "50")),
     )

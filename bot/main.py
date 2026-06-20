@@ -38,11 +38,8 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     config = load_config()
 
-    logger.info(
-        "ADMIN_CHAT_ID=%s TYPE=%s",
-        config.admin_chat_id,
-        type(config.admin_chat_id),
-    )
+    logger.info("ADMIN_CHAT_ID=%s", config.admin_chat_id)
+    logger.info("SUPPORT_CHAT_ID=%s", config.support_chat_id)
 
     pool = await create_pool(config)
     logger.info("Database pool created.")
