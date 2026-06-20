@@ -37,6 +37,6 @@ def build_bonus_keyboard(bonuses: Sequence[Any]) -> InlineKeyboardMarkup:
 
 def build_deposit_review_keyboard(request_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ 批准", callback_data=f"dep_approve:{request_id}"),
-        InlineKeyboardButton(text="❌ 拒绝", callback_data=f"dep_reject:{request_id}"),
+        InlineKeyboardButton(text="✅ Approve", callback_data=f"dep_approve:{request_id}"),
+        InlineKeyboardButton(text="❌ Reject", callback_data=f"dep_reject:{request_id}"),
     ]])

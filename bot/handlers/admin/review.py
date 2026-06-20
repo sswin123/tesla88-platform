@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+from datetime import datetime
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -26,10 +27,12 @@ from db.repositories.withdrawal_repo import (
 
 router = Router()
 
-# Pattern in ForceReply prompt text to identify reject context.
-# Bot sends: "DEP_REJECT:123\n📝 ..." or "WD_REJECT:456\n📝 ..."
 _DEP_REJECT_RE = re.compile(r"^DEP_REJECT:(\d+)")
 _WD_REJECT_RE = re.compile(r"^WD_REJECT:(\d+)")
+
+
+def _now_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
 # ── Deposit: Approve ──────────────────────────────────────────────────────────
@@ -59,46 +62,55 @@ async def cb_dep_approve(
 
     admin_name = callback.from_user.username or str(callback.from_user.id)
 
-    # Remove keyboard from notification
-    await bot.edit_message_reply_markup(
-        chat_id=config.admin_chat_id,
-        message_id=req["notification_msg_id"],
-        reply_markup=None,
-    )
-    # Reply status to notification
-    await bot.send_message(
-        chat_id=config.admin_chat_id,
-        text=f"✅ Deposit #{request_id} 已批准 by @{admin_name}",
-        reply_to_message_id=req["notification_msg_id"],
-    )
+    # Edit the original notification caption (deposit = photo message)
+    if req["notification_msg_id"]:
+        new_caption = (
+            f"💰 充值申请 #{request_id}\n"
+            f"✅ 已批准\n\n"
+            f"审核人：\n@{admin_name}\n\n"
+            f"审核时间：\n{_now_str()}"
+        )
+        try:
+            await bot.edit_message_caption(
+                chat_id=config.admin_chat_id,
+                message_id=req["notification_msg_id"],
+                caption=new_caption,
+                reply_markup=None,
+            )
+        except Exception:
+            pass
 
     # DM user
+    bonus_amount = float(req["bonus_amount"])
+    credit_amount = float(req["credit_amount"])
+    deposit_amount = float(req["deposit_amount"])
+    game_username = req["game_username"]
+
+    if bonus_amount > 0:
+        bonus_line = f"🎁 Bonus：RM {bonus_amount:.2f}\n🪙 上分：RM {credit_amount:.2f}"
+    else:
+        bonus_line = f"🪙 上分：RM {credit_amount:.2f}"
+
     try:
-        bonus_amount = float(req["bonus_amount"])
-        credit_amount = float(req["credit_amount"])
-        deposit_amount = float(req["deposit_amount"])
-        if bonus_amount > 0:
-            bonus_line = f"🎁 Bonus：RM {bonus_amount:.2f}\n🪙 实际上分：RM {credit_amount:.2f}"
-        else:
-            bonus_line = f"🪙 实际上分：RM {credit_amount:.2f}"
         await bot.send_message(
             chat_id=req["telegram_id"],
             text=(
-                f"✅ 您的充值申请已批准！\n\n"
-                f"申请编号：#{request_id}\n"
+                f"✅ 您的充值申请 #{request_id} 已批准\n\n"
                 f"🎮 平台：{html.escape(req['provider'])}\n"
-                f"💵 充值金额：RM {deposit_amount:.2f}\n"
-                f"{bonus_line}"
+                f"👤 游戏账号：{html.escape(game_username)}\n\n"
+                f"💵 充值：RM {deposit_amount:.2f}\n"
+                f"{bonus_line}\n\n"
+                f"请查看游戏平台余额。"
             ),
             parse_mode="HTML",
         )
     except Exception:
-        pass  # User may have blocked the bot
+        pass
 
     await callback.answer("✅ 已批准")
 
 
-# ── Deposit: Reject (step 1 — send ForceReply prompt) ─────────────────────────
+# ── Deposit: Reject (step 1 — ForceReply prompt) ──────────────────────────────
 
 @router.callback_query(
     F.data.startswith("dep_reject:"),
@@ -119,7 +131,7 @@ async def cb_dep_reject(
 
     await callback.message.answer(
         f"DEP_REJECT:{request_id}\n"
-        f"📝 Deposit #{request_id} 拒绝原因\n"
+        f"📝 充值申请 #{request_id} — 拒绝原因\n"
         f"请回复此消息填写拒绝原因：",
         reply_markup=ForceReply(selective=True),
     )
@@ -153,27 +165,33 @@ async def cb_wd_approve(
 
     admin_name = callback.from_user.username or str(callback.from_user.id)
 
-    # Remove keyboard from notification
-    await bot.edit_message_reply_markup(
-        chat_id=config.admin_chat_id,
-        message_id=req["notification_msg_id"],
-        reply_markup=None,
-    )
-    await bot.send_message(
-        chat_id=config.admin_chat_id,
-        text=f"✅ Withdrawal #{request_id} 已付款 by @{admin_name}",
-        reply_to_message_id=req["notification_msg_id"],
-    )
+    # Edit the original notification text (withdrawal = text message)
+    if req["notification_msg_id"]:
+        new_text = (
+            f"💸 提款申请 #{request_id}\n"
+            f"✅ 已付款\n\n"
+            f"审核人：\n@{admin_name}\n\n"
+            f"审核时间：\n{_now_str()}"
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=config.admin_chat_id,
+                message_id=req["notification_msg_id"],
+                text=new_text,
+                reply_markup=None,
+            )
+        except Exception:
+            pass
 
     # DM user
     try:
         await bot.send_message(
             chat_id=req["telegram_id"],
             text=(
-                f"✅ 您的提款申请已完成！\n\n"
-                f"申请编号：#{request_id}\n"
+                f"✅ 您的提款申请 #{request_id} 已完成\n\n"
                 f"🎮 平台：{html.escape(req['provider'])}\n"
-                f"💵 提款金额：RM {float(req['withdraw_amount']):.2f}\n\n"
+                f"👤 游戏账号：{html.escape(req['game_username'])}\n\n"
+                f"💵 提款：RM {float(req['withdraw_amount']):.2f}\n\n"
                 f"款项已转入您的银行账号。"
             ),
             parse_mode="HTML",
@@ -184,7 +202,7 @@ async def cb_wd_approve(
     await callback.answer("✅ 已标记为已付款")
 
 
-# ── Withdrawal: Reject (step 1 — send ForceReply prompt) ─────────────────────
+# ── Withdrawal: Reject (step 1 — ForceReply prompt) ──────────────────────────
 
 @router.callback_query(
     F.data.startswith("wd_reject:"),
@@ -205,21 +223,18 @@ async def cb_wd_reject(
 
     await callback.message.answer(
         f"WD_REJECT:{request_id}\n"
-        f"📝 Withdrawal #{request_id} 拒绝原因\n"
+        f"📝 提款申请 #{request_id} — 拒绝原因\n"
         f"请回复此消息填写拒绝原因：",
         reply_markup=ForceReply(selective=True),
     )
     await callback.answer()
 
 
-# ── Reject reason reply handler (step 2) ─────────────────────────────────────
+# ── Reject reason reply (step 2) ─────────────────────────────────────────────
 
 async def _is_reject_reply(message: Message) -> bool:
-    """Check if this message is a reply to a bot's reject-prompt message."""
     reply = message.reply_to_message
-    if not reply:
-        return False
-    if not reply.from_user or not reply.from_user.is_bot:
+    if not reply or not reply.from_user or not reply.from_user.is_bot:
         return False
     text = reply.text or ""
     first_line = text.split("\n", 1)[0]
@@ -238,13 +253,11 @@ async def process_reject_reason(
         await message.answer("⚠️ 拒绝原因不能为空，请重新回复。")
         return
 
-    reply_text = message.reply_to_message.text or ""
-    first_line = reply_text.split("\n", 1)[0]
+    first_line = (message.reply_to_message.text or "").split("\n", 1)[0]
+    admin_name = message.from_user.username or str(message.from_user.id)
 
     dep_match = _DEP_REJECT_RE.match(first_line)
     wd_match = _WD_REJECT_RE.match(first_line)
-
-    admin_name = message.from_user.username or str(message.from_user.id)
 
     if dep_match:
         request_id = int(dep_match.group(1))
@@ -260,41 +273,41 @@ async def process_reject_reason(
             await message.answer("⚠️ 该申请已处理，无法重复拒绝。")
             return
 
-        # Edit admin notification
+        # Edit original notification caption
         if req["notification_msg_id"]:
-            await bot.edit_message_reply_markup(
-                chat_id=config.admin_chat_id,
-                message_id=req["notification_msg_id"],
-                reply_markup=None,
+            new_caption = (
+                f"💰 充值申请 #{request_id}\n"
+                f"❌ 已拒绝\n\n"
+                f"拒绝原因：\n{html.escape(reason)}\n\n"
+                f"审核人：\n@{admin_name}\n\n"
+                f"审核时间：\n{_now_str()}"
             )
-            await bot.send_message(
-                chat_id=config.admin_chat_id,
-                text=(
-                    f"❌ Deposit #{request_id} 已拒绝 by @{admin_name}\n"
-                    f"原因：{html.escape(reason)}"
-                ),
-                reply_to_message_id=req["notification_msg_id"],
-                parse_mode="HTML",
-            )
+            try:
+                await bot.edit_message_caption(
+                    chat_id=config.admin_chat_id,
+                    message_id=req["notification_msg_id"],
+                    caption=new_caption,
+                    reply_markup=None,
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
 
         # DM user
         try:
             await bot.send_message(
                 chat_id=req["telegram_id"],
                 text=(
-                    f"❌ 您的充值申请已被拒绝。\n\n"
-                    f"申请编号：#{request_id}\n"
-                    f"🎮 平台：{html.escape(req['provider'])}\n"
-                    f"💵 充值金额：RM {float(req['deposit_amount']):.2f}\n\n"
-                    f"拒绝原因：{html.escape(reason)}\n\n"
-                    f"如有疑问请联系客服。"
+                    f"❌ 申请已拒绝\n\n"
+                    f"申请编号：#{request_id}\n\n"
+                    f"原因：\n{html.escape(reason)}"
                 ),
                 parse_mode="HTML",
             )
         except Exception:
             pass
 
-        await message.answer(f"✅ 已拒绝 Deposit #{request_id}")
+        await message.answer(f"✅ 已拒绝充值申请 #{request_id}")
 
     elif wd_match:
         request_id = int(wd_match.group(1))
@@ -310,44 +323,44 @@ async def process_reject_reason(
             await message.answer("⚠️ 该申请已处理，无法重复拒绝。")
             return
 
-        # Edit admin notification
+        # Edit original notification text
         if req["notification_msg_id"]:
-            await bot.edit_message_reply_markup(
-                chat_id=config.admin_chat_id,
-                message_id=req["notification_msg_id"],
-                reply_markup=None,
+            new_text = (
+                f"💸 提款申请 #{request_id}\n"
+                f"❌ 已拒绝\n\n"
+                f"拒绝原因：\n{html.escape(reason)}\n\n"
+                f"审核人：\n@{admin_name}\n\n"
+                f"审核时间：\n{_now_str()}"
             )
-            await bot.send_message(
-                chat_id=config.admin_chat_id,
-                text=(
-                    f"❌ Withdrawal #{request_id} 已拒绝 by @{admin_name}\n"
-                    f"原因：{html.escape(reason)}"
-                ),
-                reply_to_message_id=req["notification_msg_id"],
-                parse_mode="HTML",
-            )
+            try:
+                await bot.edit_message_text(
+                    chat_id=config.admin_chat_id,
+                    message_id=req["notification_msg_id"],
+                    text=new_text,
+                    reply_markup=None,
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
 
         # DM user
         try:
             await bot.send_message(
                 chat_id=req["telegram_id"],
                 text=(
-                    f"❌ 您的提款申请已被拒绝。\n\n"
-                    f"申请编号：#{request_id}\n"
-                    f"🎮 平台：{html.escape(req['provider'])}\n"
-                    f"💵 提款金额：RM {float(req['withdraw_amount']):.2f}\n\n"
-                    f"拒绝原因：{html.escape(reason)}\n\n"
-                    f"如有疑问请联系客服。"
+                    f"❌ 申请已拒绝\n\n"
+                    f"申请编号：#{request_id}\n\n"
+                    f"原因：\n{html.escape(reason)}"
                 ),
                 parse_mode="HTML",
             )
         except Exception:
             pass
 
-        await message.answer(f"✅ 已拒绝 Withdrawal #{request_id}")
+        await message.answer(f"✅ 已拒绝提款申请 #{request_id}")
 
 
-# ── /pending command ──────────────────────────────────────────────────────────
+# ── /pending ──────────────────────────────────────────────────────────────────
 
 @router.message(Command("pending"), IsAdmin())
 async def cmd_pending(message: Message, pool: asyncpg.Pool) -> None:
@@ -364,7 +377,7 @@ async def cmd_pending(message: Message, pool: asyncpg.Pool) -> None:
         for d in deposits:
             ts = d["created_at"].strftime("%m-%d %H:%M")
             lines.append(
-                f"  #{d['id']} {d['provider']} RM {float(d['deposit_amount']):.2f}"
+                f"  #{d['id']} {d['provider']} RM {float(d['deposit_amount']):.0f}"
                 f" — {d['phone']} {ts}"
             )
     if withdrawals:
@@ -372,7 +385,7 @@ async def cmd_pending(message: Message, pool: asyncpg.Pool) -> None:
         for w in withdrawals:
             ts = w["created_at"].strftime("%m-%d %H:%M")
             lines.append(
-                f"  #{w['id']} {w['provider']} RM {float(w['withdraw_amount']):.2f}"
+                f"  #{w['id']} {w['provider']} RM {float(w['withdraw_amount']):.0f}"
                 f" — {w['phone']} {ts}"
             )
 

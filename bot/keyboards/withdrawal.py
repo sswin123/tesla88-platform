@@ -28,6 +28,6 @@ def build_withdrawal_confirm_keyboard() -> InlineKeyboardMarkup:
 
 def build_withdrawal_review_keyboard(request_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ 已付款", callback_data=f"wd_approve:{request_id}"),
-        InlineKeyboardButton(text="❌ 拒绝", callback_data=f"wd_reject:{request_id}"),
+        InlineKeyboardButton(text="✅ Paid", callback_data=f"wd_approve:{request_id}"),
+        InlineKeyboardButton(text="❌ Reject", callback_data=f"wd_reject:{request_id}"),
     ]])

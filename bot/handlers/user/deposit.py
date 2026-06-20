@@ -248,25 +248,24 @@ async def process_deposit_receipt(
     phone = data["phone"]
 
     if bonus_amount > 0:
-        bonus_lines = (
-            f"🎁 优惠：{html.escape(bonus_name)}\n"
-            f"🎁 Bonus：RM {bonus_amount:.2f}\n"
-            f"🪙 实际上分：RM {credit_amount:.2f}\n"
+        bonus_block = (
+            f"\n🎁 优惠：\n{html.escape(bonus_name)}\n\n"
+            f"🎁 Bonus：\nRM {bonus_amount:.2f}\n\n"
         )
     else:
-        bonus_lines = f"🎁 优惠：无优惠\n🪙 实际上分：RM {credit_amount:.2f}\n"
+        bonus_block = ""
 
-    created_str = req["created_at"].strftime("%Y-%m-%d %H:%M:%S")
     caption = (
-        f"💰 Deposit #{req['id']}\n\n"
-        f"👤 会员姓名：{html.escape(bank_holder_name)}\n"
-        f"📱 会员电话：{html.escape(phone)}\n\n"
-        f"🎮 平台：{html.escape(provider)}\n"
-        f"👤 游戏账号：{html.escape(game_username)}\n\n"
-        f"💵 充值金额：RM {deposit_amount:.2f}\n"
-        f"{bonus_lines}"
-        f"🏦 付款银行：{html.escape(payment_bank)}\n\n"
-        f"📅 申请时间：{created_str}"
+        f"💰 新充值申请 #{req['id']}\n\n"
+        f"👤 会员姓名：\n{html.escape(bank_holder_name)}\n\n"
+        f"📱 会员电话：\n{html.escape(phone)}\n\n"
+        f"🎮 平台：\n{html.escape(provider)}\n\n"
+        f"👤 游戏账号：\n{html.escape(game_username)}\n\n"
+        f"💵 充值金额：\nRM {deposit_amount:.2f}\n\n"
+        f"{bonus_block}"
+        f"🪙 需上分：\nRM {credit_amount:.2f}\n\n"
+        f"🏦 付款银行：\n{html.escape(payment_bank)}\n\n"
+        f"═══════════════"
     )
 
     notif = await bot.send_photo(

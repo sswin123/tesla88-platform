@@ -11,8 +11,18 @@ from db.repositories.withdrawal_repo import get_user_withdrawal_history
 
 router = Router()
 
-_DEPOSIT_STATUS_EMOJI = {"PENDING": "⏳", "APPROVED": "✅", "REJECTED": "❌"}
-_WITHDRAWAL_STATUS_EMOJI = {"PENDING": "⏳", "PAID": "✅", "REJECTED": "❌"}
+_SEP = "──────────────"
+
+_DEPOSIT_STATUS = {
+    "PENDING": "⏳ 审核中",
+    "APPROVED": "✅ 已批准",
+    "REJECTED": "❌ 已拒绝",
+}
+_WITHDRAWAL_STATUS = {
+    "PENDING": "⏳ 审核中",
+    "PAID": "✅ 已付款",
+    "REJECTED": "❌ 已拒绝",
+}
 
 
 @router.message(F.text == "📜 充值记录")
@@ -27,19 +37,22 @@ async def handle_deposit_history(message: Message, pool: asyncpg.Pool) -> None:
         await message.answer("📜 充值记录\n\n暂无充值记录。")
         return
 
-    lines = ["📜 充值记录（最近 10 条）\n"]
+    parts = ["📜 充值记录（最近 10 条）\n"]
     for r in records:
-        ts = r["created_at"].strftime("%m-%d %H:%M")
-        emoji = _DEPOSIT_STATUS_EMOJI.get(r["status"], "❓")
-        if r["bonus_amount"] > 0:
-            credit_str = f"RM {r['deposit_amount']:.2f} + Bonus RM {r['bonus_amount']:.2f} = RM {r['credit_amount']:.2f}"
-        else:
-            credit_str = f"RM {r['credit_amount']:.2f}"
-        lines.append(
-            f"{emoji} #{r['id']}  {r['provider']}  {credit_str}  {ts}"
-        )
+        bonus_amount = float(r["bonus_amount"])
+        credit_amount = float(r["credit_amount"])
+        deposit_amount = float(r["deposit_amount"])
+        status_text = _DEPOSIT_STATUS.get(r["status"], r["status"])
 
-    await message.answer("\n".join(lines))
+        entry = f"{_SEP}\n#{r['id']}\n{r['provider']}\n\n充值：RM {deposit_amount:.2f}"
+        if bonus_amount > 0:
+            entry += f"\nBonus：RM {bonus_amount:.2f}\n上分：RM {credit_amount:.2f}"
+        else:
+            entry += f"\n上分：RM {credit_amount:.2f}"
+        entry += f"\n\n{status_text}"
+        parts.append(entry)
+
+    await message.answer("\n".join(parts))
 
 
 @router.message(F.text == "📜 提款记录")
@@ -54,12 +67,14 @@ async def handle_withdrawal_history(message: Message, pool: asyncpg.Pool) -> Non
         await message.answer("📜 提款记录\n\n暂无提款记录。")
         return
 
-    lines = ["📜 提款记录（最近 10 条）\n"]
+    parts = ["📜 提款记录（最近 10 条）\n"]
     for r in records:
-        ts = r["created_at"].strftime("%m-%d %H:%M")
-        emoji = _WITHDRAWAL_STATUS_EMOJI.get(r["status"], "❓")
-        lines.append(
-            f"{emoji} #{r['id']}  {r['provider']}  RM {r['withdraw_amount']:.2f}  {ts}"
+        status_text = _WITHDRAWAL_STATUS.get(r["status"], r["status"])
+        entry = (
+            f"{_SEP}\n#{r['id']}\n{r['provider']}\n\n"
+            f"提款：RM {float(r['withdraw_amount']):.2f}\n\n"
+            f"{status_text}"
         )
+        parts.append(entry)
 
-    await message.answer("\n".join(lines))
+    await message.answer("\n".join(parts))

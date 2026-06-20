@@ -155,16 +155,16 @@ async def cb_withdrawal_confirm(
     phone = data.get("phone", "")
 
     text = (
-        f"💸 Withdrawal #{req['id']}\n\n"
-        f"👤 会员姓名：{html.escape(data['bank_holder_name'])}\n"
-        f"📱 会员电话：{html.escape(phone)}\n\n"
-        f"🎮 平台：{html.escape(data['provider'])}\n"
-        f"👤 游戏账号：{html.escape(data['game_username'])}\n\n"
-        f"💵 提款金额：RM {data['withdraw_amount']:.2f}\n\n"
-        f"🏦 收款银行：{html.escape(data['bank_name'])}\n"
-        f"💳 收款账号：{html.escape(data['bank_account'])}\n"
-        f"👤 账户名：{html.escape(data['bank_holder_name'])}\n\n"
-        f"📅 申请时间：{created_str}"
+        f"💸 新提款申请 #{req['id']}\n\n"
+        f"👤 会员姓名：\n{html.escape(data['bank_holder_name'])}\n\n"
+        f"📱 会员电话：\n{html.escape(phone)}\n\n"
+        f"🎮 平台：\n{html.escape(data['provider'])}\n\n"
+        f"👤 游戏账号：\n{html.escape(data['game_username'])}\n\n"
+        f"💵 提款金额：\nRM {data['withdraw_amount']:.2f}\n\n"
+        f"🏦 收款银行：\n{html.escape(data['bank_name'])}\n\n"
+        f"💳 收款账号：\n{html.escape(data['bank_account'])}\n\n"
+        f"👤 户口姓名：\n{html.escape(data['bank_holder_name'])}\n\n"
+        f"═══════════════"
     )
 
     notif = await bot.send_message(
