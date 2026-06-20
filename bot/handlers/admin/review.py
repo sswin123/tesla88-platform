@@ -390,3 +390,27 @@ async def cmd_pending(message: Message, pool: asyncpg.Pool) -> None:
             )
 
     await message.answer("\n".join(lines))
+
+
+# ── UAT helpers (SUPER_ADMIN only) ───────────────────────────────────────────
+
+@router.message(Command("clear_pending"), IsAdmin(["SUPER_ADMIN"]))
+async def cmd_clear_pending(message: Message, pool: asyncpg.Pool) -> None:
+    """UAT: bulk-approve all PENDING deposit_requests so testers can resubmit."""
+    result = await pool.execute(
+        "UPDATE deposit_requests SET status = 'APPROVED', reviewed_at = NOW() "
+        "WHERE status = 'PENDING'"
+    )
+    count = int(result.split()[-1])
+    await message.answer(f"✅ 已清理待审核充值申请\n\n处理数量：{count}")
+
+
+@router.message(Command("clear_withdrawal_pending"), IsAdmin(["SUPER_ADMIN"]))
+async def cmd_clear_withdrawal_pending(message: Message, pool: asyncpg.Pool) -> None:
+    """UAT: bulk-mark all PENDING withdrawal_requests as PAID so testers can resubmit."""
+    result = await pool.execute(
+        "UPDATE withdrawal_requests SET status = 'PAID', reviewed_at = NOW() "
+        "WHERE status = 'PENDING'"
+    )
+    count = int(result.split()[-1])
+    await message.answer(f"✅ 已清理待审核提款申请\n\n处理数量：{count}")
