@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import html
+import logging
 
 from aiogram import Bot, F, Router
+
+logger = logging.getLogger(__name__)
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -167,13 +170,29 @@ async def cb_withdrawal_confirm(
         f"═══════════════"
     )
 
-    notif = await bot.send_message(
-        chat_id=config.admin_chat_id,
-        text=text,
-        reply_markup=build_withdrawal_review_keyboard(req["id"]),
-        parse_mode="HTML",
+    target_chat = config.admin_chat_id if config.admin_chat_id else config.super_admin_id
+
+    logger.info(
+        "Sending withdrawal notification #%s to chat %s",
+        req["id"],
+        target_chat,
     )
-    await update_withdrawal_notification_msg_id(pool, req["id"], notif.message_id)
+
+    try:
+        notif = await bot.send_message(
+            chat_id=target_chat,
+            text=text,
+            reply_markup=build_withdrawal_review_keyboard(req["id"]),
+            parse_mode="HTML",
+        )
+        await update_withdrawal_notification_msg_id(pool, req["id"], notif.message_id)
+    except Exception as exc:
+        logger.error(
+            "Withdrawal notification failed for request #%s to chat %s: %s",
+            req["id"],
+            target_chat,
+            exc,
+        )
 
     await callback.message.edit_text(
         f"✅ 提款申请已提交！\n申请编号：#{req['id']}\n请等待管理员审核。"

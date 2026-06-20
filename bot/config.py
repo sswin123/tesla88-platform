@@ -36,7 +36,7 @@ def load_config() -> Config:
         account_change_cooldown_hours=int(
             os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "24")
         ),
-        admin_chat_id=int(os.environ["ADMIN_CHAT_ID"]),
+        admin_chat_id=int(os.environ.get("ADMIN_CHAT_ID", "0")),
         min_deposit_amount=float(os.environ.get("MIN_DEPOSIT_AMOUNT", "30")),
         min_withdrawal_amount=float(os.environ.get("MIN_WITHDRAWAL_AMOUNT", "50")),
     )
