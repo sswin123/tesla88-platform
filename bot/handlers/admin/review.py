@@ -420,6 +420,17 @@ async def cmd_clear_withdrawal_pending(message: Message, pool: asyncpg.Pool) -> 
     await message.answer(f"✅ 已清理待审核提款申请\n\n处理数量：{count}")
 
 
+@router.message(Command("clear_pending_deposits"), IsAdmin(["SUPER_ADMIN"]))
+async def cmd_clear_pending_deposits(message: Message, pool: asyncpg.Pool) -> None:
+    """UAT: bulk-reject all PENDING deposit_requests so testers can resubmit."""
+    result = await pool.execute(
+        "UPDATE deposit_requests SET status = 'REJECTED', reviewed_at = NOW() "
+        "WHERE status = 'PENDING'"
+    )
+    count = int(result.split()[-1])
+    await message.answer(f"已清除 {count} 笔待审核充值申请。")
+
+
 @router.message(Command("test_admin_chat"), IsAdmin(["SUPER_ADMIN"]))
 async def cmd_test_admin_chat(message: Message, bot: Bot, config: Config) -> None:
     """UAT: send a real message to ADMIN_CHAT_ID and report message_id."""
