@@ -153,20 +153,23 @@ async def cb_withdrawal_confirm(
     )
     await state.clear()
 
-    created_str = req["created_at"].strftime("%Y-%m-%d %H:%M:%S")
     phone = data.get("phone", "")
 
     text = (
         f"💸 新提款申请 #{req['id']}\n\n"
-        f"👤 会员姓名：\n{html.escape(data['bank_holder_name'])}\n\n"
-        f"📱 会员电话：\n{html.escape(phone)}\n\n"
-        f"🎮 平台：\n{html.escape(data['provider'])}\n\n"
-        f"👤 游戏账号：\n{html.escape(data['game_username'])}\n\n"
-        f"💵 提款金额：\nRM {data['withdraw_amount']:.2f}\n\n"
-        f"🏦 收款银行：\n{html.escape(data['bank_name'])}\n\n"
-        f"💳 收款账号：\n{html.escape(data['bank_account'])}\n\n"
-        f"👤 户口姓名：\n{html.escape(data['bank_holder_name'])}\n\n"
-        f"═══════════════"
+        f"👤 {html.escape(data['bank_holder_name'])}\n"
+        f"🆔 UID: {data['user_id']}\n"
+        f"📱 {html.escape(phone)}\n\n"
+        f"🎮 {html.escape(data['provider'])}\n"
+        f"🆔 {html.escape(data['game_username'])}\n\n"
+        f"━━━━━━━━━━━━━━\n\n"
+        f"💵 提款\n"
+        f"RM {data['withdraw_amount']:,.2f}\n\n"
+        f"━━━━━━━━━━━━━━\n\n"
+        f"🏦 {html.escape(data['bank_name'])}\n"
+        f"💳 {html.escape(data['bank_account'])}\n\n"
+        f"📅 {req['created_at'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"━━━━━━━━━━━━━━"
     )
 
     target_chat = config.admin_chat_id if config.admin_chat_id else config.super_admin_id

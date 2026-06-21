@@ -180,13 +180,24 @@ async def cb_wd_approve(
 
     admin_name = callback.from_user.username or str(callback.from_user.id)
 
+    withdraw_amount = float(req["withdraw_amount"])
+
     # Edit the original notification text (withdrawal = text message)
     if req["notification_msg_id"]:
         new_text = (
-            f"💸 提款申请 #{request_id}\n"
+            f"💸 提款申请 #{request_id}\n\n"
             f"✅ 已付款\n\n"
-            f"审核人：\n@{admin_name}\n\n"
-            f"审核时间：\n{_now_str()}"
+            f"👤 {html.escape(req['bank_holder_name'])}\n"
+            f"🆔 UID: {req['user_id']}\n"
+            f"📱 {html.escape(req['phone'])}\n\n"
+            f"🎮 {html.escape(req['provider'])}\n"
+            f"🆔 {html.escape(req['game_username'])}\n\n"
+            f"━━━━━━━━━━━━━━\n\n"
+            f"💵 提款\n"
+            f"RM {withdraw_amount:,.2f}\n\n"
+            f"━━━━━━━━━━━━━━\n\n"
+            f"👨‍💼 审核员\n@{admin_name}\n\n"
+            f"🕒 审核时间\n{_now_str()}"
         )
         try:
             await bot.edit_message_text(
@@ -194,6 +205,7 @@ async def cb_wd_approve(
                 message_id=req["notification_msg_id"],
                 text=new_text,
                 reply_markup=None,
+                parse_mode="HTML",
             )
         except Exception:
             pass
@@ -203,10 +215,12 @@ async def cb_wd_approve(
         await bot.send_message(
             chat_id=req["telegram_id"],
             text=(
-                f"✅ 您的提款申请 #{request_id} 已完成\n\n"
-                f"🎮 平台：{html.escape(req['provider'])}\n"
-                f"👤 游戏账号：{html.escape(req['game_username'])}\n\n"
-                f"💵 提款：RM {float(req['withdraw_amount']):.2f}\n\n"
+                f"✅  提款申请已完成\n\n"
+                f"申请编号：\n#{request_id}\n\n"
+                f"🎮 平台：\n{html.escape(req['provider'])}\n\n"
+                f"🆔 游戏账号：\n{html.escape(req['game_username'])}\n\n"
+                f"💵 提款金额：\nRM {withdraw_amount:,.2f}\n\n"
+                f"🏦 收款银行：\n{html.escape(req['bank_name'])}\n\n"
                 f"款项已转入您的银行账号。"
             ),
             parse_mode="HTML",
@@ -349,11 +363,18 @@ async def process_reject_reason(
         # Edit original notification text
         if req["notification_msg_id"]:
             new_text = (
-                f"💸 提款申请 #{request_id}\n"
+                f"💸 提款申请 #{request_id}\n\n"
                 f"❌ 已拒绝\n\n"
-                f"拒绝原因：\n{html.escape(reason)}\n\n"
-                f"审核人：\n@{admin_name}\n\n"
-                f"审核时间：\n{_now_str()}"
+                f"👤 {html.escape(req['bank_holder_name'])}\n"
+                f"🆔 UID: {req['user_id']}\n"
+                f"📱 {html.escape(req['phone'])}\n\n"
+                f"🎮 {html.escape(req['provider'])}\n"
+                f"🆔 {html.escape(req['game_username'])}\n\n"
+                f"━━━━━━━━━━━━━━\n\n"
+                f"原因：\n{html.escape(reason)}\n\n"
+                f"━━━━━━━━━━━━━━\n\n"
+                f"👨‍💼 审核员\n@{admin_name}\n\n"
+                f"🕒 审核时间\n{_now_str()}"
             )
             try:
                 await bot.edit_message_text(
@@ -371,9 +392,10 @@ async def process_reject_reason(
             await bot.send_message(
                 chat_id=req["telegram_id"],
                 text=(
-                    f"❌ 申请已拒绝\n\n"
-                    f"申请编号：#{request_id}\n\n"
-                    f"原因：\n{html.escape(reason)}"
+                    f"❌ 提款申请已拒绝\n\n"
+                    f"申请编号：\n#{request_id}\n\n"
+                    f"原因：\n\n{html.escape(reason)}\n\n"
+                    f"如有疑问请联系客服。"
                 ),
                 parse_mode="HTML",
             )
