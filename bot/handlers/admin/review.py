@@ -215,7 +215,7 @@ async def cb_wd_approve(
         await bot.send_message(
             chat_id=req["telegram_id"],
             text=(
-                f"✅  提款申请已完成\n\n"
+                f"✅ 提款申请已完成\n\n"
                 f"申请编号：\n#{request_id}\n\n"
                 f"🎮 平台：\n{html.escape(req['provider'])}\n\n"
                 f"🆔 游戏账号：\n{html.escape(req['game_username'])}\n\n"
