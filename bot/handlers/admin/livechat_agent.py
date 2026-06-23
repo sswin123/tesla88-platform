@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import html
 import logging
+from typing import Any, Dict, Union
 
 from aiogram import Bot, F, Router
-from aiogram.types import CallbackQuery
+from aiogram.filters import BaseFilter
+from aiogram.types import CallbackQuery, Message
 
 import asyncpg
 
@@ -12,11 +14,35 @@ from bot.config import Config
 from bot.keyboards.livechat import build_livechat_end_keyboard
 from db.repositories.livechat_repo import (
     accept_session,
+    get_session_by_group_msg_id,
     get_session_with_user,
+    store_message,
+    update_last_message_at,
 )
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+
+# ── Filter: message is an agent reply to a bot message in the Support Group ───
+
+
+class IsAgentReply(BaseFilter):
+    async def __call__(
+        self, message: Message, config: Config
+    ) -> Union[bool, Dict[str, Any]]:
+        if not config.support_chat_id:
+            return False
+        if message.chat.id != config.support_chat_id:
+            return False
+        if message.from_user is None or message.from_user.is_bot:
+            return False
+        if not message.reply_to_message:
+            return False
+        rt = message.reply_to_message
+        if rt.from_user is None or not rt.from_user.is_bot:
+            return False
+        return True
 
 
 @router.callback_query(F.data.startswith("lc_accept:"))
@@ -107,3 +133,68 @@ async def cb_lc_ignore(callback: CallbackQuery) -> None:
         "LC IGNORE CLICKED session=%s user=%s", session_id, callback.from_user.id
     )
     await callback.answer("已忽略此请求。")
+
+
+# ── Agent reply in Support Group → forward to user ────────────────────────────
+
+
+@router.message(IsAgentReply())
+async def handle_agent_reply(
+    message: Message,
+    pool: asyncpg.Pool,
+    bot: Bot,
+    config: Config,
+) -> None:
+    group_msg_id = message.reply_to_message.message_id
+
+    logger.info(
+        "AGENT REPLY group_msg_id=%s agent=%s", group_msg_id, message.from_user.id
+    )
+
+    session = await get_session_by_group_msg_id(pool, group_msg_id)
+    if not session:
+        logger.info("AGENT REPLY no session for group_msg_id=%s", group_msg_id)
+        return
+    if session["status"] != "ACTIVE":
+        logger.info(
+            "AGENT REPLY session=%s status=%s not ACTIVE", session["id"], session["status"]
+        )
+        return
+
+    user_tg_id = session["telegram_id"]
+
+    msg_type = "OTHER"
+    if message.text:
+        msg_type = "TEXT"
+    elif message.photo:
+        msg_type = "PHOTO"
+    elif message.document:
+        msg_type = "DOCUMENT"
+    elif message.voice:
+        msg_type = "VOICE"
+    elif message.sticker:
+        msg_type = "STICKER"
+
+    try:
+        await bot.copy_message(
+            chat_id=user_tg_id,
+            from_chat_id=message.chat.id,
+            message_id=message.message_id,
+        )
+        await store_message(
+            pool,
+            session_id=session["id"],
+            sender_type="AGENT",
+            msg_type=msg_type,
+            user_msg_id=None,
+            group_msg_id=message.message_id,
+            content=message.text,
+        )
+        await update_last_message_at(pool, session["id"])
+        logger.info(
+            "AGENT REPLY forwarded to user=%s session=%s", user_tg_id, session["id"]
+        )
+    except Exception:
+        logger.exception(
+            "AGENT REPLY forward failed session=%s", session["id"]
+        )

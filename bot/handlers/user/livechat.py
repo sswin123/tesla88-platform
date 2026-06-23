@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import html
 import logging
+from typing import Any, Dict, Optional, Union
 
 from aiogram import Bot, F, Router
-from aiogram.filters import Command
+from aiogram.filters import BaseFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -20,12 +21,21 @@ from bot.keyboards.livechat import (
 from db.repositories.livechat_repo import (
     create_support_session,
     get_open_or_active_session,
+    store_message,
+    update_last_message_at,
     update_session_notification_msg_id,
 )
 from db.repositories.user_repo import get_user_by_telegram_id
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+# Texts that are main-menu button presses — must not be treated as chat messages.
+_MENU_BUTTONS: frozenset[str] = frozenset({
+    "📋 我的资料", "🎮 我的游戏账号", "💰 充值", "💸 提款",
+    "📜 充值记录", "📜 提款记录", "🔄 更换游戏账号", "📞 联系客服",
+    "⬅️ 返回",
+})
 
 
 class LiveChatStates(StatesGroup):
@@ -34,10 +44,9 @@ class LiveChatStates(StatesGroup):
 
 
 def _message_preview(message: Message) -> tuple[str, str]:
-    """Return (message_type, preview_text) for the first user message."""
+    """Return (message_type, preview_text) for the initial user message."""
     if message.text:
-        preview = message.text[:300]
-        return "TEXT", preview
+        return "TEXT", message.text[:300]
     if message.photo:
         caption = message.caption or ""
         return "PHOTO", "[图片]" + (f"\n{caption[:200]}" if caption else "")
@@ -52,7 +61,45 @@ def _message_preview(message: Message) -> tuple[str, str]:
     return "OTHER", "[其他消息]"
 
 
-# ── Menu entry ────────────────────────────────────────────────────────────────
+def _detect_msg_type(message: Message) -> str:
+    if message.text:
+        return "TEXT"
+    if message.photo:
+        return "PHOTO"
+    if message.document:
+        return "DOCUMENT"
+    if message.voice:
+        return "VOICE"
+    if message.sticker:
+        return "STICKER"
+    return "OTHER"
+
+
+# ── DB-based filter: user has an OPEN or ACTIVE session ───────────────────────
+
+
+class HasLivechatSession(BaseFilter):
+    """Returns {"lc_user": ..., "lc_session": ...} when the message should be
+    routed to an active livechat session; False otherwise."""
+
+    async def __call__(
+        self, message: Message, pool: asyncpg.Pool
+    ) -> Union[bool, Dict[str, Any]]:
+        if message.from_user is None:
+            return False
+        # Menu button presses should fall through to their own handlers.
+        if message.text and message.text in _MENU_BUTTONS:
+            return False
+        user = await get_user_by_telegram_id(pool, message.from_user.id)
+        if not user:
+            return False
+        session = await get_open_or_active_session(pool, user["id"])
+        if not session:
+            return False
+        return {"lc_user": user, "lc_session": session}
+
+
+# ── Menu entry ─────────────────────────────────────────────────────────────────
 
 
 @router.message(F.text == "📞 联系客服")
@@ -69,11 +116,7 @@ async def handle_livechat_menu(
 
     existing = await get_open_or_active_session(pool, user["id"])
     if existing:
-        await state.set_state(LiveChatStates.in_session)
-        await state.update_data(session_id=existing["id"], user_id=user["id"])
-        await message.answer(
-            "⚠️ 您已有進行中的客服會話。\n\n請直接發送消息繼續溝通。"
-        )
+        await message.answer("⚠️ 您已有進行中的客服會話。\n\n請直接發送消息繼續溝通。")
         return
 
     await state.update_data(user_id=user["id"])
@@ -91,7 +134,7 @@ async def handle_livechat_menu(
     )
 
 
-# ── Cancel (inline button) ────────────────────────────────────────────────────
+# ── Cancel ─────────────────────────────────────────────────────────────────────
 
 
 @router.callback_query(
@@ -109,7 +152,7 @@ async def cmd_cancel_livechat(message: Message, state: FSMContext) -> None:
     await message.answer("❌ 已取消客服请求。", reply_markup=build_main_menu_keyboard())
 
 
-# ── First message → create session ───────────────────────────────────────────
+# ── First message → create OPEN session ───────────────────────────────────────
 
 
 @router.message(LiveChatStates.waiting_initial_message)
@@ -132,8 +175,7 @@ async def handle_initial_message(
     session = await create_support_session(pool, user_id)
     session_id = session["id"]
 
-    await state.update_data(session_id=session_id)
-    await state.set_state(LiveChatStates.in_session)
+    await state.clear()
 
     notification_text = (
         f"💬 新客服请求 #{session_id}\n\n"
@@ -177,9 +219,77 @@ async def handle_initial_message(
     )
 
 
-# ── In-session placeholder (replaced in Step 4) ───────────────────────────────
+# ── In-session: DB-based routing (no FSM dependency) ──────────────────────────
+# Registered last so that menu-button handlers (deposit, withdrawal…) win first.
 
 
-@router.message(LiveChatStates.in_session)
-async def handle_in_session_message(message: Message) -> None:
-    await message.answer("💬 已收到您的消息，请等待客服回复。")
+@router.message(F.chat.type == "private", HasLivechatSession())
+async def route_session_message(
+    message: Message,
+    lc_user: asyncpg.Record,
+    lc_session: asyncpg.Record,
+    pool: asyncpg.Pool,
+    bot: Bot,
+    config: Config,
+) -> None:
+    logger.info(
+        "LIVECHAT MESSAGE user=%s session=%s status=%s text=%s",
+        lc_user["id"],
+        lc_session["id"],
+        lc_session["status"],
+        message.text,
+    )
+    target = config.support_chat_id if config.support_chat_id else config.super_admin_id
+    await _forward_user_message(message, lc_user, lc_session, bot, pool, target)
+
+
+async def _forward_user_message(
+    message: Message,
+    user: asyncpg.Record,
+    session: asyncpg.Record,
+    bot: Bot,
+    pool: asyncpg.Pool,
+    target: int,
+) -> None:
+    session_id = session["id"]
+    header = (
+        f"👤 {html.escape(user['first_name'])} "
+        f"(UID: {user['id']}) | #{session_id}"
+    )
+
+    group_msg_id: Optional[int] = None
+    msg_type = _detect_msg_type(message)
+
+    try:
+        if message.text:
+            sent = await bot.send_message(
+                chat_id=target,
+                text=f"{header}\n{message.text}",
+            )
+            group_msg_id = sent.message_id
+        else:
+            hdr_msg = await bot.send_message(chat_id=target, text=header)
+            copied = await bot.copy_message(
+                chat_id=target,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+                reply_to_message_id=hdr_msg.message_id,
+            )
+            group_msg_id = copied.message_id
+    except Exception:
+        logger.exception(
+            "LIVECHAT FORWARD FAILED session=%s user=%s", session_id, user["id"]
+        )
+        return
+
+    if group_msg_id:
+        await store_message(
+            pool,
+            session_id=session_id,
+            sender_type="USER",
+            msg_type=msg_type,
+            user_msg_id=message.message_id,
+            group_msg_id=group_msg_id,
+            content=message.text,
+        )
+        await update_last_message_at(pool, session_id)

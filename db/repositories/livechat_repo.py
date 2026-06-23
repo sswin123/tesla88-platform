@@ -78,3 +78,52 @@ async def get_session_with_user(
         """,
         session_id,
     )
+
+
+async def store_message(
+    pool: asyncpg.Pool,
+    *,
+    session_id: int,
+    sender_type: str,
+    msg_type: str,
+    user_msg_id: Optional[int],
+    group_msg_id: Optional[int],
+    content: Optional[str],
+) -> None:
+    await pool.execute(
+        """
+        INSERT INTO support_messages
+            (session_id, sender_type, message_type, user_msg_id, group_msg_id, content)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        session_id,
+        sender_type,
+        msg_type,
+        user_msg_id,
+        group_msg_id,
+        content,
+    )
+
+
+async def get_session_by_group_msg_id(
+    pool: asyncpg.Pool, group_msg_id: int
+) -> Optional[asyncpg.Record]:
+    """Return the ACTIVE session (with telegram_id) that owns a given group message."""
+    return await pool.fetchrow(
+        """
+        SELECT ss.*, u.telegram_id
+        FROM support_messages sm
+        JOIN support_sessions ss ON ss.id = sm.session_id
+        JOIN users u ON u.id = ss.user_id
+        WHERE sm.group_msg_id = $1
+        LIMIT 1
+        """,
+        group_msg_id,
+    )
+
+
+async def update_last_message_at(pool: asyncpg.Pool, session_id: int) -> None:
+    await pool.execute(
+        "UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1",
+        session_id,
+    )
