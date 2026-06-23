@@ -31,10 +31,9 @@ async def cb_lc_accept(
     agent_username = agent.username or agent.first_name or str(agent.id)
 
     logger.info(
-        "LC ACCEPT CLICKED session=%s agent=%s username=%s",
+        "LC ACCEPT CLICKED session=%s user=%s",
         session_id,
         agent.id,
-        agent_username,
     )
 
     session = await accept_session(pool, session_id, agent.id, agent_username)
@@ -58,12 +57,15 @@ async def cb_lc_accept(
 
     new_text = (
         f"💬 客服会话 #{session_id} — 🟢 进行中\n\n"
-        f"👤 {user_name} (UID: {user_uid})\n"
+        f"👤 {user_name}\n"
+        f"🆔 UID: {user_uid}\n"
         f"📱 {user_phone}\n\n"
-        f"✅ 客服：@{html.escape(agent_username)}\n"
-        f"🕒 {accepted_at_str}\n\n"
-        f"━━━━━━━━━━━━━━\n"
-        f"请 Reply 用户消息进行回复\n"
+        f"✅ 客服：\n"
+        f"@{html.escape(agent_username)}\n\n"
+        f"🕒 接受时间：\n"
+        f"{accepted_at_str}\n\n"
+        f"━━━━━━━━━━━━━━\n\n"
+        f"请 Reply 用户消息进行回复\n\n"
         f"━━━━━━━━━━━━━━"
     )
 
@@ -86,7 +88,7 @@ async def cb_lc_accept(
     try:
         await bot.send_message(
             chat_id=user_tg_id,
-            text="✅ 客服已接入您的会话。\n\n请发送您的问题，客服将尽快回复您。",
+            text="✅ 客服已接入您的会话。\n\n请直接发送消息与客服沟通。",
         )
         logger.info("User notified of session acceptance session=%s", session_id)
     except Exception:
@@ -102,6 +104,6 @@ async def cb_lc_accept(
 async def cb_lc_ignore(callback: CallbackQuery) -> None:
     session_id = callback.data.split(":", 1)[1]
     logger.info(
-        "LC IGNORE CLICKED session=%s agent=%s", session_id, callback.from_user.id
+        "LC IGNORE CLICKED session=%s user=%s", session_id, callback.from_user.id
     )
     await callback.answer("已忽略此请求。")
