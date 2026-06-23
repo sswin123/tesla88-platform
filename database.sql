@@ -184,3 +184,55 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
 
 CREATE INDEX IF NOT EXISTS idx_withdrawal_user_status ON withdrawal_requests(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_withdrawal_status      ON withdrawal_requests(status);
+
+-- ============================================================
+-- Phase 3: Live Chat System
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS support_sessions (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER      NOT NULL REFERENCES users(id),
+    agent_id            BIGINT,
+    agent_username      VARCHAR(100),
+    status              VARCHAR(10)  NOT NULL DEFAULT 'OPEN'
+                        CHECK (status IN ('OPEN','ACTIVE','CLOSED')),
+    notification_msg_id BIGINT,
+    control_msg_id      BIGINT,
+    last_message_at     TIMESTAMPTZ  DEFAULT NOW(),
+    created_at          TIMESTAMPTZ  DEFAULT NOW(),
+    accepted_at         TIMESTAMPTZ,
+    closed_at           TIMESTAMPTZ,
+    close_reason        VARCHAR(10)
+                        CHECK (close_reason IN ('USER','AGENT','TIMEOUT') OR close_reason IS NULL),
+    rating              SMALLINT,
+    rated_at            TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_status
+    ON support_sessions(user_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_status
+    ON support_sessions(status);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_last_message
+    ON support_sessions(last_message_at)
+    WHERE status = 'ACTIVE';
+
+CREATE TABLE IF NOT EXISTS support_messages (
+    id              SERIAL PRIMARY KEY,
+    session_id      INTEGER     NOT NULL REFERENCES support_sessions(id),
+    sender_type     VARCHAR(5)  NOT NULL CHECK (sender_type IN ('USER','AGENT')),
+    message_type    VARCHAR(10) NOT NULL
+                    CHECK (message_type IN ('TEXT','PHOTO','DOCUMENT','VOICE','STICKER','OTHER')),
+    user_msg_id     BIGINT,
+    group_msg_id    BIGINT,
+    content         TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_session
+    ON support_messages(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_messages_group_msg_id
+    ON support_messages(group_msg_id)
+    WHERE group_msg_id IS NOT NULL;
