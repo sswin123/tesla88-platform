@@ -40,3 +40,41 @@ async def update_session_notification_msg_id(
         session_id,
         msg_id,
     )
+
+
+async def accept_session(
+    pool: asyncpg.Pool,
+    session_id: int,
+    agent_id: int,
+    agent_username: str,
+) -> Optional[asyncpg.Record]:
+    """Atomically accept an OPEN session. Returns updated record or None if already taken."""
+    return await pool.fetchrow(
+        """
+        UPDATE support_sessions
+        SET status         = 'ACTIVE',
+            agent_id       = $2,
+            agent_username = $3,
+            accepted_at    = NOW()
+        WHERE id = $1 AND status = 'OPEN'
+        RETURNING *
+        """,
+        session_id,
+        agent_id,
+        agent_username,
+    )
+
+
+async def get_session_with_user(
+    pool: asyncpg.Pool, session_id: int
+) -> Optional[asyncpg.Record]:
+    """Fetch session joined with user info (telegram_id, first_name, phone)."""
+    return await pool.fetchrow(
+        """
+        SELECT ss.*, u.telegram_id, u.first_name, u.phone
+        FROM support_sessions ss
+        JOIN users u ON u.id = ss.user_id
+        WHERE ss.id = $1
+        """,
+        session_id,
+    )

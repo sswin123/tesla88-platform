@@ -24,3 +24,15 @@ def build_livechat_request_keyboard(session_id: int) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def build_livechat_end_keyboard(session_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⏹ 结束会话", callback_data=f"lc_end:{session_id}"
+                )
+            ]
+        ]
+    )

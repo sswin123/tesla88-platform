@@ -23,6 +23,7 @@ from bot.handlers.admin.search import router as search_router
 from bot.handlers.admin.stats import router as stats_router
 from bot.handlers.admin.update_bank import router as update_bank_router
 from bot.handlers.admin.review import router as review_router
+from bot.handlers.admin.livechat_agent import router as livechat_agent_router
 from bot.handlers.user.livechat import router as livechat_router
 from bot.handlers.user.deposit import router as deposit_router
 from bot.handlers.user.game_accounts import router as game_accounts_router
@@ -76,6 +77,7 @@ async def main() -> None:
     dp.include_router(account_stats_router)
     dp.include_router(account_manage_router)
     dp.include_router(review_router)
+    dp.include_router(livechat_agent_router)
 
     logger.info("Bot starting — polling...")
     try:
