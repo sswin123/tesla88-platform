@@ -32,17 +32,6 @@ async def handle_my_profile(message: Message, pool: asyncpg.Pool) -> None:
     await message.answer(format_user_profile(user))
 
 
-@router.message(F.text == "📞 联系客服")
-async def handle_contact_cs(message: Message, config: Config) -> None:
-    cs_url = f"https://t.me/{config.cs_username}"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="💬 联系客服", url=cs_url)
-    ]])
-    await message.answer(
-        f"请联系在线客服：\n\n{cs_url}",
-        reply_markup=keyboard,
-    )
-
 
 @router.message(F.text == "🎮 我的游戏账号")
 async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
