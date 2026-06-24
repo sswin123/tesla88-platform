@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3001",
     "test": "vitest run",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.10",
