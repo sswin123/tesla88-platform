@@ -14,10 +14,12 @@ from bot.config import Config
 from bot.keyboards.livechat import build_livechat_end_keyboard
 from db.repositories.livechat_repo import (
     accept_session,
+    close_session,
     get_session_by_group_msg_id,
     get_session_with_user,
     store_message,
     update_last_message_at,
+    update_session_control_msg_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,10 @@ async def cb_lc_accept(
                 reply_markup=build_livechat_end_keyboard(session_id),
                 parse_mode="HTML",
             )
+            # Save notification_msg_id as control_msg_id so lc_end knows which message to edit.
+            await update_session_control_msg_id(
+                pool, session_id, session_info["notification_msg_id"]
+            )
         except Exception:
             logger.exception(
                 "Failed to edit group notification session=%s", session_id
@@ -124,6 +130,85 @@ async def cb_lc_accept(
     logger.info(
         "Session accepted session=%s agent=%s", session_id, agent.id
     )
+
+
+# ── End session (agent-initiated) ─────────────────────────────────────────────
+
+
+@router.callback_query(F.data.startswith("lc_end:"))
+async def cb_lc_end(
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    bot: Bot,
+    config: Config,
+) -> None:
+    session_id = int(callback.data.split(":", 1)[1])
+
+    logger.info(
+        "LC END CLICKED session=%s user=%s", session_id, callback.from_user.id
+    )
+
+    session_info = await get_session_with_user(pool, session_id)
+    if not session_info:
+        await callback.answer("⚠️ 找不到该会话", show_alert=True)
+        return
+
+    closed = await close_session(pool, session_id, "AGENT")
+    if closed is None:
+        await callback.answer("⚠️ 该会话已结束", show_alert=True)
+        return
+
+    closed_at_str = closed["closed_at"].strftime("%Y-%m-%d %H:%M:%S")
+    agent_username = html.escape(
+        session_info["agent_username"] or str(callback.from_user.id)
+    )
+
+    closed_text = (
+        f"💬 客服会话 #{session_id} — 🔴 已结束\n\n"
+        f"👤 {html.escape(session_info['first_name'])}\n"
+        f"🆔 UID: {session_info['user_id']}\n"
+        f"📱 {html.escape(session_info['phone'])}\n\n"
+        f"✅ 客服：\n"
+        f"@{agent_username}\n\n"
+        f"🔚 结束时间：\n"
+        f"{closed_at_str}\n"
+        f"原因：客服主动结束"
+    )
+
+    target = config.support_chat_id if config.support_chat_id else config.super_admin_id
+    control_msg_id = session_info["control_msg_id"]
+
+    if control_msg_id:
+        try:
+            await bot.edit_message_text(
+                chat_id=target,
+                message_id=control_msg_id,
+                text=closed_text,
+                reply_markup=None,
+                parse_mode="HTML",
+            )
+        except Exception:
+            logger.exception(
+                "Failed to edit closed message session=%s", session_id
+            )
+
+    try:
+        await bot.send_message(
+            chat_id=session_info["telegram_id"],
+            text=(
+                f"🔚 客服会话已结束\n\n"
+                f"会话编号：\n"
+                f"#{session_id}\n\n"
+                f"如需再次咨询，\n"
+                f"请点击「📞 联系客服」。"
+            ),
+        )
+        logger.info("User notified of session close session=%s", session_id)
+    except Exception:
+        logger.exception("Failed to notify user of close session=%s", session_id)
+
+    await callback.answer("✅ 会话已结束")
+    logger.info("Session closed session=%s agent=%s", session_id, callback.from_user.id)
 
 
 @router.callback_query(F.data.startswith("lc_ignore:"))

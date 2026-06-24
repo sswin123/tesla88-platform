@@ -127,3 +127,31 @@ async def update_last_message_at(pool: asyncpg.Pool, session_id: int) -> None:
         "UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1",
         session_id,
     )
+
+
+async def update_session_control_msg_id(
+    pool: asyncpg.Pool, session_id: int, msg_id: int
+) -> None:
+    await pool.execute(
+        "UPDATE support_sessions SET control_msg_id = $2 WHERE id = $1",
+        session_id,
+        msg_id,
+    )
+
+
+async def close_session(
+    pool: asyncpg.Pool, session_id: int, reason: str
+) -> Optional[asyncpg.Record]:
+    """Close an ACTIVE session. Returns updated record or None if already closed."""
+    return await pool.fetchrow(
+        """
+        UPDATE support_sessions
+        SET status      = 'CLOSED',
+            closed_at   = NOW(),
+            close_reason = $2
+        WHERE id = $1 AND status = 'ACTIVE'
+        RETURNING *
+        """,
+        session_id,
+        reason,
+    )
