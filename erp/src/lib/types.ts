@@ -85,3 +85,89 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
 }
+
+// ── Promotions ──────────────────────────────────────────────────────────────
+
+export type PromotionType = 'FIRST_DEPOSIT' | 'DAILY' | 'UNLIMITED' | 'MANUAL' | 'WEEKLY';
+export type BonusType = 'PERCENTAGE' | 'FIXED';
+export type TurnoverType = 'BONUS' | 'DEPOSIT';
+
+export interface Promotion {
+  id: number;
+  name: string;
+  description: string | null;
+  promotion_type: PromotionType;
+  bonus_type: BonusType;
+  bonus_value: string;
+  min_deposit: string;
+  max_bonus: string | null;
+  turnover_multiplier: string;
+  turnover_type: TurnoverType;
+  allowed_games: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BonusClaimStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+export interface BonusClaim {
+  id: number;
+  user_id: number;
+  promotion_id: number;
+  deposit_amount: string;
+  bonus_amount: string;
+  total_credit: string;
+  turnover_required: string;
+  turnover_completed: string;
+  status: BonusClaimStatus;
+  claimed_at: string;
+  completed_at: string | null;
+  promo_name?: string;
+}
+
+// ── Live Chat ────────────────────────────────────────────────────────────────
+
+export type SessionStatus = 'OPEN' | 'ACTIVE' | 'CLOSED';
+
+export interface SupportSession {
+  id: number;
+  user_id: number;
+  agent_id: number | null;
+  agent_username: string | null;
+  status: SessionStatus;
+  last_message_at: string;
+  created_at: string;
+  accepted_at: string | null;
+  closed_at: string | null;
+  close_reason: 'USER' | 'AGENT' | 'TIMEOUT' | null;
+  // joined fields
+  first_name?: string;
+  phone?: string;
+  telegram_id?: string;
+}
+
+export type MessageSenderType = 'USER' | 'AGENT';
+export type MessageType = 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER' | 'OTHER';
+
+export interface SupportMessage {
+  id: number;
+  session_id: number;
+  sender_type: MessageSenderType;
+  message_type: MessageType;
+  content: string | null;
+  created_at: string;
+}
+
+// ── Payment Banks ────────────────────────────────────────────────────────────
+
+export interface PaymentBank {
+  id: number;
+  bank_name: string;
+  account_number: string;
+  account_holder: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
