@@ -129,6 +129,21 @@ async def cb_lc_accept(
             session_id,
             ctrl_msg.message_id,
         )
+        # Pin the control message so agents can always reach [⏹ 结束会话] from
+        # the top of the group, even when flooded by chat messages.
+        # disable_notification=True avoids spamming the group.
+        try:
+            await bot.pin_chat_message(
+                chat_id=target,
+                message_id=ctrl_msg.message_id,
+                disable_notification=True,
+            )
+            logger.info("Control message pinned session=%s", session_id)
+        except Exception:
+            logger.warning(
+                "Failed to pin control message session=%s (bot may lack can_pin_messages)",
+                session_id,
+            )
     except Exception:
         logger.exception(
             "Failed to send control message session=%s", session_id
@@ -207,6 +222,16 @@ async def cb_lc_end(
         except Exception:
             logger.exception(
                 "Failed to edit closed message session=%s", session_id
+            )
+        try:
+            await bot.unpin_chat_message(
+                chat_id=target,
+                message_id=control_msg_id,
+            )
+            logger.info("Control message unpinned session=%s", session_id)
+        except Exception:
+            logger.warning(
+                "Failed to unpin control message session=%s", session_id
             )
 
     try:
