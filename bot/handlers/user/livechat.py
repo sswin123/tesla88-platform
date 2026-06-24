@@ -212,17 +212,28 @@ async def handle_initial_message(
 
     # Forward the actual media (image/doc/voice/sticker) so agents see the original file.
     # Text content is already embedded in the notification above; skip for TEXT.
+    # Also store group_msg_id so agents can Reply to the initial media in the group.
     if msg_type != "TEXT":
         try:
-            await bot.copy_message(
+            copied = await bot.copy_message(
                 chat_id=target,
                 from_chat_id=message.chat.id,
                 message_id=message.message_id,
             )
+            await store_message(
+                pool,
+                session_id=session_id,
+                sender_type="USER",
+                msg_type=msg_type,
+                user_msg_id=message.message_id,
+                group_msg_id=copied.message_id,
+                content=None,
+            )
             logger.info(
-                "Initial media copied to Support Group session=%s type=%s",
+                "Initial media copied to Support Group session=%s type=%s group_msg_id=%s",
                 session_id,
                 msg_type,
+                copied.message_id,
             )
         except Exception:
             logger.exception(
