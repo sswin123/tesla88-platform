@@ -99,23 +99,40 @@ async def cb_lc_accept(
 
     target = config.support_chat_id if config.support_chat_id else config.super_admin_id
 
+    # Step 1: Try to dismiss the original "新客服请求" notification (best-effort).
+    # This may fail if the notification was sent to a different chat; that is fine.
     if session_info["notification_msg_id"]:
         try:
-            await bot.edit_message_text(
+            await bot.edit_message_reply_markup(
                 chat_id=target,
                 message_id=session_info["notification_msg_id"],
-                text=new_text,
-                reply_markup=build_livechat_end_keyboard(session_id),
-                parse_mode="HTML",
-            )
-            # Save notification_msg_id as control_msg_id so lc_end knows which message to edit.
-            await update_session_control_msg_id(
-                pool, session_id, session_info["notification_msg_id"]
+                reply_markup=None,
             )
         except Exception:
-            logger.exception(
-                "Failed to edit group notification session=%s", session_id
+            logger.warning(
+                "Could not remove Accept/Ignore buttons session=%s (non-fatal)",
+                session_id,
             )
+
+    # Step 2: Always send a fresh, dedicated control message to the current target.
+    # This is the authoritative source of the [⏹ 结束会话] button.
+    try:
+        ctrl_msg = await bot.send_message(
+            chat_id=target,
+            text=new_text,
+            reply_markup=build_livechat_end_keyboard(session_id),
+            parse_mode="HTML",
+        )
+        await update_session_control_msg_id(pool, session_id, ctrl_msg.message_id)
+        logger.info(
+            "Control message sent session=%s ctrl_msg_id=%s",
+            session_id,
+            ctrl_msg.message_id,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send control message session=%s", session_id
+        )
 
     try:
         await bot.send_message(
