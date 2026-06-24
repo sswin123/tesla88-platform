@@ -4,3 +4,11 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 logs/
+
+# ERP build artifacts
+erp/node_modules/
+erp/.next/
+erp/.env
+erp/.env.local
+erp/.env.production
+erp/tsconfig.tsbuildinfo
