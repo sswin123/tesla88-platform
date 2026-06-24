@@ -108,14 +108,31 @@ async def store_message(
 async def get_session_by_group_msg_id(
     pool: asyncpg.Pool, group_msg_id: int
 ) -> Optional[asyncpg.Record]:
-    """Return the ACTIVE session (with telegram_id) that owns a given group message."""
-    return await pool.fetchrow(
+    """Return the ACTIVE session that owns a given group message.
+
+    Checks support_messages first (user/agent message records).
+    Falls back to support_sessions.control_msg_id so that an agent replying
+    directly to the control message is also routed to the correct session.
+    """
+    row = await pool.fetchrow(
         """
         SELECT ss.*, u.telegram_id
         FROM support_messages sm
         JOIN support_sessions ss ON ss.id = sm.session_id
         JOIN users u ON u.id = ss.user_id
         WHERE sm.group_msg_id = $1
+        LIMIT 1
+        """,
+        group_msg_id,
+    )
+    if row:
+        return row
+    return await pool.fetchrow(
+        """
+        SELECT ss.*, u.telegram_id
+        FROM support_sessions ss
+        JOIN users u ON u.id = ss.user_id
+        WHERE ss.control_msg_id = $1 AND ss.status = 'ACTIVE'
         LIMIT 1
         """,
         group_msg_id,

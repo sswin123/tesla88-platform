@@ -210,6 +210,25 @@ async def handle_initial_message(
     except Exception:
         logger.exception("Livechat notification failed session=%s", session_id)
 
+    # Forward the actual media (image/doc/voice/sticker) so agents see the original file.
+    # Text content is already embedded in the notification above; skip for TEXT.
+    if msg_type != "TEXT":
+        try:
+            await bot.copy_message(
+                chat_id=target,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+            )
+            logger.info(
+                "Initial media copied to Support Group session=%s type=%s",
+                session_id,
+                msg_type,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to copy initial media session=%s", session_id
+            )
+
     await message.answer(
         f"✅ 客服请求已提交\n\n"
         f"會話編號：\n"

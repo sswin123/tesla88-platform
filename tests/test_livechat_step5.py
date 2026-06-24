@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from bot.keyboards.livechat import build_livechat_end_keyboard
+from bot.handlers.user.livechat import _message_preview, _detect_msg_type
 
 
 # ── Callback data isolation ───────────────────────────────────────────────────
@@ -64,3 +67,62 @@ def test_parse_session_id_from_lc_end_2():
 
 def test_parse_session_id_from_lc_end_99():
     assert _parse_session_id("lc_end:99") == 99
+
+
+# ── Bug #2: initial media must trigger copy_message (msg_type != TEXT) ───────
+
+
+class _FakeMsg:
+    def __init__(self, **kwargs):
+        self.text = kwargs.get("text")
+        self.photo = kwargs.get("photo")
+        self.document = kwargs.get("document")
+        self.voice = kwargs.get("voice")
+        self.sticker = kwargs.get("sticker")
+        self.caption = kwargs.get("caption")
+
+
+class _FakeDoc:
+    file_name = "report.pdf"
+
+
+class _FakeSticker:
+    emoji = "😎"
+
+
+def test_initial_photo_requires_copy():
+    """Photo initial message must NOT be TEXT → copy_message path executes."""
+    msg = _FakeMsg(photo=["x"])
+    assert _detect_msg_type(msg) != "TEXT"
+
+
+def test_initial_document_requires_copy():
+    msg = _FakeMsg(document=_FakeDoc())
+    assert _detect_msg_type(msg) != "TEXT"
+
+
+def test_initial_voice_requires_copy():
+    msg = _FakeMsg(voice=True)
+    assert _detect_msg_type(msg) != "TEXT"
+
+
+def test_initial_sticker_requires_copy():
+    msg = _FakeMsg(sticker=_FakeSticker())
+    assert _detect_msg_type(msg) != "TEXT"
+
+
+def test_initial_text_no_copy():
+    """Plain-text initial message is already embedded in notification; no extra copy needed."""
+    msg = _FakeMsg(text="help me")
+    assert _detect_msg_type(msg) == "TEXT"
+
+
+def test_photo_preview_placeholder():
+    """Notification text shows [图片] placeholder, not the real file."""
+    _, preview = _message_preview(_FakeMsg(photo=["x"]))
+    assert "[图片]" in preview
+
+
+def test_photo_with_caption_in_preview():
+    _, preview = _message_preview(_FakeMsg(photo=["x"], caption="my screenshot"))
+    assert "my screenshot" in preview
