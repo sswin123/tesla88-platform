@@ -1,0 +1,70 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Users,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  LogOut,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const NAV = [
+  { href: '/',            label: 'Dashboard',   icon: LayoutDashboard },
+  { href: '/members',     label: 'Members',     icon: Users },
+  { href: '/deposits',    label: 'Deposits',    icon: ArrowDownToLine },
+  { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+    router.refresh();
+  }
+
+  return (
+    <aside className="flex h-full w-56 flex-col border-r bg-white">
+      <div className="border-b px-4 py-4">
+        <span className="text-base font-semibold tracking-tight">ERP Admin</span>
+      </div>
+
+      <nav className="flex-1 space-y-1 p-2">
+        {NAV.map(({ href, label, icon: Icon }) => {
+          const active =
+            href === '/' ? pathname === '/' : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                active
+                  ? 'bg-gray-100 font-medium text-gray-900'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              )}
+            >
+              <Icon size={16} />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t p-2">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <LogOut size={16} />
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
