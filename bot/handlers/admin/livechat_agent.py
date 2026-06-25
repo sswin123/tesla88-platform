@@ -11,6 +11,7 @@ from aiogram.types import CallbackQuery, Message
 import asyncpg
 
 from bot.config import Config
+from bot.keyboards.game_accounts import build_main_menu_keyboard
 from bot.keyboards.livechat import build_livechat_end_keyboard
 from db.repositories.livechat_repo import (
     accept_session,
@@ -244,6 +245,7 @@ async def cb_lc_end(
                 f"如需再次咨询，\n"
                 f"请点击「📞 联系客服」。"
             ),
+            reply_markup=build_main_menu_keyboard(),
         )
         logger.info("User notified of session close session=%s", session_id)
     except Exception:

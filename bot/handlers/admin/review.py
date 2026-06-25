@@ -5,6 +5,7 @@ import logging
 import re
 import traceback
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -22,6 +23,7 @@ from db.repositories.deposit_repo import (
     get_pending_deposits,
     reject_deposit,
 )
+from db.repositories.promotion_repo import create_bonus_claim, get_promotion_by_id
 from db.repositories.withdrawal_repo import (
     get_pending_withdrawals,
     get_withdrawal_request,
@@ -71,6 +73,40 @@ async def cb_dep_approve(
     game_username = req["game_username"]
 
     bonus_amount_line = f"🎁 Bonus\n+RM {bonus_amount:,.2f}\n\n" if bonus_amount > 0 else ""
+
+    # Create bonus_claim if deposit was linked to a promotion
+    promotion_id = req.get("promotion_id")
+    if promotion_id:
+        try:
+            promo = await get_promotion_by_id(pool, promotion_id)
+            if promo:
+                dep = Decimal(str(req["deposit_amount"]))
+                bon = Decimal(str(req["bonus_amount"]))
+                tot = Decimal(str(req["credit_amount"]))
+                ttype = promo.get("turnover_type", "BONUS")
+                base = dep if ttype == "DEPOSIT" else tot
+                turnover = (base * promo["turnover_multiplier"]).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                await create_bonus_claim(
+                    pool,
+                    user_id=req["user_id"],
+                    promotion_id=promotion_id,
+                    deposit_amount=dep,
+                    bonus_amount=bon,
+                    total_credit=tot,
+                    turnover_required=turnover,
+                    status="ACTIVE",
+                )
+                logger.info(
+                    "Bonus claim created for deposit=%s promo=%s user=%s",
+                    request_id, promotion_id, req["user_id"],
+                )
+        except Exception:
+            logger.exception(
+                "Failed to create bonus_claim for deposit=%s promo=%s",
+                request_id, promotion_id,
+            )
 
     # Edit the original notification caption (deposit = photo message)
     if req["notification_msg_id"]:

@@ -13,12 +13,13 @@ from bot.constants import PROVIDERS
 
 
 def build_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Persistent 4×2 main menu shown to registered users."""
+    """Persistent 5×2 main menu shown to registered users."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📋 我的资料"), KeyboardButton(text="🎮 我的游戏账号")],
             [KeyboardButton(text="💰 充值"), KeyboardButton(text="💸 提款")],
             [KeyboardButton(text="📜 充值记录"), KeyboardButton(text="📜 提款记录")],
+            [KeyboardButton(text="🎁 优惠中心"), KeyboardButton(text="🎁 我的优惠")],
             [KeyboardButton(text="🔄 更换游戏账号"), KeyboardButton(text="📞 联系客服")],
         ],
         resize_keyboard=True,

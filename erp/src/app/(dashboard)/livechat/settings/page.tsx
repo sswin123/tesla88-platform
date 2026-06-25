@@ -42,11 +42,19 @@ export default function LiveChatSettingsPage() {
     setReplies((prev) =>
       prev.map((r) => (r.id === reply.id ? { ...r, is_favorite: newFav } : r))
     );
-    await fetch(`/api/livechat/quick-replies/${reply.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_favorite: newFav }),
-    });
+    try {
+      const r = await fetch(`/api/livechat/quick-replies/${reply.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_favorite: newFav }),
+      });
+      if (!r.ok) throw new Error('Failed');
+    } catch {
+      // Roll back on failure
+      setReplies((prev) =>
+        prev.map((r) => (r.id === reply.id ? { ...r, is_favorite: reply.is_favorite } : r))
+      );
+    }
   };
 
   const handleDelete = async (id: number) => {

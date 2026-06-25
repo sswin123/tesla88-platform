@@ -21,6 +21,7 @@ async def create_deposit_request(
     game_username: str,
     deposit_amount: float,
     bonus_type_id: Optional[int],
+    promotion_id: Optional[int],
     bonus_amount: float,
     credit_amount: float,
     payment_bank: str,
@@ -30,14 +31,14 @@ async def create_deposit_request(
         """
         INSERT INTO deposit_requests (
             user_id, provider, game_username,
-            deposit_amount, bonus_type_id, bonus_amount, credit_amount,
+            deposit_amount, bonus_type_id, promotion_id, bonus_amount, credit_amount,
             payment_bank, receipt_file_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
         RETURNING *
         """,
         user_id, provider, game_username,
-        deposit_amount, bonus_type_id, bonus_amount, credit_amount,
+        deposit_amount, bonus_type_id, promotion_id, bonus_amount, credit_amount,
         payment_bank, receipt_file_id,
     )
 
@@ -57,10 +58,12 @@ async def get_deposit_request(
     return await pool.fetchrow(
         """
         SELECT dr.*, u.telegram_id, u.phone, u.bank_holder_name,
-               bt.name AS bonus_name
+               bt.name AS bonus_name,
+               p.name  AS promo_name
         FROM deposit_requests dr
         JOIN users u ON u.id = dr.user_id
         LEFT JOIN bonus_types bt ON bt.id = dr.bonus_type_id
+        LEFT JOIN promotions p ON p.id = dr.promotion_id
         WHERE dr.id = $1
         """,
         request_id,
@@ -128,9 +131,10 @@ async def get_user_deposit_history(
 ) -> list[asyncpg.Record]:
     return await pool.fetch(
         """
-        SELECT dr.*, bt.name AS bonus_name
+        SELECT dr.*, bt.name AS bonus_name, p.name AS promo_name
         FROM deposit_requests dr
         LEFT JOIN bonus_types bt ON bt.id = dr.bonus_type_id
+        LEFT JOIN promotions p ON p.id = dr.promotion_id
         WHERE dr.user_id = $1
         ORDER BY dr.created_at DESC
         LIMIT $2
@@ -142,10 +146,12 @@ async def get_user_deposit_history(
 async def get_pending_deposits(pool: asyncpg.Pool) -> list[asyncpg.Record]:
     return await pool.fetch(
         """
-        SELECT dr.*, u.phone, u.bank_holder_name, bt.name AS bonus_name
+        SELECT dr.*, u.phone, u.bank_holder_name,
+               bt.name AS bonus_name, p.name AS promo_name
         FROM deposit_requests dr
         JOIN users u ON u.id = dr.user_id
         LEFT JOIN bonus_types bt ON bt.id = dr.bonus_type_id
+        LEFT JOIN promotions p ON p.id = dr.promotion_id
         WHERE dr.status = 'PENDING'
         ORDER BY dr.created_at
         """,

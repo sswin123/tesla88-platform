@@ -7,7 +7,7 @@ import {
   createQuickReply,
 } from '@/lib/repositories/support_repo';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   const payload = token ? await verifyJWT(token) : null;

@@ -4,15 +4,16 @@ import html
 import logging
 
 from aiogram import Bot, F, Router
-from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 import asyncpg
 
 from bot.config import Config
 from bot.constants import PROVIDERS
+from bot.keyboards.common import build_back_cancel_keyboard
+from bot.keyboards.game_accounts import build_main_menu_keyboard
 from bot.keyboards.withdrawal import (
     build_withdrawal_confirm_keyboard,
     build_withdrawal_provider_keyboard,
@@ -88,11 +89,31 @@ async def cb_withdrawal_provider(
     await state.update_data(provider=provider, game_username=game_username)
     await state.set_state(WithdrawalStates.waiting_amount)
     await callback.message.edit_text(
-        f"💸 提款 — {html.escape(provider)}\n\n"
-        f"👤 游戏账号：{html.escape(game_username)}\n\n"
-        f"请输入提款金额（RM）：",
+        f"💸 提款 — {html.escape(provider)}\n"
+        f"👤 游戏账号：{html.escape(game_username)}"
+    )
+    await callback.message.answer(
+        "请输入提款金额（RM）\n\n例如：\n100\n300\n500",
+        reply_markup=build_back_cancel_keyboard(),
     )
     await callback.answer()
+
+
+# ── FSM Back: from waiting_amount → provider selection ────────────────────────
+
+@router.message(WithdrawalStates.waiting_amount, F.text == "⬅️ 返回")
+async def wd_back_from_amount(
+    message: Message, state: FSMContext, pool: asyncpg.Pool
+) -> None:
+    data = await state.get_data()
+    accounts = await get_user_game_accounts(pool, data["user_id"])
+    providers = [acc["provider"] for acc in accounts]
+    await state.set_state(WithdrawalStates.waiting_provider)
+    await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
+    await message.answer(
+        "💸 提款\n\n请选择游戏平台：",
+        reply_markup=build_withdrawal_provider_keyboard(providers),
+    )
 
 
 @router.message(WithdrawalStates.waiting_amount)
@@ -105,12 +126,14 @@ async def process_withdrawal_amount(
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("⚠️ 请输入有效金额（数字），例如：100")
+        await message.answer(
+            "⚠️ 输入格式错误\n\n请输入正确金额，例如：\n\n100\n300\n500"
+        )
         return
 
     if amount < config.min_withdrawal_amount:
         await message.answer(
-            f"⚠️ 最低提款金额为 RM {config.min_withdrawal_amount:.2f}，请重新输入："
+            f"⚠️ 最低提款金额为 RM {config.min_withdrawal_amount:.2f}\n\n请重新输入金额："
         )
         return
 
@@ -202,6 +225,7 @@ async def cb_withdrawal_confirm(
     await callback.message.edit_text(
         f"✅ 提款申请已提交！\n申请编号：#{req['id']}\n请等待管理员审核。"
     )
+    await callback.message.answer("", reply_markup=build_main_menu_keyboard())
     await callback.answer()
 
 
@@ -210,10 +234,3 @@ async def cb_withdrawal_cancel(callback: CallbackQuery, state: FSMContext) -> No
     await state.clear()
     await callback.message.edit_text("❌ 已取消提款申请。")
     await callback.answer()
-
-
-@router.message(Command("cancel"), WithdrawalStates.waiting_amount)
-@router.message(Command("cancel"), WithdrawalStates.confirming)
-async def cancel_withdrawal_fsm(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer("❌ 已取消提款申请。")
