@@ -15,6 +15,8 @@ interface PendingFile {
   messageType: 'PHOTO' | 'DOCUMENT';
 }
 
+type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
+
 export interface ReplyBoxProps {
   sessionId: number;
   onMessageSent: (msg: SupportMessage) => void;
@@ -29,6 +31,9 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
+  const lastPayloadRef = useRef<{ message_type: string; content: string } | null>(null);
 
   // Quick replies state
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
@@ -107,6 +112,9 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
         body = { message_type: 'TEXT', content: trimmed };
       }
 
+      setSendStatus('sending');
+      lastPayloadRef.current = { message_type: body.message_type, content: body.content };
+
       const r = await fetch(`/api/livechat/sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,10 +124,13 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
       const d = (await r.json()) as { error?: string; message?: SupportMessage };
       if (!r.ok) {
         setError(d.error ?? 'Send failed');
+        setSendStatus('failed');
         return;
       }
 
       if (d.message) onMessageSent(d.message);
+      setSendStatus('sent');
+      setTimeout(() => setSendStatus('idle'), 3000);
       setText('');
       if (pendingFile) {
         URL.revokeObjectURL(pendingFile.previewUrl);
@@ -128,10 +139,17 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
       textareaRef.current?.focus();
     } catch {
       setError('Network error');
+      setSendStatus('failed');
     } finally {
       setSending(false);
     }
   }, [sessionId, text, pendingFile, sending, onMessageSent]);
+
+  const handleRetry = useCallback(() => {
+    if (!lastPayloadRef.current || sendStatus !== 'failed') return;
+    setSendStatus('idle');
+    void handleSend();
+  }, [sendStatus, handleSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && e.ctrlKey) {
@@ -356,12 +374,35 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
         />
         <Button
           onClick={() => void handleSend()}
-          disabled={sending || (!text.trim() && !pendingFile)}
+          disabled={sending || sendStatus === 'sending' || (!text.trim() && !pendingFile)}
           className="self-end"
         >
           {sending ? 'Sending…' : 'Send'}
         </Button>
       </div>
+
+      {sendStatus !== 'idle' && (
+        <div className="flex items-center gap-2 px-1 text-xs mt-1">
+          {sendStatus === 'sending' && (
+            <span className="text-gray-400 animate-pulse">Sending…</span>
+          )}
+          {sendStatus === 'sent' && (
+            <span className="text-green-600 font-medium">✓ Sent</span>
+          )}
+          {sendStatus === 'failed' && (
+            <div className="flex items-center gap-2">
+              <span className="text-red-500">✕ Failed</span>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="text-blue-500 underline hover:text-blue-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
