@@ -89,12 +89,13 @@ async def store_message(
     user_msg_id: Optional[int],
     group_msg_id: Optional[int],
     content: Optional[str],
+    caption: Optional[str] = None,
 ) -> None:
     await pool.execute(
         """
         INSERT INTO support_messages
-            (session_id, sender_type, message_type, user_msg_id, group_msg_id, content)
-        VALUES ($1, $2, $3, $4, $5, $6)
+            (session_id, sender_type, message_type, user_msg_id, group_msg_id, content, caption)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         """,
         session_id,
         sender_type,
@@ -102,6 +103,7 @@ async def store_message(
         user_msg_id,
         group_msg_id,
         content,
+        caption,
     )
 
 

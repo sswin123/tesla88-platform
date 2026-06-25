@@ -5,45 +5,118 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function mediaUrl(fileId: string): string {
+  return `/api/livechat/media/${encodeURIComponent(fileId)}`;
+}
+
 function MediaContent({ msg }: { msg: SupportMessage }) {
-  const { message_type, content } = msg;
+  const { message_type, content, caption } = msg;
+
   if (message_type === 'TEXT') {
     return <p className="whitespace-pre-wrap break-words">{content}</p>;
   }
-  if (message_type === 'PHOTO' || message_type === 'STICKER') {
-    return content ? (
-      <img
-        src={`/api/livechat/media/${content}`}
-        alt="media"
-        className="max-h-64 max-w-xs rounded-lg object-contain"
-        loading="lazy"
-      />
-    ) : (
-      <span className="italic text-xs">[Photo]</span>
+
+  if (message_type === 'PHOTO') {
+    if (!content) return <span className="italic text-xs">[Photo]</span>;
+    return (
+      <div>
+        <a href={mediaUrl(content)} target="_blank" rel="noopener noreferrer">
+          <img
+            src={mediaUrl(content)}
+            alt="photo"
+            className="max-h-64 max-w-xs rounded-lg object-contain cursor-pointer hover:opacity-90"
+            loading="lazy"
+          />
+        </a>
+        {caption && (
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{caption}</p>
+        )}
+      </div>
     );
   }
+
+  if (message_type === 'VIDEO') {
+    if (!content) return <span className="italic text-xs">[Video]</span>;
+    return (
+      <div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video controls src={mediaUrl(content)} className="max-h-48 max-w-xs rounded-lg" />
+        {caption && (
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{caption}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (message_type === 'VIDEO_NOTE') {
+    if (!content) return <span className="italic text-xs">[Video note]</span>;
+    return (
+      /* eslint-disable-next-line jsx-a11y/media-has-caption */
+      <video
+        controls
+        src={mediaUrl(content)}
+        className="h-40 w-40 rounded-full object-cover"
+      />
+    );
+  }
+
+  if (message_type === 'ANIMATION') {
+    if (!content) return <span className="italic text-xs">[GIF]</span>;
+    return (
+      /* eslint-disable-next-line jsx-a11y/media-has-caption */
+      <video
+        src={mediaUrl(content)}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="max-h-48 max-w-xs rounded-lg"
+      />
+    );
+  }
+
+  if (message_type === 'VOICE') {
+    if (!content) return <span className="italic text-xs">[Voice message]</span>;
+    return (
+      /* eslint-disable-next-line jsx-a11y/media-has-caption */
+      <audio controls src={mediaUrl(content)} className="max-w-xs" />
+    );
+  }
+
+  if (message_type === 'AUDIO') {
+    if (!content) return <span className="italic text-xs">[Audio]</span>;
+    return (
+      /* eslint-disable-next-line jsx-a11y/media-has-caption */
+      <audio controls src={mediaUrl(content)} className="max-w-xs" />
+    );
+  }
+
+  if (message_type === 'STICKER') {
+    if (!content) return <span className="italic text-xs">[Sticker]</span>;
+    return (
+      <img
+        src={mediaUrl(content)}
+        alt="sticker"
+        className="h-24 w-24 object-contain"
+        loading="lazy"
+      />
+    );
+  }
+
   if (message_type === 'DOCUMENT') {
-    return content ? (
+    if (!content) return <span className="italic text-xs">[Document]</span>;
+    return (
       <a
-        href={`/api/livechat/media/${content}`}
+        href={mediaUrl(content)}
         target="_blank"
         rel="noopener noreferrer"
-        className="underline text-blue-500 text-xs"
+        className="flex items-center gap-1 text-sm underline"
       >
         📎 Download file
       </a>
-    ) : (
-      <span className="italic text-xs">[Document]</span>
     );
   }
-  if (message_type === 'VOICE') {
-    return content ? (
-      // eslint-disable-next-line jsx-a11y/media-has-caption
-      <audio controls src={`/api/livechat/media/${content}`} className="max-w-xs" />
-    ) : (
-      <span className="italic text-xs">[Voice message]</span>
-    );
-  }
+
   return <span className="italic text-xs">[{message_type}]</span>;
 }
 

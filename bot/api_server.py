@@ -58,6 +58,7 @@ async def relay_message(request: web.Request) -> web.Response:
         session_id = int(data["session_id"])
         message_type: str = data.get("message_type", "TEXT").upper()
         content: Optional[str] = data.get("content")
+        agent_username: Optional[str] = data.get("agent_username")
         if not content and message_type == "TEXT":
             return web.json_response({"error": "content required for TEXT"}, status=400)
     except (KeyError, ValueError, json.JSONDecodeError) as e:
@@ -143,6 +144,22 @@ async def relay_message(request: web.Request) -> web.Response:
         stored_content,
         tg_msg_id,
     )
+
+    # Auto-assign + activate if this is the first ERP reply on an OPEN session
+    if session["status"] == "OPEN" and agent_username:
+        await pool.execute(
+            """UPDATE support_sessions
+               SET status = 'ACTIVE',
+                   assigned_to_username = $2,
+                   accepted_at = NOW()
+               WHERE id = $1 AND status = 'OPEN'""",
+            session_id,
+            agent_username,
+        )
+        logger.info(
+            "Session auto-activated session=%s agent=%s", session_id, agent_username
+        )
+
     await pool.execute(
         "UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1",
         session_id,
@@ -159,12 +176,50 @@ async def relay_message(request: web.Request) -> web.Response:
     )
 
 
+async def notify_close(request: web.Request) -> web.Response:
+    """POST /notify_close — notify the Telegram user that their session was closed by ERP."""
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {RELAY_AUTH_TOKEN}":
+        return web.json_response({"error": "Unauthorized"}, status=401)
+
+    try:
+        data = await request.json()
+        session_id = int(data["session_id"])
+    except (KeyError, ValueError, json.JSONDecodeError) as e:
+        return web.json_response({"error": f"Invalid payload: {e}"}, status=400)
+
+    pool: asyncpg.Pool = request.app["pool"]
+    bot: Bot = request.app["bot"]
+
+    row = await pool.fetchrow(
+        """SELECT u.telegram_id
+           FROM support_sessions ss
+           JOIN users u ON u.id = ss.user_id
+           WHERE ss.id = $1""",
+        session_id,
+    )
+    if not row:
+        return web.json_response({"ok": False, "error": "Session not found"}, status=404)
+
+    try:
+        await bot.send_message(
+            int(row["telegram_id"]),
+            "🔚 客服会话已结束\n\n如需再次咨询，请点击「📞 联系客服」。",
+        )
+        logger.info("notify_close sent session=%s", session_id)
+    except Exception as exc:
+        logger.warning("notify_close failed session=%s: %s", session_id, exc)
+
+    return web.json_response({"ok": True})
+
+
 async def start_relay_server(bot: Bot, pool: asyncpg.Pool) -> web.AppRunner:
     """Start the relay HTTP server and return the runner (for cleanup)."""
     app = web.Application()
     app["bot"] = bot
     app["pool"] = pool
     app.router.add_post("/relay", relay_message)
+    app.router.add_post("/notify_close", notify_close)
 
     runner = web.AppRunner(app)
     await runner.setup()

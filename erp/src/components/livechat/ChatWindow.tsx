@@ -86,13 +86,13 @@ export function ChatWindow({
           evt.sender_type === 'USER'
         ) {
           const lastId = lastIdRef.current;
-          if (lastId === 0) return;
           fetch(`/api/livechat/sessions/${sessionId}/messages?before_id=2147483647`)
             .then((r) => r.json())
             .then((d) => {
-              const newMsgs = (d.messages ?? []).filter(
-                (m: SupportMessage) => m.id > lastId,
-              );
+              // If lastId is 0 (empty window) take all; otherwise only newer ones
+              const newMsgs: SupportMessage[] = lastId === 0
+                ? (d.messages ?? [])
+                : (d.messages ?? []).filter((m: SupportMessage) => m.id > lastId);
               if (newMsgs.length > 0) {
                 setMessages((prev) => {
                   const ids = new Set(prev.map((m) => m.id));

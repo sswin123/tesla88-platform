@@ -31,18 +31,32 @@ export async function POST(
 
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
 
-  const relayRes = await fetch(`${BOT_RELAY_URL}/relay`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}`,
-    },
-    body: JSON.stringify({ session_id: parseInt(id, 10), message_type, content }),
-  });
+  let relayRes: Response;
+  try {
+    relayRes = await fetch(`${BOT_RELAY_URL}/relay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}`,
+      },
+      body: JSON.stringify({
+        session_id: parseInt(id, 10),
+        message_type,
+        content,
+        agent_username: payload.username ?? null,
+      }),
+    });
+  } catch (err) {
+    console.error('[livechat relay] connection failed:', err);
+    return NextResponse.json(
+      { error: `Cannot reach relay server at ${BOT_RELAY_URL}` },
+      { status: 502 }
+    );
+  }
 
-  const relayData = await relayRes.json();
+  const relayData = await relayRes.json().catch(() => ({}));
   if (!relayRes.ok) {
-    return NextResponse.json({ error: relayData.error ?? 'Relay failed' }, { status: 502 });
+    return NextResponse.json({ error: (relayData as { error?: string }).error ?? 'Relay failed' }, { status: 502 });
   }
 
   return NextResponse.json({

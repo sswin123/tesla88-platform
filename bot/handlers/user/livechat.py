@@ -49,13 +49,23 @@ def _message_preview(message: Message) -> tuple[str, str]:
     if message.text:
         return "TEXT", message.text[:300]
     if message.photo:
-        caption = message.caption or ""
-        return "PHOTO", "[图片]" + (f"\n{caption[:200]}" if caption else "")
+        cap = message.caption or ""
+        return "PHOTO", "[图片]" + (f"\n{cap[:200]}" if cap else "")
+    if message.video:
+        cap = message.caption or ""
+        return "VIDEO", "[视频]" + (f"\n{cap[:200]}" if cap else "")
+    if message.video_note:
+        return "VIDEO_NOTE", "[视频消息]"
+    if message.voice:
+        return "VOICE", "[语音消息]"
+    if message.audio:
+        name = message.audio.file_name or message.audio.title or "[音频]"
+        return "AUDIO", f"[音频] {name[:100]}"
+    if message.animation:
+        return "ANIMATION", "[GIF]"
     if message.document:
         name = message.document.file_name or "[文件]"
         return "DOCUMENT", f"[文件] {name[:100]}"
-    if message.voice:
-        return "VOICE", "[语音消息]"
     if message.sticker:
         emoji = message.sticker.emoji or ""
         return "STICKER", f"[贴纸] {emoji}"
@@ -67,13 +77,42 @@ def _detect_msg_type(message: Message) -> str:
         return "TEXT"
     if message.photo:
         return "PHOTO"
-    if message.document:
-        return "DOCUMENT"
+    if message.video:
+        return "VIDEO"
+    if message.video_note:
+        return "VIDEO_NOTE"
     if message.voice:
         return "VOICE"
+    if message.audio:
+        return "AUDIO"
+    if message.animation:
+        return "ANIMATION"
+    if message.document:
+        return "DOCUMENT"
     if message.sticker:
         return "STICKER"
     return "OTHER"
+
+
+def _get_file_id(message: Message) -> Optional[str]:
+    """Extract the Telegram file_id from any media message."""
+    if message.photo:
+        return message.photo[-1].file_id
+    if message.video:
+        return message.video.file_id
+    if message.video_note:
+        return message.video_note.file_id
+    if message.voice:
+        return message.voice.file_id
+    if message.audio:
+        return message.audio.file_id
+    if message.animation:
+        return message.animation.file_id
+    if message.document:
+        return message.document.file_id
+    if message.sticker:
+        return message.sticker.file_id
+    return None
 
 
 # ── DB-based filter: user has an OPEN or ACTIVE session ───────────────────────
@@ -231,23 +270,13 @@ async def handle_initial_message(
             content=message.text,
         )
     else:
-        # Forward media (image/doc/voice/sticker) to support group and store file reference.
+        # Forward media to support group and store file_id so ERP can display it.
         try:
             copied = await bot.copy_message(
                 chat_id=target,
                 from_chat_id=message.chat.id,
                 message_id=message.message_id,
             )
-            # Store file_id as content so ERP media proxy can display it
-            file_id: Optional[str] = None
-            if message.photo:
-                file_id = message.photo[-1].file_id
-            elif message.document:
-                file_id = message.document.file_id
-            elif message.voice:
-                file_id = message.voice.file_id
-            elif message.sticker:
-                file_id = message.sticker.file_id
             await store_message(
                 pool,
                 session_id=session_id,
@@ -255,13 +284,13 @@ async def handle_initial_message(
                 msg_type=msg_type,
                 user_msg_id=message.message_id,
                 group_msg_id=copied.message_id,
-                content=file_id,
+                content=_get_file_id(message),
+                caption=message.caption,
             )
             logger.info(
-                "Initial media copied to Support Group session=%s type=%s group_msg_id=%s",
+                "Initial media copied to Support Group session=%s type=%s",
                 session_id,
                 msg_type,
-                copied.message_id,
             )
         except Exception:
             logger.exception(
@@ -341,6 +370,8 @@ async def _forward_user_message(
         return
 
     if group_msg_id:
+        # For media messages store the file_id so ERP can proxy + display them.
+        content = message.text if msg_type == "TEXT" else _get_file_id(message)
         await store_message(
             pool,
             session_id=session_id,
@@ -348,6 +379,7 @@ async def _forward_user_message(
             msg_type=msg_type,
             user_msg_id=message.message_id,
             group_msg_id=group_msg_id,
-            content=message.text,
+            content=content,
+            caption=message.caption if msg_type != "TEXT" else None,
         )
         await update_last_message_at(pool, session_id)

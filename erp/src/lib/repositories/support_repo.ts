@@ -167,7 +167,7 @@ export async function getSessionWithDetails(id: number): Promise<{
       [id]
     ),
     pool.query<SupportMessage>(
-      `SELECT id, session_id, sender_type, message_type, content,
+      `SELECT id, session_id, sender_type, message_type, content, caption,
               user_msg_id, group_msg_id, created_at
        FROM support_messages
        WHERE session_id = $1
@@ -260,7 +260,7 @@ export async function getMoreMessages(
   limit = 50
 ): Promise<SupportMessage[]> {
   const { rows } = await pool.query<SupportMessage>(
-    `SELECT id, session_id, sender_type, message_type, content,
+    `SELECT id, session_id, sender_type, message_type, content, caption,
             user_msg_id, group_msg_id, created_at
      FROM support_messages
      WHERE session_id = $1 AND id < $2

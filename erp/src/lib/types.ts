@@ -141,7 +141,9 @@ export interface BonusClaim {
 
 export type SessionStatus = 'OPEN' | 'ACTIVE' | 'CLOSED';
 export type MessageSenderType = 'USER' | 'AGENT';
-export type MessageType = 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER' | 'OTHER';
+export type MessageType =
+  | 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER'
+  | 'VIDEO' | 'VIDEO_NOTE' | 'AUDIO' | 'ANIMATION' | 'OTHER';
 
 export interface SupportSession {
   id: number;
@@ -173,8 +175,9 @@ export interface SupportMessage {
   sender_type: MessageSenderType;
   message_type: MessageType;
   content: string | null;
-  user_msg_id: number | null;           // NEW: Telegram msg id in user DM
-  group_msg_id: number | null;          // NEW: Telegram msg id in support group
+  caption: string | null;
+  user_msg_id: number | null;
+  group_msg_id: number | null;
   created_at: string;
 }
 
