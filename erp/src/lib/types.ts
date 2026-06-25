@@ -140,26 +140,32 @@ export interface BonusClaim {
 // ── Live Chat ────────────────────────────────────────────────────────────────
 
 export type SessionStatus = 'OPEN' | 'ACTIVE' | 'CLOSED';
+export type MessageSenderType = 'USER' | 'AGENT';
+export type MessageType = 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER' | 'OTHER';
 
 export interface SupportSession {
   id: number;
   user_id: number;
   agent_id: number | null;
   agent_username: string | null;
+  assigned_to_username: string | null;  // NEW: ERP assignment
   status: SessionStatus;
+  erp_unread_count: number;             // NEW
+  pinned_at: string | null;             // NEW
   last_message_at: string;
   created_at: string;
   accepted_at: string | null;
   closed_at: string | null;
   close_reason: 'USER' | 'AGENT' | 'TIMEOUT' | null;
-  // joined fields
+  // joined from users table
   first_name?: string;
   phone?: string;
   telegram_id?: string;
+  telegram_username?: string;           // NEW: joined from users.telegram_username
+  // computed / aggregated
+  last_message_content?: string;        // NEW: last message preview text
+  last_message_type?: MessageType;      // NEW
 }
-
-export type MessageSenderType = 'USER' | 'AGENT';
-export type MessageType = 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER' | 'OTHER';
 
 export interface SupportMessage {
   id: number;
@@ -167,7 +173,33 @@ export interface SupportMessage {
   sender_type: MessageSenderType;
   message_type: MessageType;
   content: string | null;
+  user_msg_id: number | null;           // NEW: Telegram msg id in user DM
+  group_msg_id: number | null;          // NEW: Telegram msg id in support group
   created_at: string;
+}
+
+export interface LiveChatSSEEvent {
+  type: 'new_message' | 'session_update';
+  session_id: number;
+  message_id?: number;
+  sender_type?: MessageSenderType;
+  status?: SessionStatus;
+}
+
+export interface MemberCardData {
+  id: number;
+  first_name: string;
+  telegram_id: string;
+  telegram_username: string | null;
+  phone: string;
+  status: 'ACTIVE' | 'FROZEN';
+  created_at: string;
+  total_deposit: string;
+  total_withdraw: string;
+  total_bonus: string;
+  bank_name: string;
+  bank_account: string;
+  bank_holder_name: string;
 }
 
 // ── Payment Banks ────────────────────────────────────────────────────────────
