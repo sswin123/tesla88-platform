@@ -99,17 +99,27 @@ export default function BankManagerPage() {
   }
 
   async function toggleActive(b: PaymentBank) {
-    await fetch(`/api/banks/${b.id}`, {
+    const r = await fetch(`/api/banks/${b.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !b.is_active }),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? 'Failed to update bank status');
+      return;
+    }
     await load();
   }
 
   async function handleDelete(b: PaymentBank) {
     if (!confirm(`Delete bank "${b.bank_name}"? This cannot be undone.`)) return;
-    await fetch(`/api/banks/${b.id}`, { method: 'DELETE' });
+    const r = await fetch(`/api/banks/${b.id}`, { method: 'DELETE' });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? 'Failed to delete bank');
+      return;
+    }
     await load();
   }
 
