@@ -21,17 +21,29 @@ def build_deposit_provider_keyboard(providers: Sequence[str]) -> InlineKeyboardM
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def build_bonus_keyboard(bonuses: Sequence[Any]) -> InlineKeyboardMarkup:
+def build_promo_keyboard(promotions: Sequence[Any]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
-    for b in bonuses:
+    for p in promotions:
+        max_bonus = p["max_bonus"]
+        label = (
+            f"🎁 {p['name']}（最高 RM {float(max_bonus):.0f}）"
+            if max_bonus
+            else f"🎁 {p['name']}"
+        )
         rows.append([
-            InlineKeyboardButton(
-                text=f"{b['name']}（最高 RM {b['max_bonus']:.0f}）",
-                callback_data=f"dep_bonus:{b['id']}",
-            )
+            InlineKeyboardButton(text=label, callback_data=f"dep_promo:{p['id']}")
         ])
-    rows.append([InlineKeyboardButton(text="无优惠", callback_data="dep_bonus:none")])
+    rows.append([InlineKeyboardButton(text="无优惠", callback_data="dep_promo:none")])
     rows.append([InlineKeyboardButton(text="⬅️ 返回", callback_data="dep_back_prov")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def build_bank_select_keyboard(banks) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for b in banks:
+        label = f"🏦 {b['bank_name']} — {b['account_number']}"
+        rows.append([InlineKeyboardButton(text=label, callback_data=f"dep_bank:{b['id']}")])
+    rows.append([InlineKeyboardButton(text="❌ 取消", callback_data="dep_cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
