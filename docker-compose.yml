@@ -23,6 +23,8 @@ services:
     build: .
     restart: always
     env_file: .env
+    ports:
+      - "8090:8090"
     depends_on:
       db:
         condition: service_healthy

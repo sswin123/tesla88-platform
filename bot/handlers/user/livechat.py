@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, Optional, Union
 
 from aiogram import Bot, F, Router
-from aiogram.filters import BaseFilter, Command
+from aiogram.filters import BaseFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -34,7 +34,8 @@ router = Router()
 _MENU_BUTTONS: frozenset[str] = frozenset({
     "📋 我的资料", "🎮 我的游戏账号", "💰 充值", "💸 提款",
     "📜 充值记录", "📜 提款记录", "🔄 更换游戏账号", "📞 联系客服",
-    "⬅️ 返回",
+    "🎁 优惠中心", "🎁 我的优惠",
+    "⬅️ 返回", "🏠 主菜单", "❌ 取消",
 })
 
 
@@ -83,10 +84,24 @@ class HasLivechatSession(BaseFilter):
     routed to an active livechat session; False otherwise."""
 
     async def __call__(
-        self, message: Message, pool: asyncpg.Pool
+        self,
+        message: Message,
+        pool: asyncpg.Pool,
+        raw_state: Optional[str] = None,
     ) -> Union[bool, Dict[str, Any]]:
         if message.from_user is None:
             return False
+
+        # Any active FSM state (deposit, withdrawal, promo, registration…) takes
+        # priority — never forward those messages to the support group.
+        if raw_state is not None:
+            logger.info(
+                "LIVECHAT_SKIP_FSM user=%s state=%s",
+                message.from_user.id,
+                raw_state,
+            )
+            return False
+
         # Menu button presses should fall through to their own handlers.
         if message.text and message.text in _MENU_BUTTONS:
             return False
@@ -144,12 +159,6 @@ async def cb_cancel_livechat(callback: CallbackQuery, state: FSMContext) -> None
     await state.clear()
     await callback.message.edit_text("❌ 已取消客服请求。")
     await callback.answer()
-
-
-@router.message(Command("cancel"), LiveChatStates.waiting_initial_message)
-async def cmd_cancel_livechat(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer("❌ 已取消客服请求。", reply_markup=build_main_menu_keyboard())
 
 
 # ── First message → create OPEN session ───────────────────────────────────────
@@ -210,16 +219,35 @@ async def handle_initial_message(
     except Exception:
         logger.exception("Livechat notification failed session=%s", session_id)
 
-    # Forward the actual media (image/doc/voice/sticker) so agents see the original file.
-    # Text content is already embedded in the notification above; skip for TEXT.
-    # Also store group_msg_id so agents can Reply to the initial media in the group.
-    if msg_type != "TEXT":
+    # Store initial message in support_messages so ERP chat window shows it.
+    if msg_type == "TEXT":
+        await store_message(
+            pool,
+            session_id=session_id,
+            sender_type="USER",
+            msg_type="TEXT",
+            user_msg_id=message.message_id,
+            group_msg_id=None,
+            content=message.text,
+        )
+    else:
+        # Forward media (image/doc/voice/sticker) to support group and store file reference.
         try:
             copied = await bot.copy_message(
                 chat_id=target,
                 from_chat_id=message.chat.id,
                 message_id=message.message_id,
             )
+            # Store file_id as content so ERP media proxy can display it
+            file_id: Optional[str] = None
+            if message.photo:
+                file_id = message.photo[-1].file_id
+            elif message.document:
+                file_id = message.document.file_id
+            elif message.voice:
+                file_id = message.voice.file_id
+            elif message.sticker:
+                file_id = message.sticker.file_id
             await store_message(
                 pool,
                 session_id=session_id,
@@ -227,7 +255,7 @@ async def handle_initial_message(
                 msg_type=msg_type,
                 user_msg_id=message.message_id,
                 group_msg_id=copied.message_id,
-                content=None,
+                content=file_id,
             )
             logger.info(
                 "Initial media copied to Support Group session=%s type=%s group_msg_id=%s",

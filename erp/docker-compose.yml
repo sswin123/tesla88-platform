@@ -13,6 +13,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       NODE_ENV: production
+      BOT_RELAY_URL: ${BOT_RELAY_URL}
+      BOT_RELAY_AUTH_TOKEN: ${BOT_RELAY_AUTH_TOKEN}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/login || exit 1"]
       interval: 30s
