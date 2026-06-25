@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import type { SupportMessage } from '@/lib/types';
+import type { SupportMessage, QuickReply } from '@/lib/types';
 
 const EMOJIS = [
   '😀', '😊', '😂', '😍', '🥺', '😢', '😡', '🤔', '👍', '👎',
@@ -29,6 +29,44 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Quick replies state
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [showQuickPicker, setShowQuickPicker] = useState(false);
+  const [qrSearch, setQrSearch] = useState('');
+  const quickPickerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch quick replies on mount
+  useEffect(() => {
+    fetch('/api/livechat/quick-replies')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { replies: QuickReply[] } | null) => {
+        if (d?.replies) setQuickReplies(d.replies);
+      })
+      .catch(() => {/* silent */});
+  }, []);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!showQuickPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (quickPickerRef.current && !quickPickerRef.current.contains(e.target as Node)) {
+        setShowQuickPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showQuickPicker]);
+
+  const filteredQr = quickReplies.filter(
+    (r) =>
+      qrSearch === '' ||
+      r.title.toLowerCase().includes(qrSearch.toLowerCase()) ||
+      r.body.toLowerCase().includes(qrSearch.toLowerCase())
+  );
+
+  const favorites = filteredQr.filter((r) => r.is_favorite);
+  const nonFavorites = filteredQr.filter((r) => !r.is_favorite);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>, type: 'PHOTO' | 'DOCUMENT') => {
@@ -202,6 +240,104 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
           className="hidden"
           onChange={(e) => handleFileChange(e, 'DOCUMENT')}
         />
+
+        {/* Quick replies button */}
+        <div className="relative" ref={quickPickerRef}>
+          <button
+            onClick={() => {
+              setShowQuickPicker((v) => !v);
+              setQrSearch('');
+            }}
+            className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-1"
+            title="Quick replies"
+            aria-label="Open quick replies picker"
+          >
+            <span>⚡</span>
+            <span className="text-xs hidden sm:inline">Quick replies</span>
+          </button>
+
+          {showQuickPicker && (
+            <>
+              {/* Overlay to capture outside clicks */}
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowQuickPicker(false)}
+              />
+              <div className="absolute bottom-10 left-0 z-20 w-80 rounded-lg border bg-white shadow-xl">
+                {/* Search */}
+                <div className="p-2 border-b">
+                  <input
+                    type="text"
+                    placeholder="Search quick replies…"
+                    value={qrSearch}
+                    onChange={(e) => setQrSearch(e.target.value)}
+                    autoFocus
+                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto">
+                  {filteredQr.length === 0 ? (
+                    <p className="text-center text-xs text-gray-400 py-4">No replies found</p>
+                  ) : (
+                    <>
+                      {/* Favorites section */}
+                      {favorites.length > 0 && (
+                        <div>
+                          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            Favorites
+                          </p>
+                          {favorites.map((r) => (
+                            <button
+                              key={r.id}
+                              onClick={() => {
+                                setText(r.body);
+                                setShowQuickPicker(false);
+                                textareaRef.current?.focus();
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                            >
+                              <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                                <span className="text-yellow-400">★</span>
+                                {r.title}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">{r.body}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Non-favorite replies */}
+                      {nonFavorites.length > 0 && (
+                        <div>
+                          {favorites.length > 0 && (
+                            <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                              All
+                            </p>
+                          )}
+                          {nonFavorites.map((r) => (
+                            <button
+                              key={r.id}
+                              onClick={() => {
+                                setText(r.body);
+                                setShowQuickPicker(false);
+                                textareaRef.current?.focus();
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                            >
+                              <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                              <p className="text-xs text-gray-500 truncate">{r.body}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         <span className="ml-auto text-xs text-gray-400">Ctrl+Enter to send</span>
       </div>

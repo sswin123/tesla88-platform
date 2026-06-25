@@ -1,5 +1,5 @@
 import pool from '@/lib/db';
-import type { SupportSession, SupportMessage, MemberCardData } from '@/lib/types';
+import type { SupportSession, SupportMessage, MemberCardData, QuickReply, QuickReplyCategory } from '@/lib/types';
 
 export async function getSessions(options: {
   status?: string;
@@ -269,4 +269,85 @@ export async function getMoreMessages(
     [sessionId, beforeId, limit]
   );
   return rows.reverse();
+}
+
+// ── Quick Replies ─────────────────────────────────────────────────────────────
+
+export async function getQuickReplies(adminUsername: string): Promise<QuickReply[]> {
+  const { rows } = await pool.query(
+    `SELECT qr.id, qr.category_id, qrc.name AS category_name, qr.title, qr.body, qr.sort_order,
+            (qrf.admin_username IS NOT NULL) AS is_favorite, qr.created_at
+     FROM quick_replies qr
+     LEFT JOIN quick_reply_categories qrc ON qrc.id = qr.category_id
+     LEFT JOIN quick_reply_favorites qrf ON qrf.reply_id = qr.id AND qrf.admin_username = $1
+     ORDER BY qrc.sort_order NULLS LAST, qr.sort_order, qr.id`,
+    [adminUsername]
+  );
+  return rows;
+}
+
+export async function getQuickReplyCategories(): Promise<QuickReplyCategory[]> {
+  const { rows } = await pool.query(
+    `SELECT id, name, sort_order FROM quick_reply_categories ORDER BY sort_order`
+  );
+  return rows;
+}
+
+export async function createQuickReply(data: {
+  category_id: number | null;
+  title: string;
+  body: string;
+  sort_order: number;
+  created_by: string;
+}): Promise<QuickReply> {
+  const { rows } = await pool.query(
+    `INSERT INTO quick_replies (category_id, title, body, sort_order, created_by)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, category_id, NULL AS category_name, title, body, sort_order, FALSE AS is_favorite, created_at`,
+    [data.category_id, data.title, data.body, data.sort_order, data.created_by]
+  );
+  return rows[0];
+}
+
+export async function updateQuickReply(
+  id: number,
+  data: { category_id?: number | null; title?: string; body?: string; sort_order?: number }
+): Promise<QuickReply | null> {
+  const sets: string[] = [];
+  const params: (string | number | null)[] = [];
+  let i = 1;
+  if ('category_id' in data) { sets.push(`category_id=$${i++}`); params.push(data.category_id ?? null); }
+  if (data.title !== undefined) { sets.push(`title=$${i++}`); params.push(data.title); }
+  if (data.body !== undefined)  { sets.push(`body=$${i++}`);  params.push(data.body); }
+  if (data.sort_order !== undefined) { sets.push(`sort_order=$${i++}`); params.push(data.sort_order); }
+  if (!sets.length) return null;
+  params.push(id);
+  const { rows } = await pool.query(
+    `UPDATE quick_replies SET ${sets.join(', ')} WHERE id=$${i}
+     RETURNING id, category_id, NULL AS category_name, title, body, sort_order, FALSE AS is_favorite, created_at`,
+    params
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteQuickReply(id: number): Promise<void> {
+  await pool.query(`DELETE FROM quick_replies WHERE id=$1`, [id]);
+}
+
+export async function toggleFavoriteQuickReply(
+  adminUsername: string,
+  replyId: number,
+  isFavorite: boolean
+): Promise<void> {
+  if (isFavorite) {
+    await pool.query(
+      `INSERT INTO quick_reply_favorites (admin_username, reply_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [adminUsername, replyId]
+    );
+  } else {
+    await pool.query(
+      `DELETE FROM quick_reply_favorites WHERE admin_username=$1 AND reply_id=$2`,
+      [adminUsername, replyId]
+    );
+  }
 }

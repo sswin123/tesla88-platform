@@ -233,3 +233,20 @@ export interface AuditLog {
   // joined
   admin_username?: string;
 }
+
+export interface QuickReplyCategory {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+export interface QuickReply {
+  id: number;
+  category_id: number | null;
+  category_name: string | null;
+  title: string;
+  body: string;
+  sort_order: number;
+  is_favorite?: boolean;  // populated client-side from agent's favorites
+  created_at: string;
+}
