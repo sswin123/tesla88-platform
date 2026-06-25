@@ -27,12 +27,20 @@ export async function GET() {
     ]);
 
     const stats: DashboardStats = {
-      totalMembers:       tm.rows[0].count,
-      activeMembers:      am.rows[0].count,
-      totalDeposits:      td.rows[0].count,
-      totalWithdrawals:   tw.rows[0].count,
-      pendingDeposits:    pd.rows[0].count,
-      pendingWithdrawals: pw.rows[0].count,
+      totalMembers:           tm.rows[0].count,
+      activeMembers:          am.rows[0].count,
+      totalDeposits:          td.rows[0].count,
+      totalWithdrawals:       tw.rows[0].count,
+      pendingDeposits:        pd.rows[0].count,
+      pendingWithdrawals:     pw.rows[0].count,
+      todayDepositAmount:     0,
+      todayDepositCount:      0,
+      todayWithdrawalAmount:  0,
+      todayWithdrawalCount:   0,
+      depositChart:           [],
+      withdrawalChart:        [],
+      topPromotions:          [],
+      topDepositors:          [],
     };
 
     return NextResponse.json(stats);

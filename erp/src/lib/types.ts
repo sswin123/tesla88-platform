@@ -37,6 +37,7 @@ export interface MemberDetail extends Member {
   bank_holder_name: string;
   deposit_count: number;
   withdrawal_count: number;
+  remarks: string | null;
 }
 
 export interface DepositRow {
@@ -77,6 +78,14 @@ export interface DashboardStats {
   totalWithdrawals: number;
   pendingDeposits: number;
   pendingWithdrawals: number;
+  todayDepositAmount: number;
+  todayDepositCount: number;
+  todayWithdrawalAmount: number;
+  todayWithdrawalCount: number;
+  depositChart: { date: string; amount: number; count: number }[];
+  withdrawalChart: { date: string; amount: number; count: number }[];
+  topPromotions: { name: string; claim_count: number }[];
+  topDepositors: { first_name: string; total: number }[];
 }
 
 export interface PaginatedResponse<T> {
@@ -105,6 +114,8 @@ export interface Promotion {
   turnover_type: TurnoverType;
   allowed_games: string[];
   is_active: boolean;
+  expiry_date: string | null;   // new
+  deleted_at: string | null;    // new — soft delete
   created_at: string;
   updated_at: string;
 }
@@ -165,9 +176,25 @@ export interface PaymentBank {
   id: number;
   bank_name: string;
   account_number: string;
-  account_holder: string;
+  account_name: string;       // was account_holder
+  qr_image: string | null;    // new — base64 data URI or null
   is_active: boolean;
-  sort_order: number;
+  display_order: number;      // was sort_order
   created_at: string;
   updated_at: string;
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────
+
+export interface AuditLog {
+  id: number;
+  admin_id: number;
+  action: string;
+  target_type: string;
+  target_id: number | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  created_at: string;
+  // joined
+  admin_username?: string;
 }
