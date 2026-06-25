@@ -4,6 +4,8 @@ services:
   erp:
     build: .
     restart: always
+    env_file:
+      - .env
     ports:
       - "3001:3000"
     environment:
