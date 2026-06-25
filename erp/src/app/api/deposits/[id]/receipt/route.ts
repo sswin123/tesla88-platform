@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
@@ -12,7 +12,7 @@ export async function GET(
   const token = cookieStore.get(COOKIE_NAME)?.value;
   const payload = token ? await verifyJWT(token) : null;
   if (!payload) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
@@ -21,7 +21,7 @@ export async function GET(
     [parseInt(id, 10)]
   );
   if (!rows[0]) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return Response.json({ error: 'Not found' }, { status: 404 });
   }
 
   const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -29,7 +29,7 @@ export async function GET(
 
   // Check if receipt_file_id exists
   if (!fileId) {
-    return NextResponse.json({ error: 'No receipt on file' }, { status: 404 });
+    return Response.json({ error: 'No receipt on file' }, { status: 404 });
   }
 
   const fileRes  = await fetch(
@@ -38,20 +38,27 @@ export async function GET(
   const fileData = await fileRes.json() as { ok: boolean; result?: { file_path: string } };
 
   if (!fileData.ok || !fileData.result) {
-    return NextResponse.json({ error: 'Could not retrieve file from Telegram' }, { status: 502 });
+    return Response.json({ error: 'Could not retrieve file from Telegram' }, { status: 502 });
   }
 
-  const imgRes = await fetch(
-    `https://api.telegram.org/file/bot${telegramToken}/${fileData.result.file_path}`
-  );
-  const buffer      = await imgRes.arrayBuffer();
-  const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg';
+  const filePath = fileData.result.file_path;
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  const MIME: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+  };
+  const contentType = MIME[ext ?? ''] ?? 'image/jpeg';
 
-  return new NextResponse(buffer, {
+  const imgRes = await fetch(
+    `https://api.telegram.org/file/bot${telegramToken}/${filePath}`
+  );
+  const buffer = await imgRes.arrayBuffer();
+
+  return new Response(buffer, {
     headers: {
       'Content-Type': contentType,
       'Content-Disposition': 'inline',
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': 'private',
     },
   });
 }
