@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { SessionCard } from './SessionCard';
 import type { SupportSession, LiveChatSSEEvent } from '@/lib/types';
+import { useNotifications, loadNotifSettings, type NotifSettings } from '@/hooks/useNotifications';
+import { NotificationSettings } from './NotificationSettings';
 
 const TABS = [
   { label: 'All', value: '' },
@@ -25,8 +27,15 @@ export function ConversationList({
   const [tab, setTab] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [notifSettings, setNotifSettings] = useState<NotifSettings>(() => ({ sound: true, browser: true, titleFlash: true }));
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const esRef = useRef<EventSource | null>(null);
+
+  // Load persisted notification settings on mount
+  useEffect(() => { setNotifSettings(loadNotifSettings()); }, []);
+
+  // Desktop notifications hook
+  useNotifications(notifSettings, selectedId);
 
   const load = useCallback(async (status: string, q: string) => {
     setLoading(true);
@@ -84,7 +93,10 @@ export function ConversationList({
       <div className="border-b p-3">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-sm">Live Chat</h2>
-          <span className="text-xs text-gray-400">{total} sessions</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{total} sessions</span>
+            <NotificationSettings settings={notifSettings} onChange={setNotifSettings} />
+          </div>
         </div>
         <Input
           placeholder="Search name, @username, UID..."
