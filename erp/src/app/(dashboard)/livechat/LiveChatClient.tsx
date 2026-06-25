@@ -9,7 +9,13 @@ import { MemberCard } from '@/components/livechat/MemberCard';
 import { SessionActions } from '@/components/livechat/SessionActions';
 import type { SupportSession, SupportMessage, MemberCardData } from '@/lib/types';
 
-export default function LiveChatClient() {
+export default function LiveChatClient({
+  currentUsername,
+  currentRole,
+}: {
+  currentUsername: string | null;
+  currentRole: string | null;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionParam = searchParams.get('session');
@@ -88,7 +94,12 @@ export default function LiveChatClient() {
           </div>
 
           {/* Actions toolbar */}
-          <SessionActions session={session} onUpdate={setSession} />
+          <SessionActions
+              session={session}
+              onUpdate={(s) => setSession(s)}
+              currentUsername={currentUsername}
+              currentRole={currentRole}
+            />
 
           {/* Messages */}
           <ChatWindow
