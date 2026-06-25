@@ -1,5 +1,5 @@
 import pool from '@/lib/db';
-import type { SupportSession, SupportMessage, MemberCardData, QuickReply, QuickReplyCategory } from '@/lib/types';
+import type { SupportSession, SupportMessage, MemberCardData, QuickReply, QuickReplyCategory, SessionNote } from '@/lib/types';
 
 export async function getSessions(options: {
   status?: string;
@@ -350,4 +350,35 @@ export async function toggleFavoriteQuickReply(
       [adminUsername, replyId]
     );
   }
+}
+
+// ── Session Notes ─────────────────────────────────────────────────────────────
+
+export async function getSessionNotes(sessionId: number): Promise<SessionNote[]> {
+  const { rows } = await pool.query(
+    `SELECT id, session_id, author, body, created_at
+     FROM session_notes
+     WHERE session_id = $1
+     ORDER BY created_at ASC`,
+    [sessionId]
+  );
+  return rows;
+}
+
+export async function createSessionNote(data: {
+  session_id: number;
+  author: string;
+  body: string;
+}): Promise<SessionNote> {
+  const { rows } = await pool.query(
+    `INSERT INTO session_notes (session_id, author, body)
+     VALUES ($1, $2, $3)
+     RETURNING id, session_id, author, body, created_at`,
+    [data.session_id, data.author, data.body]
+  );
+  return rows[0];
+}
+
+export async function deleteSessionNote(noteId: number): Promise<void> {
+  await pool.query(`DELETE FROM session_notes WHERE id=$1`, [noteId]);
 }

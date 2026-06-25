@@ -250,3 +250,11 @@ export interface QuickReply {
   is_favorite?: boolean;  // populated client-side from agent's favorites
   created_at: string;
 }
+
+export interface SessionNote {
+  id: number;
+  session_id: number;
+  author: string;
+  body: string;
+  created_at: string;
+}

@@ -7,6 +7,7 @@ import { ChatWindow } from '@/components/livechat/ChatWindow';
 import { ReplyBox } from '@/components/livechat/ReplyBox';
 import { MemberCard } from '@/components/livechat/MemberCard';
 import { SessionActions } from '@/components/livechat/SessionActions';
+import { NotesPanel } from '@/components/livechat/NotesPanel';
 import type { SupportSession, SupportMessage, MemberCardData } from '@/lib/types';
 
 export default function LiveChatClient({
@@ -149,7 +150,7 @@ export default function LiveChatClient({
         </div>
       )}
 
-      {/* Right: member card */}
+      {/* Right: member card + notes */}
       <div className="w-72 flex-shrink-0 overflow-y-auto border-l bg-white">
         {member && session ? (
           <MemberCard
@@ -162,6 +163,7 @@ export default function LiveChatClient({
             Select a conversation
           </div>
         )}
+        {session && <NotesPanel sessionId={session.id} />}
       </div>
     </div>
   );

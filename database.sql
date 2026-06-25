@@ -402,3 +402,14 @@ CREATE TABLE IF NOT EXISTS quick_reply_favorites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_qrf_admin ON quick_reply_favorites(admin_username);
+
+-- ── Session Notes (migration 009) ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS session_notes (
+    id         SERIAL       PRIMARY KEY,
+    session_id INTEGER      NOT NULL REFERENCES support_sessions(id) ON DELETE CASCADE,
+    author     VARCHAR(100) NOT NULL,
+    body       TEXT         NOT NULL,
+    created_at TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id);
