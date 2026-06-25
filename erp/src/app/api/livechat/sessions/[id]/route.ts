@@ -10,7 +10,8 @@ export async function GET(
   const { id } = await params;
   const data = await getSessionWithDetails(parseInt(id, 10));
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json(data);
+  const hasMore = data.messages.length >= 50;
+  return NextResponse.json({ ...data, hasMore });
 }
 
 export async function PATCH(

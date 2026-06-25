@@ -31,6 +31,8 @@ export interface ChatWindowProps {
   sessionId: number;
   messages: SupportMessage[];
   setMessages: React.Dispatch<React.SetStateAction<SupportMessage[]>>;
+  hasMore: boolean;
+  setHasMore: React.Dispatch<React.SetStateAction<boolean>>;
   memberName: string;
 }
 
@@ -38,11 +40,11 @@ export function ChatWindow({
   sessionId,
   messages,
   setMessages,
+  hasMore,
+  setHasMore,
   memberName,
 }: ChatWindowProps) {
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
@@ -54,29 +56,19 @@ export function ChatWindow({
     lastIdRef.current = messages[messages.length - 1]?.id ?? 0;
   }, [messages]);
 
-  // Initial load when sessionId changes
+  // Reset first-load flag when sessionId changes so scroll-to-bottom fires again
   useEffect(() => {
-    setLoading(true);
-    setHasMore(true);
     isFirstLoad.current = true;
+    setLoadingMore(false);
+  }, [sessionId]);
 
-    fetch(`/api/livechat/sessions/${sessionId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setMessages(d.messages ?? []);
-        setHasMore((d.messages?.length ?? 0) >= 50);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [sessionId, setMessages]);
-
-  // Scroll to bottom on first load
+  // Scroll to bottom on first load (when messages arrive from page.tsx)
   useEffect(() => {
-    if (!loading && isFirstLoad.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    if (messages.length > 0 && isFirstLoad.current) {
       isFirstLoad.current = false;
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
     }
-  }, [loading]);
+  }, [messages.length]);
 
   // SSE: subscribe to new_message events for this session (USER messages only)
   useEffect(() => {
@@ -143,15 +135,7 @@ export function ChatWindow({
         })
         .catch(() => setLoadingMore(false));
     }
-  }, [sessionId, messages, loadingMore, hasMore, setMessages]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-gray-400 text-sm">
-        Loading…
-      </div>
-    );
-  }
+  }, [sessionId, messages, loadingMore, hasMore, setMessages, setHasMore]);
 
   const groups = groupByDate(messages);
 

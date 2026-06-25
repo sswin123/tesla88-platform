@@ -18,6 +18,7 @@ export default function LiveChatPage() {
   const [session, setSession] = useState<SupportSession | null>(null);
   const [member, setMember] = useState<MemberCardData | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [loadingSession, setLoadingSession] = useState(false);
 
   // Load session + member when selection changes; reset unread immediately
@@ -26,6 +27,7 @@ export default function LiveChatPage() {
       setSession(null);
       setMember(null);
       setMessages([]);
+      setHasMore(false);
       return;
     }
 
@@ -37,6 +39,7 @@ export default function LiveChatPage() {
         setSession((d as { session?: SupportSession }).session ?? null);
         setMember((d as { member?: MemberCardData }).member ?? null);
         setMessages((d as { messages?: SupportMessage[] }).messages ?? []);
+        setHasMore((d as { hasMore?: boolean }).hasMore ?? false);
         setLoadingSession(false);
 
         // Reset unread count after loading
@@ -92,6 +95,8 @@ export default function LiveChatPage() {
             sessionId={selectedId}
             messages={messages}
             setMessages={setMessages}
+            hasMore={hasMore}
+            setHasMore={setHasMore}
             memberName={member?.first_name ?? 'User'}
           />
 

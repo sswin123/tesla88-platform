@@ -80,23 +80,38 @@ export async function getSessionsLiveChat(opts: {
   limit: number;
   offset: number;
 }): Promise<{ sessions: SupportSession[]; total: number }> {
-  const conditions: string[] = ['1=1'];
-  const params: (string | number)[] = [opts.limit, opts.offset];
+  // Main query params: $1=limit, $2=offset, then filters
+  const mainConditions: string[] = ['1=1'];
+  const mainParams: (string | number)[] = [opts.limit, opts.offset];
   let pIdx = 3;
 
+  // Count query params: $1, $2, ... (no limit/offset prefix)
+  const countConditions: string[] = ['1=1'];
+  const countParams: (string | number)[] = [];
+  let cIdx = 1;
+
   if (opts.status) {
-    conditions.push(`ss.status = $${pIdx++}`);
-    params.push(opts.status);
+    mainConditions.push(`ss.status = $${pIdx++}`);
+    mainParams.push(opts.status);
+    countConditions.push(`ss.status = $${cIdx++}`);
+    countParams.push(opts.status);
   }
   if (opts.search) {
-    conditions.push(
+    mainConditions.push(
       `(u.first_name ILIKE $${pIdx} OR u.telegram_username ILIKE $${pIdx} OR u.id::text = $${pIdx + 1})`
     );
-    params.push(`%${opts.search}%`, opts.search);
+    mainParams.push(`%${opts.search}%`, opts.search);
     pIdx += 2;
+
+    countConditions.push(
+      `(u.first_name ILIKE $${cIdx} OR u.telegram_username ILIKE $${cIdx} OR u.id::text = $${cIdx + 1})`
+    );
+    countParams.push(`%${opts.search}%`, opts.search);
+    cIdx += 2;
   }
 
-  const where = `WHERE ${conditions.join(' AND ')}`;
+  const mainWhere = `WHERE ${mainConditions.join(' AND ')}`;
+  const countWhere = `WHERE ${countConditions.join(' AND ')}`;
 
   const lastMsgSub = `(
     SELECT content FROM support_messages
@@ -117,17 +132,17 @@ export async function getSessionsLiveChat(opts: {
               ${lastMsgTypeSub} AS last_message_type
        FROM support_sessions ss
        JOIN users u ON u.id = ss.user_id
-       ${where}
+       ${mainWhere}
        ORDER BY ss.pinned_at DESC NULLS LAST, ss.last_message_at DESC
        LIMIT $1 OFFSET $2`,
-      params
+      mainParams
     ),
     pool.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count
        FROM support_sessions ss
        JOIN users u ON u.id = ss.user_id
-       ${where}`,
-      params.slice(2)
+       ${countWhere}`,
+      countParams
     ),
   ]);
 
@@ -156,7 +171,8 @@ export async function getSessionWithDetails(id: number): Promise<{
               user_msg_id, group_msg_id, created_at
        FROM support_messages
        WHERE session_id = $1
-       ORDER BY created_at ASC`,
+       ORDER BY created_at DESC
+       LIMIT 50`,
       [id]
     ),
   ]);
@@ -200,7 +216,7 @@ export async function getSessionWithDetails(id: number): Promise<{
     bank_holder_name: row.bank_holder_name ?? '',
   };
 
-  return { session, messages: messageRows.rows, member };
+  return { session, messages: messageRows.rows.reverse(), member };
 }
 
 export async function updateSessionAction(
