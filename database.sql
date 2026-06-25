@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS deposit_requests (
     game_username        VARCHAR(100)  NOT NULL,
     deposit_amount       NUMERIC(10,2) NOT NULL,
     bonus_type_id        INTEGER REFERENCES bonus_types(id),
+    promotion_id         INTEGER REFERENCES promotions(id),
     bonus_amount         NUMERIC(10,2) NOT NULL DEFAULT 0,
     credit_amount        NUMERIC(10,2) NOT NULL,
     payment_bank         VARCHAR(100)  NOT NULL,
@@ -190,22 +191,25 @@ CREATE INDEX IF NOT EXISTS idx_withdrawal_status      ON withdrawal_requests(sta
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS support_sessions (
-    id                  SERIAL PRIMARY KEY,
-    user_id             INTEGER      NOT NULL REFERENCES users(id),
-    agent_id            BIGINT,
-    agent_username      VARCHAR(100),
-    status              VARCHAR(10)  NOT NULL DEFAULT 'OPEN'
-                        CHECK (status IN ('OPEN','ACTIVE','CLOSED')),
-    notification_msg_id BIGINT,
-    control_msg_id      BIGINT,
-    last_message_at     TIMESTAMPTZ  DEFAULT NOW(),
-    created_at          TIMESTAMPTZ  DEFAULT NOW(),
-    accepted_at         TIMESTAMPTZ,
-    closed_at           TIMESTAMPTZ,
-    close_reason        VARCHAR(10)
-                        CHECK (close_reason IN ('USER','AGENT','TIMEOUT') OR close_reason IS NULL),
-    rating              SMALLINT,
-    rated_at            TIMESTAMPTZ
+    id                   SERIAL PRIMARY KEY,
+    user_id              INTEGER      NOT NULL REFERENCES users(id),
+    agent_id             BIGINT,
+    agent_username       VARCHAR(100),
+    assigned_to_username VARCHAR(100),
+    status               VARCHAR(10)  NOT NULL DEFAULT 'OPEN'
+                         CHECK (status IN ('OPEN','ACTIVE','CLOSED')),
+    erp_unread_count     INTEGER      NOT NULL DEFAULT 0,
+    pinned_at            TIMESTAMPTZ,
+    notification_msg_id  BIGINT,
+    control_msg_id       BIGINT,
+    last_message_at      TIMESTAMPTZ  DEFAULT NOW(),
+    created_at           TIMESTAMPTZ  DEFAULT NOW(),
+    accepted_at          TIMESTAMPTZ,
+    closed_at            TIMESTAMPTZ,
+    close_reason         VARCHAR(10)
+                         CHECK (close_reason IN ('USER','AGENT','TIMEOUT') OR close_reason IS NULL),
+    rating               SMALLINT,
+    rated_at             TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_status
@@ -222,11 +226,15 @@ CREATE TABLE IF NOT EXISTS support_messages (
     id              SERIAL PRIMARY KEY,
     session_id      INTEGER     NOT NULL REFERENCES support_sessions(id),
     sender_type     VARCHAR(5)  NOT NULL CHECK (sender_type IN ('USER','AGENT')),
-    message_type    VARCHAR(10) NOT NULL
-                    CHECK (message_type IN ('TEXT','PHOTO','DOCUMENT','VOICE','STICKER','OTHER')),
+    message_type    VARCHAR(20) NOT NULL
+                    CHECK (message_type IN (
+                        'TEXT','PHOTO','DOCUMENT','VOICE','STICKER',
+                        'VIDEO','VIDEO_NOTE','AUDIO','ANIMATION','OTHER'
+                    )),
     user_msg_id     BIGINT,
     group_msg_id    BIGINT,
     content         TEXT,
+    caption         TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -236,3 +244,118 @@ CREATE INDEX IF NOT EXISTS idx_messages_session
 CREATE INDEX IF NOT EXISTS idx_messages_group_msg_id
     ON support_messages(group_msg_id)
     WHERE group_msg_id IS NOT NULL;
+
+-- ── Phase 3: SSE triggers (pg_notify on message insert / session update) ──────
+
+CREATE OR REPLACE FUNCTION notify_livechat_message() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('livechat_updates', json_build_object(
+    'type',        'new_message',
+    'session_id',  NEW.session_id,
+    'message_id',  NEW.id,
+    'sender_type', NEW.sender_type
+  )::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS livechat_msg_notify ON support_messages;
+CREATE TRIGGER livechat_msg_notify
+  AFTER INSERT ON support_messages
+  FOR EACH ROW EXECUTE FUNCTION notify_livechat_message();
+
+CREATE OR REPLACE FUNCTION notify_livechat_session() RETURNS trigger AS $$
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status
+    OR OLD.erp_unread_count IS DISTINCT FROM NEW.erp_unread_count
+    OR OLD.assigned_to_username IS DISTINCT FROM NEW.assigned_to_username
+  THEN
+    PERFORM pg_notify('livechat_updates', json_build_object(
+      'type',       'session_update',
+      'session_id', NEW.id,
+      'status',     NEW.status
+    )::text);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS livechat_session_notify ON support_sessions;
+CREATE TRIGGER livechat_session_notify
+  AFTER UPDATE ON support_sessions
+  FOR EACH ROW EXECUTE FUNCTION notify_livechat_session();
+
+CREATE OR REPLACE FUNCTION increment_erp_unread() RETURNS trigger AS $$
+BEGIN
+  IF NEW.sender_type = 'USER' THEN
+    UPDATE support_sessions
+    SET erp_unread_count = erp_unread_count + 1
+    WHERE id = NEW.session_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS livechat_unread_increment ON support_messages;
+CREATE TRIGGER livechat_unread_increment
+  AFTER INSERT ON support_messages
+  FOR EACH ROW EXECUTE FUNCTION increment_erp_unread();
+
+-- ============================================================
+-- Phase 5A — Promotion & Bonus System
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS promotions (
+    id                  SERIAL PRIMARY KEY,
+    name                VARCHAR(100)    NOT NULL,
+    description         TEXT,
+    promotion_type      VARCHAR(20)     NOT NULL
+                        CHECK (promotion_type IN ('FIRST_DEPOSIT','DAILY','UNLIMITED','MANUAL','WEEKLY')),
+    bonus_type          VARCHAR(20)     NOT NULL
+                        CHECK (bonus_type IN ('PERCENTAGE','FIXED')),
+    bonus_value         NUMERIC(10,2)   NOT NULL,
+    min_deposit         NUMERIC(10,2)   NOT NULL DEFAULT 0,
+    max_bonus           NUMERIC(10,2),
+    turnover_multiplier NUMERIC(5,2)    NOT NULL DEFAULT 1,
+    turnover_type       VARCHAR(10)     NOT NULL DEFAULT 'BONUS'
+                        CHECK (turnover_type IN ('BONUS','DEPOSIT')),
+    allowed_games       TEXT[]          NOT NULL DEFAULT '{}',
+    is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at          TIMESTAMPTZ     DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ     DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_promotions_active
+    ON promotions(is_active)
+    WHERE is_active = TRUE;
+
+CREATE TABLE IF NOT EXISTS bonus_claims (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER         NOT NULL REFERENCES users(id),
+    promotion_id        INTEGER         NOT NULL REFERENCES promotions(id),
+    deposit_amount      NUMERIC(10,2)   NOT NULL,
+    bonus_amount        NUMERIC(10,2)   NOT NULL,
+    total_credit        NUMERIC(10,2)   NOT NULL,
+    turnover_required   NUMERIC(10,2)   NOT NULL,
+    turnover_completed  NUMERIC(10,2)   NOT NULL DEFAULT 0,
+    status              VARCHAR(10)     NOT NULL DEFAULT 'PENDING'
+                        CHECK (status IN ('PENDING','ACTIVE','COMPLETED','CANCELLED')),
+    claimed_at          TIMESTAMPTZ     DEFAULT NOW(),
+    completed_at        TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_claims_user
+    ON bonus_claims(user_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_claims_user_promo_date
+    ON bonus_claims(user_id, promotion_id, claimed_at);
+
+-- ============================================================
+-- Phase 5B/5C Migration (apply to existing DB if Phase 5A tables already exist)
+-- ============================================================
+-- ALTER TABLE promotions DROP CONSTRAINT IF EXISTS promotions_promotion_type_check;
+-- ALTER TABLE promotions ADD CONSTRAINT promotions_promotion_type_check
+--     CHECK (promotion_type IN ('FIRST_DEPOSIT','DAILY','UNLIMITED','MANUAL','WEEKLY'));
+-- ALTER TABLE promotions ADD COLUMN IF NOT EXISTS
+--     turnover_type VARCHAR(10) NOT NULL DEFAULT 'BONUS'
+--     CHECK (turnover_type IN ('BONUS','DEPOSIT'));

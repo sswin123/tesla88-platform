@@ -67,6 +67,7 @@ export async function POST(
       sender_type: 'AGENT',
       message_type: relayData.message_type ?? message_type,
       content: relayData.content ?? content,
+      caption: null,
       created_at: relayData.created_at,
       user_msg_id: null,
       group_msg_id: null,
