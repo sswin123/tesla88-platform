@@ -60,18 +60,27 @@ export default function MemberDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
-    if (r.ok) setData((prev) => prev ? { ...prev, member: { ...prev.member, status: newStatus } } : null);
+    if (r.ok) {
+      setData((prev) => prev ? { ...prev, member: { ...prev.member, status: newStatus } } : null);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? 'Failed to update status');
+    }
     setToggling(false);
   }
 
   async function saveRemarks() {
     if (!data) return;
     setSavingRemarks(true);
-    await fetch(`/api/members/${data.member.id}`, {
+    const r = await fetch(`/api/members/${data.member.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ remarks }),
     });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? 'Failed to save remarks');
+    }
     setSavingRemarks(false);
   }
 
@@ -139,7 +148,7 @@ export default function MemberDetailPage() {
             <CardContent>
               <div className="space-y-1 text-sm">
                 {accounts.map((a) => (
-                  <div key={a.provider} className="flex justify-between">
+                  <div key={`${a.provider}-${a.username}`} className="flex justify-between">
                     <span className="text-gray-500">{a.provider}</span>
                     <span className="font-mono">{a.username}</span>
                   </div>
