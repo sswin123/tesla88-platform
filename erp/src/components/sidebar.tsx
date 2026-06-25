@@ -10,6 +10,7 @@ import {
   Landmark,
   Gift,
   ScrollText,
+  MessageSquare,
   LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ const NAV = [
   { href: '/members',     label: 'Members',      icon: Users },
   { href: '/deposits',    label: 'Deposits',     icon: ArrowDownToLine },
   { href: '/withdrawals', label: 'Withdrawals',  icon: ArrowUpFromLine },
+  { href: '/livechat',    label: 'Live Chat',    icon: MessageSquare },
   { href: '/banks',       label: 'Bank Manager', icon: Landmark },
   { href: '/promotions',  label: 'Promotions',   icon: Gift },
   { href: '/audit',       label: 'Audit Log',    icon: ScrollText },

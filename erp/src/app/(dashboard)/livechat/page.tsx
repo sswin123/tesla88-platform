@@ -5,26 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ConversationList } from '@/components/livechat/ConversationList';
 import { ChatWindow } from '@/components/livechat/ChatWindow';
 import { ReplyBox } from '@/components/livechat/ReplyBox';
+import { MemberCard } from '@/components/livechat/MemberCard';
+import { SessionActions } from '@/components/livechat/SessionActions';
 import type { SupportSession, SupportMessage, MemberCardData } from '@/lib/types';
-
-// MemberCard stub — replaced in Task 6
-function MemberCardStub({
-  member,
-  session,
-}: {
-  member: MemberCardData | null;
-  session: SupportSession | null;
-}) {
-  if (!member || !session)
-    return <div className="w-72 border-l bg-gray-50 flex-shrink-0" />;
-  return (
-    <div className="w-72 border-l bg-gray-50 flex-shrink-0 p-3 overflow-y-auto">
-      <h3 className="font-semibold text-sm mb-2">Member Card</h3>
-      <p className="text-xs text-gray-500">UID: {member.id}</p>
-      <p className="text-xs text-gray-500">{member.first_name}</p>
-    </div>
-  );
-}
 
 export default function LiveChatPage() {
   const router = useRouter();
@@ -35,6 +18,7 @@ export default function LiveChatPage() {
   const [session, setSession] = useState<SupportSession | null>(null);
   const [member, setMember] = useState<MemberCardData | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [loadingSession, setLoadingSession] = useState(false);
 
   // Load session + member when selection changes; reset unread immediately
   useEffect(() => {
@@ -45,21 +29,24 @@ export default function LiveChatPage() {
       return;
     }
 
-    // Reset unread count immediately
-    fetch(`/api/livechat/sessions/${selectedId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reset_unread' }),
-    }).catch(() => {});
+    setLoadingSession(true);
 
-    // Fetch session + member details (messages fetched inside ChatWindow)
     fetch(`/api/livechat/sessions/${selectedId}`)
       .then((r) => r.json())
       .then((d) => {
-        setSession(d.session ?? null);
-        setMember(d.member ?? null);
+        setSession((d as { session?: SupportSession }).session ?? null);
+        setMember((d as { member?: MemberCardData }).member ?? null);
+        setMessages((d as { messages?: SupportMessage[] }).messages ?? []);
+        setLoadingSession(false);
+
+        // Reset unread count after loading
+        fetch(`/api/livechat/sessions/${selectedId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reset_unread' }),
+        }).catch(() => {});
       })
-      .catch(() => {});
+      .catch(() => setLoadingSession(false));
   }, [selectedId]);
 
   const handleSelect = useCallback(
@@ -69,31 +56,38 @@ export default function LiveChatPage() {
     [router],
   );
 
+  const handleMessageSent = useCallback((msg: SupportMessage) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
+
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden">
+      {/* Left: conversation list */}
       <ConversationList selectedId={selectedId} onSelect={handleSelect} />
 
-      {/* Middle: Chat area */}
-      {selectedId ? (
+      {/* Middle: chat area */}
+      {selectedId && session ? (
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Session header */}
-          <div className="flex items-center gap-3 border-b bg-white px-4 py-2 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
             <div>
-              <p className="font-semibold text-sm">{member?.first_name ?? '…'}</p>
+              <p className="text-sm font-semibold">{member?.first_name ?? '…'}</p>
               <p className="text-xs text-gray-400">
                 {member?.telegram_username
                   ? `@${member.telegram_username}`
-                  : `UID ${session?.user_id ?? '…'}`}
+                  : `UID ${session.user_id}`}
                 {' · '}Session #{selectedId}
               </p>
             </div>
-            <div className="ml-auto">
-              {session?.status === 'CLOSED' && (
-                <span className="text-xs text-gray-400 italic">Closed</span>
-              )}
-            </div>
           </div>
 
+          {/* Actions toolbar */}
+          <SessionActions session={session} onUpdate={setSession} />
+
+          {/* Messages */}
           <ChatWindow
             sessionId={selectedId}
             messages={messages}
@@ -101,24 +95,58 @@ export default function LiveChatPage() {
             memberName={member?.first_name ?? 'User'}
           />
 
-          {session?.status !== 'CLOSED' ? (
-            <ReplyBox
-              sessionId={selectedId}
-              onMessageSent={(m) => setMessages((prev) => [...prev, m])}
-            />
+          {/* Reply box or closed notice */}
+          {session.status !== 'CLOSED' ? (
+            <ReplyBox sessionId={selectedId} onMessageSent={handleMessageSent} />
           ) : (
-            <div className="border-t bg-gray-50 text-center py-3 text-sm text-gray-400 flex-shrink-0">
-              This conversation is closed.
+            <div className="flex-shrink-0 border-t bg-gray-50 px-4 py-3 text-center text-sm text-gray-400">
+              This conversation is closed.{' '}
+              <button
+                className="text-blue-500 underline"
+                onClick={() =>
+                  fetch(`/api/livechat/sessions/${selectedId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reopen' }),
+                  })
+                    .then((r) => r.json())
+                    .then((d) => {
+                      if ((d as { session?: SupportSession }).session) {
+                        setSession((d as { session: SupportSession }).session);
+                      }
+                    })
+                    .catch(() => {})
+                }
+              >
+                Reopen
+              </button>
             </div>
           )}
         </div>
+      ) : loadingSession ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
+          Loading…
+        </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-gray-400 text-sm">
+        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
           Select a conversation to start chatting
         </div>
       )}
 
-      <MemberCardStub member={member} session={session} />
+      {/* Right: member card */}
+      <div className="w-72 flex-shrink-0 overflow-y-auto border-l bg-white">
+        {member && session ? (
+          <MemberCard
+            member={member}
+            session={session}
+            onStatusChange={(s) => setMember((m) => (m ? { ...m, status: s } : m))}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-gray-400">
+            Select a conversation
+          </div>
+        )}
+      </div>
     </div>
   );
 }
