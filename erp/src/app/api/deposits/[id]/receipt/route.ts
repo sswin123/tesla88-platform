@@ -50,6 +50,7 @@ export async function GET(
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
+      'Content-Disposition': 'inline',
       'Cache-Control': 'private, max-age=3600',
     },
   });
