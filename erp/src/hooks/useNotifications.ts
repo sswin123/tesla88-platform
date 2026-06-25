@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface NotifSettings {
   sound: boolean;
@@ -68,9 +68,10 @@ function showBrowserNotif(): void {
   }
 }
 
-export function useNotifications(settings: NotifSettings, selectedId: number | null): void {
-  // selectedId is intentionally unused here but kept in signature per the brief
-  void selectedId;
+export function useNotifications(settings: NotifSettings): void {
+  const settingsRef = useRef(settings);
+
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -115,13 +116,13 @@ export function useNotifications(settings: NotifSettings, selectedId: number | n
         const evt = JSON.parse(e.data as string) as { sender_type?: string };
         if (evt.sender_type !== 'USER') return;
 
-        if (settings.sound) {
+        if (settingsRef.current.sound) {
           playBeep();
         }
-        if (settings.browser) {
+        if (settingsRef.current.browser) {
           showBrowserNotif();
         }
-        if (settings.titleFlash) {
+        if (settingsRef.current.titleFlash) {
           startFlash();
         }
       } catch {
@@ -138,5 +139,5 @@ export function useNotifications(settings: NotifSettings, selectedId: number | n
       stopFlash();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [settings, selectedId]);
+  }, []); // empty deps — EventSource opens once; reads settingsRef at event time
 }

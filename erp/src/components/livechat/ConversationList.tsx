@@ -35,7 +35,7 @@ export function ConversationList({
   useEffect(() => { setNotifSettings(loadNotifSettings()); }, []);
 
   // Desktop notifications hook
-  useNotifications(notifSettings, selectedId);
+  useNotifications(notifSettings);
 
   const load = useCallback(async (status: string, q: string) => {
     setLoading(true);
