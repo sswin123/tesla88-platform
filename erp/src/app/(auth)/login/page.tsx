@@ -30,9 +30,14 @@ export default function LoginPage() {
         router.push('/');
         router.refresh();
       } else {
-        const data = await res.json();
+        let data: { error?: string } = {};
+        try {
+          data = await res.json();
+        } catch {}
         setError(data.error ?? 'Login failed');
       }
+    } catch {
+      setError('Cannot connect to server. Please try again.');
     } finally {
       setLoading(false);
     }

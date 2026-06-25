@@ -23,7 +23,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const admin = await getAdminByUsername(username);
+  let admin;
+  try {
+    admin = await getAdminByUsername(username);
+  } catch (err) {
+    console.error('[login] DB error:', err);
+    return NextResponse.json({ error: 'Database connection failed' }, { status: 503 });
+  }
+
   if (!admin || !admin.is_active) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
