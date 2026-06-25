@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function POST(
   _req: NextRequest,
@@ -31,5 +32,12 @@ export async function POST(
       { status: 404 }
     );
   }
+  await logAudit({
+    admin_id: adminId,
+    action: 'WITHDRAWAL_REJECT',
+    target_type: 'withdrawal',
+    target_id: parseInt(id, 10),
+    new_value: { status: 'REJECTED' },
+  });
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function POST(
   _req: NextRequest,
@@ -56,6 +57,13 @@ export async function POST(
     );
 
     await client.query('COMMIT');
+    await logAudit({
+      admin_id: adminId,
+      action: 'DEPOSIT_APPROVE',
+      target_type: 'deposit',
+      target_id: requestId,
+      new_value: { status: 'APPROVED', amount: req.deposit_amount },
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
