@@ -16,7 +16,7 @@ export function LineChart({
   if (data.length < 2) return <p className="text-xs text-gray-400">Not enough data</p>;
   const values = data.map((d) => Number(d[valueKey]) || 0);
   const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
+  const min = Math.min(...values);
   const range = max - min || 1;
   const W = 400;
   const H = height - 24;

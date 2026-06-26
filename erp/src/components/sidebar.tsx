@@ -35,7 +35,7 @@ const NAV = [
   { href: '/audit',       label: 'Audit Log',    icon: ScrollText },
   // Finance
   { href: '/finance',       label: 'Finance Reports', icon: BarChart2 },
-  { href: '/analytics',     label: 'Analytics',       icon: TrendingUp },
+  { href: '/analytics',     label: 'Member Analytics', icon: TrendingUp },
   // Operations
   { href: '/risk',          label: 'Risk Center',     icon: ShieldAlert },
   { href: '/providers',     label: 'Providers',       icon: Gamepad2 },
