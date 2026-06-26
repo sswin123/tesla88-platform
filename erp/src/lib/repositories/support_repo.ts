@@ -77,6 +77,12 @@ export async function getSessionStats(): Promise<{ open: number; active: number;
 export async function getSessionsLiveChat(opts: {
   status?: string;
   search?: string;
+  assignedToMe?: string;
+  unassigned?: boolean;
+  unread?: boolean;
+  today?: boolean;
+  lastWeek?: boolean;
+  vip?: boolean;
   limit: number;
   offset: number;
 }): Promise<{ sessions: SupportSession[]; total: number }> {
@@ -98,16 +104,50 @@ export async function getSessionsLiveChat(opts: {
   }
   if (opts.search) {
     mainConditions.push(
-      `(u.first_name ILIKE $${pIdx} OR u.telegram_username ILIKE $${pIdx} OR u.id::text = $${pIdx + 1})`
+      `(u.first_name ILIKE $${pIdx} OR u.telegram_username ILIKE $${pIdx} OR u.phone ILIKE $${pIdx} OR u.id::text = $${pIdx + 1} OR ss.id::text = $${pIdx + 1})`
     );
     mainParams.push(`%${opts.search}%`, opts.search);
     pIdx += 2;
 
     countConditions.push(
-      `(u.first_name ILIKE $${cIdx} OR u.telegram_username ILIKE $${cIdx} OR u.id::text = $${cIdx + 1})`
+      `(u.first_name ILIKE $${cIdx} OR u.telegram_username ILIKE $${cIdx} OR u.phone ILIKE $${cIdx} OR u.id::text = $${cIdx + 1} OR ss.id::text = $${cIdx + 1})`
     );
     countParams.push(`%${opts.search}%`, opts.search);
     cIdx += 2;
+  }
+  if (opts.assignedToMe) {
+    mainConditions.push(`ss.assigned_to_username = $${pIdx++}`);
+    mainParams.push(opts.assignedToMe);
+    countConditions.push(`ss.assigned_to_username = $${cIdx++}`);
+    countParams.push(opts.assignedToMe);
+  }
+  if (opts.unassigned) {
+    mainConditions.push(`ss.assigned_to_username IS NULL`);
+    countConditions.push(`ss.assigned_to_username IS NULL`);
+  }
+  if (opts.unread) {
+    mainConditions.push(`ss.erp_unread_count > 0`);
+    countConditions.push(`ss.erp_unread_count > 0`);
+  }
+  if (opts.today) {
+    mainConditions.push(`ss.created_at::date = CURRENT_DATE`);
+    countConditions.push(`ss.created_at::date = CURRENT_DATE`);
+  }
+  if (opts.lastWeek) {
+    mainConditions.push(`ss.created_at >= NOW() - INTERVAL '7 days'`);
+    countConditions.push(`ss.created_at >= NOW() - INTERVAL '7 days'`);
+  }
+  if (opts.vip) {
+    mainConditions.push(`EXISTS (
+    SELECT 1 FROM user_tag_assignments uta
+    JOIN customer_tags ct ON ct.id = uta.tag_id
+    WHERE uta.user_id = ss.user_id AND ct.name = 'VIP'
+  )`);
+    countConditions.push(`EXISTS (
+    SELECT 1 FROM user_tag_assignments uta
+    JOIN customer_tags ct ON ct.id = uta.tag_id
+    WHERE uta.user_id = ss.user_id AND ct.name = 'VIP'
+  )`);
   }
 
   const mainWhere = `WHERE ${mainConditions.join(' AND ')}`;

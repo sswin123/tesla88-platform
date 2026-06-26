@@ -14,12 +14,22 @@ const TABS = [
   { label: 'Closed', value: 'CLOSED' },
 ];
 
+type FilterKey = 'assignedToMe' | 'unassigned' | 'unread' | 'today' | 'lastWeek' | 'vip';
+
+interface SessionsResponse {
+  sessions: SupportSession[];
+  total: number;
+  stats: { open: number; active: number; closed_today: number };
+}
+
 export function ConversationList({
   selectedId,
   onSelect,
+  currentUsername,
 }: {
   selectedId: number | null;
   onSelect: (id: number) => void;
+  currentUsername: string | null;
 }) {
   const [sessions, setSessions] = useState<SupportSession[]>([]);
   const [total, setTotal] = useState(0);
@@ -27,6 +37,7 @@ export function ConversationList({
   const [tab, setTab] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [notifSettings, setNotifSettings] = useState<NotifSettings>(() => ({ sound: true, browser: true, titleFlash: true }));
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -37,23 +48,43 @@ export function ConversationList({
   // Desktop notifications hook
   useNotifications(notifSettings);
 
-  const load = useCallback(async (status: string, q: string) => {
+  function buildParams(status: string, q: string, filters: Set<FilterKey>): URLSearchParams {
+    const p = new URLSearchParams({ page: '1' });
+    if (status) p.set('status', status);
+    if (q) p.set('search', q);
+    if (filters.has('assignedToMe') && currentUsername) p.set('assigned_to_me', currentUsername);
+    if (filters.has('unassigned')) p.set('unassigned', '1');
+    if (filters.has('unread')) p.set('unread', '1');
+    if (filters.has('today')) p.set('today', '1');
+    if (filters.has('lastWeek')) p.set('last_week', '1');
+    if (filters.has('vip')) p.set('vip', '1');
+    return p;
+  }
+
+  const load = useCallback(async (params: URLSearchParams) => {
     setLoading(true);
-    const params = new URLSearchParams({ page: '1' });
-    if (status) params.set('status', status);
-    if (q) params.set('search', q);
     const r = await fetch(`/api/livechat/sessions?${params}`);
-    const d = await r.json();
+    const d = await r.json() as SessionsResponse;
     setSessions(d.sessions);
     setTotal(d.total);
     setStats(d.stats);
     setLoading(false);
   }, []);
 
-  // Initial load + tab/search changes
+  function toggleFilter(key: FilterKey) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  // Initial load + tab/search/filter changes
   useEffect(() => {
-    load(tab, search);
-  }, [tab, search, load]);
+    load(buildParams(tab, search, activeFilters));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, search, activeFilters, load, currentUsername]);
 
   // SSE for real-time updates
   useEffect(() => {
@@ -65,7 +96,7 @@ export function ConversationList({
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const evt: LiveChatSSEEvent = JSON.parse(e.data);
         // Re-fetch to get updated unread, last message, status
-        load(tab, search);
+        load(buildParams(tab, search, activeFilters));
       } catch {
         // ignore parse errors
       }
@@ -79,7 +110,8 @@ export function ConversationList({
       es.close();
       esRef.current = null;
     };
-  }, [tab, search, load]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, search, activeFilters, load, currentUsername]);
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
@@ -99,7 +131,7 @@ export function ConversationList({
           </div>
         </div>
         <Input
-          placeholder="Search name, @username, UID..."
+          placeholder="Search name, @username, phone, UID, session..."
           onChange={handleSearchChange}
           className="h-8 text-sm"
         />
@@ -110,6 +142,32 @@ export function ConversationList({
         <span className="font-medium text-orange-500">{stats.open} waiting</span>
         <span className="font-medium text-green-600">{stats.active} active</span>
         <span>{stats.closed_today} closed today</span>
+      </div>
+
+      {/* Filter pills */}
+      <div className="flex flex-wrap gap-1 border-b px-3 py-2">
+        {([
+          { key: 'assignedToMe' as FilterKey, label: 'Mine',        hide: !currentUsername },
+          { key: 'unassigned'   as FilterKey, label: 'Unassigned' },
+          { key: 'unread'       as FilterKey, label: 'Unread' },
+          { key: 'today'        as FilterKey, label: 'Today' },
+          { key: 'lastWeek'     as FilterKey, label: 'Last 7 Days' },
+          { key: 'vip'          as FilterKey, label: 'VIP' },
+        ] as Array<{ key: FilterKey; label: string; hide?: boolean }>)
+          .filter((f) => !f.hide)
+          .map((f) => (
+            <button
+              key={f.key}
+              onClick={() => toggleFilter(f.key)}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                activeFilters.has(f.key)
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
       </div>
 
       {/* Tabs */}

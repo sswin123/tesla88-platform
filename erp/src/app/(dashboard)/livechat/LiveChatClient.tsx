@@ -76,7 +76,7 @@ export default function LiveChatClient({
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden">
       {/* Left: conversation list */}
-      <ConversationList selectedId={selectedId} onSelect={handleSelect} />
+      <ConversationList selectedId={selectedId} onSelect={handleSelect} currentUsername={currentUsername} />
 
       {/* Middle: chat area */}
       {selectedId && session ? (
