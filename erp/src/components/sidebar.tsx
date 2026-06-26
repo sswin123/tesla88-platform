@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -50,6 +51,18 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [maintenanceOn, setMaintenanceOn] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { settings: { key: string; value: string }[] } | null) => {
+        if (!d) return;
+        const val = d.settings.find((s) => s.key === 'maintenance_mode')?.value;
+        setMaintenanceOn(val === 'true');
+      })
+      .catch(() => {/* ignore */});
+  }, []);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -62,6 +75,12 @@ export function Sidebar() {
       <div className="border-b px-4 py-4">
         <span className="text-base font-semibold tracking-tight">ERP Admin</span>
       </div>
+
+      {maintenanceOn && (
+        <div className="mx-2 mt-2 rounded-md bg-red-50 border border-red-300 px-3 py-2 text-xs text-red-700 font-medium">
+          Maintenance mode is ON
+        </div>
+      )}
 
       <nav className="flex-1 space-y-1 p-2">
         {NAV.map(({ href, label, icon: Icon }) => {
