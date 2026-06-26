@@ -303,3 +303,29 @@ export interface SessionNote {
   body: string;
   created_at: string;
 }
+
+// ── Finance Reports ──────────────────────────────────────────────────────────
+
+export interface FinanceReport {
+  period_start: string;
+  period_end: string;
+  total_deposit: number;
+  total_withdrawal: number;
+  total_bonus: number;
+  net_deposit: number;
+  gross_profit: number;
+  deposit_count: number;
+  withdrawal_count: number;
+  avg_deposit: number;
+  avg_withdrawal: number;
+  first_deposit_count: number;
+  repeat_deposit_count: number;
+  vip_deposit_amount: number;
+  daily_breakdown: {
+    date: string;
+    deposit: number;
+    withdrawal: number;
+    bonus: number;
+    net: number;
+  }[];
+}
