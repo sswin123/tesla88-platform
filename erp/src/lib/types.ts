@@ -360,6 +360,29 @@ export interface Provider {
   updated_at: string;
 }
 
+// ── Game Account Pool ────────────────────────────────────────────────────────
+
+export interface AccountPoolRow {
+  id: number;
+  provider: string;
+  username: string;
+  password: string;
+  status: 'AVAILABLE' | 'ASSIGNED' | 'DISABLED';
+  assigned_user_id: number | null;
+  assigned_user_name: string | null;
+  assigned_at: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AccountStats {
+  total: number;
+  available: number;
+  assigned: number;
+  disabled: number;
+  by_provider: { provider: string; available: number; assigned: number; disabled: number }[];
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
