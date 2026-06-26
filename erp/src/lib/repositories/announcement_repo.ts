@@ -62,11 +62,18 @@ export async function createAnnouncement(data: {
   return { ...r.rows[0], target_tag_name: null };
 }
 
+const ALLOWED_UPDATE_FIELDS = new Set([
+  'title', 'content', 'type', 'target', 'target_tag_id',
+  'status', 'start_at', 'end_at', 'sent_count',
+]);
+
 export async function updateAnnouncement(
   id: number,
   data: Partial<Omit<Announcement, 'id' | 'created_at' | 'created_by' | 'target_tag_name'>>
 ): Promise<Announcement | null> {
-  const fields = Object.keys(data).filter(k => k !== 'id');
+  const fields = Object.keys(data).filter(
+    (k) => k !== 'id' && ALLOWED_UPDATE_FIELDS.has(k)
+  );
   if (fields.length === 0) return null;
   const sets = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
   const values = fields.map(f => (data as Record<string, unknown>)[f]);

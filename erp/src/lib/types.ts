@@ -366,7 +366,7 @@ export interface AccountPoolRow {
   id: number;
   provider: string;
   username: string;
-  password: string;
+  password?: string;  // only populated during import, not returned in list queries
   status: 'AVAILABLE' | 'ASSIGNED' | 'DISABLED';
   assigned_user_id: number | null;
   assigned_user_name: string | null;

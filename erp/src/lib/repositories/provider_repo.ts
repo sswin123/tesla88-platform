@@ -45,6 +45,10 @@ export async function createProvider(data: {
   return rows[0];
 }
 
+const ALLOWED_UPDATE_FIELDS = new Set([
+  'display_name', 'description', 'logo_url', 'status', 'sort_order',
+]);
+
 export async function updateProvider(
   id: number,
   data: {
@@ -55,7 +59,9 @@ export async function updateProvider(
     sort_order?: number;
   }
 ): Promise<Provider | null> {
-  const fields = Object.keys(data) as (keyof typeof data)[];
+  const fields = (Object.keys(data) as (keyof typeof data)[]).filter(
+    (k) => ALLOWED_UPDATE_FIELDS.has(k as string)
+  );
   if (fields.length === 0) return getProviderById(id);
 
   const setClauses = fields.map((k, i) => `${k} = $${i + 2}`).join(', ');

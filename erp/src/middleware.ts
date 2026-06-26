@@ -19,6 +19,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow unauthenticated GET access to /api/providers (needed by the bot)
+  if (pathname === '/api/providers' && request.method === 'GET') {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));

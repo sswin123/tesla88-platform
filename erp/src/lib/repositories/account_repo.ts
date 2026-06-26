@@ -59,7 +59,7 @@ export async function getAccounts(opts: {
 
   const [rows, countRow] = await Promise.all([
     pool.query(
-      `SELECT ap.id, ap.provider, ap.username, ap.password, ap.status,
+      `SELECT ap.id, ap.provider, ap.username, ap.status,
               ap.assigned_user_id, u.first_name AS assigned_user_name,
               ap.note, ap.created_at::text
        FROM account_pool ap
