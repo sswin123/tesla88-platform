@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getSessionNotes, createSessionNote } from '@/lib/repositories/support_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET(
   _req: NextRequest,
@@ -31,5 +32,11 @@ export async function POST(
     author: payload.username,
     body: text,
   });
+  logAudit({
+    admin_id: payload.sub,
+    action: 'LIVECHAT_NOTE_CREATED',
+    target_type: 'support_session',
+    target_id: Number(id),
+  }).catch(() => {});
   return NextResponse.json({ note }, { status: 201 });
 }

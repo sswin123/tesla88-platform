@@ -33,7 +33,8 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
-  const lastPayloadRef = useRef<{ message_type: string; content: string } | null>(null);
+  const lastPayloadRef = useRef<{ message_type: string; content: string; quick_reply_used?: boolean } | null>(null);
+  const quickReplyUsedRef = useRef(false);
 
   // Quick replies state
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
@@ -94,11 +95,14 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
     const trimmed = text.trim();
     if (!trimmed && !pendingFile) return;
 
+    const usedQuickReply = quickReplyUsedRef.current;
+    quickReplyUsedRef.current = false;
+
     setSending(true);
     setError('');
 
     try {
-      let body: { message_type: string; content: string };
+      let body: { message_type: string; content: string; quick_reply_used?: boolean };
 
       if (pendingFile) {
         const dataUri = await new Promise<string>((resolve, reject) => {
@@ -110,10 +114,11 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
         body = { message_type: pendingFile.messageType, content: dataUri };
       } else {
         body = { message_type: 'TEXT', content: trimmed };
+        if (usedQuickReply) body.quick_reply_used = true;
       }
 
       setSendStatus('sending');
-      lastPayloadRef.current = { message_type: body.message_type, content: body.content };
+      lastPayloadRef.current = { message_type: body.message_type, content: body.content, quick_reply_used: body.quick_reply_used };
 
       const r = await fetch(`/api/livechat/sessions/${sessionId}/messages`, {
         method: 'POST',
@@ -310,6 +315,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
                               key={r.id}
                               onClick={() => {
                                 setText(r.body);
+                                quickReplyUsedRef.current = true;
                                 setShowQuickPicker(false);
                                 textareaRef.current?.focus();
                               }}
@@ -338,6 +344,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
                               key={r.id}
                               onClick={() => {
                                 setText(r.body);
+                                quickReplyUsedRef.current = true;
                                 setShowQuickPicker(false);
                                 textareaRef.current?.focus();
                               }}
@@ -365,7 +372,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); quickReplyUsedRef.current = false; }}
           onKeyDown={handleKeyDown}
           placeholder={pendingFile ? 'Add caption (optional)…' : 'Type a message…'}
           className="flex-1 resize-none rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"

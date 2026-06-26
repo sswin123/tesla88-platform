@@ -57,6 +57,11 @@ export function SessionActions({
     navigator.clipboard.writeText(session.telegram_id).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      fetch('/api/livechat/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'LIVECHAT_TELEGRAM_ID_COPIED', session_id: session.id }),
+      }).catch(() => {});
     }).catch(() => {});
   }
 

@@ -2,6 +2,7 @@ import { getTagsForUser, assignTagToUser, removeTagFromUser, getSessionUserId } 
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +26,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!body.tag_id) return NextResponse.json({ error: 'tag_id required' }, { status: 400 });
 
   await assignTagToUser({ user_id: userId, tag_id: body.tag_id, assigned_by: payload.username });
+  logAudit({
+    admin_id: payload.sub,
+    action: 'LIVECHAT_TAG_ADDED',
+    target_type: 'support_session',
+    target_id: Number(id),
+    new_value: { tag_id: body.tag_id },
+  }).catch(() => {});
   const tags = await getTagsForUser(userId);
   return NextResponse.json(tags);
 }
@@ -43,6 +51,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!body.tag_id) return NextResponse.json({ error: 'tag_id required' }, { status: 400 });
 
   await removeTagFromUser(userId, body.tag_id);
+  logAudit({
+    admin_id: payload.sub,
+    action: 'LIVECHAT_TAG_REMOVED',
+    target_type: 'support_session',
+    target_id: Number(id),
+    new_value: { tag_id: body.tag_id },
+  }).catch(() => {});
   const tags = await getTagsForUser(userId);
   return NextResponse.json(tags);
 }
