@@ -193,17 +193,17 @@ export async function getSessionWithDetails(id: number): Promise<{
       [userId]
     ),
     pool.query(
-      `SELECT MAX(created_at)::text AS last_at,
-              MAX(deposit_amount)::text AS last_amount
+      `SELECT created_at::text AS last_at, deposit_amount::text AS last_amount
        FROM deposit_requests
-       WHERE user_id = $1 AND status = 'APPROVED'`,
+       WHERE user_id = $1 AND status = 'APPROVED'
+       ORDER BY created_at DESC LIMIT 1`,
       [userId]
     ),
     pool.query(
-      `SELECT MAX(created_at)::text AS last_at,
-              MAX(withdraw_amount)::text AS last_amount
+      `SELECT created_at::text AS last_at, withdraw_amount::text AS last_amount
        FROM withdrawal_requests
-       WHERE user_id = $1 AND status = 'PAID'`,
+       WHERE user_id = $1 AND status = 'PAID'
+       ORDER BY created_at DESC LIMIT 1`,
       [userId]
     ),
     pool.query(

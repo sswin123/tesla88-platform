@@ -155,7 +155,6 @@ export default function LiveChatClient({
         {member && session ? (
           <MemberCard
             member={member}
-            session={session}
             onStatusChange={(s) => setMember((m) => (m ? { ...m, status: s } : m))}
           />
         ) : (

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { MemberCardData, SupportSession } from '@/lib/types';
+import type { MemberCardData } from '@/lib/types';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,11 +20,9 @@ function fmt(n: string) {
 
 export function MemberCard({
   member,
-  session,
   onStatusChange,
 }: {
   member: MemberCardData;
-  session: SupportSession;
   onStatusChange?: (newStatus: 'ACTIVE' | 'FROZEN') => void;
 }) {
   const [toggling, setToggling] = useState(false);
@@ -45,9 +43,6 @@ export function MemberCard({
     }
     setToggling(false);
   }
-
-  // Suppress unused warning — session may be used for future expansion
-  void session;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -74,6 +69,10 @@ export function MemberCard({
           Telegram
         </p>
         <Row label="UID" value={member.id} />
+        <Row label="Name" value={member.first_name} />
+        {member.telegram_username && (
+          <Row label="Username" value={`@${member.telegram_username}`} />
+        )}
         <Row label="Telegram ID" value={member.telegram_id} />
         <Row label="Phone" value={member.phone} />
         <Row label="Joined" value={new Date(member.created_at).toLocaleDateString()} />
@@ -124,7 +123,7 @@ export function MemberCard({
             Game Accounts
           </p>
           {member.game_accounts.map((ga) => (
-            <Row key={ga.provider} label={ga.provider} value={ga.username} />
+            <Row key={`${ga.provider}-${ga.username}`} label={ga.provider} value={ga.username} />
           ))}
         </div>
       )}
