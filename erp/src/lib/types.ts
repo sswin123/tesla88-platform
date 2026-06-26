@@ -86,6 +86,15 @@ export interface DashboardStats {
   withdrawalChart: { date: string; amount: number; count: number }[];
   topPromotions: { name: string; claim_count: number }[];
   topDepositors: { first_name: string; total: number }[];
+  // NEW fields
+  todayBonusAmount: number;
+  todayNetDeposit: number;
+  todayProfit: number;
+  newMembersToday: number;
+  activeMembersToday: number;
+  onlineSupportStaff: number;
+  topGameProviders: { provider: string; deposit_count: number; deposit_amount: number }[];
+  monthlyRevenue: { month: string; net: number; deposit: number; withdrawal: number }[];
 }
 
 export interface PaginatedResponse<T> {

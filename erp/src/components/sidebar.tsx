@@ -12,6 +12,15 @@ import {
   ScrollText,
   MessageSquare,
   LogOut,
+  BarChart2,
+  TrendingUp,
+  ShieldAlert,
+  Gamepad2,
+  Database,
+  Megaphone,
+  UserCog,
+  Settings,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +33,18 @@ const NAV = [
   { href: '/banks',       label: 'Bank Manager', icon: Landmark },
   { href: '/promotions',  label: 'Promotions',   icon: Gift },
   { href: '/audit',       label: 'Audit Log',    icon: ScrollText },
+  // Finance
+  { href: '/finance',       label: 'Finance Reports', icon: BarChart2 },
+  { href: '/analytics',     label: 'Analytics',       icon: TrendingUp },
+  // Operations
+  { href: '/risk',          label: 'Risk Center',     icon: ShieldAlert },
+  { href: '/providers',     label: 'Providers',       icon: Gamepad2 },
+  { href: '/accounts',      label: 'Game Accounts',   icon: Database },
+  { href: '/announcements', label: 'Announcements',   icon: Megaphone },
+  // System
+  { href: '/admin-users',   label: 'Admin Users',     icon: UserCog },
+  { href: '/settings',      label: 'Settings',        icon: Settings },
+  { href: '/maintenance',   label: 'Maintenance',     icon: Wrench },
 ];
 
 export function Sidebar() {
