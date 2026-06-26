@@ -54,12 +54,10 @@ export function Sidebar() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
 
   useEffect(() => {
-    fetch('/api/settings')
+    fetch('/api/maintenance/status')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { settings: { key: string; value: string }[] } | null) => {
-        if (!d) return;
-        const val = d.settings.find((s) => s.key === 'maintenance_mode')?.value;
-        setMaintenanceOn(val === 'true');
+      .then((d: { maintenance_mode: boolean } | null) => {
+        if (d && d.maintenance_mode) setMaintenanceOn(true);
       })
       .catch(() => {/* ignore */});
   }, []);

@@ -24,6 +24,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow unauthenticated access to public maintenance status (no sensitive data)
+  if (pathname === '/api/maintenance/status') {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
