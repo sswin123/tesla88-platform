@@ -137,6 +137,24 @@ export interface BonusClaim {
   promo_name?: string;
 }
 
+// ── Customer Tags ─────────────────────────────────────────────────────────────
+
+export interface CustomerTag {
+  id: number;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface UserTagAssignment {
+  user_id: number;
+  tag_id: number;
+  tag_name: string;
+  tag_color: string;
+  assigned_by: string;
+  assigned_at: string;
+}
+
 // ── Live Chat ────────────────────────────────────────────────────────────────
 
 export type SessionStatus = 'OPEN' | 'ACTIVE' | 'CLOSED';
@@ -167,6 +185,7 @@ export interface SupportSession {
   // computed / aggregated
   last_message_content?: string;        // NEW: last message preview text
   last_message_type?: MessageType;      // NEW
+  tags?: CustomerTag[];                 // populated by getSessionsLiveChat
 }
 
 export interface SupportMessage {
@@ -218,6 +237,8 @@ export interface MemberCardData {
   current_promotion: { name: string; bonus_amount: string; status: string } | null;
   // Previous sessions (up to 5, excluding current)
   previous_sessions: { id: number; status: string; created_at: string }[];
+  // Customer tags
+  tags: CustomerTag[];
 }
 
 // ── Payment Banks ────────────────────────────────────────────────────────────

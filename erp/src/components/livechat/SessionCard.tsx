@@ -3,6 +3,7 @@
 import type { SupportSession } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { TagBadge } from './TagBadge';
 
 const STATUS_LABEL: Record<string, string> = {
   OPEN: 'Waiting',
@@ -91,6 +92,13 @@ export function SessionCard({
         </div>
         {session.pinned_at && (
           <span className="text-xs text-blue-400">Pinned</span>
+        )}
+        {session.tags && session.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {session.tags.map((t) => (
+              <TagBadge key={t.id} tag={t} />
+            ))}
+          </div>
         )}
       </div>
     </button>

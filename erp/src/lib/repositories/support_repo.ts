@@ -1,5 +1,5 @@
 import pool from '@/lib/db';
-import type { SupportSession, SupportMessage, MemberCardData, QuickReply, QuickReplyCategory, SessionNote } from '@/lib/types';
+import type { SupportSession, SupportMessage, MemberCardData, QuickReply, QuickReplyCategory, SessionNote, CustomerTag } from '@/lib/types';
 
 export async function getSessions(options: {
   status?: string;
@@ -146,7 +146,31 @@ export async function getSessionsLiveChat(opts: {
     ),
   ]);
 
-  return { sessions: rows.rows as SupportSession[], total: count.rows[0].count };
+  const sessions = rows.rows as SupportSession[];
+
+  // Batch-load tags for all sessions (avoid N+1)
+  const userIds = sessions.map((s) => s.user_id);
+  if (userIds.length > 0) {
+    const tagRows = await pool.query<{ user_id: number; id: number; name: string; color: string; created_at: string }>(
+      `SELECT uta.user_id, ct.id, ct.name, ct.color, ct.created_at
+       FROM user_tag_assignments uta
+       JOIN customer_tags ct ON ct.id = uta.tag_id
+       WHERE uta.user_id = ANY($1::int[])
+       ORDER BY ct.name`,
+      [userIds]
+    );
+    const tagsByUser = new Map<number, CustomerTag[]>();
+    for (const tr of tagRows.rows) {
+      const existing = tagsByUser.get(tr.user_id) ?? [];
+      existing.push({ id: tr.id, name: tr.name, color: tr.color, created_at: tr.created_at });
+      tagsByUser.set(tr.user_id, existing);
+    }
+    for (const s of sessions) {
+      s.tags = tagsByUser.get(s.user_id) ?? [];
+    }
+  }
+
+  return { sessions, total: count.rows[0].count };
 }
 
 export async function getSessionWithDetails(id: number): Promise<{
@@ -183,7 +207,7 @@ export async function getSessionWithDetails(id: number): Promise<{
 
   const userId = row.user_id as number;
 
-  const [gameRows, lastDepRow, lastWithdrawRow, promoRow, prevSessionRows] = await Promise.all([
+  const [gameRows, lastDepRow, lastWithdrawRow, promoRow, prevSessionRows, tagsResult] = await Promise.all([
     pool.query(
       `SELECT ap.provider, ap.username
        FROM user_game_accounts uga
@@ -221,6 +245,7 @@ export async function getSessionWithDetails(id: number): Promise<{
        ORDER BY created_at DESC LIMIT 5`,
       [userId, id]
     ),
+    getTagsForUser(userId),
   ]);
 
   const session: SupportSession = {
@@ -270,6 +295,7 @@ export async function getSessionWithDetails(id: number): Promise<{
       status: promoRow.rows[0].status,
     } : null,
     previous_sessions: prevSessionRows.rows,
+    tags: tagsResult,
   };
 
   return { session, messages: messageRows.rows.reverse(), member };
@@ -437,4 +463,76 @@ export async function createSessionNote(data: {
 
 export async function deleteSessionNote(noteId: number): Promise<void> {
   await pool.query(`DELETE FROM session_notes WHERE id=$1`, [noteId]);
+}
+
+// ── Customer Tags ─────────────────────────────────────────────────────────────
+
+export async function getAllTags(): Promise<CustomerTag[]> {
+  const { rows } = await pool.query(
+    `SELECT id, name, color, created_at FROM customer_tags ORDER BY name`
+  );
+  return rows;
+}
+
+export async function createTag(data: { name: string; color: string }): Promise<CustomerTag> {
+  const { rows } = await pool.query(
+    `INSERT INTO customer_tags (name, color) VALUES ($1, $2)
+     RETURNING id, name, color, created_at`,
+    [data.name, data.color]
+  );
+  return rows[0];
+}
+
+export async function updateTag(
+  id: number,
+  data: { name?: string; color?: string }
+): Promise<CustomerTag | null> {
+  const sets: string[] = [];
+  const params: (string | number)[] = [];
+  let i = 1;
+  if (data.name  !== undefined) { sets.push(`name=$${i++}`);  params.push(data.name); }
+  if (data.color !== undefined) { sets.push(`color=$${i++}`); params.push(data.color); }
+  if (!sets.length) return null;
+  params.push(id);
+  const { rows } = await pool.query(
+    `UPDATE customer_tags SET ${sets.join(', ')} WHERE id=$${i}
+     RETURNING id, name, color, created_at`,
+    params
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteTag(id: number): Promise<void> {
+  await pool.query(`DELETE FROM customer_tags WHERE id=$1`, [id]);
+}
+
+export async function getTagsForUser(userId: number): Promise<CustomerTag[]> {
+  const { rows } = await pool.query(
+    `SELECT ct.id, ct.name, ct.color, ct.created_at
+     FROM user_tag_assignments uta
+     JOIN customer_tags ct ON ct.id = uta.tag_id
+     WHERE uta.user_id = $1
+     ORDER BY ct.name`,
+    [userId]
+  );
+  return rows;
+}
+
+export async function assignTagToUser(data: {
+  user_id: number;
+  tag_id: number;
+  assigned_by: string;
+}): Promise<void> {
+  await pool.query(
+    `INSERT INTO user_tag_assignments (user_id, tag_id, assigned_by)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [data.user_id, data.tag_id, data.assigned_by]
+  );
+}
+
+export async function removeTagFromUser(userId: number, tagId: number): Promise<void> {
+  await pool.query(
+    `DELETE FROM user_tag_assignments WHERE user_id=$1 AND tag_id=$2`,
+    [userId, tagId]
+  );
 }

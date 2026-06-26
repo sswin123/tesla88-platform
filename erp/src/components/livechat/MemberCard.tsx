@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { MemberCardData } from '@/lib/types';
+import type { MemberCardData, CustomerTag } from '@/lib/types';
+import { TagBadge } from './TagBadge';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,12 +21,53 @@ function fmt(n: string) {
 
 export function MemberCard({
   member,
+  sessionId,
   onStatusChange,
 }: {
   member: MemberCardData;
+  sessionId: number;
   onStatusChange?: (newStatus: 'ACTIVE' | 'FROZEN') => void;
 }) {
   const [toggling, setToggling] = useState(false);
+  const [tags, setTags] = useState<CustomerTag[]>(member.tags ?? []);
+  const [allTags, setAllTags] = useState<CustomerTag[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<number | ''>('');
+  const [addingTag, setAddingTag] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/livechat/tags')
+      .then((r) => r.json())
+      .then((data) => setAllTags(data as CustomerTag[]))
+      .catch(() => {});
+  }, []);
+
+  async function handleAddTag() {
+    if (!selectedTagId) return;
+    setAddingTag(true);
+    const r = await fetch(`/api/livechat/sessions/${sessionId}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_id: selectedTagId }),
+    });
+    if (r.ok) {
+      const updated = await r.json() as CustomerTag[];
+      setTags(updated);
+      setSelectedTagId('');
+    }
+    setAddingTag(false);
+  }
+
+  async function handleRemoveTag(tagId: number) {
+    const r = await fetch(`/api/livechat/sessions/${sessionId}/tags`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_id: tagId }),
+    });
+    if (r.ok) {
+      const updated = await r.json() as CustomerTag[];
+      setTags(updated);
+    }
+  }
 
   async function toggleFreeze() {
     setToggling(true);
@@ -61,6 +103,45 @@ export function MemberCard({
         >
           {member.status}
         </Badge>
+      </div>
+
+      {/* Tags */}
+      <div className="border-b p-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Tags
+        </p>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {tags.map((t) => (
+              <TagBadge key={t.id} tag={t} onRemove={() => void handleRemoveTag(t.id)} />
+            ))}
+          </div>
+        )}
+        <div className="flex gap-1">
+          <select
+            value={selectedTagId}
+            onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : '')}
+            className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+          >
+            <option value="">Add tag…</option>
+            {allTags
+              .filter((t) => !tags.some((ct) => ct.id === t.id))
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+          </select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 px-2"
+            onClick={() => void handleAddTag()}
+            disabled={!selectedTagId || addingTag}
+          >
+            Add
+          </Button>
+        </div>
       </div>
 
       {/* Telegram info */}
