@@ -9,7 +9,7 @@ function mediaUrl(fileId: string): string {
   return `/api/livechat/media/${encodeURIComponent(fileId)}`;
 }
 
-function MediaContent({ msg }: { msg: SupportMessage }) {
+function MediaContent({ msg, onPhotoClick }: { msg: SupportMessage; onPhotoClick?: () => void }) {
   const { message_type, content, caption } = msg;
 
   if (message_type === 'TEXT') {
@@ -20,14 +20,13 @@ function MediaContent({ msg }: { msg: SupportMessage }) {
     if (!content) return <span className="italic text-xs">[Photo]</span>;
     return (
       <div>
-        <a href={mediaUrl(content)} target="_blank" rel="noopener noreferrer">
-          <img
-            src={mediaUrl(content)}
-            alt="photo"
-            className="max-h-64 max-w-xs rounded-lg object-contain cursor-pointer hover:opacity-90"
-            loading="lazy"
-          />
-        </a>
+        <img
+          src={mediaUrl(content)}
+          alt="photo"
+          className="max-h-64 max-w-xs rounded-lg object-contain cursor-pointer hover:opacity-90"
+          loading="lazy"
+          onClick={onPhotoClick}
+        />
         {caption && (
           <p className="mt-1 whitespace-pre-wrap break-words text-sm">{caption}</p>
         )}
@@ -123,9 +122,11 @@ function MediaContent({ msg }: { msg: SupportMessage }) {
 export function MessageBubble({
   msg,
   senderName,
+  onPhotoClick,
 }: {
   msg: SupportMessage;
   senderName?: string;
+  onPhotoClick?: () => void;
 }) {
   const isAgent = msg.sender_type === 'AGENT';
 
@@ -142,7 +143,7 @@ export function MessageBubble({
         {!isAgent && senderName && (
           <p className="mb-1 text-xs font-semibold text-gray-500">{senderName}</p>
         )}
-        <MediaContent msg={msg} />
+        <MediaContent msg={msg} onPhotoClick={onPhotoClick} />
         <p className={cn('mt-1 text-right text-xs opacity-70')}>
           {formatTime(msg.created_at)}
           {isAgent && <span className="ml-1">✓</span>}

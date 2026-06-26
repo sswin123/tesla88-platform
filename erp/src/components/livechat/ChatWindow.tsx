@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MessageBubble } from './MessageBubble';
+import { ImageLightbox } from './ImageLightbox';
 import type { SupportMessage } from '@/lib/types';
+
+function mediaUrl(fileId: string): string {
+  return `/api/livechat/media/${encodeURIComponent(fileId)}`;
+}
 
 function DateDivider({ date }: { date: string }) {
   return (
@@ -45,6 +50,7 @@ export function ChatWindow({
   memberName,
 }: ChatWindowProps) {
   const [loadingMore, setLoadingMore] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
@@ -137,6 +143,17 @@ export function ChatWindow({
     }
   }, [sessionId, messages, loadingMore, hasMore, setMessages, setHasMore]);
 
+  const photoMessages = messages.filter(
+    (m) => m.message_type === 'PHOTO' && m.content
+  );
+  const photoIndexMap = new Map<string, number>(
+    photoMessages.map((m, i) => [m.content!, i])
+  );
+  const lightboxPhotos = photoMessages.map((m) => ({
+    src: mediaUrl(m.content!),
+    caption: m.caption ?? undefined,
+  }));
+
   const groups = groupByDate(messages);
 
   return (
@@ -158,12 +175,28 @@ export function ChatWindow({
           <DateDivider date={g.date} />
           <div className="space-y-2">
             {g.msgs.map((m) => (
-              <MessageBubble key={m.id} msg={m} senderName={memberName} />
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                senderName={memberName}
+                onPhotoClick={
+                  m.message_type === 'PHOTO' && m.content
+                    ? () => setLightboxIndex(photoIndexMap.get(m.content!) ?? null)
+                    : undefined
+                }
+              />
             ))}
           </div>
         </div>
       ))}
       <div ref={bottomRef} />
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          photos={lightboxPhotos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 }
