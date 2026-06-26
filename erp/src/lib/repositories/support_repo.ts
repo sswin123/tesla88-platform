@@ -536,3 +536,11 @@ export async function removeTagFromUser(userId: number, tagId: number): Promise<
     [userId, tagId]
   );
 }
+
+export async function getSessionUserId(sessionId: number): Promise<number | null> {
+  const { rows } = await pool.query(
+    `SELECT user_id FROM support_sessions WHERE id=$1`,
+    [sessionId]
+  );
+  return rows[0]?.user_id ?? null;
+}

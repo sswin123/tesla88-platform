@@ -1,19 +1,11 @@
-import pool from '@/lib/db';
-import { getTagsForUser, assignTagToUser, removeTagFromUser } from '@/lib/repositories/support_repo';
+import { getTagsForUser, assignTagToUser, removeTagFromUser, getSessionUserId } from '@/lib/repositories/support_repo';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-async function getUserId(sessionId: number): Promise<number | null> {
-  const { rows } = await pool.query(
-    `SELECT user_id FROM support_sessions WHERE id=$1`, [sessionId]
-  );
-  return (rows[0]?.user_id as number) ?? null;
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const userId = await getUserId(Number(id));
+  const userId = await getSessionUserId(Number(id));
   if (!userId) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   const tags = await getTagsForUser(userId);
   return NextResponse.json(tags);
@@ -26,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const userId = await getUserId(Number(id));
+  const userId = await getSessionUserId(Number(id));
   if (!userId) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
   const body = await req.json().catch(() => ({})) as { tag_id?: number };
@@ -44,7 +36,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const userId = await getUserId(Number(id));
+  const userId = await getSessionUserId(Number(id));
   if (!userId) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
   const body = await req.json().catch(() => ({})) as { tag_id?: number };
