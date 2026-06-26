@@ -383,6 +383,25 @@ export interface AccountStats {
   by_provider: { provider: string; available: number; assigned: number; disabled: number }[];
 }
 
+// ── Announcements ────────────────────────────────────────────────────────────
+
+export interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  type: 'POPUP' | 'BANNER' | 'TICKER' | 'BROADCAST';
+  target: 'ALL' | 'VIP' | 'TAG';
+  target_tag_id: number | null;
+  target_tag_name: string | null;  // joined from customer_tags
+  status: 'DRAFT' | 'ACTIVE' | 'SCHEDULED' | 'ENDED';
+  start_at: string | null;
+  end_at: string | null;
+  created_by: string;
+  sent_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
