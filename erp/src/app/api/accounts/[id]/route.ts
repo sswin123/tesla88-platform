@@ -24,7 +24,12 @@ export async function PATCH(
 
   if ('assigned_user_id' in body) {
     const newUserId = body.assigned_user_id ?? null;
-    await reassignAccount(accountId, newUserId);
+    try {
+      await reassignAccount(accountId, newUserId, payload.username ?? 'system');
+    } catch (err) {
+      console.error('[accounts PATCH]', err);
+      return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -33,7 +38,12 @@ export async function PATCH(
     if (!allowed.includes(body.status)) {
       return NextResponse.json({ error: `status must be one of ${allowed.join(', ')}` }, { status: 400 });
     }
-    await updateAccountStatus(accountId, body.status);
+    try {
+      await updateAccountStatus(accountId, body.status);
+    } catch (err) {
+      console.error('[accounts PATCH]', err);
+      return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+    }
     return NextResponse.json({ ok: true });
   }
 

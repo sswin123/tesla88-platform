@@ -22,6 +22,13 @@ function parseBulkImport(
     .filter((r) => r.provider && r.username);
 }
 
+function csvEscape(v: string): string {
+  if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+    return `"${v.replace(/"/g, '""')}"`;
+  }
+  return v;
+}
+
 function exportCSV(accounts: AccountPoolRow[]) {
   const rows = [
     ['Provider', 'Username', 'Status', 'Assigned To'],
@@ -32,7 +39,7 @@ function exportCSV(accounts: AccountPoolRow[]) {
       a.assigned_user_name ?? '',
     ]),
   ];
-  const csv = rows.map((r) => r.join(',')).join('\n');
+  const csv = rows.map((r) => r.map(csvEscape).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -118,24 +125,26 @@ export default function AccountsPage() {
 
   async function handleUnassign(id: number) {
     await setRowLoading(id, true);
-    await fetch(`/api/accounts/${id}`, {
+    const res = await fetch(`/api/accounts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ assigned_user_id: null }),
     });
     await setRowLoading(id, false);
+    if (!res.ok) { alert('Action failed. Please try again.'); return; }
     void load();
   }
 
   async function handleStatusToggle(account: AccountPoolRow) {
     const newStatus = account.status === 'DISABLED' ? 'AVAILABLE' : 'DISABLED';
     await setRowLoading(account.id, true);
-    await fetch(`/api/accounts/${account.id}`, {
+    const res = await fetch(`/api/accounts/${account.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
     await setRowLoading(account.id, false);
+    if (!res.ok) { alert('Action failed. Please try again.'); return; }
     void load();
   }
 
@@ -145,13 +154,14 @@ export default function AccountsPage() {
     const userId = parseInt(raw, 10);
     if (isNaN(userId)) { alert('Enter a valid numeric user ID'); return; }
     await setRowLoading(id, true);
-    await fetch(`/api/accounts/${id}`, {
+    const res = await fetch(`/api/accounts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ assigned_user_id: userId }),
     });
     setReassignInputs((prev) => ({ ...prev, [id]: '' }));
     await setRowLoading(id, false);
+    if (!res.ok) { alert('Action failed. Please try again.'); return; }
     void load();
   }
 

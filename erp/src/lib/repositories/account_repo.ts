@@ -88,7 +88,8 @@ export async function getAccounts(opts: {
 
 export async function reassignAccount(
   accountId: number,
-  newUserId: number | null
+  newUserId: number | null,
+  _assignedBy: string
 ): Promise<void> {
   const newStatus = newUserId === null ? 'AVAILABLE' : 'ASSIGNED';
   await pool.query(
@@ -111,17 +112,16 @@ export async function bulkImportAccounts(
   rows: { provider: string; username: string; password: string }[]
 ): Promise<number> {
   if (rows.length === 0) return 0;
-  let inserted = 0;
-  for (const row of rows) {
-    const r = await pool.query(
-      `INSERT INTO account_pool (provider, username, password, status)
-       VALUES ($1, $2, $3, 'AVAILABLE')
-       ON CONFLICT DO NOTHING`,
-      [row.provider, row.username, row.password]
-    );
-    inserted += r.rowCount ?? 0;
-  }
-  return inserted;
+  const providers = rows.map((r) => r.provider);
+  const usernames = rows.map((r) => r.username);
+  const passwords = rows.map((r) => r.password);
+  const result = await pool.query(
+    `INSERT INTO account_pool (provider, username, password, status)
+     SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], ARRAY_FILL('AVAILABLE'::text, ARRAY[array_length($1::text[], 1)]))
+     ON CONFLICT DO NOTHING`,
+    [providers, usernames, passwords]
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function getProviders(): Promise<string[]> {
