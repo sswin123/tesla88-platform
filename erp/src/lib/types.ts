@@ -1,4 +1,4 @@
-export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'CS';
+export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'CS' | 'FINANCE' | 'SUPERVISOR' | 'SUPPORT';
 
 export interface ERPAdmin {
   id: number;
