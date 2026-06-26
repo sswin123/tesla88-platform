@@ -304,6 +304,24 @@ export interface SessionNote {
   created_at: string;
 }
 
+// ── Member Analytics ─────────────────────────────────────────────────────────
+
+export interface MemberAnalytics {
+  total_members: number;
+  active_30d: number;
+  first_deposit_rate: number;
+  retention_rate_30d: number;
+  new_members_daily: { date: string; count: number }[];
+  top_depositors: { id: number; first_name: string; total: number; count: number }[];
+  top_bonus_users: { id: number; first_name: string; total: number; claims: number }[];
+  referral_stats: {
+    referred_members: number;
+    organic_members: number;
+    active_referrers: number;
+  };
+  top_promotions_by_members: { name: string; member_count: number }[];
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
