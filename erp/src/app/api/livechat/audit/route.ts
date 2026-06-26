@@ -23,13 +23,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }
 
-  await logAudit({
+  logAudit({
     admin_id: payload.sub,
     action: body.action,
     target_type: 'support_session',
     target_id: body.session_id ?? null,
     new_value: body.session_id ? { session_id: body.session_id } : null,
-  });
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }
