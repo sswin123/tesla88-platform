@@ -77,6 +77,9 @@ export function MemberCard({
         <Row label="Telegram ID" value={member.telegram_id} />
         <Row label="Phone" value={member.phone} />
         <Row label="Joined" value={new Date(member.created_at).toLocaleDateString()} />
+        {member.last_seen_at && (
+          <Row label="Last Seen" value={new Date(member.last_seen_at).toLocaleDateString()} />
+        )}
       </div>
 
       {/* Financials */}
@@ -84,9 +87,22 @@ export function MemberCard({
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
           Financials
         </p>
-        <Row label="Total Deposit" value={fmt(member.total_deposit)} />
+        <Row label="Total Deposit"    value={fmt(member.total_deposit)} />
         <Row label="Total Withdrawal" value={fmt(member.total_withdraw)} />
-        <Row label="Total Bonus" value={fmt(member.total_bonus)} />
+        <Row label="Total Bonus"      value={fmt(member.total_bonus)} />
+        <Row label="Net Deposit"      value={fmt(member.net_deposit)} />
+        {member.last_deposit_amount && (
+          <Row
+            label="Last Deposit"
+            value={`${fmt(member.last_deposit_amount)} · ${member.last_deposit_at ? new Date(member.last_deposit_at).toLocaleDateString() : ''}`}
+          />
+        )}
+        {member.last_withdrawal_amount && (
+          <Row
+            label="Last Withdrawal"
+            value={`${fmt(member.last_withdrawal_amount)} · ${member.last_withdrawal_at ? new Date(member.last_withdrawal_at).toLocaleDateString() : ''}`}
+          />
+        )}
       </div>
 
       {/* Bank */}
@@ -98,6 +114,53 @@ export function MemberCard({
           <Row label="Bank" value={member.bank_name} />
           <Row label="Account" value={member.bank_account} />
           <Row label="Holder" value={member.bank_holder_name} />
+        </div>
+      )}
+
+      {/* Game Accounts */}
+      {member.game_accounts.length > 0 && (
+        <div className="border-b p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Game Accounts
+          </p>
+          {member.game_accounts.map((ga) => (
+            <Row key={ga.provider} label={ga.provider} value={ga.username} />
+          ))}
+        </div>
+      )}
+
+      {/* Current Promotion */}
+      {member.current_promotion && (
+        <div className="border-b p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Active Promotion
+          </p>
+          <Row label="Name"   value={member.current_promotion.name} />
+          <Row label="Bonus"  value={fmt(member.current_promotion.bonus_amount)} />
+          <Row label="Status" value={member.current_promotion.status} />
+        </div>
+      )}
+
+      {/* Previous Sessions */}
+      {member.previous_sessions.length > 0 && (
+        <div className="border-b p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Previous Sessions
+          </p>
+          {member.previous_sessions.map((s) => (
+            <a
+              key={s.id}
+              href={`/livechat?session=${s.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex justify-between py-1 text-xs hover:underline"
+            >
+              <span className="text-blue-500">#{s.id}</span>
+              <span className="text-gray-400">
+                {s.status} · {new Date(s.created_at).toLocaleDateString()}
+              </span>
+            </a>
+          ))}
         </div>
       )}
 

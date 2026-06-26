@@ -105,6 +105,13 @@ async def store_message(
         content,
         caption,
     )
+    if sender_type == "USER":
+        await pool.execute(
+            "UPDATE users SET last_seen_at = NOW() WHERE id = ("
+            "SELECT user_id FROM support_sessions WHERE id = $1"
+            ")",
+            session_id,
+        )
 
 
 async def get_session_by_group_msg_id(

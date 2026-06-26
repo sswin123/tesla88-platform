@@ -197,12 +197,27 @@ export interface MemberCardData {
   phone: string;
   status: 'ACTIVE' | 'FROZEN';
   created_at: string;
+  last_seen_at: string | null;
+  // Financials
   total_deposit: string;
   total_withdraw: string;
   total_bonus: string;
+  net_deposit: string;
+  // Last transactions
+  last_deposit_at: string | null;
+  last_deposit_amount: string | null;
+  last_withdrawal_at: string | null;
+  last_withdrawal_amount: string | null;
+  // Bank
   bank_name: string;
   bank_account: string;
   bank_holder_name: string;
+  // Game accounts
+  game_accounts: { provider: string; username: string }[];
+  // Current promotion (null if none active)
+  current_promotion: { name: string; bonus_amount: string; status: string } | null;
+  // Previous sessions (up to 5, excluding current)
+  previous_sessions: { id: number; status: string; created_at: string }[];
 }
 
 // ── Payment Banks ────────────────────────────────────────────────────────────

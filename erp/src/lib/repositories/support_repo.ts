@@ -160,6 +160,7 @@ export async function getSessionWithDetails(id: number): Promise<{
               u.first_name, u.phone, u.telegram_id, u.telegram_username,
               u.status AS member_status, u.created_at AS member_created_at,
               u.total_deposit, u.total_withdraw, u.total_bonus,
+              u.net_deposit, u.last_seen_at,
               u.bank_name, u.bank_account, u.bank_holder_name
        FROM support_sessions ss
        JOIN users u ON u.id = ss.user_id
@@ -179,6 +180,48 @@ export async function getSessionWithDetails(id: number): Promise<{
 
   if (!sessionRows.rows[0]) return null;
   const row = sessionRows.rows[0];
+
+  const userId = row.user_id as number;
+
+  const [gameRows, lastDepRow, lastWithdrawRow, promoRow, prevSessionRows] = await Promise.all([
+    pool.query(
+      `SELECT ap.provider, ap.username
+       FROM user_game_accounts uga
+       JOIN account_pool ap ON ap.id = uga.account_pool_id
+       WHERE uga.user_id = $1
+       ORDER BY ap.provider`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT MAX(created_at)::text AS last_at,
+              MAX(deposit_amount)::text AS last_amount
+       FROM deposit_requests
+       WHERE user_id = $1 AND status = 'APPROVED'`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT MAX(created_at)::text AS last_at,
+              MAX(withdraw_amount)::text AS last_amount
+       FROM withdrawal_requests
+       WHERE user_id = $1 AND status = 'PAID'`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT p.name, bc.bonus_amount::text, bc.status
+       FROM bonus_claims bc
+       JOIN promotions p ON p.id = bc.promotion_id
+       WHERE bc.user_id = $1 AND bc.status = 'ACTIVE'
+       ORDER BY bc.claimed_at DESC LIMIT 1`,
+      [userId]
+    ),
+    pool.query(
+      `SELECT id, status, created_at::text
+       FROM support_sessions
+       WHERE user_id = $1 AND id != $2
+       ORDER BY created_at DESC LIMIT 5`,
+      [userId, id]
+    ),
+  ]);
 
   const session: SupportSession = {
     id: row.id,
@@ -201,19 +244,32 @@ export async function getSessionWithDetails(id: number): Promise<{
   };
 
   const member: MemberCardData = {
-    id: row.user_id,
+    id: userId,
     first_name: row.first_name,
     telegram_id: row.telegram_id,
     telegram_username: row.telegram_username,
     phone: row.phone,
     status: row.member_status,
     created_at: row.member_created_at,
+    last_seen_at: row.last_seen_at ?? null,
     total_deposit: row.total_deposit ?? '0',
     total_withdraw: row.total_withdraw ?? '0',
     total_bonus: row.total_bonus ?? '0',
+    net_deposit: row.net_deposit ?? '0',
+    last_deposit_at: lastDepRow.rows[0]?.last_at ?? null,
+    last_deposit_amount: lastDepRow.rows[0]?.last_amount ?? null,
+    last_withdrawal_at: lastWithdrawRow.rows[0]?.last_at ?? null,
+    last_withdrawal_amount: lastWithdrawRow.rows[0]?.last_amount ?? null,
     bank_name: row.bank_name ?? '',
     bank_account: row.bank_account ?? '',
     bank_holder_name: row.bank_holder_name ?? '',
+    game_accounts: gameRows.rows,
+    current_promotion: promoRow.rows[0] ? {
+      name: promoRow.rows[0].name,
+      bonus_amount: promoRow.rows[0].bonus_amount,
+      status: promoRow.rows[0].status,
+    } : null,
+    previous_sessions: prevSessionRows.rows,
   };
 
   return { session, messages: messageRows.rows.reverse(), member };

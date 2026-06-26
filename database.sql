@@ -413,3 +413,7 @@ CREATE TABLE IF NOT EXISTS session_notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id);
+
+-- ── Last Seen (migration 010) ─────────────────────────────────────────────────
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen_at);
