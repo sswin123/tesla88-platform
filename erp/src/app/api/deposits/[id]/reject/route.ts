@@ -4,8 +4,11 @@ import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
+const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
+const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
+
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const cookieStore = await cookies();
@@ -17,6 +20,8 @@ export async function POST(
   const adminId = payload.sub;
 
   const { id } = await params;
+  const body = await req.json().catch(() => ({})) as { reason?: string };
+  const reason: string = body.reason ?? '';
 
   // Identical to bot's deposit_repo.py::reject_deposit
   const { rows } = await pool.query(
@@ -39,5 +44,13 @@ export async function POST(
     target_id: parseInt(id, 10),
     new_value: { status: 'REJECTED' },
   });
+
+  // Notify customer via bot relay (fire-and-forget)
+  fetch(`${BOT_RELAY_URL}/notify/deposit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
+    body: JSON.stringify({ request_id: parseInt(id, 10), status: 'REJECTED', reason }),
+  }).catch(() => {});
+
   return NextResponse.json({ ok: true });
 }

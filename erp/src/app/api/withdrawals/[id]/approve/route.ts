@@ -4,6 +4,9 @@ import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
+const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
+const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,6 +64,14 @@ export async function POST(
       target_id: requestId,
       new_value: { status: 'PAID', amount: req.withdraw_amount },
     });
+
+    // Notify customer via bot relay (fire-and-forget)
+    fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
+      body: JSON.stringify({ request_id: requestId, status: 'PAID' }),
+    }).catch(() => {});
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
