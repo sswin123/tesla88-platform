@@ -346,6 +346,20 @@ export interface RiskFlag {
   updated_at: string;
 }
 
+// ── Providers ────────────────────────────────────────────────────────────────
+
+export interface Provider {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string | null;
+  logo_url: string | null;
+  status: 'ACTIVE' | 'DISABLED' | 'MAINTENANCE';
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
