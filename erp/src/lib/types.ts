@@ -402,6 +402,16 @@ export interface Announcement {
   updated_at: string;
 }
 
+// ── System Settings ──────────────────────────────────────────────────────────
+
+export interface SystemSetting {
+  key: string;
+  value: string;
+  description: string | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
