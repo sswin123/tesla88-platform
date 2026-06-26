@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAllAdmins, createAdmin } from '@/lib/repositories/admin_repo';
 import type { AdminRole } from '@/lib/types';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 const VALID_ROLES: AdminRole[] = ['SUPER_ADMIN', 'ADMIN', 'CS', 'FINANCE', 'SUPERVISOR', 'SUPPORT'];
 
@@ -60,6 +61,13 @@ export async function POST(request: NextRequest) {
       password:          body.password,
       added_by_username: payload.username,
     });
+    logAudit({
+      admin_id: payload.sub,
+      action: 'ADMIN_CREATED',
+      target_type: 'admin',
+      target_id: admin.id,
+      new_value: { erp_username: body.erp_username, role: body.role },
+    }).catch(() => {});
     return NextResponse.json(admin, { status: 201 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

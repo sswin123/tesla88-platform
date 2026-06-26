@@ -6,6 +6,7 @@ import {
   getUsersForBroadcast,
   incrementSentCount,
 } from '@/lib/repositories/announcement_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -90,6 +91,13 @@ export async function POST(
     await incrementSentCount(numId, sent);
   }
 
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ANNOUNCEMENT_BROADCAST',
+    target_type: 'announcement',
+    target_id: numId,
+    new_value: { sent, target: announcement.target },
+  }).catch(() => {});
   return NextResponse.json({
     ok: true,
     sent,

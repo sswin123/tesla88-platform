@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { updateRiskFlag } from '@/lib/repositories/risk_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function PATCH(
   request: NextRequest,
@@ -31,5 +32,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Flag not found' }, { status: 404 });
   }
 
+  logAudit({
+    admin_id: payload.sub,
+    action: 'RISK_FLAG_UPDATED',
+    target_type: 'risk_flag',
+    target_id: flagId,
+    new_value: { status: body.status },
+  }).catch(() => {});
   return NextResponse.json(updated);
 }

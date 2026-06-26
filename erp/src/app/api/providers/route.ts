@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAllProviders, createProvider } from '@/lib/repositories/provider_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET() {
   const providers = await getAllProviders();
@@ -42,5 +43,12 @@ export async function POST(request: NextRequest) {
     logo_url:     body.logo_url ?? null,
     sort_order:   body.sort_order ?? 0,
   });
+  logAudit({
+    admin_id: payload.sub,
+    action: 'PROVIDER_CREATED',
+    target_type: 'provider',
+    target_id: provider.id,
+    new_value: { name: body.name, display_name: body.display_name },
+  }).catch(() => {});
   return NextResponse.json({ provider }, { status: 201 });
 }

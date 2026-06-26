@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAllSettings, setSettings } from '@/lib/repositories/settings_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 async function getSuperAdminPayload() {
   const cookieStore = await cookies();
@@ -36,5 +37,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   await setSettings(body, payload.username);
+  logAudit({
+    admin_id: payload.sub,
+    action: 'SETTINGS_UPDATED',
+    target_type: 'system_settings',
+    target_id: null,
+    new_value: body,
+  }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

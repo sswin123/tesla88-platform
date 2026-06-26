@@ -6,6 +6,7 @@ import {
   updateAnnouncement,
   deleteAnnouncement,
 } from '@/lib/repositories/announcement_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function PATCH(
   request: NextRequest,
@@ -36,6 +37,13 @@ export async function PATCH(
   const updated = await updateAnnouncement(numId, updateFields);
   if (!updated) return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
 
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ANNOUNCEMENT_UPDATED',
+    target_type: 'announcement',
+    target_id: numId,
+    new_value: body,
+  }).catch(() => {});
   return NextResponse.json(updated);
 }
 
@@ -55,5 +63,12 @@ export async function DELETE(
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   await deleteAnnouncement(numId);
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ANNOUNCEMENT_DELETED',
+    target_type: 'announcement',
+    target_id: numId,
+    new_value: null,
+  }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

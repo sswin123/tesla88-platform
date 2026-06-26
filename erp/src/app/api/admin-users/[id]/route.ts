@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { updateAdmin } from '@/lib/repositories/admin_repo';
 import type { AdminRole } from '@/lib/types';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 const VALID_ROLES: AdminRole[] = ['SUPER_ADMIN', 'ADMIN', 'CS', 'FINANCE', 'SUPERVISOR', 'SUPPORT'];
 
@@ -51,5 +52,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Admin not found or no changes' }, { status: 404 });
   }
 
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ADMIN_UPDATED',
+    target_type: 'admin',
+    target_id: adminId,
+    new_value: body,
+  }).catch(() => {});
   return NextResponse.json(updated);
 }

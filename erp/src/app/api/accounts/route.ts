@@ -7,6 +7,7 @@ import {
   getProviders,
   bulkImportAccounts,
 } from '@/lib/repositories/account_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
@@ -51,5 +52,12 @@ export async function POST(req: NextRequest) {
   }
 
   const inserted = await bulkImportAccounts(valid);
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ACCOUNT_BULK_IMPORTED',
+    target_type: 'account_pool',
+    target_id: null,
+    new_value: { inserted },
+  }).catch(() => {});
   return NextResponse.json({ inserted }, { status: 201 });
 }

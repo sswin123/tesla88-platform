@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getRiskFlags, getRiskFlagStats, createRiskFlag } from '@/lib/repositories/risk_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
@@ -43,6 +44,12 @@ export async function POST(request: NextRequest) {
     flagged_by: payload.username,
     status: body.status ?? 'OPEN',
   });
-
+  logAudit({
+    admin_id: payload.sub,
+    action: 'RISK_FLAG_CREATED',
+    target_type: 'risk_flag',
+    target_id: flag.id,
+    new_value: { user_id: body.user_id, risk_type: body.risk_type, severity: body.severity ?? 'MEDIUM' },
+  }).catch(() => {});
   return NextResponse.json(flag, { status: 201 });
 }

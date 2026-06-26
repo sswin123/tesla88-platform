@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAnnouncements, createAnnouncement } from '@/lib/repositories/announcement_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
@@ -55,6 +56,12 @@ export async function POST(request: NextRequest) {
     end_at: body.end_at ?? null,
     created_by: payload.username,
   });
-
+  logAudit({
+    admin_id: payload.sub,
+    action: 'ANNOUNCEMENT_CREATED',
+    target_type: 'announcement',
+    target_id: announcement.id,
+    new_value: { title: body.title, type: body.type ?? 'BANNER', target: body.target ?? 'ALL' },
+  }).catch(() => {});
   return NextResponse.json(announcement, { status: 201 });
 }

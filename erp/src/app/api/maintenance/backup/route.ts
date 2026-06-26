@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 const execFileAsync = promisify(execFile);
 
@@ -29,6 +30,13 @@ export async function POST() {
     const { stdout } = await execFileAsync('pg_dump', [DATABASE_URL], {
       maxBuffer: 100 * 1024 * 1024, // 100MB max
     });
+    logAudit({
+      admin_id: payload.sub,
+      action: 'BACKUP_DOWNLOADED',
+      target_type: 'system',
+      target_id: null,
+      new_value: { filename },
+    }).catch(() => {});
     return new NextResponse(stdout, {
       headers: {
         'Content-Type': 'application/octet-stream',

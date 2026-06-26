@@ -6,6 +6,7 @@ import {
   updateProvider,
   deleteProvider,
 } from '@/lib/repositories/provider_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function PATCH(
   request: NextRequest,
@@ -39,6 +40,13 @@ export async function PATCH(
   const updated = await updateProvider(numId, body);
   if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  logAudit({
+    admin_id: payload.sub,
+    action: 'PROVIDER_UPDATED',
+    target_type: 'provider',
+    target_id: numId,
+    new_value: body,
+  }).catch(() => {});
   return NextResponse.json({ provider: updated });
 }
 
@@ -62,5 +70,12 @@ export async function DELETE(
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   await deleteProvider(numId);
+  logAudit({
+    admin_id: payload.sub,
+    action: 'PROVIDER_DISABLED',
+    target_type: 'provider',
+    target_id: numId,
+    new_value: null,
+  }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

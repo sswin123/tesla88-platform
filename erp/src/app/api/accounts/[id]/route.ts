@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { reassignAccount, updateAccountStatus } from '@/lib/repositories/account_repo';
+import { logAudit } from '@/lib/repositories/audit_repo';
 
 export async function PATCH(
   req: NextRequest,
@@ -30,6 +31,13 @@ export async function PATCH(
       console.error('[accounts PATCH]', err);
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
+    logAudit({
+      admin_id: payload.sub,
+      action: 'ACCOUNT_REASSIGNED',
+      target_type: 'account_pool',
+      target_id: accountId,
+      new_value: { assigned_user_id: body.assigned_user_id },
+    }).catch(() => {});
     return NextResponse.json({ ok: true });
   }
 
@@ -44,6 +52,13 @@ export async function PATCH(
       console.error('[accounts PATCH]', err);
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
+    logAudit({
+      admin_id: payload.sub,
+      action: 'ACCOUNT_STATUS_CHANGED',
+      target_type: 'account_pool',
+      target_id: accountId,
+      new_value: { status: body.status },
+    }).catch(() => {});
     return NextResponse.json({ ok: true });
   }
 
