@@ -257,7 +257,7 @@ export default function AdminUsersPage() {
               <div>
                 <Label className="mb-1 block">Password <span className="text-red-500">*</span></Label>
                 <Input
-                  type="text"
+                  type="password"
                   placeholder="Temporary password"
                   value={form.password}
                   onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}

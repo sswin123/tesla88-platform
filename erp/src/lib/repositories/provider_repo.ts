@@ -8,13 +8,6 @@ export async function getAllProviders(): Promise<Provider[]> {
   return rows;
 }
 
-export async function getActiveProviders(): Promise<Provider[]> {
-  const { rows } = await pool.query<Provider>(
-    "SELECT * FROM providers WHERE status = 'ACTIVE' ORDER BY sort_order"
-  );
-  return rows;
-}
-
 export async function getProviderById(id: number): Promise<Provider | null> {
   const { rows } = await pool.query<Provider>(
     'SELECT * FROM providers WHERE id = $1',

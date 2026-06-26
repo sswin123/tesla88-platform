@@ -2,7 +2,7 @@ import pool from '@/lib/db';
 import type { FinanceReport } from '@/lib/types';
 
 export async function getFinanceReport(startDate: string, endDate: string): Promise<FinanceReport> {
-  const [depRow, withRow, bonusRow, countRow, firstRepeatRow, vipRow, dailyRows] = await Promise.all([
+  const [depRow, withRow, bonusRow, firstRepeatRow, vipRow, dailyRows] = await Promise.all([
     pool.query(
       `SELECT COALESCE(SUM(deposit_amount),0)::float AS total, COUNT(*)::int AS count,
               COALESCE(AVG(deposit_amount),0)::float AS avg
@@ -21,12 +21,6 @@ export async function getFinanceReport(startDate: string, endDate: string): Prom
       `SELECT COALESCE(SUM(bonus_amount),0)::float AS total
        FROM bonus_claims
        WHERE status != 'CANCELLED' AND claimed_at::date BETWEEN $1 AND $2`,
-      [startDate, endDate]
-    ),
-    pool.query(
-      `SELECT COUNT(DISTINCT user_id)::int AS depositors
-       FROM deposit_requests
-       WHERE status='APPROVED' AND reviewed_at::date BETWEEN $1 AND $2`,
       [startDate, endDate]
     ),
     pool.query(
@@ -79,9 +73,6 @@ export async function getFinanceReport(startDate: string, endDate: string): Prom
   const fr = firstRepeatRow.rows[0];
   const netDeposit = dep.total - wit.total;
   const grossProfit = netDeposit - bon.total;
-
-  // countRow is declared but only used to verify depositors shape — not needed in return
-  void countRow;
 
   return {
     period_start: startDate,
