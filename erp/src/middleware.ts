@@ -24,8 +24,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow unauthenticated access to public maintenance status (no sensitive data)
-  if (pathname === '/api/maintenance/status') {
+  // Allow unauthenticated access to public maintenance endpoints (no sensitive data)
+  if (pathname === '/api/maintenance/status' || pathname === '/api/maintenance/health') {
     return NextResponse.next();
   }
 
