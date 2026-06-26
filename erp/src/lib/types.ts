@@ -322,6 +322,30 @@ export interface MemberAnalytics {
   top_promotions_by_members: { name: string; member_count: number }[];
 }
 
+// ── Risk Center ──────────────────────────────────────────────────────────────
+
+export interface RiskScanResult {
+  duplicate_phones: { phone: string; user_count: number; user_ids: number[]; names: string[] }[];
+  duplicate_banks: { bank_account: string; bank_name: string; user_count: number; user_ids: number[]; names: string[] }[];
+  high_bonus_ratio: { id: number; first_name: string; total_dep: number; total_bonus: number; bonus_ratio: number }[];
+  frequent_withdrawals: { id: number; first_name: string; withdrawal_count: number }[];
+  rapid_pattern: { id: number; first_name: string; rapid_count: number }[];
+}
+
+export interface RiskFlag {
+  id: number;
+  user_id: number;
+  user_name?: string;
+  risk_type: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  status: 'OPEN' | 'IGNORED' | 'REVIEWED';
+  note: string | null;
+  flagged_by: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Finance Reports ──────────────────────────────────────────────────────────
 
 export interface FinanceReport {
