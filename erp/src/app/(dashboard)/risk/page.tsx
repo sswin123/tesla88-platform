@@ -53,6 +53,55 @@ function RiskSection({
   );
 }
 
+// ── scan action buttons (hoisted to module scope) ─────────────────────────────
+
+function ScanActions({
+  userId,
+  riskType,
+  isFlagged,
+  onFlag,
+  onIgnore,
+}: {
+  userId: number;
+  riskType: string;
+  isFlagged: boolean;
+  onFlag: (userId: number, riskType: string) => void;
+  onIgnore: (userId: number, riskType: string) => void;
+}) {
+  if (isFlagged) {
+    return (
+      <span className="text-xs text-green-600 font-medium">Flagged ✓</span>
+    );
+  }
+  return (
+    <div className="flex gap-1">
+      <Button
+        size="sm"
+        variant="default"
+        onClick={() => onFlag(userId, riskType)}
+        className="text-xs h-7"
+      >
+        Flag
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => onIgnore(userId, riskType)}
+        className="text-xs h-7"
+      >
+        Ignore
+      </Button>
+    </div>
+  );
+}
+
+// ── response type ─────────────────────────────────────────────────────────────
+
+interface RiskFlagsResponse {
+  flags: RiskFlag[];
+  stats: { open: number; high: number; reviewed: number };
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function RiskPage() {
@@ -63,6 +112,12 @@ export default function RiskPage() {
   const [scanLoading, setScanLoading] = useState(false);
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [flaggedUserIds, setFlaggedUserIds] = useState<Set<number>>(new Set());
+  const [stats, setStats] = useState<{ open: number; high: number; reviewed: number }>({
+    open: 0,
+    high: 0,
+    reviewed: 0,
+  });
 
   // ── data loaders ────────────────────────────────────────────────────────────
 
@@ -81,7 +136,11 @@ export default function RiskPage() {
     try {
       const params = status ? `?status=${status}` : '';
       const r = await fetch(`/api/risk/flags${params}`);
-      if (r.ok) setFlags(await r.json());
+      if (r.ok) {
+        const data: RiskFlagsResponse = await r.json();
+        setFlags(data.flags);
+        setStats(data.stats);
+      }
     } finally {
       setFlagsLoading(false);
     }
@@ -97,41 +156,49 @@ export default function RiskPage() {
 
   // ── actions ─────────────────────────────────────────────────────────────────
 
-  async function flagUser(userId: number, riskType: string, severity: SeverityLevel = 'MEDIUM') {
+  const flagUser = useCallback(async (userId: number, riskType: string, severity: SeverityLevel = 'HIGH') => {
     const key = `flag-${userId}-${riskType}`;
     setBusy((b) => ({ ...b, [key]: true }));
     try {
-      await fetch('/api/risk/flags', {
+      const r = await fetch('/api/risk/flags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, risk_type: riskType, severity }),
       });
+      if (r.ok) {
+        setFlaggedUserIds((prev) => new Set(prev).add(userId));
+        await loadFlags(flagsFilter);
+      } else {
+        console.error('flagUser failed', r.status, await r.text());
+      }
+    } catch (err) {
+      console.error('flagUser error', err);
     } finally {
       setBusy((b) => ({ ...b, [key]: false }));
     }
-  }
+  }, [flagsFilter, loadFlags]);
 
-  async function ignoreUser(userId: number, riskType: string) {
+  const ignoreUser = useCallback(async (userId: number, riskType: string) => {
     const key = `ignore-${userId}-${riskType}`;
     setBusy((b) => ({ ...b, [key]: true }));
     try {
       const r = await fetch('/api/risk/flags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, risk_type: riskType, severity: 'LOW' }),
+        body: JSON.stringify({ user_id: userId, risk_type: riskType, severity: 'LOW', status: 'IGNORED' }),
       });
       if (r.ok) {
-        const flag: RiskFlag = await r.json();
-        await fetch(`/api/risk/flags/${flag.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'IGNORED' }),
-        });
+        setFlaggedUserIds((prev) => new Set(prev).add(userId));
+        await loadFlags(flagsFilter);
+      } else {
+        console.error('ignoreUser failed', r.status, await r.text());
       }
+    } catch (err) {
+      console.error('ignoreUser error', err);
     } finally {
       setBusy((b) => ({ ...b, [key]: false }));
     }
-  }
+  }, [flagsFilter, loadFlags]);
 
   async function updateFlag(flagId: number, status: string) {
     const key = `update-${flagId}`;
@@ -146,48 +213,6 @@ export default function RiskPage() {
     } finally {
       setBusy((b) => ({ ...b, [key]: false }));
     }
-  }
-
-  // ── stats from flags ─────────────────────────────────────────────────────────
-
-  const [allFlags, setAllFlags] = useState<RiskFlag[]>([]);
-  useEffect(() => {
-    fetch('/api/risk/flags')
-      .then((r) => { if (r.ok) r.json().then(setAllFlags); })
-      .catch(() => {});
-  }, [tab]);
-
-  const openCount = allFlags.filter((f) => f.status === 'OPEN').length;
-  const highCount = allFlags.filter((f) => f.severity === 'HIGH').length;
-  const reviewedCount = allFlags.filter((f) => f.status === 'REVIEWED').length;
-
-  // ── scan action buttons ──────────────────────────────────────────────────────
-
-  function ScanActions({ userId, riskType }: { userId: number; riskType: string }) {
-    const flagKey = `flag-${userId}-${riskType}`;
-    const ignoreKey = `ignore-${userId}-${riskType}`;
-    return (
-      <div className="flex gap-1">
-        <Button
-          size="sm"
-          variant="default"
-          disabled={busy[flagKey]}
-          onClick={() => flagUser(userId, riskType, 'HIGH')}
-          className="text-xs h-7"
-        >
-          {busy[flagKey] ? '…' : 'Flag'}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy[ignoreKey]}
-          onClick={() => ignoreUser(userId, riskType)}
-          className="text-xs h-7"
-        >
-          {busy[ignoreKey] ? '…' : 'Ignore'}
-        </Button>
-      </div>
-    );
   }
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -207,9 +232,9 @@ export default function RiskPage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Open Flags', value: openCount, color: 'text-red-600' },
-          { label: 'High Severity', value: highCount, color: 'text-orange-600' },
-          { label: 'Reviewed', value: reviewedCount, color: 'text-green-600' },
+          { label: 'Open Flags', value: stats.open, color: 'text-red-600' },
+          { label: 'High Severity', value: stats.high, color: 'text-orange-600' },
+          { label: 'Reviewed', value: stats.reviewed, color: 'text-green-600' },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-md border bg-white px-4 py-3">
             <p className="text-xs text-gray-500">{label}</p>
@@ -268,7 +293,13 @@ export default function RiskPage() {
                             {row.user_ids.map((uid, i) => (
                               <div key={uid} className="flex items-center gap-1 mb-1">
                                 <span className="text-xs text-gray-500 w-20 truncate">{row.names[i]}</span>
-                                <ScanActions userId={uid} riskType="DUPLICATE_PHONE" />
+                                <ScanActions
+                                  userId={uid}
+                                  riskType="DUPLICATE_PHONE"
+                                  isFlagged={flaggedUserIds.has(uid)}
+                                  onFlag={flagUser}
+                                  onIgnore={ignoreUser}
+                                />
                               </div>
                             ))}
                           </td>
@@ -304,7 +335,13 @@ export default function RiskPage() {
                             {row.user_ids.map((uid, i) => (
                               <div key={uid} className="flex items-center gap-1 mb-1">
                                 <span className="text-xs text-gray-500 w-20 truncate">{row.names[i]}</span>
-                                <ScanActions userId={uid} riskType="DUPLICATE_BANK" />
+                                <ScanActions
+                                  userId={uid}
+                                  riskType="DUPLICATE_BANK"
+                                  isFlagged={flaggedUserIds.has(uid)}
+                                  onFlag={flagUser}
+                                  onIgnore={ignoreUser}
+                                />
                               </div>
                             ))}
                           </td>
@@ -341,7 +378,13 @@ export default function RiskPage() {
                             <SeverityBadge level={row.bonus_ratio > 100 ? 'HIGH' : 'MEDIUM'} />
                           </td>
                           <td className="px-3 py-2">
-                            <ScanActions userId={row.id} riskType="HIGH_BONUS_RATIO" />
+                            <ScanActions
+                              userId={row.id}
+                              riskType="HIGH_BONUS_RATIO"
+                              isFlagged={flaggedUserIds.has(row.id)}
+                              onFlag={flagUser}
+                              onIgnore={ignoreUser}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -372,7 +415,13 @@ export default function RiskPage() {
                             <SeverityBadge level={row.withdrawal_count > 7 ? 'HIGH' : 'MEDIUM'} />
                           </td>
                           <td className="px-3 py-2">
-                            <ScanActions userId={row.id} riskType="FREQUENT_WITHDRAWAL" />
+                            <ScanActions
+                              userId={row.id}
+                              riskType="FREQUENT_WITHDRAWAL"
+                              isFlagged={flaggedUserIds.has(row.id)}
+                              onFlag={flagUser}
+                              onIgnore={ignoreUser}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -403,7 +452,13 @@ export default function RiskPage() {
                             <SeverityBadge level={row.rapid_count >= 5 ? 'HIGH' : 'MEDIUM'} />
                           </td>
                           <td className="px-3 py-2">
-                            <ScanActions userId={row.id} riskType="RAPID_PATTERN" />
+                            <ScanActions
+                              userId={row.id}
+                              riskType="RAPID_PATTERN"
+                              isFlagged={flaggedUserIds.has(row.id)}
+                              onFlag={flagUser}
+                              onIgnore={ignoreUser}
+                            />
                           </td>
                         </tr>
                       ))}

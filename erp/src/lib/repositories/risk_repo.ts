@@ -1,23 +1,11 @@
 import pool from '@/lib/db';
 import type { RiskScanResult, RiskFlag } from '@/lib/types';
 
-function parsePgArray(val: unknown): number[] {
-  if (!val) return [];
-  const s = String(val).replace(/^\{|\}$/g, '');
-  return s ? s.split(',').map(Number) : [];
-}
-
-function parsePgTextArray(val: unknown): string[] {
-  if (!val) return [];
-  const s = String(val).replace(/^\{|\}$/g, '');
-  return s ? s.split(',') : [];
-}
-
 export async function scanRisks(): Promise<RiskScanResult> {
   const [dupPhones, dupBanks, bonusRatio, freqWithdrawals, rapidPattern] = await Promise.all([
     // Duplicate phone
     pool.query(`
-      SELECT u.phone, COUNT(*)::int AS user_count, array_agg(u.id) AS user_ids, array_agg(u.first_name) AS names
+      SELECT u.phone, COUNT(*)::int AS user_count, json_agg(u.id) AS user_ids, json_agg(u.first_name) AS names
       FROM users u
       WHERE u.phone IS NOT NULL AND u.phone != ''
       GROUP BY u.phone HAVING COUNT(*) > 1
@@ -25,7 +13,7 @@ export async function scanRisks(): Promise<RiskScanResult> {
     `),
     // Duplicate bank account
     pool.query(`
-      SELECT u.bank_account, u.bank_name, COUNT(*)::int AS user_count, array_agg(u.id) AS user_ids, array_agg(u.first_name) AS names
+      SELECT u.bank_account, u.bank_name, COUNT(*)::int AS user_count, json_agg(u.id) AS user_ids, json_agg(u.first_name) AS names
       FROM users u
       WHERE u.bank_account IS NOT NULL AND u.bank_account != ''
       GROUP BY u.bank_account, u.bank_name HAVING COUNT(*) > 1
@@ -73,15 +61,15 @@ export async function scanRisks(): Promise<RiskScanResult> {
     duplicate_phones: dupPhones.rows.map((r) => ({
       phone: r.phone,
       user_count: r.user_count,
-      user_ids: parsePgArray(r.user_ids),
-      names: parsePgTextArray(r.names),
+      user_ids: JSON.parse(r.user_ids ?? '[]') as number[],
+      names: JSON.parse(r.names ?? '[]') as string[],
     })),
     duplicate_banks: dupBanks.rows.map((r) => ({
       bank_account: r.bank_account,
       bank_name: r.bank_name,
       user_count: r.user_count,
-      user_ids: parsePgArray(r.user_ids),
-      names: parsePgTextArray(r.names),
+      user_ids: JSON.parse(r.user_ids ?? '[]') as number[],
+      names: JSON.parse(r.names ?? '[]') as string[],
     })),
     high_bonus_ratio: bonusRatio.rows.map((r) => ({
       id: r.id,
@@ -121,18 +109,30 @@ export async function getRiskFlags(status?: string): Promise<RiskFlag[]> {
   return rows;
 }
 
+export async function getRiskFlagStats(): Promise<{ open: number; high: number; reviewed: number }> {
+  const r = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'OPEN')::int AS open,
+      COUNT(*) FILTER (WHERE severity = 'HIGH')::int AS high,
+      COUNT(*) FILTER (WHERE status = 'REVIEWED')::int AS reviewed
+    FROM risk_flags
+  `);
+  return { open: r.rows[0].open, high: r.rows[0].high, reviewed: r.rows[0].reviewed };
+}
+
 export async function createRiskFlag(data: {
   user_id: number;
   risk_type: string;
   severity: string;
   note?: string;
   flagged_by: string;
+  status?: string;
 }): Promise<RiskFlag> {
   const { rows } = await pool.query<RiskFlag>(
-    `INSERT INTO risk_flags (user_id, risk_type, severity, note, flagged_by)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO risk_flags (user_id, risk_type, severity, note, flagged_by, status)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [data.user_id, data.risk_type, data.severity ?? 'MEDIUM', data.note ?? null, data.flagged_by]
+    [data.user_id, data.risk_type, data.severity ?? 'MEDIUM', data.note ?? null, data.flagged_by, data.status ?? 'OPEN']
   );
   return rows[0];
 }
