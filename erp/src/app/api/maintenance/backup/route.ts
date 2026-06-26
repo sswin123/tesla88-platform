@@ -17,6 +17,12 @@ export async function POST() {
   if (payload.role !== 'SUPER_ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const DATABASE_URL = process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? '';
+  if (!DATABASE_URL) {
+    return NextResponse.json(
+      { error: 'DATABASE_URL is not configured. Cannot run backup.' },
+      { status: 503 }
+    );
+  }
   const filename = `postgres-backup-${new Date().toISOString().split('T')[0]}.sql`;
 
   try {
