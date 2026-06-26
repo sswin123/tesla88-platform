@@ -20,7 +20,17 @@ export default function LiveChatClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionParam = searchParams.get('session');
-  const selectedId = sessionParam ? parseInt(sessionParam, 10) : null;
+
+  // selectedId is local state so clicks respond immediately without waiting for
+  // useSearchParams() to update across the Suspense/server-render cycle.
+  const [selectedId, setSelectedId] = useState<number | null>(
+    sessionParam ? parseInt(sessionParam, 10) : null,
+  );
+
+  // Sync with URL so back/forward navigation and direct links still work.
+  useEffect(() => {
+    setSelectedId(sessionParam ? parseInt(sessionParam, 10) : null);
+  }, [sessionParam]);
 
   const [session, setSession] = useState<SupportSession | null>(null);
   const [member, setMember] = useState<MemberCardData | null>(null);
@@ -61,6 +71,7 @@ export default function LiveChatClient({
 
   const handleSelect = useCallback(
     (id: number) => {
+      setSelectedId(id);
       router.push(`/livechat?session=${id}`, { scroll: false });
     },
     [router],
