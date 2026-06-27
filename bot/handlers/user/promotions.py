@@ -24,6 +24,7 @@ from db.repositories.promotion_repo import (
     get_active_promotions,
     get_promotion_by_id,
     get_user_active_claims,
+    is_promo_available,
 )
 from db.repositories.user_repo import get_user_by_telegram_id
 
@@ -178,7 +179,7 @@ async def cb_promo_detail(
     await state.clear()
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
-    if not promo or not promo["is_active"]:
+    if not promo or not is_promo_available(promo):
         await callback.answer("⚠️ 该优惠已下线", show_alert=True)
         return
 
@@ -199,7 +200,7 @@ async def cb_promo_calculate(
 ) -> None:
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
-    if not promo or not promo["is_active"]:
+    if not promo or not is_promo_available(promo):
         await callback.answer("⚠️ 该优惠已下线", show_alert=True)
         return
 
@@ -232,7 +233,7 @@ async def promo_back_from_calc(
 
     if promo_id:
         promo = await get_promotion_by_id(pool, promo_id)
-        if promo and promo["is_active"]:
+        if promo and is_promo_available(promo):
             await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
             await message.answer(
                 _build_detail_text(promo),
@@ -267,7 +268,7 @@ async def handle_deposit_input(
     data = await state.get_data()
     promo_id = data.get("promo_id")
     promo = await get_promotion_by_id(pool, promo_id)
-    if not promo or not promo["is_active"]:
+    if not promo or not is_promo_available(promo):
         await state.clear()
         await message.answer("⚠️ 优惠已失效，请重新选择。")
         return

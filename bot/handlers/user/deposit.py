@@ -29,7 +29,14 @@ from db.repositories.deposit_repo import (
     has_pending_deposit,
     update_deposit_notification_msg_id,
 )
-from db.repositories.promotion_repo import get_active_promotions, get_promotion_by_id
+from db.repositories.promotion_repo import (
+    get_active_promotions,
+    get_promotion_by_id,
+    has_daily_claim_today,
+    has_first_deposit_claim,
+    has_weekly_claim_this_week,
+    is_promo_available,
+)
 from db.repositories.user_repo import get_user_by_telegram_id
 
 logger = logging.getLogger(__name__)
@@ -101,7 +108,7 @@ async def cb_dep_from_promo(
     """Entry point from 优惠中心 — pre-selects a promotion and starts deposit flow."""
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
-    if not promo or not promo["is_active"]:
+    if not promo or not is_promo_available(promo):
         await callback.answer("⚠️ 该优惠已下线", show_alert=True)
         return
 
@@ -136,7 +143,7 @@ async def cb_deposit_provider(
     preselected_promo_id = data.get("preselected_promo_id")
     if preselected_promo_id:
         promo = await get_promotion_by_id(pool, preselected_promo_id)
-        if promo and promo["is_active"]:
+        if promo and is_promo_available(promo):
             await _apply_promo_to_state(state, promo)
             await state.set_state(DepositStates.waiting_amount)
             logger.info(
@@ -201,9 +208,29 @@ async def cb_deposit_promo(
         )
     else:
         promo = await get_promotion_by_id(pool, int(raw))
-        if not promo or not promo["is_active"]:
+        if not promo or not is_promo_available(promo):
             await callback.answer("该优惠不可用。", show_alert=True)
             return
+
+        user_id = data["user_id"]
+        promo_type = promo["promotion_type"]
+        limit_exceeded = False
+        if promo_type == "FIRST_DEPOSIT":
+            limit_exceeded = await has_first_deposit_claim(pool, user_id)
+        elif promo_type == "DAILY":
+            limit_exceeded = await has_daily_claim_today(pool, user_id, promo["id"])
+        elif promo_type == "WEEKLY":
+            limit_exceeded = await has_weekly_claim_this_week(pool, user_id, promo["id"])
+
+        if limit_exceeded:
+            limit_labels = {
+                "FIRST_DEPOSIT": "此优惠每位用户只能领取一次，您已达到领取上限。",
+                "DAILY": "此优惠今日已领取，请明天再来。",
+                "WEEKLY": "此优惠本周已领取，请下周再来。",
+            }
+            await callback.answer(limit_labels.get(promo_type, "您已达到此优惠的领取上限。"), show_alert=True)
+            return
+
         await _apply_promo_to_state(state, promo)
 
     await state.set_state(DepositStates.waiting_amount)
@@ -423,12 +450,6 @@ async def process_deposit_amount(
     except ValueError:
         await message.answer(
             "⚠️ 输入格式错误\n\n请输入正确金额，例如：\n\n100\n300\n500"
-        )
-        return
-
-    if amount < config.min_deposit_amount:
-        await message.answer(
-            f"⚠️ 最低充值金额为 RM {config.min_deposit_amount:.2f}\n\n请重新输入金额："
         )
         return
 

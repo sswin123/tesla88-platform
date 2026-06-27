@@ -1,14 +1,39 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
 import asyncpg
 
 
+def is_promo_available(promo: asyncpg.Record) -> bool:
+    """Return True if the promotion is active, not deleted, and not expired.
+
+    Use this everywhere in customer-facing code instead of checking
+    promo["is_active"] directly — the raw column does not capture expiry
+    or soft-deletion.
+    """
+    if not promo["is_active"]:
+        return False
+    if promo.get("deleted_at") is not None:
+        return False
+    expiry = promo.get("expiry_date")
+    if expiry is not None:
+        return expiry.astimezone(timezone.utc) > datetime.now(timezone.utc)
+    return True
+
+
 async def get_active_promotions(pool: asyncpg.Pool) -> list[asyncpg.Record]:
+    """Return promotions that are active, not deleted, and not yet expired."""
     return await pool.fetch(
-        "SELECT * FROM promotions WHERE is_active = TRUE ORDER BY id"
+        """
+        SELECT * FROM promotions
+        WHERE is_active = TRUE
+          AND deleted_at IS NULL
+          AND (expiry_date IS NULL OR expiry_date > NOW())
+        ORDER BY id
+        """
     )
 
 
