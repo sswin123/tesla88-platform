@@ -18,7 +18,7 @@ WITH ranked AS (
 UPDATE support_sessions
 SET    status       = 'CLOSED',
        closed_at   = NOW(),
-       close_reason = 'SYSTEM_DEDUP'
+       close_reason = 'AGENT'
 WHERE  id IN (SELECT id FROM ranked WHERE rn > 1);
 
 -- Step 2: Create the partial unique index that enforces the invariant going

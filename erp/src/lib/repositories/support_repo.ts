@@ -382,7 +382,7 @@ export async function createSessionForUser(
   // partial unique index (support_sessions_one_active_per_user) is satisfied.
   await pool.query(
     `UPDATE support_sessions
-     SET status = 'CLOSED', closed_at = NOW(), close_reason = 'NEW_SESSION'
+     SET status = 'CLOSED', closed_at = NOW(), close_reason = 'AGENT'
      WHERE user_id = $1 AND status IN ('OPEN', 'ACTIVE')`,
     [userId]
   );

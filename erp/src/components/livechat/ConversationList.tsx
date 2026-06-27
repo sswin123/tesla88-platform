@@ -126,7 +126,7 @@ export function ConversationList({
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-sm">Live Chat</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{total} sessions</span>
+            <span className="text-xs text-gray-400">{total} {total === 1 ? 'customer' : 'customers'}</span>
             <NotificationSettings settings={notifSettings} onChange={setNotifSettings} />
           </div>
         </div>
