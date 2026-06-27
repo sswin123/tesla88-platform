@@ -18,9 +18,14 @@ from bot.keyboards.livechat import (
     build_livechat_cancel_keyboard,
     build_livechat_request_keyboard,
 )
+from datetime import datetime, timezone
+
 from db.repositories.livechat_repo import (
     create_support_session,
+    get_latest_session_for_user,
+    get_livechat_reopen_days,
     get_open_or_active_session,
+    reopen_session,
     store_message,
     update_last_message_at,
     update_session_notification_msg_id,
@@ -220,21 +225,51 @@ async def handle_initial_message(
 
     msg_type, preview = _message_preview(message)
 
-    session = await create_support_session(pool, user_id)
-    session_id = session["id"]
+    # Persistent conversation model:
+    # Reopen the last CLOSED session if it is within the configured threshold;
+    # otherwise create a brand-new session.
+    is_reopen = False
+    latest = await get_latest_session_for_user(pool, user_id)
 
+    if latest and latest["status"] == "CLOSED" and latest["closed_at"]:
+        reopen_days = await get_livechat_reopen_days(pool)
+        now_utc = datetime.now(timezone.utc)
+        closed_utc = latest["closed_at"].astimezone(timezone.utc)
+        age_days = (now_utc - closed_utc).days
+        if age_days <= reopen_days:
+            session = await reopen_session(pool, latest["id"])
+            is_reopen = True
+        else:
+            session = await create_support_session(pool, user_id)
+    else:
+        session = await create_support_session(pool, user_id)
+
+    session_id = session["id"]
     await state.clear()
 
-    notification_text = (
-        f"💬 新客服请求 #{session_id}\n\n"
-        f"👤 {name}\n"
-        f"🆔 UID: {user_id}\n"
-        f"📱 {phone}\n\n"
-        f"📝 问题描述：\n"
-        f"{html.escape(preview)}\n\n"
-        f"📅 {session['created_at'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        f"━━━━━━━━━━━━━━"
-    )
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if is_reopen:
+        notification_text = (
+            f"🔄 客服对话重新开启 #{session_id}\n\n"
+            f"👤 {name}\n"
+            f"🆔 UID: {user_id}\n"
+            f"📱 {phone}\n\n"
+            f"📝 新消息：\n"
+            f"{html.escape(preview)}\n\n"
+            f"📅 {now_str}\n\n"
+            f"━━━━━━━━━━━━━━"
+        )
+    else:
+        notification_text = (
+            f"💬 新客服请求 #{session_id}\n\n"
+            f"👤 {name}\n"
+            f"🆔 UID: {user_id}\n"
+            f"📱 {phone}\n\n"
+            f"📝 问题描述：\n"
+            f"{html.escape(preview)}\n\n"
+            f"📅 {now_str}\n\n"
+            f"━━━━━━━━━━━━━━"
+        )
 
     target = config.support_chat_id if config.support_chat_id else config.super_admin_id
 

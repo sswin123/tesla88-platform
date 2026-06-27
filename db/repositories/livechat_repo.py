@@ -18,6 +18,52 @@ async def create_support_session(
     )
 
 
+async def get_latest_session_for_user(
+    pool: asyncpg.Pool, user_id: int
+) -> Optional[asyncpg.Record]:
+    """Return the most recent session for this user regardless of status."""
+    return await pool.fetchrow(
+        """
+        SELECT * FROM support_sessions
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        user_id,
+    )
+
+
+async def get_livechat_reopen_days(pool: asyncpg.Pool) -> int:
+    """Return the configured LIVECHAT_REOPEN_DAYS setting (default 30)."""
+    row = await pool.fetchrow(
+        "SELECT value FROM system_settings WHERE key = 'LIVECHAT_REOPEN_DAYS'"
+    )
+    try:
+        return int(row["value"]) if row else 30
+    except (ValueError, TypeError):
+        return 30
+
+
+async def reopen_session(
+    pool: asyncpg.Pool, session_id: int
+) -> asyncpg.Record:
+    """Reopen a CLOSED session: status→OPEN, clear assignment and unread counts."""
+    return await pool.fetchrow(
+        """
+        UPDATE support_sessions
+        SET status               = 'OPEN',
+            closed_at            = NULL,
+            close_reason         = NULL,
+            assigned_to_username = NULL,
+            erp_unread_count     = 0,
+            last_message_at      = NOW()
+        WHERE id = $1
+        RETURNING *
+        """,
+        session_id,
+    )
+
+
 async def get_open_or_active_session(
     pool: asyncpg.Pool, user_id: int
 ) -> Optional[asyncpg.Record]:
