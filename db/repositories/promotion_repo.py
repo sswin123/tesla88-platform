@@ -50,14 +50,18 @@ async def get_promotion_by_id(
 
 
 async def has_first_deposit_claim(pool: asyncpg.Pool, user_id: int) -> bool:
-    """True if the user already has a non-cancelled FIRST_DEPOSIT claim."""
+    """True if the user already has an APPROVED FIRST_DEPOSIT claim.
+
+    Only ACTIVE and COMPLETED claims count — PENDING and CANCELLED do not block
+    so that a rejected deposit does not permanently lock the promotion.
+    """
     row = await pool.fetchrow(
         """
         SELECT bc.id FROM bonus_claims bc
         JOIN promotions p ON p.id = bc.promotion_id
         WHERE bc.user_id = $1
           AND p.promotion_type = 'FIRST_DEPOSIT'
-          AND bc.status != 'CANCELLED'
+          AND bc.status IN ('ACTIVE', 'COMPLETED')
         LIMIT 1
         """,
         user_id,
@@ -68,13 +72,13 @@ async def has_first_deposit_claim(pool: asyncpg.Pool, user_id: int) -> bool:
 async def has_daily_claim_today(
     pool: asyncpg.Pool, user_id: int, promo_id: int
 ) -> bool:
-    """True if the user already has a non-cancelled claim for this promo today."""
+    """True if the user already has an APPROVED claim for this promo today."""
     row = await pool.fetchrow(
         """
         SELECT id FROM bonus_claims
         WHERE user_id = $1
           AND promotion_id = $2
-          AND status != 'CANCELLED'
+          AND status IN ('ACTIVE', 'COMPLETED')
           AND claimed_at::date = CURRENT_DATE
         LIMIT 1
         """,
@@ -87,13 +91,13 @@ async def has_daily_claim_today(
 async def has_weekly_claim_this_week(
     pool: asyncpg.Pool, user_id: int, promo_id: int
 ) -> bool:
-    """True if the user already has a non-cancelled claim for this promo this ISO week."""
+    """True if the user already has an APPROVED claim for this promo this ISO week."""
     row = await pool.fetchrow(
         """
         SELECT id FROM bonus_claims
         WHERE user_id = $1
           AND promotion_id = $2
-          AND status != 'CANCELLED'
+          AND status IN ('ACTIVE', 'COMPLETED')
           AND claimed_at >= date_trunc('week', NOW())
         LIMIT 1
         """,

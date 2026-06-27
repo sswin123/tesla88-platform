@@ -260,39 +260,46 @@ def _amount_prompt() -> str:
 
 
 def _promo_amount_prompt(promo: asyncpg.Record) -> str:
-    """Amount input prompt with full promotion details so the customer never
-    needs to remember the rules they just read."""
+    """Amount input prompt with full promotion details (all values from DB)."""
+    bonus_type_label = "百分比" if promo["bonus_type"] == "PERCENTAGE" else "固定金额"
     if promo["bonus_type"] == "PERCENTAGE":
         bonus_str = f"{promo['bonus_value']:g}%"
     else:
         bonus_str = f"RM{float(promo['bonus_value']):,.2f}"
 
-    min_dep = float(promo["min_deposit"])
+    max_bonus_str = (
+        f"RM{float(promo['max_bonus']):,.2f}" if promo["max_bonus"] else "无上限"
+    )
 
-    lines = [
-        f"🎁 已选优惠：{html.escape(promo['name'])}",
-        "",
-        f"最低充值：RM{min_dep:,.2f}",
-        f"奖金：{bonus_str}",
-    ]
-
-    if promo["max_bonus"]:
-        lines.append(f"最高奖金：RM{float(promo['max_bonus']):,.2f}")
-
-    lines.append(f"流水：×{promo['turnover_multiplier']:g}")
-
+    expiry_str = "无到期日"
     if promo.get("expiry_date"):
         try:
-            lines.append(f"到期日：{promo['expiry_date'].strftime('%Y-%m-%d')}")
+            expiry_str = promo["expiry_date"].strftime("%Y-%m-%d")
         except Exception:
             pass
 
-    # Example amounts: always include min_deposit, then round numbers above it
+    min_dep = float(promo["min_deposit"])
+
+    lines = [
+        "💰 已选优惠",
+        "",
+        f"🎁 {html.escape(promo['name'])}",
+        "",
+        f"奖金类型：{bonus_type_label}",
+        f"奖金：{bonus_str}",
+        f"最低充值：RM{min_dep:,.2f}",
+        f"最高奖金：{max_bonus_str}",
+        f"流水：×{promo['turnover_multiplier']:g}",
+        f"到期日：{expiry_str}",
+    ]
+
+    # Build example amounts: min_deposit first, then round numbers above it.
+    # Candidates: 20, 50, 100, 300, 500, 1000 — pick first 3 that exceed min_dep.
     if min_dep == int(min_dep):
         examples = [str(int(min_dep))]
     else:
         examples = [f"{min_dep:.2f}"]
-    for ex in [50, 100, 300, 500]:
+    for ex in [20, 50, 100, 300, 500, 1000]:
         if ex > min_dep:
             examples.append(str(ex))
         if len(examples) >= 4:

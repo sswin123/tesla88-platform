@@ -269,6 +269,20 @@ async def handle_initial_message(
     else:
         session = await create_support_session(pool, user_id)
 
+    # Rare concurrent-request race: unique index fired, session already exists.
+    if session is None:
+        session = await get_open_or_active_session(pool, user_id)
+        if session is None:
+            await message.answer("⚠️ 系统繁忙，请稍后重试。")
+            return
+        await state.clear()
+        await message.answer(
+            "✅ 客服请求已提交\n\n"
+            f"会话编号：\n#{session['id']}\n\n"
+            "客服将尽快为您服务。"
+        )
+        return
+
     session_id = session["id"]
     await state.clear()
 

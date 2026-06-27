@@ -7,11 +7,15 @@ import asyncpg
 
 async def create_support_session(
     pool: asyncpg.Pool, user_id: int
-) -> asyncpg.Record:
+) -> Optional[asyncpg.Record]:
+    """Insert a new OPEN session.  Returns None if the unique index fires
+    because another request concurrently created a session for the same user."""
     return await pool.fetchrow(
         """
         INSERT INTO support_sessions (user_id, last_message_at)
         VALUES ($1, NOW())
+        ON CONFLICT (user_id) WHERE status IN ('OPEN', 'ACTIVE')
+        DO NOTHING
         RETURNING *
         """,
         user_id,

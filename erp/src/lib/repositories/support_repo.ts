@@ -153,32 +153,28 @@ export async function getSessionsLiveChat(opts: {
   const mainWhere = `WHERE ${mainConditions.join(' AND ')}`;
   const countWhere = `WHERE ${countConditions.join(' AND ')}`;
 
-  const lastMsgSub = `(
-    SELECT content FROM support_messages
-    WHERE session_id = ss.id
-    ORDER BY created_at DESC LIMIT 1
-  )`;
-  const lastMsgTypeSub = `(
-    SELECT message_type FROM support_messages
-    WHERE session_id = ss.id
-    ORDER BY created_at DESC LIMIT 1
-  )`;
-
+  // One conversation row per customer: DISTINCT ON picks the most recently
+  // active session for each user_id; outer query re-orders by pinned/activity.
   const [rows, count] = await Promise.all([
     pool.query(
-      `SELECT ss.*,
-              u.first_name, u.phone, u.telegram_id, u.telegram_username,
-              ${lastMsgSub} AS last_message_content,
-              ${lastMsgTypeSub} AS last_message_type
-       FROM support_sessions ss
-       JOIN users u ON u.id = ss.user_id
-       ${mainWhere}
-       ORDER BY ss.pinned_at DESC NULLS LAST, ss.last_message_at DESC
+      `SELECT sub.*
+       FROM (
+         SELECT DISTINCT ON (ss.user_id)
+           ss.*,
+           u.first_name, u.phone, u.telegram_id, u.telegram_username,
+           (SELECT content      FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_content,
+           (SELECT message_type FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_type
+         FROM support_sessions ss
+         JOIN users u ON u.id = ss.user_id
+         ${mainWhere}
+         ORDER BY ss.user_id, ss.last_message_at DESC NULLS LAST
+       ) sub
+       ORDER BY sub.pinned_at DESC NULLS LAST, sub.last_message_at DESC NULLS LAST
        LIMIT $1 OFFSET $2`,
       mainParams
     ),
     pool.query<{ count: number }>(
-      `SELECT COUNT(*)::int AS count
+      `SELECT COUNT(DISTINCT ss.user_id)::int AS count
        FROM support_sessions ss
        JOIN users u ON u.id = ss.user_id
        ${countWhere}`,
@@ -382,6 +378,14 @@ export async function createSessionForUser(
   userId: number,
   agentUsername: string | null
 ): Promise<SupportSession> {
+  // Close any existing OPEN/ACTIVE session before opening a new one so the
+  // partial unique index (support_sessions_one_active_per_user) is satisfied.
+  await pool.query(
+    `UPDATE support_sessions
+     SET status = 'CLOSED', closed_at = NOW(), close_reason = 'NEW_SESSION'
+     WHERE user_id = $1 AND status IN ('OPEN', 'ACTIVE')`,
+    [userId]
+  );
   const { rows } = await pool.query(
     `INSERT INTO support_sessions
        (user_id, status, last_message_at, assigned_to_username)
