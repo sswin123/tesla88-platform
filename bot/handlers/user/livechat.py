@@ -225,18 +225,43 @@ async def handle_initial_message(
 
     msg_type, preview = _message_preview(message)
 
+    # Safety guard: if an OPEN or ACTIVE session was created between the menu
+    # press and now (race condition, rapid taps, or ERP-initiated session),
+    # do not create a duplicate — tell the user to continue in the existing one.
+    existing = await get_open_or_active_session(pool, user_id)
+    if existing:
+        await state.clear()
+        await message.answer(
+            "⚠️ 您已有进行中的客服会话。\n\n"
+            f"会话编号：#{existing['id']}\n\n"
+            "请直接发送消息继续沟通。"
+        )
+        return
+
     # Persistent conversation model:
-    # Reopen the last CLOSED session if it is within the configured threshold;
-    # otherwise create a brand-new session.
+    # Reopen the most recent CLOSED session if it is within the configured
+    # threshold; otherwise create a brand-new session.
+    #
+    # Edge cases handled:
+    #   • closed_at IS NULL — session was OPEN when ERP closed it directly,
+    #     so no timestamp was recorded.  Reopen conservatively rather than
+    #     creating a duplicate.
+    #   • latest is OPEN/ACTIVE — caught by the guard above; never reaches here.
     is_reopen = False
     latest = await get_latest_session_for_user(pool, user_id)
 
-    if latest and latest["status"] == "CLOSED" and latest["closed_at"]:
+    if latest and latest["status"] == "CLOSED":
         reopen_days = await get_livechat_reopen_days(pool)
-        now_utc = datetime.now(timezone.utc)
-        closed_utc = latest["closed_at"].astimezone(timezone.utc)
-        age_days = (now_utc - closed_utc).days
-        if age_days <= reopen_days:
+        if latest["closed_at"]:
+            now_utc = datetime.now(timezone.utc)
+            closed_utc = latest["closed_at"].astimezone(timezone.utc)
+            age_days = (now_utc - closed_utc).days
+            should_reopen = age_days <= reopen_days
+        else:
+            # No timestamp — treat as recent; reopen rather than duplicate.
+            should_reopen = True
+
+        if should_reopen:
             session = await reopen_session(pool, latest["id"])
             is_reopen = True
         else:

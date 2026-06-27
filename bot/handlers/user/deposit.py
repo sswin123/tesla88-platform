@@ -152,11 +152,10 @@ async def cb_deposit_provider(
                 await state.get_state(),
             )
             await callback.message.edit_text(
-                f"💰 充值 — {html.escape(provider)}\n"
-                f"🎁 已选优惠：{html.escape(promo['name'])}"
+                f"💰 充值 — {html.escape(provider)}"
             )
             await callback.message.answer(
-                _amount_prompt(),
+                _promo_amount_prompt(promo),
                 reply_markup=build_back_cancel_keyboard(),
             )
             await callback.answer()
@@ -195,6 +194,7 @@ async def cb_deposit_promo(
     data = await state.get_data()
     provider = data["provider"]
 
+    selected_promo = None
     if raw == "none":
         await state.update_data(
             promotion_id=None,
@@ -232,6 +232,7 @@ async def cb_deposit_promo(
             return
 
         await _apply_promo_to_state(state, promo)
+        selected_promo = promo
 
     await state.set_state(DepositStates.waiting_amount)
     logger.info(
@@ -242,7 +243,7 @@ async def cb_deposit_promo(
     )
     await callback.message.edit_text(f"💰 充值 — {html.escape(provider)}")
     await callback.message.answer(
-        _amount_prompt(),
+        _promo_amount_prompt(selected_promo) if selected_promo else _amount_prompt(),
         reply_markup=build_back_cancel_keyboard(),
     )
     await callback.answer()
@@ -256,6 +257,49 @@ def _amount_prompt() -> str:
         "300\n"
         "500"
     )
+
+
+def _promo_amount_prompt(promo: asyncpg.Record) -> str:
+    """Amount input prompt with full promotion details so the customer never
+    needs to remember the rules they just read."""
+    if promo["bonus_type"] == "PERCENTAGE":
+        bonus_str = f"{promo['bonus_value']:g}%"
+    else:
+        bonus_str = f"RM{float(promo['bonus_value']):,.2f}"
+
+    min_dep = float(promo["min_deposit"])
+
+    lines = [
+        f"🎁 已选优惠：{html.escape(promo['name'])}",
+        "",
+        f"最低充值：RM{min_dep:,.2f}",
+        f"奖金：{bonus_str}",
+    ]
+
+    if promo["max_bonus"]:
+        lines.append(f"最高奖金：RM{float(promo['max_bonus']):,.2f}")
+
+    lines.append(f"流水：×{promo['turnover_multiplier']:g}")
+
+    if promo.get("expiry_date"):
+        try:
+            lines.append(f"到期日：{promo['expiry_date'].strftime('%Y-%m-%d')}")
+        except Exception:
+            pass
+
+    # Example amounts: always include min_deposit, then round numbers above it
+    if min_dep == int(min_dep):
+        examples = [str(int(min_dep))]
+    else:
+        examples = [f"{min_dep:.2f}"]
+    for ex in [50, 100, 300, 500]:
+        if ex > min_dep:
+            examples.append(str(ex))
+        if len(examples) >= 4:
+            break
+
+    lines += ["", "请输入充值金额（RM）", "", "例如："] + examples
+    return "\n".join(lines)
 
 
 async def _apply_promo_to_state(state: FSMContext, promo: asyncpg.Record) -> None:
@@ -331,10 +375,15 @@ async def dep_back_from_receipt(message: Message, state: FSMContext, pool: async
     banks = await get_active_banks(pool)
     if not banks:
         await state.set_state(DepositStates.waiting_amount)
+        promotion_id = data.get("promotion_id")
+        promo_for_prompt = None
+        if promotion_id:
+            fetched = await get_promotion_by_id(pool, promotion_id)
+            if fetched and is_promo_available(fetched):
+                promo_for_prompt = fetched
         await message.answer(
-            f"💰 充值 — {html.escape(provider)}\n"
-            f"🎁 优惠：{html.escape(promo_name)}\n\n"
-            + _amount_prompt(),
+            f"💰 充值 — {html.escape(provider)}\n\n"
+            + (_promo_amount_prompt(promo_for_prompt) if promo_for_prompt else _amount_prompt()),
             reply_markup=build_back_cancel_keyboard(),
         )
         return
@@ -356,15 +405,21 @@ async def dep_back_from_receipt(message: Message, state: FSMContext, pool: async
 # ── FSM Back: from waiting_bank_select ────────────────────────────────────────
 
 @router.message(DepositStates.waiting_bank_select, F.text == "⬅️ 返回")
-async def dep_back_from_bank_select(message: Message, state: FSMContext) -> None:
+async def dep_back_from_bank_select(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
     data = await state.get_data()
     provider = data.get("provider", "")
-    promo_name = data.get("promo_name", "无优惠")
+    promotion_id = data.get("promotion_id")
     await state.set_state(DepositStates.waiting_amount)
+
+    promo = None
+    if promotion_id:
+        fetched = await get_promotion_by_id(pool, promotion_id)
+        if fetched and is_promo_available(fetched):
+            promo = fetched
+
     await message.answer(
-        f"💰 充值 — {html.escape(provider)}\n"
-        f"🎁 优惠：{html.escape(promo_name)}\n\n"
-        + _amount_prompt(),
+        f"💰 充值 — {html.escape(provider)}\n\n"
+        + (_promo_amount_prompt(promo) if promo else _amount_prompt()),
         reply_markup=build_back_cancel_keyboard(),
     )
 

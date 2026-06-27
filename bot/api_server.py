@@ -59,6 +59,7 @@ async def relay_message(request: web.Request) -> web.Response:
         session_id = int(data["session_id"])
         message_type: str = data.get("message_type", "TEXT").upper()
         content: Optional[str] = data.get("content")
+        caption: Optional[str] = data.get("caption") or None  # "" → None
         agent_username: Optional[str] = data.get("agent_username")
         if not content and message_type == "TEXT":
             return web.json_response({"error": "content required for TEXT"}, status=400)
@@ -96,21 +97,32 @@ async def relay_message(request: web.Request) -> web.Response:
             file_bytes, mime = _decode_data_uri(content)
             if len(file_bytes) > MAX_FILE_BYTES:
                 return web.json_response({"error": "File too large"}, status=413)
-            filename = f"image.{_ext_from_mime(mime)}"
             msg = await bot.send_photo(
                 telegram_id,
-                photo=BufferedInputFile(file_bytes, filename=filename),
+                photo=BufferedInputFile(file_bytes, filename=f"image.{_ext_from_mime(mime)}"),
+                caption=caption,
             )
             tg_msg_id = msg.message_id
 
-        elif message_type in ("DOCUMENT", "VIDEO"):
+        elif message_type == "VIDEO":
             file_bytes, mime = _decode_data_uri(content)
             if len(file_bytes) > MAX_FILE_BYTES:
                 return web.json_response({"error": "File too large"}, status=413)
-            filename = f"file.{_ext_from_mime(mime)}"
+            msg = await bot.send_video(
+                telegram_id,
+                video=BufferedInputFile(file_bytes, filename=f"video.{_ext_from_mime(mime)}"),
+                caption=caption,
+            )
+            tg_msg_id = msg.message_id
+
+        elif message_type in ("DOCUMENT", "ANIMATION", "AUDIO", "VOICE"):
+            file_bytes, mime = _decode_data_uri(content)
+            if len(file_bytes) > MAX_FILE_BYTES:
+                return web.json_response({"error": "File too large"}, status=413)
             msg = await bot.send_document(
                 telegram_id,
-                document=BufferedInputFile(file_bytes, filename=filename),
+                document=BufferedInputFile(file_bytes, filename=f"file.{_ext_from_mime(mime)}"),
+                caption=caption,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -123,14 +135,15 @@ async def relay_message(request: web.Request) -> web.Response:
         return web.json_response({"error": str(exc)}, status=502)
 
     # ── Store in support_messages ──────────────────────────────────────────────
-    # For PHOTO/DOCUMENT, store the Telegram file_id as content so ERP can proxy it
+    # For media, store the Telegram file_id so ERP can proxy it later.
     stored_content = content if message_type == "TEXT" else None
     if tg_msg_id and message_type != "TEXT":
-        # Try to get the file_id for media proxy support
         try:
             if message_type == "PHOTO":
                 stored_content = msg.photo[-1].file_id
-            elif message_type in ("DOCUMENT", "VIDEO"):
+            elif message_type == "VIDEO":
+                stored_content = msg.video.file_id if msg.video else None
+            else:  # DOCUMENT / ANIMATION / AUDIO / VOICE
                 stored_content = msg.document.file_id if msg.document else None
         except Exception:
             pass
