@@ -206,6 +206,8 @@ export interface SupportMessage {
   message_type: MessageType;
   content: string | null;
   caption: string | null;
+  file_name: string | null;
+  file_size: number | null;
   user_msg_id: number | null;
   group_msg_id: number | null;
   created_at: string;

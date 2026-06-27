@@ -34,14 +34,21 @@ def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
 
 def _ext_from_mime(mime: str) -> str:
     mapping = {
-        "image/jpeg": "jpg",
-        "image/png": "png",
-        "image/gif": "gif",
-        "image/webp": "webp",
-        "application/pdf": "pdf",
-        "application/zip": "zip",
+        "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif",
+        "image/webp": "webp", "image/heic": "heic", "image/heif": "heif",
+        "video/mp4": "mp4", "video/mpeg": "mpeg", "video/quicktime": "mov",
+        "video/x-msvideo": "avi", "video/x-matroska": "mkv",
+        "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg",
+        "audio/aac": "aac", "audio/mp4": "m4a",
+        "application/pdf": "pdf", "application/zip": "zip",
+        "application/x-rar-compressed": "rar", "application/x-7z-compressed": "7z",
+        "application/vnd.android.package-archive": "apk",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-        "video/mp4": "mp4",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+        "application/msword": "doc", "application/vnd.ms-excel": "xls",
+        "text/plain": "txt", "text/csv": "csv",
+        "application/json": "json", "application/xml": "xml",
     }
     return mapping.get(mime, "bin")
 
@@ -61,6 +68,8 @@ async def relay_message(request: web.Request) -> web.Response:
         content: Optional[str] = data.get("content")
         caption: Optional[str] = data.get("caption") or None  # "" → None
         agent_username: Optional[str] = data.get("agent_username")
+        file_name: Optional[str] = data.get("file_name") or None
+        file_size: Optional[int] = int(data["file_size"]) if data.get("file_size") else None
         if not content and message_type == "TEXT":
             return web.json_response({"error": "content required for TEXT"}, status=400)
     except (KeyError, ValueError, json.JSONDecodeError) as e:
@@ -151,9 +160,10 @@ async def relay_message(request: web.Request) -> web.Response:
 
         elif message_type == "DOCUMENT":
             fb, mime = _media_file("file")
+            doc_filename = file_name or f"file.{_ext_from_mime(mime)}"
             msg = await bot.send_document(
                 telegram_id,
-                document=BufferedInputFile(fb, filename=f"file.{_ext_from_mime(mime)}"),
+                document=BufferedInputFile(fb, filename=doc_filename),
                 caption=caption,
             )
             tg_msg_id = msg.message_id
@@ -226,13 +236,16 @@ async def relay_message(request: web.Request) -> web.Response:
 
     row = await pool.fetchrow(
         """INSERT INTO support_messages
-               (session_id, sender_type, message_type, content, user_msg_id)
-           VALUES ($1, 'AGENT', $2, $3, $4)
+               (session_id, sender_type, message_type, content, user_msg_id, caption, file_name, file_size)
+           VALUES ($1, 'AGENT', $2, $3, $4, $5, $6, $7)
            RETURNING id, created_at""",
         session_id,
         stored_type,
         stored_content,
         tg_msg_id,
+        caption,
+        file_name,
+        file_size,
     )
 
     # Auto-assign + activate if this is the first ERP reply on an OPEN session

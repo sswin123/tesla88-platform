@@ -33,6 +33,8 @@ export async function POST(
     message_type?: string;
     content?: string;
     caption?: string;
+    file_name?: string;
+    file_size?: number;
     quick_reply_id?: number;
     quick_reply_used?: boolean;
   };
@@ -40,6 +42,8 @@ export async function POST(
   let messageType = body.message_type ?? 'TEXT';
   let content     = body.content ?? null;
   let caption     = body.caption ?? null;
+  let fileName    = body.file_name ?? null;
+  const fileSize  = body.file_size ?? null;
   const quickReplyUsed = body.quick_reply_used ?? false;
 
   // ── Quick-reply shortcut: server fetches media_content so the browser
@@ -57,6 +61,7 @@ export async function POST(
       content = qr.media_content ?? '';
       caption = qr.body || null;  // body doubles as caption for media quick replies
     }
+    fileName = null; // quick replies use managed file_id, no original filename
   }
 
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
@@ -74,7 +79,9 @@ export async function POST(
         session_id:     sessionId,
         message_type:   messageType,
         content,
-        caption,          // forwarded; relay passes to Telegram send_* call
+        caption,
+        file_name:      fileName,
+        file_size:      fileSize,
         agent_username: payload.username ?? null,
       }),
     });
@@ -94,14 +101,31 @@ export async function POST(
     );
   }
 
+  // Media-specific audit actions
+  let auditAction = 'LIVECHAT_MESSAGE_SENT';
+  if (quickReplyUsed) {
+    auditAction = 'QUICK_REPLY_SENT';
+  } else if (messageType === 'PHOTO') {
+    auditAction = 'IMAGE_SENT';
+  } else if (messageType === 'VIDEO') {
+    auditAction = 'VIDEO_SENT';
+  } else if (messageType === 'DOCUMENT') {
+    auditAction = 'DOCUMENT_SENT';
+  } else if (['AUDIO', 'VOICE'].includes(messageType)) {
+    auditAction = 'AUDIO_SENT';
+  }
+
   logAudit({
     admin_id:    payload.sub,
-    action:      'LIVECHAT_MESSAGE_SENT',
+    action:      auditAction,
     target_type: 'support_session',
     target_id:   sessionId,
-    new_value:   quickReplyUsed
-      ? { message_type: messageType, quick_reply_used: true }
-      : { message_type: messageType },
+    new_value:   {
+      message_type: messageType,
+      ...(quickReplyUsed ? { quick_reply_used: true } : {}),
+      ...(fileName ? { file_name: fileName } : {}),
+      ...(fileSize ? { file_size: fileSize } : {}),
+    },
   }).catch(() => {});
 
   return NextResponse.json({
@@ -113,6 +137,8 @@ export async function POST(
       message_type: (relayData as { message_type?: string }).message_type ?? messageType,
       content:      (relayData as { content?: string }).content ?? content,
       caption,
+      file_name:    fileName,
+      file_size:    fileSize,
       created_at:   (relayData as { created_at?: string }).created_at,
       user_msg_id:  null,
       group_msg_id: null,

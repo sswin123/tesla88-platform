@@ -446,6 +446,20 @@ async def _forward_user_message(
     if group_msg_id:
         # For media messages store the file_id so ERP can proxy + display them.
         content = message.text if msg_type == "TEXT" else _get_file_id(message)
+
+        # Extract file metadata for ERP file cards
+        file_name: Optional[str] = None
+        file_size: Optional[int] = None
+        if message.document:
+            file_name = message.document.file_name
+            file_size = message.document.file_size
+        elif message.audio:
+            file_name = getattr(message.audio, "file_name", None) or getattr(message.audio, "title", None)
+            file_size = message.audio.file_size
+        elif message.video:
+            file_name = getattr(message.video, "file_name", None)
+            file_size = message.video.file_size
+
         await store_message(
             pool,
             session_id=session_id,
@@ -455,5 +469,7 @@ async def _forward_user_message(
             group_msg_id=group_msg_id,
             content=content,
             caption=message.caption if msg_type != "TEXT" else None,
+            file_name=file_name,
+            file_size=file_size,
         )
         await update_last_message_at(pool, session_id)

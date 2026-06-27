@@ -9,10 +9,28 @@ const EMOJIS = [
   '❤️', '🔥', '✅', '⚠️', '💰', '🎉', '🙏', '💪', '👋', '🤝',
 ];
 
+// Detect message type from MIME — single source of truth, no hardcoded extension lists.
+function getMsgType(file: File): 'PHOTO' | 'VIDEO' | 'DOCUMENT' {
+  if (file.type.startsWith('image/')) return 'PHOTO';
+  if (file.type.startsWith('video/')) return 'VIDEO';
+  return 'DOCUMENT';
+}
+
+function getPreviewIcon(type: 'PHOTO' | 'VIDEO' | 'DOCUMENT', fileName: string): string {
+  if (type === 'PHOTO') return '🖼️';
+  if (type === 'VIDEO') return '🎬';
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const icons: Record<string, string> = {
+    pdf: '📄', zip: '📦', rar: '📦', '7z': '📦', apk: '📦', ipa: '📦',
+    exe: '📦', dmg: '📦', mp3: '🎵', wav: '🎵', aac: '🎵', ogg: '🎵',
+  };
+  return icons[ext] ?? '📎';
+}
+
 interface PendingFile {
   file: File;
   previewUrl: string;
-  messageType: 'PHOTO' | 'DOCUMENT';
+  messageType: 'PHOTO' | 'VIDEO' | 'DOCUMENT';
 }
 
 type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
@@ -20,19 +38,21 @@ type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
 export interface ReplyBoxProps {
   sessionId: number;
   onMessageSent: (msg: SupportMessage) => void;
+  externalFile?: File | null;
+  onExternalFileConsumed?: () => void;
 }
 
-export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
+export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFileConsumed }: ReplyBoxProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
   const [error, setError] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0); // tracks nested dragenter/dragleave pairs
 
   // Quick replies state
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
@@ -40,6 +60,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
   const [qrSearch, setQrSearch] = useState('');
   const quickPickerRef = useRef<HTMLDivElement>(null);
 
+  // ── Load quick replies once ─────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/livechat/quick-replies')
       .then((r) => r.ok ? r.json() : null)
@@ -49,6 +70,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
       .catch(() => {/* silent */});
   }, []);
 
+  // ── Close quick picker on outside click ────────────────────────────────────
   useEffect(() => {
     if (!showQuickPicker) return;
     const handleClick = (e: MouseEvent) => {
@@ -60,14 +82,50 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showQuickPicker]);
 
-  const filteredQr = quickReplies.filter(
-    (r) =>
-      qrSearch === '' ||
-      r.title.toLowerCase().includes(qrSearch.toLowerCase()) ||
-      r.body.toLowerCase().includes(qrSearch.toLowerCase())
-  );
-  const favorites    = filteredQr.filter((r) => r.is_favorite);
-  const nonFavorites = filteredQr.filter((r) => !r.is_favorite);
+  // ── Load draft when session changes ────────────────────────────────────────
+  useEffect(() => {
+    setText(localStorage.getItem(`draft_${sessionId}`) ?? '');
+  }, [sessionId]);
+
+  // ── Auto-resize textarea ───────────────────────────────────────────────────
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 6 * 24)}px`; // cap at ~6 lines
+  }, []);
+
+  useEffect(() => { adjustHeight(); }, [text, adjustHeight]);
+
+  // ── Core file processor ────────────────────────────────────────────────────
+  const processFile = useCallback((file: File) => {
+    if (file.size > 50 * 1024 * 1024) { setError('File too large (max 50 MB)'); return; }
+    if (pendingFile) URL.revokeObjectURL(pendingFile.previewUrl);
+    const messageType = getMsgType(file);
+    setPendingFile({ file, previewUrl: URL.createObjectURL(file), messageType });
+    setError('');
+  }, [pendingFile]);
+
+  // ── Consume external drop (from panel-level drag handler in LiveChatClient) ─
+  useEffect(() => {
+    if (!externalFile) return;
+    processFile(externalFile);
+    onExternalFileConsumed?.();
+  }, [externalFile, processFile, onExternalFileConsumed]);
+
+  // ── Global Ctrl+V paste ────────────────────────────────────────────────────
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const fileItem = items.find((item) => item.kind === 'file');
+      if (!fileItem) return; // plain text: let browser handle it
+      e.preventDefault();
+      const file = fileItem.getAsFile();
+      if (file) processFile(file);
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [processFile]);
 
   // ── Core send helper ──────────────────────────────────────────────────────
   const dispatchSend = useCallback(
@@ -75,6 +133,8 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
       message_type: string;
       content: string;
       caption?: string | null;
+      file_name?: string | null;
+      file_size?: number | null;
       quick_reply_id?: number;
       quick_reply_used?: boolean;
     }) => {
@@ -124,45 +184,53 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
       const ok = await dispatchSend({
         message_type: pendingFile.messageType,
         content: dataUri,
-        caption: trimmed || null,   // ← caption forwarded here
+        caption: trimmed || null,
+        file_name: pendingFile.file.name,
+        file_size: pendingFile.file.size,
       });
       if (ok) {
         URL.revokeObjectURL(pendingFile.previewUrl);
         setPendingFile(null);
         setText('');
+        localStorage.removeItem(`draft_${sessionId}`);
       }
     } else {
       const ok = await dispatchSend({ message_type: 'TEXT', content: trimmed });
-      if (ok) setText('');
+      if (ok) {
+        setText('');
+        localStorage.removeItem(`draft_${sessionId}`);
+      }
     }
     textareaRef.current?.focus();
-  }, [sending, text, pendingFile, dispatchSend]);
+  }, [sending, text, pendingFile, dispatchSend, sessionId]);
 
   // ── Quick reply: always sends immediately ─────────────────────────────────
   const handleQuickReply = useCallback(
     async (qr: QuickReply) => {
       if (sending) return;
       setShowQuickPicker(false);
-      // Server fetches media_content by quick_reply_id — browser never holds the blob
       await dispatchSend({ quick_reply_id: qr.id, quick_reply_used: true, message_type: '', content: '' });
       textareaRef.current?.focus();
     },
     [sending, dispatchSend]
   );
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>, type: 'PHOTO' | 'DOCUMENT') => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (file.size > 20 * 1024 * 1024) { setError('File too large (max 20 MB)'); return; }
-      setPendingFile({ file, previewUrl: URL.createObjectURL(file), messageType: type });
-      setError('');
-      e.target.value = '';
-    },
-    []
-  );
+  // ── File input change ─────────────────────────────────────────────────────
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
+  }, [processFile]);
 
-  // Enter = send, Shift+Enter = new line
+  // ── Text change + draft save ──────────────────────────────────────────────
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setText(val);
+    if (val) localStorage.setItem(`draft_${sessionId}`, val);
+    else localStorage.removeItem(`draft_${sessionId}`);
+  };
+
+  // ── Enter = send, Shift+Enter = new line ──────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -170,8 +238,50 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
     }
   };
 
+  // ── Local drag & drop (on the ReplyBox container itself) ──────────────────
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragOver(true);
+  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDragOver(false); }
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
+  const filteredQr = quickReplies.filter(
+    (r) =>
+      qrSearch === '' ||
+      r.title.toLowerCase().includes(qrSearch.toLowerCase()) ||
+      r.body.toLowerCase().includes(qrSearch.toLowerCase())
+  );
+  const favorites    = filteredQr.filter((r) => r.is_favorite);
+  const nonFavorites = filteredQr.filter((r) => !r.is_favorite);
+
   return (
-    <div className="border-t bg-white p-3 flex-shrink-0">
+    <div
+      className={`border-t bg-white p-3 flex-shrink-0 relative transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300' : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag-over overlay hint */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center rounded bg-blue-50/90 border-2 border-dashed border-blue-400 pointer-events-none">
+          <p className="text-blue-600 font-medium text-sm">Drop file to attach</p>
+        </div>
+      )}
+
       {/* Pending file preview */}
       {pendingFile && (
         <div className="mb-2 flex items-center gap-2 rounded-lg bg-gray-50 p-2 border">
@@ -179,7 +289,9 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={pendingFile.previewUrl} alt="preview" className="h-16 w-16 rounded object-cover" />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200 text-2xl">📎</div>
+            <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200 text-2xl">
+              {getPreviewIcon(pendingFile.messageType, pendingFile.file.name)}
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <p className="truncate text-xs font-medium">{pendingFile.file.name}</p>
@@ -190,6 +302,13 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
             className="text-red-400 hover:text-red-600 text-lg leading-none"
             aria-label="Remove file"
           >×</button>
+        </div>
+      )}
+
+      {/* Upload progress */}
+      {sendStatus === 'sending' && (
+        <div className="mb-2 h-1 w-full rounded-full bg-gray-200 overflow-hidden">
+          <div className="h-full bg-blue-500 rounded-full animate-pulse w-full" />
         </div>
       )}
 
@@ -218,17 +337,14 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
           )}
         </div>
 
-        {/* Image upload */}
-        <button onClick={() => imageInputRef.current?.click()}
-          className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-600" title="Upload image" aria-label="Upload image">🖼️</button>
-        <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-          className="hidden" onChange={(e) => handleFileChange(e, 'PHOTO')} />
-
-        {/* Document upload */}
-        <button onClick={() => fileInputRef.current?.click()}
-          className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-600" title="Upload file" aria-label="Upload file">📎</button>
-        <input ref={fileInputRef} type="file" accept=".pdf,.zip,.docx,.mp4"
-          className="hidden" onChange={(e) => handleFileChange(e, 'DOCUMENT')} />
+        {/* Universal file upload (all types) */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-600"
+          title="Upload file (image/video/document)"
+          aria-label="Upload file"
+        >📎</button>
+        <input ref={fileInputRef} type="file" accept="*/*" className="hidden" onChange={handleFileChange} />
 
         {/* Quick replies picker */}
         <div className="relative" ref={quickPickerRef}>
@@ -255,7 +371,6 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
                     className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </div>
-
                 <div className="max-h-72 overflow-y-auto">
                   {filteredQr.length === 0 ? (
                     <p className="text-center text-xs text-gray-400 py-4">No replies found</p>
@@ -287,25 +402,28 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
           )}
         </div>
 
-        <span className="ml-auto text-xs text-gray-400">Enter to send · Shift+Enter for new line</span>
+        <span className="ml-auto text-xs text-gray-400 hidden sm:inline">
+          Enter to send · Shift+Enter for new line
+        </span>
       </div>
 
       {/* Textarea + Send */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-end">
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder={pendingFile ? 'Add caption (optional)…' : 'Type a message…'}
-          className="flex-1 resize-none rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-          rows={3}
+          placeholder={pendingFile ? 'Add caption (optional)…' : 'Type a message… (Ctrl+V to paste file)'}
+          className="flex-1 resize-none overflow-hidden rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[40px]"
+          style={{ height: '40px' }}
+          rows={1}
           disabled={sending}
         />
         <Button
           onClick={() => void handleSend()}
           disabled={sending || sendStatus === 'sending' || (!text.trim() && !pendingFile)}
-          className="self-end"
+          className="self-end shrink-0"
         >
           {sending ? 'Sending…' : 'Send'}
         </Button>
@@ -313,7 +431,6 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
 
       {sendStatus !== 'idle' && (
         <div className="flex items-center gap-2 px-1 text-xs mt-1">
-          {sendStatus === 'sending' && <span className="text-gray-400 animate-pulse">Sending…</span>}
           {sendStatus === 'sent'    && <span className="text-green-600 font-medium">✓ Sent</span>}
           {sendStatus === 'failed'  && (
             <div className="flex items-center gap-2">
@@ -331,10 +448,7 @@ export function ReplyBox({ sessionId, onMessageSent }: ReplyBoxProps) {
 // ── Quick reply list item ─────────────────────────────────────────────────────
 
 const CONTENT_TYPE_ICON: Record<string, string> = {
-  TEXT:     '💬',
-  PHOTO:    '🖼️',
-  VIDEO:    '🎬',
-  DOCUMENT: '📎',
+  TEXT: '💬', PHOTO: '🖼️', VIDEO: '🎬', DOCUMENT: '📎',
 };
 
 function QuickReplyItem({ reply, onSelect }: { reply: QuickReply; onSelect: () => void }) {

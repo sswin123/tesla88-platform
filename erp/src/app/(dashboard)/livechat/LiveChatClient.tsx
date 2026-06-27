@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ConversationList } from '@/components/livechat/ConversationList';
 import { ChatWindow } from '@/components/livechat/ChatWindow';
@@ -37,6 +37,8 @@ export default function LiveChatClient({
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingSession, setLoadingSession] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const dragCounterRef = useRef(0);
 
   // Load session + member when selection changes; reset unread immediately
   useEffect(() => {
@@ -89,9 +91,28 @@ export default function LiveChatClient({
       {/* Left: conversation list */}
       <ConversationList selectedId={selectedId} onSelect={handleSelect} currentUsername={currentUsername} />
 
-      {/* Middle: chat area */}
+      {/* Middle: chat area — also acts as a drop zone for files */}
       {selectedId && session ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div
+          className="flex flex-1 flex-col overflow-hidden relative"
+          onDragEnter={(e) => {
+            e.preventDefault();
+            dragCounterRef.current++;
+            if (e.dataTransfer.types.includes('Files')) setDroppedFile(null);
+          }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            dragCounterRef.current--;
+            if (dragCounterRef.current <= 0) dragCounterRef.current = 0;
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            dragCounterRef.current = 0;
+            const file = e.dataTransfer.files[0];
+            if (file) setDroppedFile(file);
+          }}
+        >
           {/* Session header */}
           <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
             <div>
@@ -126,7 +147,12 @@ export default function LiveChatClient({
 
           {/* Reply box or closed notice */}
           {session.status !== 'CLOSED' ? (
-            <ReplyBox sessionId={selectedId} onMessageSent={handleMessageSent} />
+            <ReplyBox
+                sessionId={selectedId}
+                onMessageSent={handleMessageSent}
+                externalFile={droppedFile}
+                onExternalFileConsumed={() => setDroppedFile(null)}
+              />
           ) : (
             <div className="flex-shrink-0 border-t bg-gray-50 px-4 py-3 text-center text-sm text-gray-400">
               This conversation is closed.{' '}
