@@ -355,7 +355,9 @@ export async function updateSessionAction(
            WHERE id=$1 RETURNING *`;
   } else if (action === 'reopen') {
     sql = `UPDATE support_sessions
-           SET status='OPEN', closed_at=NULL, close_reason=NULL
+           SET status='OPEN', closed_at=NULL, close_reason=NULL,
+               assigned_to_username=NULL, erp_unread_count=0,
+               last_message_at=NOW()
            WHERE id=$1 RETURNING *`;
   } else if (action === 'pin') {
     sql = `UPDATE support_sessions SET pinned_at=NOW() WHERE id=$1 RETURNING *`;
@@ -374,6 +376,20 @@ export async function updateSessionAction(
 
   const { rows } = await pool.query(sql, params);
   return rows[0] ?? null;
+}
+
+export async function createSessionForUser(
+  userId: number,
+  agentUsername: string | null
+): Promise<SupportSession> {
+  const { rows } = await pool.query(
+    `INSERT INTO support_sessions
+       (user_id, status, last_message_at, assigned_to_username)
+     VALUES ($1, 'ACTIVE', NOW(), $2)
+     RETURNING *`,
+    [userId, agentUsername]
+  );
+  return rows[0];
 }
 
 export async function getMoreMessages(

@@ -20,11 +20,13 @@ const STATUS_LABEL: Record<string, string> = {
 export function SessionActions({
   session,
   onUpdate,
+  onNewSession,
   currentUsername,
   currentRole,
 }: {
   session: SupportSession;
   onUpdate: (updated: SupportSession) => void;
+  onNewSession?: (newSession: SupportSession) => void;
   currentUsername: string | null;
   currentRole: string | null;
 }) {
@@ -37,6 +39,7 @@ export function SessionActions({
   async function doAction(action: string) {
     if (acting) return;
     if (action === 'close' && !confirm('Close this conversation?')) return;
+    if (action === 'new_session' && !confirm('Start a new conversation for this customer? The current conversation will remain intact.')) return;
     setActing(true);
     const r = await fetch(`/api/livechat/sessions/${session.id}`, {
       method: 'PATCH',
@@ -45,7 +48,11 @@ export function SessionActions({
     });
     const d = await r.json().catch(() => ({}));
     if (r.ok && (d as { session?: SupportSession }).session) {
-      onUpdate((d as { session: SupportSession }).session);
+      if ((d as { is_new_session?: boolean }).is_new_session) {
+        onNewSession?.((d as { session: SupportSession }).session);
+      } else {
+        onUpdate((d as { session: SupportSession }).session);
+      }
     } else {
       alert((d as { error?: string }).error ?? 'Action failed');
     }
@@ -187,9 +194,20 @@ export function SessionActions({
             Close
           </Button>
         ) : (
-          <Button size="sm" disabled={acting} onClick={() => doAction('reopen')}>
-            Reopen
-          </Button>
+          <>
+            <Button size="sm" disabled={acting} onClick={() => doAction('reopen')}>
+              Reopen
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={acting}
+              onClick={() => doAction('new_session')}
+              title="Start a fresh conversation for this customer"
+            >
+              New Session
+            </Button>
+          </>
         )}
       </div>
     </div>

@@ -109,6 +109,7 @@ export default function LiveChatClient({
           <SessionActions
               session={session}
               onUpdate={(s) => setSession(s)}
+              onNewSession={(s) => handleSelect(s.id)}
               currentUsername={currentUsername}
               currentRole={currentRole}
             />
