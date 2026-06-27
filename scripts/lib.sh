@@ -118,16 +118,17 @@ wait_http() {
   local interval=5
   local elapsed=0
   log_info "Waiting for ${label}…"
+  log_info "  Checking: ${url}"
   while [[ $elapsed -lt $max_wait ]]; do
     local code
     code=$(http_status "$url")
     if [[ "$code" =~ ^2 ]]; then
-      log_success "${label} is up (HTTP ${code})"
+      log_success "  HTTP ${code} — ${label} ready."
       return 0
     fi
     sleep "$interval"
     elapsed=$((elapsed + interval))
-    log_info "  ${elapsed}s elapsed — last HTTP ${code}"
+    log_info "  ${elapsed}s — HTTP ${code}"
   done
   die "${label} did not become healthy within ${max_wait}s"
 }

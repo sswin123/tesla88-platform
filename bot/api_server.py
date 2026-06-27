@@ -329,11 +329,17 @@ async def notify_withdrawal(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def health(request: web.Request) -> web.Response:
+    """GET /health — readiness probe for the deployment toolkit."""
+    return web.json_response({"status": "ok"})
+
+
 async def start_relay_server(bot: Bot, pool: asyncpg.Pool) -> web.AppRunner:
     """Start the relay HTTP server and return the runner (for cleanup)."""
     app = web.Application()
     app["bot"] = bot
     app["pool"] = pool
+    app.router.add_get("/health", health)
     app.router.add_post("/relay", relay_message)
     app.router.add_post("/notify_close", notify_close)
     app.router.add_post("/notify/deposit", notify_deposit)
