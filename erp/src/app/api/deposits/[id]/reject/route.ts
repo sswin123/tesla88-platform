@@ -23,13 +23,13 @@ export async function POST(
   const body = await req.json().catch(() => ({})) as { reason?: string };
   const reason: string = body.reason ?? '';
 
-  // Identical to bot's deposit_repo.py::reject_deposit
+  const rejId = parseInt(id, 10);
   const { rows } = await pool.query(
     `UPDATE deposit_requests
-     SET status = 'REJECTED', reviewed_by = $2, admin_note = $3, reviewed_at = NOW()
+     SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW()
      WHERE id = $1 AND status = 'PENDING'
      RETURNING id`,
-    [parseInt(id, 10), adminId, null]
+    [rejId, adminId, reason || null]
   );
   if (!rows[0]) {
     return NextResponse.json(
@@ -41,12 +41,11 @@ export async function POST(
     admin_id: adminId,
     action: 'DEPOSIT_REJECT',
     target_type: 'deposit',
-    target_id: parseInt(id, 10),
-    new_value: { status: 'REJECTED' },
+    target_id: rejId,
+    new_value: { status: 'REJECTED', reason: reason || null },
   });
 
   // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
-  const rejId = parseInt(id, 10);
   fetch(`${BOT_RELAY_URL}/notify/deposit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },

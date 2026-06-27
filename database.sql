@@ -532,3 +532,7 @@ INSERT INTO system_settings (key, value, description) VALUES
   ('bot_relay_url',      '',                   'Override BOT_RELAY_URL from env'),
   ('company_name',       'ERP Admin',          'Company name shown in header')
 ON CONFLICT (key) DO NOTHING;
+
+-- Migration 017: Reject reasons for deposit and withdrawal requests
+ALTER TABLE deposit_requests    ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+ALTER TABLE withdrawal_requests ADD COLUMN IF NOT EXISTS reject_reason TEXT;

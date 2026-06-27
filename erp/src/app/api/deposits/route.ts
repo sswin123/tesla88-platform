@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const [rows, count] = await Promise.all([
       pool.query(
         `SELECT dr.id, dr.user_id, dr.provider, dr.deposit_amount, dr.bonus_amount,
-                dr.credit_amount, dr.status, dr.created_at, dr.reviewed_at,
+                dr.credit_amount, dr.status, dr.reject_reason, dr.created_at, dr.reviewed_at,
                 u.first_name, u.phone, p.name AS promo_name
          ${baseJoin}
          WHERE dr.status = $1
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   const [rows, count] = await Promise.all([
     pool.query(
       `SELECT dr.id, dr.user_id, dr.provider, dr.deposit_amount, dr.bonus_amount,
-              dr.credit_amount, dr.status, dr.created_at, dr.reviewed_at,
+              dr.credit_amount, dr.status, dr.reject_reason, dr.created_at, dr.reviewed_at,
               u.first_name, u.phone, p.name AS promo_name
        ${baseJoin}
        ORDER BY dr.created_at DESC

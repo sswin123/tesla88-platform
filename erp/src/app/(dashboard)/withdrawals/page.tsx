@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import RejectModal from '@/components/RejectModal';
 import type { WithdrawalRow, PaginatedResponse } from '@/lib/types';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -19,11 +20,12 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = 
 };
 
 export default function WithdrawalsPage() {
-  const [data,    setData]    = useState<PaginatedResponse<WithdrawalRow> | null>(null);
-  const [status,  setStatus]  = useState('');
-  const [page,    setPage]    = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [acting,  setActing]  = useState<number | null>(null);
+  const [data,         setData]         = useState<PaginatedResponse<WithdrawalRow> | null>(null);
+  const [status,       setStatus]       = useState('');
+  const [page,         setPage]         = useState(1);
+  const [loading,      setLoading]      = useState(true);
+  const [acting,       setActing]       = useState<number | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -37,9 +39,9 @@ export default function WithdrawalsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function act(id: number, action: 'approve' | 'reject') {
+  async function approve(id: number) {
     setActing(id);
-    await fetch(`/api/withdrawals/${id}/${action}`, { method: 'POST' });
+    await fetch(`/api/withdrawals/${id}/approve`, { method: 'POST' });
     setActing(null);
     load();
   }
@@ -70,16 +72,16 @@ export default function WithdrawalsPage() {
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
-              {['ID', 'User', 'Provider', 'Amount', 'Bank', 'Status', 'Created At', 'Actions'].map((h) => (
+              {['ID', 'User', 'Provider', 'Amount', 'Bank', 'Status', 'Reason', 'Created At', 'Actions'].map((h) => (
                 <th key={h} className="px-3 py-3 text-left font-medium text-gray-500">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No withdrawals found</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No withdrawals found</td></tr>
             ) : rows.map((w) => (
               <tr key={w.id} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-3 py-3 font-mono text-xs">{w.id}</td>
@@ -96,6 +98,13 @@ export default function WithdrawalsPage() {
                 <td className="px-3 py-3">
                   <Badge variant={STATUS_VARIANT[w.status]}>{w.status}</Badge>
                 </td>
+                <td className="px-3 py-3 max-w-[160px]">
+                  {w.reject_reason ? (
+                    <span className="text-xs text-gray-600 break-words">{w.reject_reason}</span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-3 py-3 text-gray-500 text-xs">
                   {new Date(w.created_at).toLocaleString()}
                 </td>
@@ -104,7 +113,7 @@ export default function WithdrawalsPage() {
                     <div className="flex gap-1">
                       <Button
                         size="sm"
-                        onClick={() => act(w.id, 'approve')}
+                        onClick={() => approve(w.id)}
                         disabled={acting === w.id}
                       >
                         Approve
@@ -112,7 +121,7 @@ export default function WithdrawalsPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => act(w.id, 'reject')}
+                        onClick={() => setRejectTarget(w.id)}
                         disabled={acting === w.id}
                       >
                         Reject
@@ -138,6 +147,15 @@ export default function WithdrawalsPage() {
           </Button>
         </div>
       </div>
+
+      {rejectTarget !== null && (
+        <RejectModal
+          type="withdrawal"
+          id={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onSuccess={() => { setRejectTarget(null); load(); }}
+        />
+      )}
     </div>
   );
 }

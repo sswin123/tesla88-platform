@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       pool.query(
         `SELECT wr.id, wr.user_id, wr.provider, wr.game_username,
                 wr.withdraw_amount, wr.bank_name, wr.bank_account, wr.bank_holder_name,
-                wr.status, wr.created_at, wr.reviewed_at,
+                wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
                 u.first_name, u.phone
          ${baseJoin}
          WHERE wr.status = $1
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     pool.query(
       `SELECT wr.id, wr.user_id, wr.provider, wr.game_username,
               wr.withdraw_amount, wr.bank_name, wr.bank_account, wr.bank_holder_name,
-              wr.status, wr.created_at, wr.reviewed_at,
+              wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
               u.first_name, u.phone
        ${baseJoin}
        ORDER BY wr.created_at DESC

@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import RejectModal from '@/components/RejectModal';
 import type { DepositRow, PaginatedResponse } from '@/lib/types';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -19,11 +20,12 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = 
 };
 
 export default function DepositsPage() {
-  const [data,    setData]    = useState<PaginatedResponse<DepositRow> | null>(null);
-  const [status,  setStatus]  = useState('');
-  const [page,    setPage]    = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [acting,  setActing]  = useState<number | null>(null);
+  const [data,         setData]         = useState<PaginatedResponse<DepositRow> | null>(null);
+  const [status,       setStatus]       = useState('');
+  const [page,         setPage]         = useState(1);
+  const [loading,      setLoading]      = useState(true);
+  const [acting,       setActing]       = useState<number | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -37,9 +39,9 @@ export default function DepositsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function act(id: number, action: 'approve' | 'reject') {
+  async function approve(id: number) {
     setActing(id);
-    await fetch(`/api/deposits/${id}/${action}`, { method: 'POST' });
+    await fetch(`/api/deposits/${id}/approve`, { method: 'POST' });
     setActing(null);
     load();
   }
@@ -70,16 +72,16 @@ export default function DepositsPage() {
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
-              {['ID', 'User', 'Provider', 'Amount', 'Bonus', 'Credit', 'Status', 'Created At', 'Actions'].map((h) => (
+              {['ID', 'User', 'Provider', 'Amount', 'Bonus', 'Credit', 'Status', 'Reason', 'Created At', 'Actions'].map((h) => (
                 <th key={h} className="px-3 py-3 text-left font-medium text-gray-500">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No deposits found</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No deposits found</td></tr>
             ) : rows.map((d) => (
               <tr key={d.id} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-3 py-3 font-mono text-xs">{d.id}</td>
@@ -93,6 +95,13 @@ export default function DepositsPage() {
                 <td className="px-3 py-3">RM {parseFloat(d.credit_amount).toFixed(2)}</td>
                 <td className="px-3 py-3">
                   <Badge variant={STATUS_VARIANT[d.status]}>{d.status}</Badge>
+                </td>
+                <td className="px-3 py-3 max-w-[160px]">
+                  {d.reject_reason ? (
+                    <span className="text-xs text-gray-600 break-words">{d.reject_reason}</span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-3 text-gray-500 text-xs">
                   {new Date(d.created_at).toLocaleString()}
@@ -112,7 +121,7 @@ export default function DepositsPage() {
                       <>
                         <Button
                           size="sm"
-                          onClick={() => act(d.id, 'approve')}
+                          onClick={() => approve(d.id)}
                           disabled={acting === d.id}
                         >
                           Approve
@@ -120,7 +129,7 @@ export default function DepositsPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => act(d.id, 'reject')}
+                          onClick={() => setRejectTarget(d.id)}
                           disabled={acting === d.id}
                         >
                           Reject
@@ -147,6 +156,15 @@ export default function DepositsPage() {
           </Button>
         </div>
       </div>
+
+      {rejectTarget !== null && (
+        <RejectModal
+          type="deposit"
+          id={rejectTarget}
+          onClose={() => setRejectTarget(null)}
+          onSuccess={() => { setRejectTarget(null); load(); }}
+        />
+      )}
     </div>
   );
 }

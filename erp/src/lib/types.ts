@@ -48,6 +48,7 @@ export interface DepositRow {
   bonus_amount: string;
   credit_amount: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reject_reason: string | null;
   created_at: string;
   reviewed_at: string | null;
   first_name: string;
@@ -65,6 +66,7 @@ export interface WithdrawalRow {
   bank_account: string;
   bank_holder_name: string;
   status: 'PENDING' | 'PAID' | 'REJECTED';
+  reject_reason: string | null;
   created_at: string;
   reviewed_at: string | null;
   first_name: string;
