@@ -277,9 +277,9 @@ export async function getSessionWithDetails(id: number): Promise<{
     pool.query(
       `SELECT id, status, created_at::text
        FROM support_sessions
-       WHERE user_id = $1 AND id != $2
-       ORDER BY created_at DESC LIMIT 5`,
-      [userId, id]
+       WHERE user_id = $1
+       ORDER BY created_at DESC LIMIT 8`,
+      [userId]
     ),
     getTagsForUser(userId),
   ]);

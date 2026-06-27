@@ -169,6 +169,7 @@ export default function LiveChatClient({
             member={member}
             sessionId={session.id}
             onStatusChange={(s) => setMember((m) => (m ? { ...m, status: s } : m))}
+            onSessionSelect={handleSelect}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-gray-400">

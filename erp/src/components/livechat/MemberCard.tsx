@@ -23,10 +23,12 @@ export function MemberCard({
   member,
   sessionId,
   onStatusChange,
+  onSessionSelect,
 }: {
   member: MemberCardData;
   sessionId: number;
   onStatusChange?: (newStatus: 'ACTIVE' | 'FROZEN') => void;
+  onSessionSelect?: (id: number) => void;
 }) {
   const [toggling, setToggling] = useState(false);
   const [tags, setTags] = useState<CustomerTag[]>(member.tags ?? []);
@@ -221,26 +223,40 @@ export function MemberCard({
         </div>
       )}
 
-      {/* Previous Sessions */}
+      {/* Session History */}
       {member.previous_sessions.length > 0 && (
         <div className="border-b p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Previous Sessions
+            Session History
           </p>
-          {member.previous_sessions.map((s) => (
-            <a
-              key={s.id}
-              href={`/livechat?session=${s.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex justify-between py-1 text-xs hover:underline"
-            >
-              <span className="text-blue-500">#{s.id}</span>
-              <span className="text-gray-400">
-                {s.status} · {new Date(s.created_at).toLocaleDateString()}
-              </span>
-            </a>
-          ))}
+          {member.previous_sessions.map((s) => {
+            const isCurrent = s.id === sessionId;
+            return (
+              <button
+                key={s.id}
+                onClick={() => onSessionSelect?.(s.id)}
+                disabled={isCurrent}
+                className={[
+                  'flex w-full items-center justify-between rounded px-1 py-1 text-left text-xs transition-colors',
+                  isCurrent
+                    ? 'bg-blue-50 font-semibold text-blue-600'
+                    : 'text-gray-600 hover:bg-gray-50',
+                ].join(' ')}
+              >
+                <span className={isCurrent ? 'text-blue-600' : 'text-blue-500'}>
+                  #{s.id}
+                  {isCurrent && (
+                    <span className="ml-1 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-600">
+                      viewing
+                    </span>
+                  )}
+                </span>
+                <span className="text-gray-400">
+                  {s.status} · {new Date(s.created_at).toLocaleDateString()}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
