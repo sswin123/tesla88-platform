@@ -536,3 +536,9 @@ ON CONFLICT (key) DO NOTHING;
 -- Migration 017: Reject reasons for deposit and withdrawal requests
 ALTER TABLE deposit_requests    ADD COLUMN IF NOT EXISTS reject_reason TEXT;
 ALTER TABLE withdrawal_requests ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+
+-- Migration 018: Livechat reopen threshold setting
+INSERT INTO system_settings (key, value, description)
+VALUES ('LIVECHAT_REOPEN_DAYS', '30',
+        'Days after session closure before a new session is created instead of reopening (0 = always reopen)')
+ON CONFLICT (key) DO NOTHING;
