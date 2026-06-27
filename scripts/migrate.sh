@@ -27,12 +27,13 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 SQL
 
-# ── Collect and sort migration files ─────────────────────────────────────────
-mapfile -t MIGRATION_FILES < <(
-  find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" | sort
-)
+# ── Collect and sort migration files (portable: no mapfile/readarray) ─────────
+MIGRATION_FILES=()
+while IFS= read -r f; do
+  MIGRATION_FILES+=("$f")
+done < <(find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" 2>/dev/null | sort)
 
-if [[ ${#MIGRATION_FILES[@]} -eq 0 ]]; then
+if [ "${#MIGRATION_FILES[@]}" -eq 0 ]; then
   log_warn "No migration files found in ${MIGRATIONS_DIR}"
   exit 0
 fi

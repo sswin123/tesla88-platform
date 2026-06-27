@@ -2,14 +2,15 @@
 # update.sh — one-command full-system deployment update.
 #
 # Steps:
-#   1. Verify Docker is running
-#   2. Verify required containers exist
-#   3. Backup database
-#   4. Apply pending migrations
-#   5. Update Telegram Bot
-#   6. Update ERP
-#   7. Health checks
-#   8. Print summary
+#   1. Git pull (skipped if no remote / no upstream configured)
+#   2. Verify Docker is running
+#   3. Verify required containers exist
+#   4. Backup database
+#   5. Apply pending migrations
+#   6. Update Telegram Bot
+#   7. Update ERP
+#   8. Health checks
+#   9. Print summary
 #
 # Usage:  ./scripts/update.sh
 set -euo pipefail
@@ -27,9 +28,36 @@ STEP_ERP_OK=false
 STEP_HEALTH_OK=false
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 1 — Verify Docker is running
+# Step 1 — Git pull (optional; skipped when no remote or no upstream)
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 1 / 7 — Verify Docker"
+log_step "Step 1 / 8 — Git Pull"
+
+if ! command -v git >/dev/null 2>&1; then
+  log_info "git not found — skipping."
+elif ! git -C "${PROJECT_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  log_info "Not inside a git repository — skipping."
+else
+  remote_count=$(git -C "${PROJECT_ROOT}" remote 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${remote_count}" -eq 0 ]; then
+    log_info "No git remote configured — skipping git pull."
+  else
+    upstream=$(git -C "${PROJECT_ROOT}" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
+    if [ -z "${upstream}" ]; then
+      log_warn "No upstream tracking branch configured — skipping git pull."
+      log_warn "  To enable: git branch --set-upstream-to=origin/main main"
+    else
+      log_info "Pulling from ${upstream}…"
+      git -C "${PROJECT_ROOT}" pull \
+        || die "git pull failed. Resolve conflicts and retry."
+      log_success "Code updated to $(git -C "${PROJECT_ROOT}" rev-parse --short HEAD)."
+    fi
+  fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 2 — Verify Docker is running
+# ─────────────────────────────────────────────────────────────────────────────
+log_step "Step 2 / 8 — Verify Docker"
 
 require_docker
 log_success "Docker is running."
@@ -37,7 +65,7 @@ log_success "Docker is running."
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 2 — Verify required containers exist
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 2 / 7 — Verify Containers"
+log_step "Step 3 / 8 — Verify Containers"
 load_env
 
 errors=0
@@ -69,7 +97,7 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 3 — Backup database
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 3 / 7 — Database Backup"
+log_step "Step 4 / 8 — Database Backup"
 
 mkdir -p "${BACKUPS_DIR}"
 TIMESTAMP="$(date +"%Y-%m-%d_%H-%M")"
@@ -92,7 +120,7 @@ STEP_BACKUP_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4 — Apply pending migrations
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 4 / 7 — Database Migrations"
+log_step "Step 5 / 8 — Database Migrations"
 
 # Ensure schema_migrations table exists
 db_psql -v ON_ERROR_STOP=1 <<'SQL'
@@ -102,13 +130,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 SQL
 
-mapfile -t MIGRATION_FILES < <(
-  find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" | sort
-)
+MIGRATION_FILES=()
+while IFS= read -r f; do
+  MIGRATION_FILES+=("$f")
+done < <(find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" 2>/dev/null | sort)
 
 applied=0
 skipped=0
-for migration_file in "${MIGRATION_FILES[@]}"; do
+for migration_file in "${MIGRATION_FILES[@]+"${MIGRATION_FILES[@]}"}"; do
   filename="$(basename "${migration_file}")"
 
   already_run=$(
@@ -144,7 +173,7 @@ STEP_MIGRATE_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 5 — Update Telegram Bot
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 5 / 7 — Update Telegram Bot"
+log_step "Step 6 / 8 — Update Telegram Bot"
 
 log_info "Building bot image…"
 dc build app
@@ -158,7 +187,7 @@ STEP_BOT_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 6 — Update ERP
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 6 / 7 — Update ERP"
+log_step "Step 7 / 8 — Update ERP"
 
 log_info "Building ERP image…"
 erp_dc build erp
@@ -172,7 +201,7 @@ STEP_ERP_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 7 — Health checks
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 7 / 7 — Health Checks"
+log_step "Step 8 / 8 — Health Checks"
 
 health_errors=0
 
