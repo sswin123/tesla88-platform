@@ -233,7 +233,6 @@ async def notify_deposit(request: web.Request) -> web.Response:
 
     row = await pool.fetchrow(
         """SELECT dr.deposit_amount, dr.bonus_amount, dr.credit_amount,
-                  dr.provider, dr.game_username,
                   u.telegram_id
            FROM deposit_requests dr
            JOIN users u ON u.id = dr.user_id
@@ -247,28 +246,23 @@ async def notify_deposit(request: web.Request) -> web.Response:
     deposit_amount = float(row["deposit_amount"])
     bonus_amount = float(row["bonus_amount"])
     credit_amount = float(row["credit_amount"])
-    provider = html.escape(str(row["provider"]))
-    game_username = html.escape(str(row["game_username"]))
 
     if status == "APPROVED":
-        bonus_line = f"🎁 Bonus：\nRM {bonus_amount:,.2f}\n\n" if bonus_amount > 0 else ""
         text = (
-            f"✅ 充值申请已批准\n\n"
-            f"申请编号：\n#{request_id}\n\n"
-            f"🎮 平台：\n{provider}\n\n"
-            f"🆔 游戏账号：\n{game_username}\n\n"
-            f"💵 充值：\nRM {deposit_amount:,.2f}\n\n"
-            f"{bonus_line}"
-            f"🪙 实际上分：\nRM {credit_amount:,.2f}\n\n"
-            f"请查看游戏平台余额。"
+            f"✅ 充值申请已通过\n\n"
+            f"申请编号：#{request_id}\n\n"
+            f"充值金额：\nRM {deposit_amount:,.2f}\n\n"
+            f"Bonus：\nRM {bonus_amount:,.2f}\n\n"
+            f"到账金额：\nRM {credit_amount:,.2f}\n\n"
+            f"谢谢您的支持。"
         )
     else:
         reason_line = f"{html.escape(reason)}\n\n" if reason else ""
         text = (
             f"❌ 充值申请已拒绝\n\n"
-            f"申请编号：\n#{request_id}\n\n"
+            f"申请编号：#{request_id}\n\n"
             f"原因：\n{reason_line}"
-            f"如有疑问请联系客服。"
+            f"如有疑问，请联系客服。"
         )
 
     try:
@@ -298,8 +292,7 @@ async def notify_withdrawal(request: web.Request) -> web.Response:
     bot: Bot = request.app["bot"]
 
     row = await pool.fetchrow(
-        """SELECT wr.withdraw_amount, wr.provider, wr.game_username, wr.bank_name,
-                  u.telegram_id
+        """SELECT wr.withdraw_amount, u.telegram_id
            FROM withdrawal_requests wr
            JOIN users u ON u.id = wr.user_id
            WHERE wr.id = $1""",
@@ -310,27 +303,21 @@ async def notify_withdrawal(request: web.Request) -> web.Response:
 
     telegram_id = int(row["telegram_id"])
     withdraw_amount = float(row["withdraw_amount"])
-    provider = html.escape(str(row["provider"]))
-    game_username = html.escape(str(row["game_username"]))
-    bank_name = html.escape(str(row["bank_name"]))
 
     if status == "PAID":
         text = (
-            f"✅ 提款申请已完成\n\n"
-            f"申请编号：\n#{request_id}\n\n"
-            f"🎮 平台：\n{provider}\n\n"
-            f"🆔 游戏账号：\n{game_username}\n\n"
-            f"💵 提款金额：\nRM {withdraw_amount:,.2f}\n\n"
-            f"🏦 收款银行：\n{bank_name}\n\n"
-            f"款项已转入您的银行账号。"
+            f"✅ 提款申请已通过\n\n"
+            f"申请编号：#{request_id}\n\n"
+            f"提款金额：\nRM {withdraw_amount:,.2f}\n\n"
+            f"谢谢您的支持。"
         )
     else:
         reason_line = f"{html.escape(reason)}\n\n" if reason else ""
         text = (
             f"❌ 提款申请已拒绝\n\n"
-            f"申请编号：\n#{request_id}\n\n"
+            f"申请编号：#{request_id}\n\n"
             f"原因：\n{reason_line}"
-            f"如有疑问请联系客服。"
+            f"如有疑问，请联系客服。"
         )
 
     try:

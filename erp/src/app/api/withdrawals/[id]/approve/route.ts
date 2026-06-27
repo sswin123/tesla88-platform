@@ -65,12 +65,18 @@ export async function POST(
       new_value: { status: 'PAID', amount: req.withdraw_amount },
     });
 
-    // Notify customer via bot relay (fire-and-forget)
+    // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
     fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
       body: JSON.stringify({ request_id: requestId, status: 'PAID' }),
-    }).catch(() => {});
+    }).then(async (r) => {
+      if (!r.ok) {
+        logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: requestId, new_value: { relay_status: r.status } }).catch(() => {});
+      }
+    }).catch(() => {
+      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: requestId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

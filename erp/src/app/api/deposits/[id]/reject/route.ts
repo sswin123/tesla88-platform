@@ -45,12 +45,19 @@ export async function POST(
     new_value: { status: 'REJECTED' },
   });
 
-  // Notify customer via bot relay (fire-and-forget)
+  // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
+  const rejId = parseInt(id, 10);
   fetch(`${BOT_RELAY_URL}/notify/deposit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
-    body: JSON.stringify({ request_id: parseInt(id, 10), status: 'REJECTED', reason }),
-  }).catch(() => {});
+    body: JSON.stringify({ request_id: rejId, status: 'REJECTED', reason }),
+  }).then(async (r) => {
+    if (!r.ok) {
+      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { relay_status: r.status } }).catch(() => {});
+    }
+  }).catch(() => {
+    logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
+  });
 
   return NextResponse.json({ ok: true });
 }

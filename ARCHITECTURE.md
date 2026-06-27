@@ -23,6 +23,8 @@
 │  aiohttp Relay Server  ←────────── HTTP POST  ──────────────────┐  │
 │  POST /relay                        (Bearer token auth)          │  │
 │  POST /notify_close                                              │  │
+│  POST /notify/deposit                                            │  │
+│  POST /notify/withdrawal                                         │  │
 │                    │                                             │  │
 │                    ▼                                             │  │
 └────────────────────┼─────────────────────────────────────────── │──┘
@@ -126,6 +128,8 @@ Endpoints:
 |----------|--------|-------------|
 | `POST /relay` | POST | Send a text or image message to a member's active session |
 | `POST /notify_close` | POST | Notify a member that their session was closed by an agent |
+| `POST /notify/deposit` | POST | DM the customer when ERP approves or rejects a deposit |
+| `POST /notify/withdrawal` | POST | DM the customer when ERP approves or rejects a withdrawal |
 | `GET /health` | GET | Health check (public, no auth) |
 
 All POST endpoints require `Authorization: Bearer <BOT_RELAY_AUTH_TOKEN>`. The token must match the value in both `.env` files.
