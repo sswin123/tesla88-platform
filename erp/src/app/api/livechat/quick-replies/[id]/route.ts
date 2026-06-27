@@ -16,19 +16,22 @@ export async function PATCH(
   const payload = await requireAuth();
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
-  const body = await req.json();
+  const body = await req.json() as Record<string, unknown>;
 
-  // Handle favorite toggle separately
+  // Favorite toggle handled separately (agent-scoped, not a reply mutation)
   if ('is_favorite' in body) {
     await toggleFavoriteQuickReply(payload.username, parseInt(id, 10), body.is_favorite === true);
     return NextResponse.json({ ok: true });
   }
 
   const reply = await updateQuickReply(parseInt(id, 10), {
-    category_id: body.category_id,
-    title:       body.title,
-    body:        body.body,
-    sort_order:  body.sort_order,
+    category_id:   'category_id' in body ? (body.category_id as number | null) : undefined,
+    title:         typeof body.title === 'string' ? body.title : undefined,
+    body:          typeof body.body  === 'string' ? body.body  : undefined,
+    sort_order:    typeof body.sort_order === 'number' ? body.sort_order : undefined,
+    is_active:     typeof body.is_active  === 'boolean' ? body.is_active : undefined,
+    content_type:  typeof body.content_type === 'string' ? body.content_type : undefined,
+    media_content: 'media_content' in body ? (body.media_content as string | null) : undefined,
   });
   if (!reply) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ reply });

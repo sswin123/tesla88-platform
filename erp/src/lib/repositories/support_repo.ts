@@ -415,17 +415,49 @@ export async function getMoreMessages(
 
 // ── Quick Replies ─────────────────────────────────────────────────────────────
 
+// Columns returned in list view (no media_content to keep payload small)
+const QR_LIST_COLS = `
+  qr.id, qr.category_id, qrc.name AS category_name, qr.title, qr.body,
+  qr.content_type, qr.is_active, qr.sort_order, qr.created_at`;
+
 export async function getQuickReplies(adminUsername: string): Promise<QuickReply[]> {
+  // Active replies only — used by the ReplyBox picker.
   const { rows } = await pool.query(
-    `SELECT qr.id, qr.category_id, qrc.name AS category_name, qr.title, qr.body, qr.sort_order,
-            (qrf.admin_username IS NOT NULL) AS is_favorite, qr.created_at
+    `SELECT ${QR_LIST_COLS},
+            (qrf.admin_username IS NOT NULL) AS is_favorite
      FROM quick_replies qr
      LEFT JOIN quick_reply_categories qrc ON qrc.id = qr.category_id
      LEFT JOIN quick_reply_favorites qrf ON qrf.reply_id = qr.id AND qrf.admin_username = $1
+     WHERE qr.is_active = TRUE
      ORDER BY qrc.sort_order NULLS LAST, qr.sort_order, qr.id`,
     [adminUsername]
   );
   return rows;
+}
+
+export async function getAllQuickRepliesAdmin(): Promise<QuickReply[]> {
+  // All replies (active + inactive) — used by the settings management page.
+  const { rows } = await pool.query(
+    `SELECT ${QR_LIST_COLS}, FALSE AS is_favorite
+     FROM quick_replies qr
+     LEFT JOIN quick_reply_categories qrc ON qrc.id = qr.category_id
+     ORDER BY qrc.sort_order NULLS LAST, qr.sort_order, qr.id`
+  );
+  return rows;
+}
+
+export async function getQuickReplyById(
+  id: number
+): Promise<(QuickReply & { media_content: string | null }) | null> {
+  // Single reply WITH media_content — used server-side when relay-sending a quick reply.
+  const { rows } = await pool.query(
+    `SELECT qr.id, qr.category_id, NULL AS category_name, qr.title, qr.body,
+            qr.content_type, qr.is_active, qr.sort_order, qr.created_at,
+            qr.media_content, FALSE AS is_favorite
+     FROM quick_replies qr WHERE qr.id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
 }
 
 export async function getQuickReplyCategories(): Promise<QuickReplyCategory[]> {
@@ -439,34 +471,51 @@ export async function createQuickReply(data: {
   category_id: number | null;
   title: string;
   body: string;
+  content_type: 'TEXT' | 'PHOTO' | 'VIDEO' | 'DOCUMENT';
+  media_content: string | null;
   sort_order: number;
   created_by: string;
 }): Promise<QuickReply> {
   const { rows } = await pool.query(
-    `INSERT INTO quick_replies (category_id, title, body, sort_order, created_by)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, category_id, NULL AS category_name, title, body, sort_order, FALSE AS is_favorite, created_at`,
-    [data.category_id, data.title, data.body, data.sort_order, data.created_by]
+    `INSERT INTO quick_replies
+       (category_id, title, body, content_type, media_content, sort_order, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, category_id, NULL AS category_name, title, body,
+               content_type, is_active, sort_order, FALSE AS is_favorite, created_at`,
+    [data.category_id, data.title, data.body, data.content_type, data.media_content,
+     data.sort_order, data.created_by]
   );
   return rows[0];
 }
 
 export async function updateQuickReply(
   id: number,
-  data: { category_id?: number | null; title?: string; body?: string; sort_order?: number }
+  data: {
+    category_id?: number | null;
+    title?: string;
+    body?: string;
+    sort_order?: number;
+    is_active?: boolean;
+    content_type?: string;
+    media_content?: string | null;
+  }
 ): Promise<QuickReply | null> {
   const sets: string[] = [];
-  const params: (string | number | null)[] = [];
+  const params: (string | number | boolean | null)[] = [];
   let i = 1;
-  if ('category_id' in data) { sets.push(`category_id=$${i++}`); params.push(data.category_id ?? null); }
-  if (data.title !== undefined) { sets.push(`title=$${i++}`); params.push(data.title); }
-  if (data.body !== undefined)  { sets.push(`body=$${i++}`);  params.push(data.body); }
+  if ('category_id'   in data) { sets.push(`category_id=$${i++}`);   params.push(data.category_id ?? null); }
+  if (data.title      !== undefined) { sets.push(`title=$${i++}`);      params.push(data.title); }
+  if (data.body       !== undefined) { sets.push(`body=$${i++}`);       params.push(data.body); }
   if (data.sort_order !== undefined) { sets.push(`sort_order=$${i++}`); params.push(data.sort_order); }
+  if (data.is_active  !== undefined) { sets.push(`is_active=$${i++}`);  params.push(data.is_active); }
+  if (data.content_type   !== undefined) { sets.push(`content_type=$${i++}`);   params.push(data.content_type ?? 'TEXT'); }
+  if ('media_content' in data) { sets.push(`media_content=$${i++}`); params.push(data.media_content ?? null); }
   if (!sets.length) return null;
   params.push(id);
   const { rows } = await pool.query(
     `UPDATE quick_replies SET ${sets.join(', ')} WHERE id=$${i}
-     RETURNING id, category_id, NULL AS category_name, title, body, sort_order, FALSE AS is_favorite, created_at`,
+     RETURNING id, category_id, NULL AS category_name, title, body,
+               content_type, is_active, sort_order, FALSE AS is_favorite, created_at`,
     params
   );
   return rows[0] ?? null;

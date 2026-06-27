@@ -292,9 +292,12 @@ export interface QuickReply {
   category_id: number | null;
   category_name: string | null;
   title: string;
+  /** Text body — used as the message for TEXT type, or as caption for media types. */
   body: string;
+  content_type: 'TEXT' | 'PHOTO' | 'VIDEO' | 'DOCUMENT';
+  is_active: boolean;
   sort_order: number;
-  is_favorite?: boolean;  // populated client-side from agent's favorites
+  is_favorite?: boolean;
   created_at: string;
 }
 
