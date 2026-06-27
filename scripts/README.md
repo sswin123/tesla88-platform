@@ -30,14 +30,15 @@ The main deployment script. Run this after every `git pull` or code change.
 ```
 
 **What it does (in order):**
-1. Verifies Docker is running
-2. Verifies all three containers (`db`, `app`, `erp`) are running
-3. Creates a timestamped database backup → `backups/YYYY-MM-DD_HH-MM.sql`
-4. Applies pending SQL migrations from `erp/migrations/`
-5. Rebuilds and restarts the Telegram Bot
-6. Rebuilds and restarts the ERP
-7. Runs health checks (ERP + Bot relay + Database)
-8. Prints a summary
+1. Git pull (skipped if no remote or no upstream branch configured)
+2. Verifies Docker is running
+3. Verifies all three containers (`db`, `app`, `erp`) are running
+4. Creates a timestamped database backup → `backups/YYYY-MM-DD_HH-MM.sql`
+5. Applies pending SQL migrations from `erp/migrations/` (auto-bootstraps on first run)
+6. Rebuilds and restarts the Telegram Bot
+7. Rebuilds and restarts the ERP
+8. Runs health checks (ERP + Bot relay + Database)
+9. Prints a summary
 
 **Stops immediately** on any failure. The backup from Step 3 can be used to restore if needed.
 
@@ -77,11 +78,31 @@ Apply all pending SQL migrations from `erp/migrations/` without rebuilding anyth
 
 Migrations are tracked in the `schema_migrations` table (created automatically). Each `.sql` file is applied exactly once, in alphabetical order. Safe to run multiple times.
 
+**Auto-bootstrap (first run on existing databases):**
+On the very first run, if `schema_migrations` is empty but the database already has application tables (i.e. it was set up before the toolkit was introduced), the script automatically records all current migration files as "already applied" without executing them. Only migration files added *after* that point will ever be executed.
+
 **Adding a migration:**
 ```
 erp/migrations/018_my_feature.sql
 ```
-Run `./scripts/migrate.sh` — it will be detected and applied automatically. No code changes required.
+Run `./scripts/migrate.sh` or `./scripts/update.sh` — it will be detected and applied automatically.
+
+---
+
+### `bootstrap-migrations.sh` — Manual migration bootstrap
+
+Explicitly mark all existing migration files as already applied, without running any SQL.
+
+```bash
+./scripts/bootstrap-migrations.sh          # interactive (shows preview, asks to confirm)
+./scripts/bootstrap-migrations.sh --yes    # non-interactive (CI / scripting)
+```
+
+Use this when:
+- The auto-bootstrap in `migrate.sh` did not trigger (e.g. `schema_migrations` already has some entries but is missing newer ones)
+- You want to see exactly what will be bootstrapped before committing
+
+After bootstrap, `./scripts/update.sh` and `./scripts/migrate.sh` will only execute migration files that do not yet appear in `schema_migrations`.
 
 ---
 
@@ -164,7 +185,24 @@ All scripts read the project root `.env` file for database credentials (`POSTGRE
 
 ---
 
-## Adding Future Migrations
+## Migration Strategy
+
+`database.sql` is the **installation snapshot** — it creates the full schema for a fresh install. It is never replayed as a migration.
+
+`erp/migrations/` contains **incremental changes** applied on top. Each file runs exactly once, tracked by filename in the `schema_migrations` table.
+
+### First run on an existing production database
+
+The toolkit auto-detects existing installations and never replays historical migrations:
+
+1. First `./scripts/update.sh` (or `./scripts/migrate.sh`) run detects empty `schema_migrations`
+2. Checks whether application tables already exist
+3. If yes → records all current migration files as done **without running them** (bootstrap)
+4. Future runs only execute new files not yet in `schema_migrations`
+
+No manual SQL required. Run `./scripts/status.sh` afterwards to confirm.
+
+### Adding future migrations
 
 Drop a new `.sql` file into `erp/migrations/` following the naming convention:
 
@@ -173,7 +211,7 @@ Drop a new `.sql` file into `erp/migrations/` following the naming convention:
 019_description.sql
 ```
 
-The next run of `./scripts/update.sh` or `./scripts/migrate.sh` will detect and apply it automatically.
+The next `./scripts/update.sh` or `./scripts/migrate.sh` detects and applies it automatically.
 
 ---
 
@@ -194,5 +232,5 @@ If a deployment fails:
 
 - Docker Engine + Docker Compose V2 (`docker compose` not `docker-compose`)
 - macOS or Linux
-- Bash 4+
+- Bash 3.2+ (macOS system Bash is sufficient)
 - `curl` or `wget` (for health checks — both are pre-installed on macOS/Linux)

@@ -122,52 +122,8 @@ STEP_BACKUP_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 5 / 8 — Database Migrations"
 
-# Ensure schema_migrations table exists
-db_psql -v ON_ERROR_STOP=1 <<'SQL'
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    filename    VARCHAR(255) PRIMARY KEY,
-    executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-SQL
-
-MIGRATION_FILES=()
-while IFS= read -r f; do
-  MIGRATION_FILES+=("$f")
-done < <(find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" 2>/dev/null | sort)
-
-applied=0
-skipped=0
-for migration_file in "${MIGRATION_FILES[@]+"${MIGRATION_FILES[@]}"}"; do
-  filename="$(basename "${migration_file}")"
-
-  already_run=$(
-    db_psql -tAc \
-      "SELECT COUNT(*) FROM schema_migrations WHERE filename = '${filename}';" \
-      2>/dev/null | tr -d '[:space:]'
-  )
-
-  if [[ "$already_run" != "0" ]]; then
-    skipped=$((skipped + 1))
-    continue
-  fi
-
-  log_info "  Applying: ${filename}"
-  dc exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-    db psql \
-    -U "${POSTGRES_USER}" \
-    -d "${POSTGRES_DB}" \
-    -v ON_ERROR_STOP=1 \
-    < "${migration_file}" \
-    || die "Migration FAILED: ${filename} — database restored from ${BACKUP_FILE}"
-
-  db_psql -c \
-    "INSERT INTO schema_migrations (filename) VALUES ('${filename}') ON CONFLICT DO NOTHING;"
-  log_success "  Applied: ${filename}"
-  applied=$((applied + 1))
-done
-
-log_success "Migrations — applied: ${applied}, already up to date: ${skipped}"
+"${SCRIPT_DIR}/migrate.sh" \
+  || die "Migration FAILED — restore the database from backup: ${BACKUP_FILE}"
 STEP_MIGRATE_OK=true
 
 # ─────────────────────────────────────────────────────────────────────────────
