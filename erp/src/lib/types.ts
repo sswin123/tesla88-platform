@@ -213,9 +213,18 @@ export interface SupportMessage {
   created_at: string;
 }
 
+export interface SessionSummary {
+  id: number;
+  status: SessionStatus;
+  created_at: string;
+  closed_at: string | null;
+  assigned_to_username: string | null;
+}
+
 export interface LiveChatSSEEvent {
   type: 'new_message' | 'session_update';
   session_id: number;
+  user_id?: number;          // present on new_message events after migration 023
   message_id?: number;
   sender_type?: MessageSenderType;
   status?: SessionStatus;
@@ -249,7 +258,7 @@ export interface MemberCardData {
   // Current promotion (null if none active)
   current_promotion: { name: string; bonus_amount: string; status: string } | null;
   // Previous sessions (up to 5, excluding current)
-  previous_sessions: { id: number; status: string; created_at: string }[];
+  previous_sessions: SessionSummary[];
   // Customer tags
   tags: CustomerTag[];
 }
