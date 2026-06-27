@@ -44,7 +44,7 @@ SQL
 MIGRATION_FILES=()
 while IFS= read -r f; do
   MIGRATION_FILES+=("$f")
-done < <(find "${MIGRATIONS_DIR}" -maxdepth 1 -name "*.sql" 2>/dev/null | sort)
+done < <(find "${MIGRATIONS_DIR}" -maxdepth 1 -name "[0-9]*.sql" 2>/dev/null | sort)
 
 total_files="${#MIGRATION_FILES[@]}"
 
@@ -55,7 +55,7 @@ fi
 
 # ── Show current state ────────────────────────────────────────────────────────
 already_tracked=$(db_psql -tAc \
-  "SELECT COUNT(*) FROM schema_migrations;" 2>/dev/null | tr -d '[:space:]')
+  "SELECT COUNT(*) FROM schema_migrations;" | tr -d '[:space:]')
 
 echo ""
 log_info "Migration files in ${MIGRATIONS_DIR}: ${total_files}"
@@ -67,7 +67,7 @@ for migration_file in "${MIGRATION_FILES[@]+"${MIGRATION_FILES[@]}"}"; do
   filename="$(basename "${migration_file}")"
   check=$(db_psql -tAc \
     "SELECT COUNT(*) FROM schema_migrations WHERE filename = '${filename}';" \
-    2>/dev/null | tr -d '[:space:]')
+    | tr -d '[:space:]')
   if [ "${check:-0}" -eq 0 ]; then
     echo -e "  ${YELLOW}○${NC} ${filename}  [will be recorded as applied]"
     new_count=$((new_count + 1))
