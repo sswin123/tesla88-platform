@@ -70,6 +70,10 @@ async def relay_message(request: web.Request) -> web.Response:
         agent_username: Optional[str] = data.get("agent_username")
         file_name: Optional[str] = data.get("file_name") or None
         file_size: Optional[int] = int(data["file_size"]) if data.get("file_size") else None
+        reply_to_msg_id: Optional[int] = int(data["reply_to_message_id"]) if data.get("reply_to_message_id") else None
+        reply_to_content: Optional[str] = data.get("reply_to_content")
+        reply_to_sender_type: Optional[str] = data.get("reply_to_sender_type")
+        telegram_reply_to_msg_id: Optional[int] = int(data["telegram_reply_to_msg_id"]) if data.get("telegram_reply_to_msg_id") else None
         if not content and message_type == "TEXT":
             return web.json_response({"error": "content required for TEXT"}, status=400)
     except (KeyError, ValueError, json.JSONDecodeError) as e:
@@ -105,9 +109,13 @@ async def relay_message(request: web.Request) -> web.Response:
             raise ValueError("file_too_large")
         return file_bytes, mime
 
+    reply_kwargs: dict = {}
+    if telegram_reply_to_msg_id:
+        reply_kwargs["reply_to_message_id"] = telegram_reply_to_msg_id
+
     try:
         if message_type == "TEXT":
-            msg = await bot.send_message(telegram_id, content)
+            msg = await bot.send_message(telegram_id, content, **reply_kwargs)
             tg_msg_id = msg.message_id
 
         elif message_type == "PHOTO":
@@ -116,6 +124,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 photo=BufferedInputFile(fb, filename=f"image.{_ext_from_mime(mime)}"),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
 
@@ -125,6 +134,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 video=BufferedInputFile(fb, filename=f"video.{_ext_from_mime(mime)}"),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
 
@@ -134,6 +144,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 animation=BufferedInputFile(fb, filename=f"anim.{_ext_from_mime(mime)}"),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -144,6 +155,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 audio=BufferedInputFile(fb, filename=f"audio.{_ext_from_mime(mime)}"),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -154,6 +166,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 voice=BufferedInputFile(fb, filename=f"voice.{_ext_from_mime(mime)}"),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -165,6 +178,7 @@ async def relay_message(request: web.Request) -> web.Response:
                 telegram_id,
                 document=BufferedInputFile(fb, filename=doc_filename),
                 caption=caption,
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
 
@@ -173,6 +187,7 @@ async def relay_message(request: web.Request) -> web.Response:
             msg = await bot.send_sticker(
                 telegram_id,
                 sticker=BufferedInputFile(fb, filename=f"sticker.{_ext_from_mime(mime)}"),
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -182,6 +197,7 @@ async def relay_message(request: web.Request) -> web.Response:
             msg = await bot.send_video_note(
                 telegram_id,
                 video_note=BufferedInputFile(fb, filename=f"vidnote.{_ext_from_mime(mime)}"),
+                **reply_kwargs,
             )
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
@@ -197,7 +213,7 @@ async def relay_message(request: web.Request) -> web.Response:
                     {"error": "LOCATION requires JSON content: {latitude, longitude}"},
                     status=400,
                 )
-            msg = await bot.send_location(telegram_id, latitude=lat, longitude=lon)
+            msg = await bot.send_location(telegram_id, latitude=lat, longitude=lon, **reply_kwargs)
             tg_msg_id = msg.message_id
             stored_type = "DOCUMENT"
 
@@ -236,8 +252,9 @@ async def relay_message(request: web.Request) -> web.Response:
 
     row = await pool.fetchrow(
         """INSERT INTO support_messages
-               (session_id, sender_type, message_type, content, user_msg_id, caption, file_name, file_size)
-           VALUES ($1, 'AGENT', $2, $3, $4, $5, $6, $7)
+               (session_id, sender_type, message_type, content, user_msg_id, caption,
+                file_name, file_size, reply_to_message_id, reply_to_content, reply_to_sender_type)
+           VALUES ($1, 'AGENT', $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING id, created_at""",
         session_id,
         stored_type,
@@ -246,6 +263,9 @@ async def relay_message(request: web.Request) -> web.Response:
         caption,
         file_name,
         file_size,
+        reply_to_msg_id,
+        reply_to_content,
+        reply_to_sender_type,
     )
 
     # Auto-assign + activate if this is the first ERP reply on an OPEN session
@@ -271,10 +291,13 @@ async def relay_message(request: web.Request) -> web.Response:
     return web.json_response(
         {
             "ok": True,
-            "message_id": row["id"],
-            "created_at": row["created_at"].isoformat(),
-            "message_type": stored_type,
-            "content": stored_content,
+            "message_id":           row["id"],
+            "created_at":           row["created_at"].isoformat(),
+            "message_type":         stored_type,
+            "content":              stored_content,
+            "reply_to_message_id":  reply_to_msg_id,
+            "reply_to_content":     reply_to_content,
+            "reply_to_sender_type": reply_to_sender_type,
         }
     )
 

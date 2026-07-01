@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getMoreMessages, getQuickReplyById } from '@/lib/repositories/support_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import pool from '@/lib/db';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -37,6 +38,7 @@ export async function POST(
     file_size?: number;
     quick_reply_id?: number;
     quick_reply_used?: boolean;
+    reply_to_message_id?: number;
   };
 
   let messageType = body.message_type ?? 'TEXT';
@@ -66,6 +68,42 @@ export async function POST(
 
   if (!content) return NextResponse.json({ error: 'content required' }, { status: 400 });
 
+  // Reply-to lookup
+  let replyToMsgId: number | null = body.reply_to_message_id ?? null;
+  let telegramReplyToMsgId: number | null = null;
+  let replyToContent: string | null = null;
+  let replyToSenderType: string | null = null;
+
+  if (replyToMsgId) {
+    const { rows } = await pool.query<{
+      content: string | null;
+      message_type: string;
+      file_name: string | null;
+      user_msg_id: number | null;
+      sender_type: string;
+    }>(
+      `SELECT content, message_type, file_name, user_msg_id, sender_type
+       FROM support_messages WHERE id = $1`,
+      [replyToMsgId]
+    );
+    const orig = rows[0];
+    if (orig) {
+      telegramReplyToMsgId = orig.user_msg_id;
+      replyToSenderType = orig.sender_type;
+      if (orig.message_type === 'TEXT') {
+        replyToContent = (orig.content ?? '').slice(0, 200);
+      } else if (orig.message_type === 'PHOTO') {
+        replyToContent = '📷 Photo';
+      } else if (orig.message_type === 'VIDEO') {
+        replyToContent = '🎥 Video';
+      } else if (orig.message_type === 'AUDIO') {
+        replyToContent = '🎵 Audio';
+      } else {
+        replyToContent = orig.file_name ?? `[${orig.message_type}]`;
+      }
+    }
+  }
+
   // ── Forward to bot relay ───────────────────────────────────────────────────
   let relayRes: Response;
   try {
@@ -76,13 +114,17 @@ export async function POST(
         Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}`,
       },
       body: JSON.stringify({
-        session_id:     sessionId,
-        message_type:   messageType,
+        session_id:               sessionId,
+        message_type:             messageType,
         content,
         caption,
-        file_name:      fileName,
-        file_size:      fileSize,
-        agent_username: payload.username ?? null,
+        file_name:                fileName,
+        file_size:                fileSize,
+        agent_username:           payload.username ?? null,
+        reply_to_message_id:      replyToMsgId,
+        reply_to_content:         replyToContent,
+        reply_to_sender_type:     replyToSenderType,
+        telegram_reply_to_msg_id: telegramReplyToMsgId,
       }),
     });
   } catch (err) {
@@ -131,17 +173,21 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     message: {
-      id:           (relayData as { message_id?: number }).message_id,
-      session_id:   sessionId,
-      sender_type:  'AGENT',
-      message_type: (relayData as { message_type?: string }).message_type ?? messageType,
-      content:      (relayData as { content?: string }).content ?? content,
+      id:                   (relayData as { message_id?: number }).message_id,
+      session_id:           sessionId,
+      sender_type:          'AGENT',
+      message_type:         (relayData as { message_type?: string }).message_type ?? messageType,
+      content:              (relayData as { content?: string }).content ?? content,
       caption,
-      file_name:    fileName,
-      file_size:    fileSize,
-      created_at:   (relayData as { created_at?: string }).created_at,
-      user_msg_id:  null,
-      group_msg_id: null,
+      file_name:            fileName,
+      file_size:            fileSize,
+      reply_to_message_id:  replyToMsgId,
+      reply_to_content:     replyToContent,
+      reply_to_sender_type: replyToSenderType,
+      status:               'SENT',
+      created_at:           (relayData as { created_at?: string }).created_at,
+      user_msg_id:          null,
+      group_msg_id:         null,
     },
   });
 }
