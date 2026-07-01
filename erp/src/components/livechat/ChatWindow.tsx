@@ -3,72 +3,158 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { ImageLightbox } from './ImageLightbox';
-import type { SupportMessage } from '@/lib/types';
+import type { SupportMessage, SessionSummary } from '@/lib/types';
 
 function mediaUrl(fileId: string): string {
   return `/api/livechat/media/${encodeURIComponent(fileId)}`;
 }
 
-function DateDivider({ date }: { date: string }) {
+function formatDateLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (msgDay.getTime() === today.getTime()) return 'Today';
+  if (msgDay.getTime() === yesterday.getTime()) return 'Yesterday';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function DateDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 my-3">
+    <div className="flex items-center gap-3 my-4">
       <div className="flex-1 h-px bg-gray-100" />
-      <span className="text-xs text-gray-400">{date}</span>
+      <span className="text-xs text-gray-400 font-medium">{label}</span>
       <div className="flex-1 h-px bg-gray-100" />
     </div>
   );
 }
 
-function groupByDate(
-  messages: SupportMessage[],
-): Array<{ date: string; msgs: SupportMessage[] }> {
-  const groups: Array<{ date: string; msgs: SupportMessage[] }> = [];
-  for (const m of messages) {
-    const d = new Date(m.created_at).toLocaleDateString();
-    const last = groups[groups.length - 1];
-    if (last && last.date === d) last.msgs.push(m);
-    else groups.push({ date: d, msgs: [m] });
+function SessionMarker({
+  session,
+  kind,
+}: {
+  session: SessionSummary;
+  kind: 'start' | 'end';
+}) {
+  let label: string;
+  if (kind === 'start') {
+    label = 'New Session';
+  } else if (session.assigned_to_username) {
+    label = `Session Closed · Handled by: ${session.assigned_to_username}`;
+  } else {
+    label = 'Session Closed';
   }
-  return groups;
+  return (
+    <div
+      data-session-id={session.id}
+      className="flex items-center gap-2 my-5"
+      style={{ transition: 'background-color 0.7s' }}
+    >
+      <div className="flex-1 h-px bg-gray-200" />
+      <div className="text-center">
+        <p className="text-xs text-gray-400 font-medium">{label}</p>
+        <p className="text-[10px] text-gray-300">#{session.id}</p>
+      </div>
+      <div className="flex-1 h-px bg-gray-200" />
+    </div>
+  );
+}
+
+type TimelineItem =
+  | { kind: 'message'; msg: SupportMessage; key: string; timestamp: number }
+  | { kind: 'date'; label: string; key: string; timestamp: number }
+  | { kind: 'session_start'; session: SessionSummary; key: string; timestamp: number }
+  | { kind: 'session_end'; session: SessionSummary; key: string; timestamp: number };
+
+function buildTimeline(
+  messages: SupportMessage[],
+  sessions: SessionSummary[],
+): TimelineItem[] {
+  // Only show session markers for sessions that have at least one message in view
+  const sessionIdsWithMessages = new Set(messages.map((m) => m.session_id));
+  const visibleSessions = sessions.filter((s) => sessionIdsWithMessages.has(s.id));
+
+  const events: TimelineItem[] = [];
+
+  for (const msg of messages) {
+    events.push({ kind: 'message', msg, key: `m-${msg.id}`, timestamp: new Date(msg.created_at).getTime() });
+  }
+  for (const s of visibleSessions) {
+    events.push({ kind: 'session_start', session: s, key: `ss-${s.id}`, timestamp: new Date(s.created_at).getTime() });
+    if (s.closed_at) {
+      events.push({ kind: 'session_end', session: s, key: `se-${s.id}`, timestamp: new Date(s.closed_at).getTime() });
+    }
+  }
+
+  // Sort ascending by timestamp
+  events.sort((a, b) => a.timestamp - b.timestamp);
+
+  // Insert date separators
+  const result: TimelineItem[] = [];
+  let lastDate = '';
+  for (const evt of events) {
+    const d = new Date(evt.timestamp);
+    const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (dateKey !== lastDate) {
+      result.push({
+        kind: 'date',
+        label: formatDateLabel(new Date(evt.timestamp).toISOString()),
+        key: `date-${dateKey}`,
+        timestamp: evt.timestamp,
+      });
+      lastDate = dateKey;
+    }
+    result.push(evt);
+  }
+
+  return result;
 }
 
 export interface ChatWindowProps {
+  userId: number;
   sessionId: number;
+  sessions: SessionSummary[];
   messages: SupportMessage[];
   setMessages: React.Dispatch<React.SetStateAction<SupportMessage[]>>;
   hasMore: boolean;
   setHasMore: React.Dispatch<React.SetStateAction<boolean>>;
   memberName: string;
+  scrollToSessionId?: number | null;
+  onScrollConsumed?: () => void;
 }
 
 export function ChatWindow({
+  userId,
   sessionId,
+  sessions,
   messages,
   setMessages,
   hasMore,
   setHasMore,
   memberName,
+  scrollToSessionId,
+  onScrollConsumed,
 }: ChatWindowProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
-  // Ref to track last message id without adding to SSE effect deps
   const lastIdRef = useRef(0);
 
-  // Keep lastIdRef in sync with messages
   useEffect(() => {
     lastIdRef.current = messages[messages.length - 1]?.id ?? 0;
   }, [messages]);
 
-  // Reset first-load flag when sessionId changes so scroll-to-bottom fires again
+  // Reset first-load flag when user changes
   useEffect(() => {
     isFirstLoad.current = true;
     setLoadingMore(false);
-  }, [sessionId]);
+  }, [userId]);
 
-  // Scroll to bottom on first load (when messages arrive from page.tsx)
+  // Scroll to bottom on first load
   useEffect(() => {
     if (messages.length > 0 && isFirstLoad.current) {
       isFirstLoad.current = false;
@@ -76,7 +162,21 @@ export function ChatWindow({
     }
   }, [messages.length]);
 
-  // SSE: subscribe to new_message events for this session (USER messages only)
+  // Scroll to session marker when session history is clicked
+  useEffect(() => {
+    if (scrollToSessionId == null) return;
+    const el = document.querySelector<HTMLElement>(`[data-session-id="${scrollToSessionId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.backgroundColor = 'rgba(59,130,246,0.08)';
+      const t = setTimeout(() => { el.style.backgroundColor = ''; }, 1500);
+      onScrollConsumed?.();
+      return () => clearTimeout(t);
+    }
+    onScrollConsumed?.();
+  }, [scrollToSessionId, onScrollConsumed]);
+
+  // SSE: new messages for this user (any session)
   useEffect(() => {
     const es = new EventSource('/api/livechat/stream');
     es.onmessage = (e: MessageEvent) => {
@@ -84,30 +184,28 @@ export function ChatWindow({
         const evt = JSON.parse(e.data as string) as {
           type: string;
           session_id: number;
+          user_id?: number;
           sender_type?: string;
         };
         if (
           evt.type === 'new_message' &&
-          evt.session_id === sessionId &&
-          evt.sender_type === 'USER'
+          evt.sender_type === 'USER' &&
+          (evt.user_id === userId || evt.session_id === sessionId)
         ) {
           const lastId = lastIdRef.current;
-          fetch(`/api/livechat/sessions/${sessionId}/messages?before_id=2147483647`)
+          fetch(`/api/livechat/users/${userId}/messages?before_id=2147483647`)
             .then((r) => r.json())
             .then((d) => {
-              // If lastId is 0 (empty window) take all; otherwise only newer ones
-              const newMsgs: SupportMessage[] = lastId === 0
-                ? (d.messages ?? [])
-                : (d.messages ?? []).filter((m: SupportMessage) => m.id > lastId);
+              const allMsgs: SupportMessage[] = (d as { messages?: SupportMessage[] }).messages ?? [];
+              const newMsgs = lastId === 0
+                ? allMsgs
+                : allMsgs.filter((m) => m.id > lastId);
               if (newMsgs.length > 0) {
                 setMessages((prev) => {
                   const ids = new Set(prev.map((m) => m.id));
-                  return [...prev, ...newMsgs.filter((m: SupportMessage) => !ids.has(m.id))];
+                  return [...prev, ...newMsgs.filter((m) => !ids.has(m.id))];
                 });
-                setTimeout(
-                  () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }),
-                  50,
-                );
+                setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
               }
             })
             .catch(() => {});
@@ -117,9 +215,9 @@ export function ChatWindow({
       }
     };
     return () => es.close();
-  }, [sessionId, setMessages]);
+  }, [userId, sessionId, setMessages]);
 
-  // Infinite scroll: load older messages when scrolled to top
+  // Infinite scroll: load older messages by user
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el || loadingMore || !hasMore) return;
@@ -128,12 +226,15 @@ export function ChatWindow({
       if (!firstId) return;
       const prevScrollHeight = el.scrollHeight;
       setLoadingMore(true);
-      fetch(`/api/livechat/sessions/${sessionId}/messages?before_id=${firstId}`)
+      fetch(`/api/livechat/users/${userId}/messages?before_id=${firstId}`)
         .then((r) => r.json())
         .then((d) => {
-          const older: SupportMessage[] = d.messages ?? [];
-          setMessages((prev) => [...older, ...prev]);
-          setHasMore(older.length >= 50);
+          const older: SupportMessage[] = (d as { messages?: SupportMessage[]; hasMore?: boolean }).messages ?? [];
+          setMessages((prev) => {
+            const ids = new Set(prev.map((m) => m.id));
+            return [...older.filter((m) => !ids.has(m.id)), ...prev];
+          });
+          setHasMore((d as { hasMore?: boolean }).hasMore ?? false);
           setLoadingMore(false);
           requestAnimationFrame(() => {
             if (el) el.scrollTop = el.scrollHeight - prevScrollHeight;
@@ -141,54 +242,56 @@ export function ChatWindow({
         })
         .catch(() => setLoadingMore(false));
     }
-  }, [sessionId, messages, loadingMore, hasMore, setMessages, setHasMore]);
+  }, [userId, messages, loadingMore, hasMore, setMessages, setHasMore]);
 
-  const photoMessages = messages.filter(
-    (m) => m.message_type === 'PHOTO' && m.content
-  );
-  const photoIndexMap = new Map<string, number>(
-    photoMessages.map((m, i) => [m.content!, i])
-  );
+  const photoMessages = messages.filter((m) => m.message_type === 'PHOTO' && m.content);
+  const photoIndexMap = new Map<string, number>(photoMessages.map((m, i) => [m.content!, i]));
   const lightboxPhotos = photoMessages.map((m) => ({
     src: mediaUrl(m.content!),
     caption: m.caption ?? undefined,
   }));
 
-  const groups = groupByDate(messages);
+  const timeline = buildTimeline(messages, sessions);
 
   return (
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto bg-gray-50 px-4 py-3 space-y-1"
+      className="flex-1 overflow-y-auto bg-gray-50 px-4 py-3"
     >
       {loadingMore && (
-        <div className="text-center text-xs text-gray-400 py-2">Loading older…</div>
+        <div className="text-center text-xs text-gray-400 py-2">Loading older messages…</div>
       )}
       {!hasMore && messages.length > 0 && (
-        <div className="text-center text-xs text-gray-400 py-2">
-          Beginning of conversation
-        </div>
+        <div className="text-center text-xs text-gray-400 py-2">Beginning of conversation</div>
       )}
-      {groups.map((g) => (
-        <div key={g.date}>
-          <DateDivider date={g.date} />
-          <div className="space-y-2">
-            {g.msgs.map((m) => (
-              <MessageBubble
-                key={m.id}
-                msg={m}
-                senderName={memberName}
-                onPhotoClick={
-                  m.message_type === 'PHOTO' && m.content
-                    ? () => setLightboxIndex(photoIndexMap.get(m.content!) ?? null)
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+
+      <div className="space-y-1">
+        {timeline.map((item) => {
+          if (item.kind === 'date') {
+            return <DateDivider key={item.key} label={item.label} />;
+          }
+          if (item.kind === 'session_start') {
+            return <SessionMarker key={item.key} session={item.session} kind="start" />;
+          }
+          if (item.kind === 'session_end') {
+            return <SessionMarker key={item.key} session={item.session} kind="end" />;
+          }
+          return (
+            <MessageBubble
+              key={item.key}
+              msg={item.msg}
+              senderName={memberName}
+              onPhotoClick={
+                item.msg.message_type === 'PHOTO' && item.msg.content
+                  ? () => setLightboxIndex(photoIndexMap.get(item.msg.content!) ?? null)
+                  : undefined
+              }
+            />
+          );
+        })}
+      </div>
+
       <div ref={bottomRef} />
       {lightboxIndex !== null && (
         <ImageLightbox
