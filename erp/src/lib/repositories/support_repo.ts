@@ -213,8 +213,9 @@ export async function getSessionWithDetails(id: number): Promise<{
   session: SupportSession;
   messages: SupportMessage[];
   member: MemberCardData;
+  hasMore: boolean;
 } | null> {
-  const [sessionRows, messageRows] = await Promise.all([
+  const [sessionRows] = await Promise.all([
     pool.query(
       `SELECT ss.*,
               u.first_name, u.phone, u.telegram_id, u.telegram_username,
@@ -227,15 +228,6 @@ export async function getSessionWithDetails(id: number): Promise<{
        WHERE ss.id = $1`,
       [id]
     ),
-    pool.query<SupportMessage>(
-      `SELECT id, session_id, sender_type, message_type, content, caption,
-              file_name, file_size, user_msg_id, group_msg_id, created_at
-       FROM support_messages
-       WHERE session_id = $1
-       ORDER BY created_at DESC
-       LIMIT 50`,
-      [id]
-    ),
   ]);
 
   if (!sessionRows.rows[0]) return null;
@@ -243,7 +235,7 @@ export async function getSessionWithDetails(id: number): Promise<{
 
   const userId = row.user_id as number;
 
-  const [gameRows, lastDepRow, lastWithdrawRow, promoRow, prevSessionRows, tagsResult] = await Promise.all([
+  const [gameRows, lastDepRow, lastWithdrawRow, promoRow, allSessionRows, tagsResult, messageRows] = await Promise.all([
     pool.query(
       `SELECT ap.provider, ap.username
        FROM user_game_accounts uga
@@ -275,13 +267,22 @@ export async function getSessionWithDetails(id: number): Promise<{
       [userId]
     ),
     pool.query(
-      `SELECT id, status, created_at::text
+      `SELECT id, status, created_at, closed_at, assigned_to_username
        FROM support_sessions
        WHERE user_id = $1
-       ORDER BY created_at DESC LIMIT 8`,
+       ORDER BY created_at ASC`,
       [userId]
     ),
     getTagsForUser(userId),
+    pool.query<SupportMessage>(
+      `SELECT id, session_id, sender_type, message_type, content, caption,
+              file_name, file_size, user_msg_id, group_msg_id, created_at
+       FROM support_messages
+       WHERE session_id IN (SELECT id FROM support_sessions WHERE user_id = $1)
+       ORDER BY created_at DESC, id DESC
+       LIMIT 100`,
+      [userId]
+    ),
   ]);
 
   const session: SupportSession = {
@@ -330,11 +331,13 @@ export async function getSessionWithDetails(id: number): Promise<{
       bonus_amount: promoRow.rows[0].bonus_amount,
       status: promoRow.rows[0].status,
     } : null,
-    previous_sessions: prevSessionRows.rows,
+    previous_sessions: allSessionRows.rows,
     tags: tagsResult,
   };
 
-  return { session, messages: messageRows.rows.reverse(), member };
+  const messages = (messageRows.rows as SupportMessage[]).reverse();
+  const hasMore = messages.length >= 100;
+  return { session, messages, member, hasMore };
 }
 
 export async function updateSessionAction(
@@ -411,6 +414,24 @@ export async function getMoreMessages(
     [sessionId, beforeId, limit]
   );
   return rows.reverse();
+}
+
+export async function getTimelineMessages(
+  userId: number,
+  beforeId: number = 2147483647,
+  limit: number = 100
+): Promise<SupportMessage[]> {
+  const { rows } = await pool.query<SupportMessage>(
+    `SELECT id, session_id, sender_type, message_type, content, caption,
+            file_name, file_size, user_msg_id, group_msg_id, created_at
+     FROM support_messages
+     WHERE session_id IN (SELECT id FROM support_sessions WHERE user_id = $1)
+       AND id < $2
+     ORDER BY created_at DESC, id DESC
+     LIMIT $3`,
+    [userId, beforeId, limit]
+  );
+  return rows.reverse();  // oldest-first for display
 }
 
 // ── Quick Replies ─────────────────────────────────────────────────────────────
