@@ -9,6 +9,15 @@ const EMOJIS = [
   '❤️', '🔥', '✅', '⚠️', '💰', '🎉', '🙏', '💪', '👋', '🤝',
 ];
 
+function getPreviewText(msg: SupportMessage): string {
+  if (msg.message_type === 'TEXT') return (msg.content ?? '').slice(0, 120);
+  if (msg.message_type === 'PHOTO') return '📷 Photo';
+  if (msg.message_type === 'VIDEO') return '🎥 Video';
+  if (msg.message_type === 'AUDIO') return '🎵 Audio';
+  if (msg.message_type === 'DOCUMENT') return msg.file_name ?? '📎 Document';
+  return `[${msg.message_type}]`;
+}
+
 // Detect message type from MIME — single source of truth, no hardcoded extension lists.
 function getMsgType(file: File): 'PHOTO' | 'VIDEO' | 'DOCUMENT' {
   if (file.type.startsWith('image/')) return 'PHOTO';
@@ -139,6 +148,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
       file_size?: number | null;
       quick_reply_id?: number;
       quick_reply_used?: boolean;
+      reply_to_message_id?: number | null;
     }) => {
       setSending(true);
       setSendStatus('sending');
@@ -147,7 +157,10 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         const r = await fetch(`/api/livechat/sessions/${sessionId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            reply_to_message_id: replyToMessage?.id ?? null,
+          }),
         });
         const d = (await r.json()) as { error?: string; message?: SupportMessage };
         if (!r.ok) {
@@ -167,7 +180,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         setSending(false);
       }
     },
-    [sessionId, onMessageSent]
+    [sessionId, onMessageSent, replyToMessage]
   );
 
   // ── Normal send (text or file+caption) ───────────────────────────────────
@@ -195,16 +208,18 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         setPendingFile(null);
         setText('');
         localStorage.removeItem(`draft_${sessionId}`);
+        onClearReply?.();
       }
     } else {
       const ok = await dispatchSend({ message_type: 'TEXT', content: trimmed });
       if (ok) {
         setText('');
         localStorage.removeItem(`draft_${sessionId}`);
+        onClearReply?.();
       }
     }
     textareaRef.current?.focus();
-  }, [sending, text, pendingFile, dispatchSend, sessionId]);
+  }, [sending, text, pendingFile, dispatchSend, sessionId, onClearReply]);
 
   // ── Quick reply: always sends immediately ─────────────────────────────────
   const handleQuickReply = useCallback(
@@ -277,6 +292,26 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Reply preview bar */}
+      {replyToMessage && (
+        <div className="flex items-start gap-2 border-t border-b bg-blue-50/60 px-3 py-2">
+          <div className="flex-1 border-l-2 border-blue-400 pl-2 min-w-0">
+            <p className="text-[10px] font-semibold text-blue-500 mb-0.5">
+              {replyToMessage.sender_type === 'AGENT' ? 'Agent' : 'Customer'}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{getPreviewText(replyToMessage)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClearReply}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-sm px-1"
+            title="Cancel reply"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Drag-over overlay hint */}
       {isDragOver && (
         <div className="absolute inset-0 z-20 flex items-center justify-center rounded bg-blue-50/90 border-2 border-dashed border-blue-400 pointer-events-none">

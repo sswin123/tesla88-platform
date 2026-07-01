@@ -30,6 +30,41 @@ function getFileIcon(fileName?: string | null): string {
   return FILE_ICONS[ext] ?? '📎';
 }
 
+function getPreviewText(msg: SupportMessage): string {
+  if (msg.message_type === 'TEXT') return (msg.content ?? '').slice(0, 120);
+  if (msg.message_type === 'PHOTO') return '📷 Photo';
+  if (msg.message_type === 'VIDEO') return '🎥 Video';
+  if (msg.message_type === 'AUDIO') return '🎵 Audio';
+  if (msg.message_type === 'DOCUMENT') return msg.file_name ?? '📎 Document';
+  return `[${msg.message_type}]`;
+}
+
+function QuoteBlock({
+  content,
+  senderType,
+  isAgentBubble,
+}: {
+  content: string;
+  senderType: string | null;
+  isAgentBubble: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'border-l-2 rounded-r px-2 py-1 mb-2 text-xs',
+        isAgentBubble
+          ? 'border-white/40 bg-white/10 text-white/75'
+          : 'border-blue-400 bg-blue-50 text-gray-600'
+      )}
+    >
+      <p className={cn('font-semibold text-[10px] mb-0.5', isAgentBubble ? 'text-white/60' : 'text-blue-500')}>
+        {senderType === 'AGENT' ? 'Agent' : 'Customer'}
+      </p>
+      <p className="line-clamp-2 leading-tight">{content}</p>
+    </div>
+  );
+}
+
 function MediaContent({
   msg,
   onPhotoClick,
@@ -166,6 +201,7 @@ export function MessageBubble({
   msg,
   senderName,
   onPhotoClick,
+  onReply,
 }: {
   msg: SupportMessage;
   senderName?: string;
@@ -175,7 +211,18 @@ export function MessageBubble({
   const isAgent = msg.sender_type === 'AGENT';
 
   return (
-    <div className={cn('flex gap-2', isAgent ? 'flex-row-reverse' : 'flex-row')}>
+    <div className={cn('flex gap-1 group', isAgent ? 'flex-row-reverse' : 'flex-row')}>
+      {/* Hover reply button — appears on the outer side of the bubble */}
+      {onReply && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onReply(msg); }}
+          className="self-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-blue-400 text-base px-1 flex-shrink-0"
+          title="Reply"
+        >
+          ↩
+        </button>
+      )}
+
       <div
         className={cn(
           'max-w-sm rounded-2xl px-4 py-2 text-sm shadow-sm',
@@ -184,6 +231,15 @@ export function MessageBubble({
             : 'bg-white text-gray-800 rounded-tl-none border',
         )}
       >
+        {/* Quote block — shown when this message is a reply */}
+        {msg.reply_to_content && (
+          <QuoteBlock
+            content={msg.reply_to_content}
+            senderType={msg.reply_to_sender_type ?? null}
+            isAgentBubble={isAgent}
+          />
+        )}
+
         {!isAgent && senderName && (
           <p className="mb-1 text-xs font-semibold text-gray-500">{senderName}</p>
         )}
@@ -192,11 +248,7 @@ export function MessageBubble({
           {formatTime(msg.created_at)}
           {isAgent && (
             <span className="ml-1">
-              {msg.status === 'SEEN'
-                ? '👁'
-                : msg.status === 'DELIVERED'
-                  ? '✓✓'
-                  : '✓'}
+              {msg.status === 'SEEN' ? '👁' : msg.status === 'DELIVERED' ? '✓✓' : '✓'}
             </span>
           )}
         </p>
@@ -204,3 +256,4 @@ export function MessageBubble({
     </div>
   );
 }
+
