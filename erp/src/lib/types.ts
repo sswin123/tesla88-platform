@@ -211,6 +211,11 @@ export interface SupportMessage {
   user_msg_id: number | null;
   group_msg_id: number | null;
   created_at: string;
+  // Phase 5.2 additions
+  reply_to_message_id: number | null;
+  reply_to_content: string | null;
+  reply_to_sender_type: string | null;
+  status: string | null;
 }
 
 export interface SessionSummary {

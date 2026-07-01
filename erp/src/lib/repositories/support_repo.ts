@@ -276,7 +276,8 @@ export async function getSessionWithDetails(id: number): Promise<{
     getTagsForUser(userId),
     pool.query<SupportMessage>(
       `SELECT id, session_id, sender_type, message_type, content, caption,
-              file_name, file_size, user_msg_id, group_msg_id, created_at
+              file_name, file_size, user_msg_id, group_msg_id, created_at,
+              reply_to_message_id, reply_to_content, reply_to_sender_type, status
        FROM support_messages
        WHERE session_id IN (SELECT id FROM support_sessions WHERE user_id = $1)
        ORDER BY created_at DESC, id DESC
@@ -406,7 +407,8 @@ export async function getMoreMessages(
 ): Promise<SupportMessage[]> {
   const { rows } = await pool.query<SupportMessage>(
     `SELECT id, session_id, sender_type, message_type, content, caption,
-            file_name, file_size, user_msg_id, group_msg_id, created_at
+            file_name, file_size, user_msg_id, group_msg_id, created_at,
+            reply_to_message_id, reply_to_content, reply_to_sender_type, status
      FROM support_messages
      WHERE session_id = $1 AND id < $2
      ORDER BY created_at DESC
@@ -423,7 +425,8 @@ export async function getTimelineMessages(
 ): Promise<SupportMessage[]> {
   const { rows } = await pool.query<SupportMessage>(
     `SELECT id, session_id, sender_type, message_type, content, caption,
-            file_name, file_size, user_msg_id, group_msg_id, created_at
+            file_name, file_size, user_msg_id, group_msg_id, created_at,
+            reply_to_message_id, reply_to_content, reply_to_sender_type, status
      FROM support_messages
      WHERE session_id IN (SELECT id FROM support_sessions WHERE user_id = $1)
        AND id < $2
