@@ -83,8 +83,8 @@ export async function POST(
       sender_type: string;
     }>(
       `SELECT content, message_type, file_name, user_msg_id, sender_type
-       FROM support_messages WHERE id = $1`,
-      [replyToMsgId]
+       FROM support_messages WHERE id = $1 AND session_id = $2`,
+      [replyToMsgId, sessionId]
     );
     const orig = rows[0];
     if (orig) {

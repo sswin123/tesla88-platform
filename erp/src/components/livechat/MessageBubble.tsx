@@ -30,15 +30,6 @@ function getFileIcon(fileName?: string | null): string {
   return FILE_ICONS[ext] ?? '📎';
 }
 
-function getPreviewText(msg: SupportMessage): string {
-  if (msg.message_type === 'TEXT') return (msg.content ?? '').slice(0, 120);
-  if (msg.message_type === 'PHOTO') return '📷 Photo';
-  if (msg.message_type === 'VIDEO') return '🎥 Video';
-  if (msg.message_type === 'AUDIO') return '🎵 Audio';
-  if (msg.message_type === 'DOCUMENT') return msg.file_name ?? '📎 Document';
-  return `[${msg.message_type}]`;
-}
-
 function QuoteBlock({
   content,
   senderType,

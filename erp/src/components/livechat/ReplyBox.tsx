@@ -226,10 +226,11 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
     async (qr: QuickReply) => {
       if (sending) return;
       setShowQuickPicker(false);
-      await dispatchSend({ quick_reply_id: qr.id, quick_reply_used: true, message_type: '', content: '' });
+      const ok = await dispatchSend({ quick_reply_id: qr.id, quick_reply_used: true, message_type: '', content: '' });
+      if (ok) onClearReply?.();
       textareaRef.current?.focus();
     },
-    [sending, dispatchSend]
+    [sending, dispatchSend, onClearReply]
   );
 
   // ── File input change ─────────────────────────────────────────────────────
