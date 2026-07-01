@@ -190,7 +190,15 @@ export function MessageBubble({
         <MediaContent msg={msg} onPhotoClick={onPhotoClick} />
         <p className={cn('mt-1 text-right text-xs opacity-70')}>
           {formatTime(msg.created_at)}
-          {isAgent && <span className="ml-1">✓</span>}
+          {isAgent && (
+            <span className="ml-1">
+              {msg.status === 'SEEN'
+                ? '👁'
+                : msg.status === 'DELIVERED'
+                  ? '✓✓'
+                  : '✓'}
+            </span>
+          )}
         </p>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { ReplyBox } from '@/components/livechat/ReplyBox';
 import { MemberCard } from '@/components/livechat/MemberCard';
 import { SessionActions } from '@/components/livechat/SessionActions';
 import { NotesPanel } from '@/components/livechat/NotesPanel';
+import { ChatSkeleton } from '@/components/livechat/ChatSkeleton';
 import type { SupportSession, SupportMessage, MemberCardData } from '@/lib/types';
 
 export default function LiveChatClient({
@@ -39,10 +40,15 @@ export default function LiveChatClient({
   const [loadingSession, setLoadingSession] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | null>(null);
   const [scrollToSessionId, setScrollToSessionId] = useState<number | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<SupportMessage | null>(null);
   const dragCounterRef = useRef(0);
 
   useEffect(() => {
     setScrollToSessionId(null);
+  }, [selectedId]);
+
+  useEffect(() => {
+    setReplyToMessage(null);
   }, [selectedId]);
 
   // Load session + member when selection changes; reset unread immediately
@@ -152,6 +158,8 @@ export default function LiveChatClient({
             memberName={member?.first_name ?? 'User'}
             scrollToSessionId={scrollToSessionId}
             onScrollConsumed={() => setScrollToSessionId(null)}
+            unreadCount={session?.erp_unread_count}
+            onReply={setReplyToMessage}
           />
 
           {/* Reply box or closed notice */}
@@ -161,6 +169,8 @@ export default function LiveChatClient({
                 onMessageSent={handleMessageSent}
                 externalFile={droppedFile}
                 onExternalFileConsumed={() => setDroppedFile(null)}
+                replyToMessage={replyToMessage}
+                onClearReply={() => setReplyToMessage(null)}
               />
           ) : (
             <div className="flex-shrink-0 border-t bg-gray-50 px-4 py-3 text-center text-sm text-gray-400">
@@ -188,8 +198,11 @@ export default function LiveChatClient({
           )}
         </div>
       ) : loadingSession ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
-          Loading…
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
+            <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+          </div>
+          <ChatSkeleton />
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-gray-400">

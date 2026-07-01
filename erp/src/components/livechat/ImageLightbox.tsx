@@ -82,6 +82,15 @@ export function ImageLightbox({
           >
             {zoomed ? '🔍−' : '🔍+'}
           </button>
+          <a
+            href={photo.src}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="text-white opacity-70 hover:opacity-100 text-sm"
+            title="Download"
+          >
+            ⬇
+          </a>
           <button
             className="text-white opacity-70 hover:opacity-100 text-xl leading-none"
             onClick={onClose}

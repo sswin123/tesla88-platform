@@ -40,9 +40,11 @@ export interface ReplyBoxProps {
   onMessageSent: (msg: SupportMessage) => void;
   externalFile?: File | null;
   onExternalFileConsumed?: () => void;
+  replyToMessage?: SupportMessage | null;
+  onClearReply?: () => void;
 }
 
-export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFileConsumed }: ReplyBoxProps) {
+export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFileConsumed, replyToMessage, onClearReply }: ReplyBoxProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
