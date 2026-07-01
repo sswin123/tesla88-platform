@@ -230,24 +230,23 @@ export function MemberCard({
             Session History
           </p>
           {member.previous_sessions.map((s) => {
-            const isCurrent = s.id === sessionId;
+            const isActiveSession = s.id === sessionId;
             return (
               <button
                 key={s.id}
                 onClick={() => onSessionSelect?.(s.id)}
-                disabled={isCurrent}
                 className={[
                   'flex w-full items-center justify-between rounded px-1 py-1 text-left text-xs transition-colors',
-                  isCurrent
+                  isActiveSession
                     ? 'bg-blue-50 font-semibold text-blue-600'
                     : 'text-gray-600 hover:bg-gray-50',
                 ].join(' ')}
               >
-                <span className={isCurrent ? 'text-blue-600' : 'text-blue-500'}>
+                <span className={isActiveSession ? 'text-blue-600' : 'text-blue-500'}>
                   #{s.id}
-                  {isCurrent && (
+                  {isActiveSession && (
                     <span className="ml-1 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-600">
-                      viewing
+                      active
                     </span>
                   )}
                 </span>

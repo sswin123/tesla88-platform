@@ -38,7 +38,12 @@ export default function LiveChatClient({
   const [hasMore, setHasMore] = useState(false);
   const [loadingSession, setLoadingSession] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [scrollToSessionId, setScrollToSessionId] = useState<number | null>(null);
   const dragCounterRef = useRef(0);
+
+  useEffect(() => {
+    setScrollToSessionId(null);
+  }, [selectedId]);
 
   // Load session + member when selection changes; reset unread immediately
   useEffect(() => {
@@ -137,12 +142,16 @@ export default function LiveChatClient({
 
           {/* Messages */}
           <ChatWindow
+            userId={member?.id ?? 0}
             sessionId={selectedId}
+            sessions={member?.previous_sessions ?? []}
             messages={messages}
             setMessages={setMessages}
             hasMore={hasMore}
             setHasMore={setHasMore}
             memberName={member?.first_name ?? 'User'}
+            scrollToSessionId={scrollToSessionId}
+            onScrollConsumed={() => setScrollToSessionId(null)}
           />
 
           {/* Reply box or closed notice */}
@@ -195,7 +204,7 @@ export default function LiveChatClient({
             member={member}
             sessionId={session.id}
             onStatusChange={(s) => setMember((m) => (m ? { ...m, status: s } : m))}
-            onSessionSelect={handleSelect}
+            onSessionSelect={setScrollToSessionId}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-gray-400">
