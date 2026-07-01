@@ -170,6 +170,7 @@ export function MessageBubble({
   msg: SupportMessage;
   senderName?: string;
   onPhotoClick?: () => void;
+  onReply?: (msg: SupportMessage) => void;
 }) {
   const isAgent = msg.sender_type === 'AGENT';
 
