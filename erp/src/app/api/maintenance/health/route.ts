@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { mediaService } from '@/lib/media';
+import type { StorageHealth } from '@/lib/media/types';
 
 const BOT_RELAY_URL        = process.env.BOT_RELAY_URL        ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
 
 export async function GET() {
-  const dbCheck    = await checkDatabase();
-  const relayCheck = await checkRelay();
-  const overallOk  = dbCheck.ok && relayCheck.ok;
+  const [dbCheck, relayCheck, storageCheck] = await Promise.all([
+    checkDatabase(),
+    checkRelay(),
+    checkStorage(),
+  ]);
+
+  const overallOk = dbCheck.ok && relayCheck.ok && storageCheck.ok;
   return NextResponse.json({
-    status: overallOk ? 'ok' : (dbCheck.ok || relayCheck.ok ? 'degraded' : 'down'),
-    checks: { database: dbCheck, bot_relay: relayCheck },
+    status:    overallOk ? 'ok' : (dbCheck.ok || relayCheck.ok ? 'degraded' : 'down'),
+    checks:    { database: dbCheck, bot_relay: relayCheck, storage: storageCheck },
     timestamp: new Date().toISOString(),
   });
 }
@@ -22,6 +28,15 @@ async function checkDatabase(): Promise<{ ok: boolean; latency_ms: number; error
     return { ok: true, latency_ms: Date.now() - start };
   } catch (e) {
     return { ok: false, latency_ms: Date.now() - start, error: String(e) };
+  }
+}
+
+async function checkStorage(): Promise<{ ok: boolean; status: StorageHealth; error?: string }> {
+  try {
+    const status = await mediaService.getStorageProvider().health();
+    return { ok: status === 'ONLINE', status };
+  } catch (e) {
+    return { ok: false, status: 'OFFLINE', error: String(e) };
   }
 }
 
@@ -52,13 +67,13 @@ async function checkRelay(): Promise<{
     const timer = setTimeout(() => controller.abort(), 3000);
     const r = await fetch(`${BOT_RELAY_URL}/health`, {
       headers: { Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
-      signal: controller.signal,
+      signal:  controller.signal,
     }).finally(() => clearTimeout(timer));
     const latency_ms = Date.now() - start;
     if (!r.ok) return { ok: false, latency_ms };
     const body = await r.json().catch(() => ({})) as RelayHealthBody;
     return {
-      ok: true,
+      ok:             true,
       latency_ms,
       version:        body.version,
       uptime_seconds: body.uptime_seconds,
