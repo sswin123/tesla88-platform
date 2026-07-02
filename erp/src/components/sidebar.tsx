@@ -23,6 +23,7 @@ import {
   Settings,
   Wrench,
   Bot,
+  Images,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -59,7 +60,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Control Center',
     items: [
-      { href: '/settings/bot', label: 'Telegram Bot', icon: Bot },
+      { href: '/settings/bot',    label: 'Telegram Bot',  icon: Bot },
+      { href: '/media-library',   label: 'Media Library', icon: Images },
     ],
   },
   {
