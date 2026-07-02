@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
 
   const activeRaw = sp.get('active');
   const active = activeRaw === 'true' ? true : activeRaw === 'false' ? false : undefined;
+  const includeArchived = sp.get('include_archived') === 'true';
 
   const { records, total } = await listMediaFiltered({
     limit, offset, sort,
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
     minSize:    Number.isNaN(minSize    ?? NaN) ? undefined : minSize,
     maxSize:    Number.isNaN(maxSize    ?? NaN) ? undefined : maxSize,
     active,
+    includeArchived,
   });
 
   return NextResponse.json({ media: records, total, page, limit });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { MediaRecord } from '@/lib/media/types';
+import { formatBytes } from '@/lib/utils/format-bytes';
 import { UploadZone } from './UploadZone';
 import { MediaCard } from './MediaCard';
 import { MediaDetailPanel } from './MediaDetailPanel';
@@ -44,13 +45,6 @@ const HEALTH_COLOR: Record<string, string> = {
   OFFLINE:   'text-red-600 bg-red-50',
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
-
 const LIMIT = 24;
 
 export default function MediaLibraryPage() {
@@ -65,6 +59,7 @@ export default function MediaLibraryPage() {
   const [sort, setSort]                 = useState('newest');
   const [selected, setSelected]         = useState<MediaRecord | null>(null);
   const [showUpload, setShowUpload]     = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const loadStats = useCallback(async () => {
     const r = await fetch('/api/media/stats');
@@ -74,8 +69,9 @@ export default function MediaLibraryPage() {
   const loadMedia = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams({ page: String(page), limit: String(LIMIT), sort });
-    if (search)     p.set('search', search);
-    if (typeFilter) p.set('type', typeFilter);
+    if (search)          p.set('search', search);
+    if (typeFilter)      p.set('type', typeFilter);
+    if (includeArchived) p.set('include_archived', 'true');
     const r = await fetch(`/api/media?${p.toString()}`);
     if (r.ok) {
       const d = await r.json() as { media: MediaRecord[]; total: number };
@@ -83,7 +79,7 @@ export default function MediaLibraryPage() {
       setTotal(d.total);
     }
     setLoading(false);
-  }, [page, search, typeFilter, sort]);
+  }, [page, search, typeFilter, sort, includeArchived]);
 
   useEffect(() => { void loadStats(); }, [loadStats]);
   useEffect(() => { void loadMedia(); }, [loadMedia]);
@@ -194,6 +190,16 @@ export default function MediaLibraryPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        <button
+          onClick={() => { setIncludeArchived(v => !v); setPage(1); }}
+          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+            includeArchived
+              ? 'bg-gray-800 text-white border-gray-800'
+              : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+          }`}
+        >
+          {includeArchived ? 'Showing Archived' : 'Show Archived'}
+        </button>
         <span className="ml-auto text-sm text-gray-400 self-center">{total.toLocaleString()} files</span>
       </div>
 

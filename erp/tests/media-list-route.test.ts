@@ -87,5 +87,8 @@ describe('GET /api/media', () => {
     expect(vi.mocked(listMediaFiltered)).toHaveBeenCalledWith(
       expect.objectContaining({ offset: 20, limit: 10 })
     );
+    // Guard: page number must not leak into the repo call
+    const call = vi.mocked(listMediaFiltered).mock.calls[0][0] as unknown as Record<string, unknown>;
+    expect(call).not.toHaveProperty('page');
   });
 });

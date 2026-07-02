@@ -404,12 +404,14 @@ interface FilteredListOptions {
   minSize?: number;
   maxSize?: number;
   active?: boolean;
+  includeArchived?: boolean;
 }
 
 export async function listMediaFiltered(
   opts: FilteredListOptions
 ): Promise<{ records: MediaRecord[]; total: number }> {
-  const conds: string[] = ['deleted_at IS NULL'];
+  const deletedCond = opts.includeArchived ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL';
+  const conds: string[] = [deletedCond];
   const vals: unknown[] = [];
   let i = 1;
 

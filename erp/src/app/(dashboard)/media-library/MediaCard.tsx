@@ -2,6 +2,7 @@
 
 import { Image, Film, Music, FileText, File, Package, Archive } from 'lucide-react';
 import type { MediaRecord } from '@/lib/media/types';
+import { formatBytes } from '@/lib/utils/format-bytes';
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
   IMAGE:    Image,
@@ -28,13 +29,6 @@ const TYPE_BADGE: Record<string, string> = {
   ZIP:      'bg-indigo-100 text-indigo-700',
   RAR:      'bg-indigo-100 text-indigo-700',
 };
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
 
 export function MediaCard({
   item,
