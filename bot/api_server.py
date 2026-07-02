@@ -5,24 +5,30 @@ It ONLY adds a /relay endpoint — it does NOT modify existing bot handlers.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import html
 import io
 import json
 import logging
 import os
+import sys
+import time
 from typing import Optional
 
 import asyncpg
 from aiohttp import web
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
+from settings_cache import SettingsCache
 
 logger = logging.getLogger(__name__)
 
 RELAY_AUTH_TOKEN: str = os.environ.get("BOT_RELAY_AUTH_TOKEN", "change_me_relay_token")
 RELAY_PORT: int = int(os.environ.get("BOT_RELAY_PORT", "8090"))
 MAX_FILE_BYTES: int = 20 * 1024 * 1024  # 20 MB
+BOT_VERSION: str = "1.0.0"
+_START_TIME: float = time.monotonic()
 
 
 def _decode_data_uri(data_uri: str) -> tuple[bytes, str]:
@@ -455,8 +461,66 @@ async def notify_withdrawal(request: web.Request) -> web.Response:
 
 
 async def health(request: web.Request) -> web.Response:
-    """GET /health — readiness probe for the deployment toolkit."""
-    return web.json_response({"status": "ok"})
+    """GET /health — relay status, uptime, and Telegram connectivity."""
+    bot: Bot = request.app["bot"]
+    sc: Optional[SettingsCache] = request.app.get("settings_cache")
+
+    uptime_seconds = int(time.monotonic() - _START_TIME)
+
+    tg_ok = False
+    tg_username: Optional[str] = None
+    tg_latency_ms = 0
+    tg_error: Optional[str] = None
+    try:
+        t0 = time.monotonic()
+        me = await bot.get_me()
+        tg_latency_ms = int((time.monotonic() - t0) * 1000)
+        tg_ok = True
+        tg_username = f"@{me.username}"
+    except Exception as exc:  # noqa: BLE001
+        tg_error = str(exc)
+
+    tg_payload: dict = {"ok": tg_ok, "latency_ms": tg_latency_ms}
+    if tg_username:
+        tg_payload["username"] = tg_username
+    if tg_error:
+        tg_payload["error"] = tg_error
+
+    return web.json_response({
+        "ok": True,
+        "version": BOT_VERSION,
+        "uptime_seconds": uptime_seconds,
+        "settings_keys": len(sc._cache) if sc else 0,
+        "telegram": tg_payload,
+    })
+
+
+async def reload_settings(request: web.Request) -> web.Response:
+    """POST /reload-settings — reload SettingsCache from DB; no Docker restart needed."""
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {RELAY_AUTH_TOKEN}":
+        return web.json_response({"error": "Unauthorized"}, status=401)
+
+    sc: Optional[SettingsCache] = request.app.get("settings_cache")
+    if sc:
+        await sc.reload()
+
+    return web.json_response({"ok": True})
+
+
+async def restart(request: web.Request) -> web.Response:
+    """POST /restart — exit relay process; Docker restart policy recovers it."""
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {RELAY_AUTH_TOKEN}":
+        return web.json_response({"error": "Unauthorized"}, status=401)
+
+    async def _delayed_exit() -> None:
+        await asyncio.sleep(0.5)
+        logger.info("Relay restarting on ERP request")
+        sys.exit(0)
+
+    asyncio.create_task(_delayed_exit())
+    return web.json_response({"ok": True, "message": "Relay is restarting…"})
 
 
 async def start_relay_server(bot: Bot, pool: asyncpg.Pool) -> web.AppRunner:
@@ -464,11 +528,25 @@ async def start_relay_server(bot: Bot, pool: asyncpg.Pool) -> web.AppRunner:
     app = web.Application()
     app["bot"] = bot
     app["pool"] = pool
-    app.router.add_get("/health", health)
-    app.router.add_post("/relay", relay_message)
-    app.router.add_post("/notify_close", notify_close)
-    app.router.add_post("/notify/deposit", notify_deposit)
+
+    sc = SettingsCache(pool)
+    await sc.start()
+    app["settings_cache"] = sc
+
+    app.router.add_get("/health",            health)
+    app.router.add_post("/reload-settings",  reload_settings)
+    app.router.add_post("/restart",          restart)
+    app.router.add_post("/relay",            relay_message)
+    app.router.add_post("/notify_close",     notify_close)
+    app.router.add_post("/notify/deposit",   notify_deposit)
     app.router.add_post("/notify/withdrawal", notify_withdrawal)
+
+    async def _on_cleanup(app: web.Application) -> None:
+        sc: Optional[SettingsCache] = app.get("settings_cache")
+        if sc:
+            await sc.stop()
+
+    app.on_cleanup.append(_on_cleanup)
 
     runner = web.AppRunner(app)
     await runner.setup()
