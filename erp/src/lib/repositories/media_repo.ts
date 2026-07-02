@@ -370,3 +370,93 @@ export async function getMediaStats(): Promise<MediaStats> {
     byType,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Filtered + sorted list (used by GET /api/media with full query params)
+// ---------------------------------------------------------------------------
+
+export type SortOption =
+  | 'newest' | 'oldest' | 'most_used' | 'most_downloaded'
+  | 'largest' | 'smallest' | 'recently_used';
+
+const ORDER_CLAUSE: Record<SortOption, string> = {
+  newest:          'created_at DESC',
+  oldest:          'created_at ASC',
+  most_used:       'usage_count DESC, created_at DESC',
+  most_downloaded: 'download_count DESC, created_at DESC',
+  largest:         'file_size DESC',
+  smallest:        'file_size ASC',
+  recently_used:   'last_used_at DESC NULLS LAST',
+};
+
+interface FilteredListOptions {
+  limit: number;
+  offset: number;
+  sort: SortOption;
+  search?: string;
+  mediaType?: string;
+  mimeType?: string;
+  extension?: string;
+  uploadedBy?: number;
+  module?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minSize?: number;
+  maxSize?: number;
+  active?: boolean;
+}
+
+export async function listMediaFiltered(
+  opts: FilteredListOptions
+): Promise<{ records: MediaRecord[]; total: number }> {
+  const conds: string[] = ['deleted_at IS NULL'];
+  const vals: unknown[] = [];
+  let i = 1;
+
+  if (opts.search) {
+    // Both columns share the same $i parameter — push one value
+    conds.push(`(display_name ILIKE $${i} OR original_filename ILIKE $${i})`);
+    vals.push(`%${opts.search}%`);
+    i++;
+  }
+  if (opts.mediaType)               { conds.push(`media_type = $${i++}`);        vals.push(opts.mediaType); }
+  if (opts.mimeType)                { conds.push(`mime_type = $${i++}`);          vals.push(opts.mimeType); }
+  if (opts.extension)               { conds.push(`extension = $${i++}`);          vals.push(opts.extension); }
+  if (opts.uploadedBy !== undefined){ conds.push(`created_by = $${i++}`);         vals.push(opts.uploadedBy); }
+  if (opts.module)                  { conds.push(`last_used_module = $${i++}`);   vals.push(opts.module); }
+  if (opts.dateFrom)                { conds.push(`created_at >= $${i++}`);        vals.push(opts.dateFrom); }
+  if (opts.dateTo)                  { conds.push(`created_at <= $${i++}`);        vals.push(opts.dateTo); }
+  if (opts.minSize !== undefined)   { conds.push(`file_size >= $${i++}`);         vals.push(opts.minSize); }
+  if (opts.maxSize !== undefined)   { conds.push(`file_size <= $${i++}`);         vals.push(opts.maxSize); }
+  if (opts.active !== undefined)    { conds.push(`is_active = $${i++}`);          vals.push(opts.active); }
+
+  const where = conds.join(' AND ');
+  const order = ORDER_CLAUSE[opts.sort];
+
+  const total: number = (await pool.query(
+    `SELECT COUNT(*)::int AS total FROM media_library WHERE ${where}`,
+    vals
+  )).rows[0].total;
+
+  // Compute param indices before extending vals to avoid i++ evaluation-order ambiguity
+  const limitParam = i;
+  const offsetParam = i + 1;
+  const records = (await pool.query(
+    `SELECT * FROM media_library WHERE ${where} ORDER BY ${order} LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    [...vals, opts.limit, opts.offset]
+  )).rows.map(rowToRecord);
+
+  return { records, total };
+}
+
+// ---------------------------------------------------------------------------
+// Recent uploads (used by GET /api/media/stats)
+// ---------------------------------------------------------------------------
+
+export async function getRecentUploads(limit: number): Promise<MediaRecord[]> {
+  const r = await pool.query(
+    `SELECT * FROM media_library WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1`,
+    [limit]
+  );
+  return r.rows.map(rowToRecord);
+}
