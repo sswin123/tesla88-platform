@@ -7,6 +7,7 @@ import {
   incrementSentCount,
 } from '@/lib/repositories/announcement_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { getSetting } from '@/lib/repositories/settings_repo';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -31,6 +32,11 @@ export async function POST(
 
   if (telegramIds.length === 0) {
     return NextResponse.json({ ok: true, sent: 0, message: 'No eligible users found' });
+  }
+
+  const notifyAnnouncement = await getSetting('notify_announcement');
+  if (notifyAnnouncement === 'false') {
+    return NextResponse.json({ ok: true, sent: 0, message: 'Announcement notifications are disabled.' });
   }
 
   // The existing relay server only supports session-based messaging (/relay).

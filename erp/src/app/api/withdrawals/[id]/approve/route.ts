@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import pool from '@/lib/db';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { getSetting } from '@/lib/repositories/settings_repo';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -66,7 +67,8 @@ export async function POST(
     });
 
     // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
-    fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
+    const notifyWithdrawal = await getSetting('notify_withdrawal');
+    if (notifyWithdrawal !== 'false') fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
       body: JSON.stringify({ request_id: requestId, status: 'PAID' }),
