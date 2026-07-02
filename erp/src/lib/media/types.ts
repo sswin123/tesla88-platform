@@ -76,3 +76,31 @@ export class MediaValidationError extends Error {
     this.name = 'MediaValidationError';
   }
 }
+
+export class MediaNotFoundError extends Error {
+  constructor(public readonly id: number) {
+    super(`Media ${id} not found`);
+    this.name = 'MediaNotFoundError';
+  }
+}
+
+export class MediaStorageError extends Error {
+  constructor(public readonly cause: unknown) {
+    super('Storage operation failed');
+    this.name = 'MediaStorageError';
+  }
+}
+
+export class MediaReferencedError extends Error {
+  constructor(public readonly id: number, public readonly referenceCount: number) {
+    super(`Media ${id} is still referenced by ${referenceCount} module(s)`);
+    this.name = 'MediaReferencedError';
+  }
+}
+
+export class MediaVirusScanError extends Error {
+  constructor() {
+    super('File failed virus scan');
+    this.name = 'MediaVirusScanError';
+  }
+}
