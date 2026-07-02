@@ -70,7 +70,7 @@ export async function POST(
     });
 
     // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
-    const notifyDeposit = await getSetting('notify_deposit');
+    const notifyDeposit = await getSetting('notify_deposit').catch(() => null);
     if (notifyDeposit !== 'false') fetch(`${BOT_RELAY_URL}/notify/deposit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },

@@ -34,7 +34,7 @@ export async function POST(
     return NextResponse.json({ ok: true, sent: 0, message: 'No eligible users found' });
   }
 
-  const notifyAnnouncement = await getSetting('notify_announcement');
+  const notifyAnnouncement = await getSetting('notify_announcement').catch(() => null);
   if (notifyAnnouncement === 'false') {
     return NextResponse.json({ ok: true, sent: 0, message: 'Announcement notifications are disabled.' });
   }

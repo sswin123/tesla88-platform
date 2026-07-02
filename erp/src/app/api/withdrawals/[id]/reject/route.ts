@@ -47,7 +47,7 @@ export async function POST(
   });
 
   // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
-  const notifyWithdrawal = await getSetting('notify_withdrawal');
+  const notifyWithdrawal = await getSetting('notify_withdrawal').catch(() => null);
   if (notifyWithdrawal !== 'false') fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getSessionWithDetails, updateSessionAction, createSessionForUser, getSessionById } from '@/lib/repositories/support_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { getSetting } from '@/lib/repositories/settings_repo';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -78,6 +79,8 @@ export async function PATCH(
 
   // Notify the customer on ERP-initiated close (fire-and-forget, non-fatal)
   if (action === 'close') {
+    const notifySupport = await getSetting('notify_support').catch(() => null);
+    if (notifySupport === 'false') return NextResponse.json({ ok: true, session });
     fetch(`${BOT_RELAY_URL}/notify_close`, {
       method: 'POST',
       headers: {

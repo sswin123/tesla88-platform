@@ -129,7 +129,7 @@ export default function BotSettingsPage() {
       });
       const d = await r.json() as { ok?: boolean; reloaded?: boolean };
       if (r.ok) {
-        flash(d.reloaded ? 'Saved and settings reloaded.' : 'Saved. (Relay offline — applies on next start.)', true);
+        flash(d.reloaded ? 'Saved and settings reloaded.' : 'Saved. (Relay reload timed out — settings will apply within 60 seconds.)', true);
         await loadSettings();
       } else {
         flash('Save failed.', false);
@@ -322,12 +322,11 @@ export default function BotSettingsPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Relay URL Override</label>
             <input
-              type="text"
+              readOnly
               value={settings['bot_relay_url'] ?? ''}
-              placeholder="Leave empty to use BOT_RELAY_URL from .env"
-              onChange={(e) => set('bot_relay_url', e.target.value)}
-              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
             />
+            <p className="mt-1 text-xs text-gray-400">ERP routes always use <code>BOT_RELAY_URL</code> from environment. This field is stored for future use.</p>
           </div>
           {([
             ['relay_timeout_secs',     'Timeout (seconds)',     '30'],
@@ -335,7 +334,7 @@ export default function BotSettingsPage() {
             ['relay_retry_delay_secs', 'Retry Delay (seconds)', '1'],
           ] as const).map(([key, label, placeholder]) => (
             <div key={key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{label} <span className="text-gray-400 font-normal">(future use)</span></label>
               <input
                 type="number"
                 min={0}

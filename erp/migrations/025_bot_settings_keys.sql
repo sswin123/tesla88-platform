@@ -4,15 +4,17 @@
 
 INSERT INTO system_settings (key, value, description) VALUES
   -- Bot Identity (token stays in .env; these are informational)
+  ('bot_name',                   '',       'Telegram bot display name'),
   ('bot_username',               '',       'Telegram bot username without @'),
   ('bot_description',            '',       'Bot description shown in Telegram'),
   ('bot_language',               'en',     'Bot language code (e.g. en, zh, ms)'),
   ('support_chat_id',            '0',      'Telegram group ID for support forwarding (0 = disabled)'),
 
   -- Relay Configuration
-  ('relay_timeout_secs',         '30',     'Relay HTTP request timeout in seconds'),
-  ('relay_retry_count',          '3',      'Number of relay retry attempts on failure'),
-  ('relay_retry_delay_secs',     '1',      'Delay between relay retries in seconds'),
+  ('bot_relay_url',              '',       'Relay URL override (informational; ERP uses BOT_RELAY_URL env var)'),
+  ('relay_timeout_secs',         '30',     'Relay HTTP request timeout in seconds (future use)'),
+  ('relay_retry_count',          '3',      'Number of relay retry attempts on failure (future use)'),
+  ('relay_retry_delay_secs',     '1',      'Delay between relay retries in seconds (future use)'),
 
   -- Notification Switches (ERP checks these before calling relay notify endpoints)
   ('notify_deposit',             'true',   'Send Telegram notification on deposit status change'),
