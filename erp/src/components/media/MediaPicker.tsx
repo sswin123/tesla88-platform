@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MediaCard } from '@/app/(dashboard)/media-library/MediaCard';
+import { MediaCard } from '@/components/media/MediaCard';
 import type { MediaRecord } from '@/lib/media/types';
 
 // ---------------------------------------------------------------------------
