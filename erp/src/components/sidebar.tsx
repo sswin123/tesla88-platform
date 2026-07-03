@@ -24,6 +24,7 @@ import {
   Wrench,
   Bot,
   Images,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/deposits',    label: 'Deposits',    icon: ArrowDownToLine },
       { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
       { href: '/livechat',    label: 'Live Chat',   icon: MessageSquare },
+      { href: '/livechat/quick-replies', label: 'Quick Replies', icon: Zap },
     ],
   },
   {
