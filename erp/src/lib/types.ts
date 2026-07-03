@@ -297,6 +297,10 @@ export interface AuditLog {
   admin_username?: string;
 }
 
+export type QuickReplyContentType =
+  | 'TEXT' | 'IMAGE' | 'GIF' | 'VIDEO' | 'AUDIO' | 'VOICE'
+  | 'DOCUMENT' | 'PDF' | 'APK' | 'ZIP' | 'RAR';
+
 export interface QuickReplyCategory {
   id: number;
   name: string;
@@ -308,13 +312,28 @@ export interface QuickReply {
   category_id: number | null;
   category_name: string | null;
   title: string;
-  /** Text body — used as the message for TEXT type, or as caption for media types. */
+  /** Text body. For TEXT type: the sent message. For media types: supplementary text. */
   body: string;
-  content_type: 'TEXT' | 'PHOTO' | 'VIDEO' | 'DOCUMENT';
+  /** Optional caption displayed under media. */
+  caption: string | null;
+  content_type: QuickReplyContentType;
+  /** FK to media_library. NULL for TEXT type. */
+  media_id: number | null;
+  /** Joined media record — present in admin responses. */
+  media?: import('@/lib/media/types').MediaRecord;
   is_active: boolean;
   sort_order: number;
   is_favorite?: boolean;
+  pinned: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
+  usage_count: number;
+  last_used_at: string | null;
+  used_by: string | null;
+  created_by: string | null;
   created_at: string;
+  updated_by: string | null;
+  updated_at: string;
 }
 
 export interface SessionNote {

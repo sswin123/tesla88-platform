@@ -117,7 +117,7 @@ export default function LiveChatSettingsPage() {
       title:        reply.title,
       body:         reply.body,
       categoryId:   reply.category_id,
-      contentType:  reply.content_type,
+      contentType:  (reply.content_type as ContentType | string) as ContentType,
       mediaDataUri: null,  // don't load existing blob — re-upload to change
       mediaFileName: '',
     });
@@ -224,7 +224,7 @@ export default function LiveChatSettingsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
-                      {CONTENT_TYPE_LABEL[reply.content_type] ?? reply.content_type}
+                      {CONTENT_TYPE_LABEL[reply.content_type as ContentType] ?? reply.content_type}
                     </span>
                     {reply.category_name && (
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">

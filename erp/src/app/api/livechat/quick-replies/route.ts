@@ -7,6 +7,7 @@ import {
   getQuickReplyCategories,
   createQuickReply,
 } from '@/lib/repositories/support_repo';
+import type { QuickReplyContentType } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
@@ -34,30 +35,29 @@ export async function POST(req: NextRequest) {
     body?: string;
     category_id?: number | null;
     content_type?: string;
-    media_content?: string | null;
+    media_id?: number | null;
+    caption?: string | null;
     sort_order?: number;
   };
 
   const title = (body.title ?? '').trim();
   const text  = (body.body  ?? '').trim();
-  const contentType = (body.content_type ?? 'TEXT').toUpperCase() as 'TEXT' | 'PHOTO' | 'VIDEO' | 'DOCUMENT';
+  const contentType = (body.content_type ?? 'TEXT').toUpperCase() as QuickReplyContentType;
 
   if (!title) return NextResponse.json({ error: 'title required' }, { status: 400 });
   if (contentType === 'TEXT' && !text) {
     return NextResponse.json({ error: 'body required for TEXT type' }, { status: 400 });
   }
-  if (contentType !== 'TEXT' && !body.media_content) {
-    return NextResponse.json({ error: 'media_content required for media type' }, { status: 400 });
-  }
 
   const reply = await createQuickReply({
-    category_id:   body.category_id ?? null,
+    category_id:  body.category_id ?? null,
     title,
-    body:          text,
-    content_type:  contentType,
-    media_content: body.media_content ?? null,
-    sort_order:    body.sort_order ?? 0,
-    created_by:    payload.username,
+    body:         text,
+    caption:      body.caption ?? null,
+    content_type: contentType,
+    media_id:     body.media_id ?? null,
+    sort_order:   body.sort_order ?? 0,
+    created_by:   payload.username,
   });
   return NextResponse.json({ reply }, { status: 201 });
 }

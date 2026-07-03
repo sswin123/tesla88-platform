@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { updateQuickReply, deleteQuickReply, toggleFavoriteQuickReply } from '@/lib/repositories/support_repo';
+import type { QuickReplyContentType } from '@/lib/types';
 
 async function requireAuth() {
   const cookieStore = await cookies();
@@ -25,14 +26,15 @@ export async function PATCH(
   }
 
   const reply = await updateQuickReply(parseInt(id, 10), {
-    category_id:   'category_id' in body ? (body.category_id as number | null) : undefined,
-    title:         typeof body.title === 'string' ? body.title : undefined,
-    body:          typeof body.body  === 'string' ? body.body  : undefined,
-    sort_order:    typeof body.sort_order === 'number' ? body.sort_order : undefined,
-    is_active:     typeof body.is_active  === 'boolean' ? body.is_active : undefined,
-    content_type:  typeof body.content_type === 'string' ? body.content_type : undefined,
-    media_content: 'media_content' in body ? (body.media_content as string | null) : undefined,
-  });
+    category_id:  'category_id' in body ? (body.category_id as number | null) : undefined,
+    title:        typeof body.title === 'string' ? body.title : undefined,
+    body:         typeof body.body  === 'string' ? body.body  : undefined,
+    caption:      'caption' in body ? (body.caption as string | null) : undefined,
+    sort_order:   typeof body.sort_order === 'number' ? body.sort_order : undefined,
+    is_active:    typeof body.is_active  === 'boolean' ? body.is_active : undefined,
+    content_type: typeof body.content_type === 'string' ? (body.content_type as QuickReplyContentType) : undefined,
+    media_id:     'media_id' in body ? (body.media_id as number | null) : undefined,
+  }, payload.username);
   if (!reply) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ reply });
 }
