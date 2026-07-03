@@ -332,7 +332,6 @@ export function MediaPicker({
 
     const allDone = results.every(r => r.status === 'done');
     if (allDone) {
-      console.log(`MediaPicker: uploaded ${files.length} file(s) successfully`);
       // Auto-switch to Browse and reload
       setTimeout(() => {
         setTab('browse');

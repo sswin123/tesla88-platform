@@ -306,7 +306,7 @@ export default function QuickRepliesPage() {
             <span className="text-blue-700 font-medium">{selectedIds.size} selected</span>
             <Button size="sm" variant="outline" onClick={() => void handleBulkToggle(true)}>Enable</Button>
             <Button size="sm" variant="outline" onClick={() => void handleBulkToggle(false)}>Disable</Button>
-            <Button size="sm" variant="outline" onClick={() => void handleBulkDelete()} className="text-red-600 border-red-200 hover:bg-red-50">Delete</Button>
+            <Button size="sm" variant="outline" onClick={() => void handleBulkDelete()} className="text-red-600 border-red-200 hover:bg-red-50">Archive</Button>
           </div>
         )}
 
