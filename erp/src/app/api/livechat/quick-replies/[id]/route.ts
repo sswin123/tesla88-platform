@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
-import { updateQuickReply, deleteQuickReply, toggleFavoriteQuickReply } from '@/lib/repositories/support_repo';
+import {
+  updateQuickReply,
+  archiveQuickReply,
+  restoreQuickReply,
+  toggleFavoriteQuickReply,
+  setQuickReplyPinned,
+} from '@/lib/repositories/support_repo';
 import type { QuickReplyContentType } from '@/lib/types';
 
 async function requireAuth() {
@@ -16,35 +22,62 @@ export async function PATCH(
 ) {
   const payload = await requireAuth();
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { id } = await params;
-  const body = await req.json() as Record<string, unknown>;
 
-  // Favorite toggle handled separately (agent-scoped, not a reply mutation)
-  if ('is_favorite' in body) {
-    await toggleFavoriteQuickReply(payload.username, parseInt(id, 10), body.is_favorite === true);
+  const { id } = await params;
+  const replyId = parseInt(id, 10);
+  if (isNaN(replyId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+
+  // Restore from archive
+  if (body.restore === true) {
+    await restoreQuickReply(replyId);
     return NextResponse.json({ ok: true });
   }
 
-  const reply = await updateQuickReply(parseInt(id, 10), {
-    category_id:  'category_id' in body ? (body.category_id as number | null) : undefined,
-    title:        typeof body.title === 'string' ? body.title : undefined,
-    body:         typeof body.body  === 'string' ? body.body  : undefined,
-    caption:      'caption' in body ? (body.caption as string | null) : undefined,
-    sort_order:   typeof body.sort_order === 'number' ? body.sort_order : undefined,
-    is_active:    typeof body.is_active  === 'boolean' ? body.is_active : undefined,
-    content_type: typeof body.content_type === 'string' ? (body.content_type as QuickReplyContentType) : undefined,
-    media_id:     'media_id' in body ? (body.media_id as number | null) : undefined,
-  }, payload.username);
-  if (!reply) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ reply });
+  // Favorite toggle (agent-scoped)
+  if ('is_favorite' in body) {
+    await toggleFavoriteQuickReply(payload.username, replyId, body.is_favorite === true);
+    // fall through to also handle other fields if present
+  }
+
+  // Pin toggle
+  if (typeof body.pinned === 'boolean') {
+    await setQuickReplyPinned(replyId, body.pinned);
+    // fall through to handle other fields
+  }
+
+  // Build update payload (all other fields)
+  const updateData: Parameters<typeof updateQuickReply>[1] = {};
+  if ('category_id'  in body) updateData.category_id  = body.category_id  as number | null;
+  if ('title'        in body) updateData.title        = body.title        as string;
+  if ('body'         in body) updateData.body         = body.body         as string;
+  if ('caption'      in body) updateData.caption      = body.caption      as string | null;
+  if ('sort_order'   in body) updateData.sort_order   = body.sort_order   as number;
+  if ('is_active'    in body) updateData.is_active    = body.is_active    as boolean;
+  if ('content_type' in body) updateData.content_type = body.content_type as QuickReplyContentType;
+  if ('media_id'     in body) updateData.media_id     = body.media_id     as number | null;
+
+  let reply = null;
+  if (Object.keys(updateData).length > 0) {
+    reply = await updateQuickReply(replyId, updateData, payload.username);
+    if (!reply) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, reply });
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await requireAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const payload = await requireAuth();
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
-  await deleteQuickReply(parseInt(id, 10));
+  const replyId = parseInt(id, 10);
+  if (isNaN(replyId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  await archiveQuickReply(replyId, payload.username);
   return NextResponse.json({ ok: true });
 }
