@@ -25,6 +25,7 @@ import {
   Bot,
   Images,
   Zap,
+  Radio,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/banks',         label: 'Bank Manager',  icon: Landmark },
       { href: '/promotions',    label: 'Promotions',    icon: Gift },
       { href: '/announcements', label: 'Announcements', icon: Megaphone },
+      { href: '/broadcast',     label: 'Broadcast',     icon: Radio },
       { href: '/audit',         label: 'Audit Log',     icon: ScrollText },
     ],
   },
