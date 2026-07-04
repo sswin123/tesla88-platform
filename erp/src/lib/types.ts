@@ -477,3 +477,57 @@ export interface FinanceReport {
     net: number;
   }[];
 }
+
+// ── Broadcast ────────────────────────────────────────────────────────────────
+
+export type BroadcastContentType =
+  | 'TEXT' | 'IMAGE' | 'GIF' | 'VIDEO' | 'AUDIO'
+  | 'DOCUMENT' | 'PDF' | 'APK' | 'ZIP' | 'RAR';
+
+export type BroadcastAudienceType =
+  | 'ALL' | 'TAG' | 'VIP' | 'ACTIVE' | 'INACTIVE'
+  | 'NEVER_DEPOSIT' | 'DEPOSITED' | 'SELECTED';
+
+export type BroadcastStatus =
+  | 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'SENT'
+  | 'PARTIALLY_SENT' | 'FAILED' | 'CANCELLED';
+
+export type BroadcastChannel = 'TELEGRAM' | 'LIVECHAT';
+
+export interface Broadcast {
+  id: number;
+  title: string;
+  content_type: BroadcastContentType;
+  body: string;
+  caption: string | null;
+  media_id: number | null;
+  media?: import('@/lib/media/types').MediaRecord;
+  channels: BroadcastChannel[];
+  audience_type: BroadcastAudienceType;
+  audience_tag_id: number | null;
+  audience_tag_name: string | null;
+  audience_user_ids: number[] | null;
+  status: BroadcastStatus;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  recipient_count: number;
+  success_count: number;
+  failed_count: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBroadcastInput {
+  title: string;
+  content_type: BroadcastContentType;
+  body: string;
+  caption?: string | null;
+  media_id?: number | null;
+  channels: BroadcastChannel[];
+  audience_type: BroadcastAudienceType;
+  audience_tag_id?: number | null;
+  audience_user_ids?: number[] | null;
+  status?: BroadcastStatus;
+  scheduled_at?: string | null;
+}
