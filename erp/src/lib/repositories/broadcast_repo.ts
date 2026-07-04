@@ -264,8 +264,56 @@ export async function getAudienceCount(
   audienceType: BroadcastAudienceType,
   opts?: { tagId?: number | null; userIds?: number[] | null },
 ): Promise<number> {
-  const ids = await resolveAudienceTelegramIds(audienceType, opts);
-  return ids.length;
+  let sql: string;
+  let params: unknown[] = [];
+
+  switch (audienceType) {
+    case 'TAG':
+      sql = `SELECT COUNT(DISTINCT u.id)::int AS count FROM users u
+             JOIN user_tag_assignments uta ON uta.user_id = u.id
+             WHERE uta.tag_id = $1 AND u.telegram_id IS NOT NULL AND u.telegram_id != ''`;
+      params = [opts?.tagId];
+      break;
+    case 'VIP':
+      sql = `SELECT COUNT(DISTINCT u.id)::int AS count FROM users u
+             JOIN user_tag_assignments uta ON uta.user_id = u.id
+             JOIN customer_tags ct ON ct.id = uta.tag_id AND ct.name = 'VIP'
+             WHERE u.telegram_id IS NOT NULL AND u.telegram_id != ''`;
+      break;
+    case 'ACTIVE':
+      sql = `SELECT COUNT(*)::int AS count FROM users
+             WHERE status = 'ACTIVE'
+               AND last_seen_at >= NOW() - INTERVAL '30 days'
+               AND telegram_id IS NOT NULL AND telegram_id != ''`;
+      break;
+    case 'INACTIVE':
+      sql = `SELECT COUNT(*)::int AS count FROM users
+             WHERE status = 'ACTIVE'
+               AND (last_seen_at < NOW() - INTERVAL '30 days' OR last_seen_at IS NULL)
+               AND telegram_id IS NOT NULL AND telegram_id != ''`;
+      break;
+    case 'NEVER_DEPOSIT':
+      sql = `SELECT COUNT(*)::int AS count FROM users
+             WHERE CAST(total_deposit AS NUMERIC) = 0
+               AND telegram_id IS NOT NULL AND telegram_id != ''`;
+      break;
+    case 'DEPOSITED':
+      sql = `SELECT COUNT(*)::int AS count FROM users
+             WHERE CAST(total_deposit AS NUMERIC) > 0
+               AND telegram_id IS NOT NULL AND telegram_id != ''`;
+      break;
+    case 'SELECTED':
+      sql = `SELECT COUNT(*)::int AS count FROM users
+             WHERE id = ANY($1::int[])
+               AND telegram_id IS NOT NULL AND telegram_id != ''`;
+      params = [opts?.userIds ?? []];
+      break;
+    default: // ALL
+      sql = `SELECT COUNT(*)::int AS count FROM users WHERE telegram_id IS NOT NULL AND telegram_id != ''`;
+  }
+
+  const r = await pool.query(sql, params);
+  return r.rows[0]?.count ?? 0;
 }
 
 export async function getActiveSessionUserIds(

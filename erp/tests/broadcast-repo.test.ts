@@ -150,9 +150,25 @@ describe('resolveAudienceTelegramIds', () => {
     expect(sql).toContain('30 days');
   });
 
+  it('INACTIVE: filters last_seen_at > 30 days or null', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] } as never);
+    await resolveAudienceTelegramIds('INACTIVE');
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('last_seen_at');
+    expect(sql).toContain('30 days');
+  });
+
   it('NEVER_DEPOSIT: filters total_deposit = 0', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] } as never);
     await resolveAudienceTelegramIds('NEVER_DEPOSIT');
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('total_deposit');
+  });
+
+  it('DEPOSITED: filters total_deposit > 0', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ telegram_id: '444' }] } as never);
+    const ids = await resolveAudienceTelegramIds('DEPOSITED');
+    expect(ids).toEqual(['444']);
     const sql = mockQuery.mock.calls[0][0] as string;
     expect(sql).toContain('total_deposit');
   });
@@ -168,9 +184,12 @@ describe('resolveAudienceTelegramIds', () => {
 
 describe('getAudienceCount', () => {
   it('returns COUNT for ALL', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ telegram_id: '1' }, { telegram_id: '2' }] } as never);
+    mockQuery.mockResolvedValueOnce({ rows: [{ count: 42 }] } as never);
     const n = await getAudienceCount('ALL');
-    expect(n).toBe(2);
+    expect(n).toBe(42);
+    // Verify it uses a direct COUNT query, not fetching all IDs
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql).toContain('COUNT');
   });
 });
 
