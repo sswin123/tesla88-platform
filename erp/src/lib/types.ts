@@ -97,6 +97,18 @@ export interface DashboardStats {
   onlineSupportStaff: number;
   topGameProviders: { provider: string; deposit_count: number; deposit_amount: number }[];
   monthlyRevenue: { month: string; net: number; deposit: number; withdrawal: number }[];
+  // Dashboard 2.0 — new fields
+  vipMembers: number;
+  onlineMembers: number;
+  openLiveChats: number;
+  waitingCustomers: number;
+  broadcastSentToday: number;
+  weeklyDepositAmount: number;
+  thisMonthDepositAmount: number;
+  avgResponseTimeSeconds: number;
+  chatSessionsToday: number;
+  csPerformance: { agent: string; sessions: number }[];
+  thirtyDayChart: { date: string; deposit: number; withdrawal: number }[];
 }
 
 export interface PaginatedResponse<T> {
