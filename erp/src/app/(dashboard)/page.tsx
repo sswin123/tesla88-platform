@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/stats-card';
 import { BarChart } from '@/components/charts/BarChart';
-import { LineChart } from '@/components/charts/LineChart';
 import type { DashboardStats } from '@/lib/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
