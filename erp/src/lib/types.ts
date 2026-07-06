@@ -543,3 +543,33 @@ export interface CreateBroadcastInput {
   status?: BroadcastStatus;
   scheduled_at?: string | null;
 }
+
+// ── Website ──────────────────────────────────────────────────────────────────
+
+export interface ApkVersion {
+  id: number;
+  version_name: string;
+  version_code: number;
+  release_notes: string | null;
+  media_id: number | null;
+  min_android: string;
+  is_current: boolean;
+  force_update: boolean;
+  download_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface WebsiteSettings {
+  site_brand_name: string;
+  site_primary_color: string;
+  site_logo_media_id: string;
+  site_banner_text: string;
+  site_banner_media_id: string;
+  site_contact_email: string;
+  site_contact_phone: string;
+  site_seo_title: string;
+  site_seo_description: string;
+  site_terms_url: string;
+  website_enabled: string;
+}
