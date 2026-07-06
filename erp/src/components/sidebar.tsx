@@ -26,6 +26,8 @@ import {
   Images,
   Zap,
   Radio,
+  Globe,
+  Smartphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +68,13 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/settings/bot',    label: 'Telegram Bot',  icon: Bot },
       { href: '/media-library',   label: 'Media Library', icon: Images },
+    ],
+  },
+  {
+    title: 'Website',
+    items: [
+      { href: '/website-settings', label: 'Website Settings', icon: Globe },
+      { href: '/apk-manager',      label: 'APK Manager',      icon: Smartphone },
     ],
   },
   {

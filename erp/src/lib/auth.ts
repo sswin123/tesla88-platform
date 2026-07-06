@@ -1,6 +1,8 @@
 // Node.js only — DO NOT import from src/middleware.ts (Edge runtime)
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import pool from './db';
 import type { ERPAdmin, JWTPayload } from './types';
 
@@ -47,6 +49,22 @@ export async function getAdminByUsername(
     [username]
   );
   return rows[0] ?? null;
+}
+
+/**
+ * Reads the session cookie, verifies the JWT, and returns the payload.
+ * Throws a NextResponse (401) if unauthenticated — callers should re-throw it.
+ */
+export async function requireAdmin(
+  _req?: unknown
+): Promise<JWTPayload> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const payload = token ? await verifyJWT(token) : null;
+  if (!payload) {
+    throw NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return payload;
 }
 
 export async function getAdminById(
