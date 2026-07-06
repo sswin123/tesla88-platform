@@ -1,6 +1,8 @@
 import pool from '@/lib/db';
 import type { PublicPromotion } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PromotionsPage() {
   const res = await pool.query<PublicPromotion>(
     `SELECT id, name, description, promotion_type, bonus_type, bonus_value,

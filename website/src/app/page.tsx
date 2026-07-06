@@ -1,6 +1,8 @@
 import pool from '@/lib/db';
 import type { PublicPromotion, WebsiteSettings } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 async function getData() {
   const [settingsRes, promoRes] = await Promise.all([
     pool.query<{ key: string; value: string }>('SELECT key, value FROM system_settings WHERE key = ANY($1)',

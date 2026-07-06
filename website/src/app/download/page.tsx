@@ -2,6 +2,8 @@ import pool from '@/lib/db';
 import type { ApkVersion } from '@/lib/types';
 import { DownloadButton } from './DownloadButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DownloadPage() {
   const res = await pool.query<ApkVersion>(
     'SELECT id, version_name, version_code, release_notes, media_id, min_android, download_count, created_at FROM apk_versions WHERE is_current = TRUE LIMIT 1'

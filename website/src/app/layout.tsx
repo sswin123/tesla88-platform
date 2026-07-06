@@ -3,6 +3,8 @@ import './globals.css';
 import pool from '@/lib/db';
 import type { WebsiteSettings } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 async function getSettings(): Promise<WebsiteSettings> {
   const keys = [
     'site_brand_name','site_primary_color','site_logo_media_id','site_banner_text',
