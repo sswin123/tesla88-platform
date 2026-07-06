@@ -4,13 +4,20 @@ import type { MemberProfile } from '@/lib/types';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [loading, setLoading]     = useState(true);
   const [newPass, setNewPass]     = useState('');
   const [confirm, setConfirm]     = useState('');
   const [msg, setMsg]             = useState('');
   const [error, setError]         = useState('');
 
   useEffect(() => {
-    fetch('/api/member/profile').then(r => r.json()).then(d => setProfile(d as MemberProfile));
+    fetch('/api/member/profile')
+      .then(r => {
+        if (!r.ok) throw new Error('fetch failed');
+        return r.json();
+      })
+      .then(d => { setProfile(d as MemberProfile); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -26,7 +33,8 @@ export default function ProfilePage() {
     else { const d = await res.json() as { error: string }; setError(d.error); }
   }
 
-  if (!profile) return <div className="text-center py-12 text-gray-400">Loading…</div>;
+  if (loading) return <div className="text-center py-12 text-gray-400">Loading…</div>;
+  if (!profile) return <div className="text-center py-12 text-red-400">Failed to load profile. Please refresh.</div>;
 
   return (
     <div className="max-w-xl">

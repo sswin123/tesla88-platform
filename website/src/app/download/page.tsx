@@ -1,9 +1,10 @@
 import pool from '@/lib/db';
 import type { ApkVersion } from '@/lib/types';
+import { DownloadButton } from './DownloadButton';
 
 export default async function DownloadPage() {
   const res = await pool.query<ApkVersion>(
-    'SELECT id, version_name, version_code, release_notes, min_android, download_count, created_at FROM apk_versions WHERE is_current = TRUE LIMIT 1'
+    'SELECT id, version_name, version_code, release_notes, media_id, min_android, download_count, created_at FROM apk_versions WHERE is_current = TRUE LIMIT 1'
   );
   const apk = res.rows[0] ?? null;
 
@@ -32,12 +33,7 @@ export default async function DownloadPage() {
               <p className="text-sm text-gray-600 whitespace-pre-line">{apk.release_notes}</p>
             </div>
           )}
-          <a
-            href={`/api/public/apk/download/${apk.id}`}
-            className="block w-full py-3 text-center rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700"
-          >
-            Download APK
-          </a>
+          <DownloadButton href={apk.media_id ? `/api/public/media/${apk.media_id}` : '#'} apkId={apk.id} />
           <p className="mt-3 text-xs text-gray-400 text-center">Enable &quot;Install from unknown sources&quot; in Android settings before installing.</p>
         </div>
       )}

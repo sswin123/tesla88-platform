@@ -53,6 +53,7 @@ export interface ApkVersion {
   version_name: string;
   version_code: number;
   release_notes: string | null;
+  media_id: number | null;
   min_android: string;
   is_current: boolean;
   force_update: boolean;
