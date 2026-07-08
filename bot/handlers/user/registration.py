@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 import asyncpg
 
-from bot.keyboards.game_accounts import build_main_menu_keyboard
+from bot.keyboards.game_accounts import build_main_menu_keyboard, build_main_menu_keyboard_from_cms
 from bot.keyboards.registration import (
     BANK_FULL_NAMES,
     back_keyboard,
@@ -16,6 +16,7 @@ from bot.keyboards.registration import (
     registration_start_keyboard,
 )
 from bot.utils.phone import normalize_phone
+from bot.services import BotMessageService
 from db.repositories.free_list_repo import check_phone_in_free_list
 from db.repositories.user_repo import (
     create_user,
@@ -44,24 +45,33 @@ class RegistrationStates(StatesGroup):
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
+async def cmd_start(
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
     await state.clear()
+    lang = message.from_user.language_code or "zh"
 
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if user:
         status_emoji = "🟢" if user["status"] == "ACTIVE" else "🔴"
-        await message.answer(
-            f"欢迎回来，{user['first_name']}！\n"
-            f"状态：{status_emoji} {user['status']}\n\n"
-            f"请选择操作：",
-            reply_markup=build_main_menu_keyboard(),
+        text = await messages.get_message(
+            "start_returning_user",
+            language=lang,
+            variables={
+                "first_name": user["first_name"],
+                "status_emoji": status_emoji,
+                "status": user["status"],
+            },
         )
+        keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
+        await message.answer(text, reply_markup=keyboard)
         return
 
-    await message.answer(
-        "欢迎注册会员\n\n请选择：",
-        reply_markup=registration_start_keyboard(),
-    )
+    text = await messages.get_message("start_new_user", language=lang)
+    await message.answer(text, reply_markup=registration_start_keyboard())
 
 
 @router.callback_query(F.data == "register:start")

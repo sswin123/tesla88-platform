@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Sequence
 
+import asyncpg
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -10,10 +12,13 @@ from aiogram.types import (
 )
 
 from bot.constants import PROVIDERS
+from db.repositories.button_repo import get_buttons_by_group
+
+logger = logging.getLogger(__name__)
 
 
 def build_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Persistent 5×2 main menu shown to registered users."""
+    """Persistent 5×2 main menu shown to registered users (hardcoded fallback)."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📋 我的资料"), KeyboardButton(text="🎮 我的游戏账号")],
@@ -25,6 +30,34 @@ def build_main_menu_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         is_persistent=True,
     )
+
+
+async def build_main_menu_keyboard_from_cms(
+    pool: asyncpg.Pool,
+    language: str = "zh",
+) -> ReplyKeyboardMarkup:
+    """Load main menu from bot_buttons CMS. Falls back to hardcoded on DB error or empty result."""
+    try:
+        buttons = await get_buttons_by_group(pool, "main_menu", language)
+        active = [b for b in buttons if b["is_active"]]
+        if not active:
+            return build_main_menu_keyboard()
+
+        rows_map: dict[int, list[dict]] = {}
+        for btn in active:
+            rows_map.setdefault(btn["row_order"], []).append(btn)
+
+        keyboard = [
+            [
+                KeyboardButton(text=btn["label"])
+                for btn in sorted(rows_map[r], key=lambda x: x["column_order"])
+            ]
+            for r in sorted(rows_map)
+        ]
+        return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True, is_persistent=True)
+    except Exception:
+        logger.exception("build_main_menu_keyboard_from_cms: DB error, using hardcoded fallback")
+        return build_main_menu_keyboard()
 
 
 def build_provider_select_keyboard(

@@ -35,6 +35,7 @@ from bot.handlers.user.transaction_history import router as transaction_history_
 from bot.handlers.user.withdrawal import router as withdrawal_router
 from bot.middlewares.admin_middleware import AdminMiddleware
 from bot.middlewares.fsm_timeout_middleware import FsmTimeoutMiddleware
+from bot.services import BotMessageService
 from bot.api_server import start_relay_server
 from db.connection import create_pool
 from db.repositories.admin_repo import create_or_ensure_super_admin
@@ -71,6 +72,7 @@ async def main() -> None:
 
     dp["pool"] = pool
     dp["config"] = config
+    dp["messages"] = BotMessageService(pool)
 
     dp.message.middleware(AdminMiddleware())
     dp.callback_query.middleware(AdminMiddleware())
