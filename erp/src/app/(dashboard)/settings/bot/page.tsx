@@ -83,6 +83,9 @@ export default function BotSettingsPage() {
   const [saving, setSaving]     = useState<string | null>(null);
   const [toast, setToast]       = useState<{ msg: string; ok: boolean } | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [syncing, setSyncing]   = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const flash = (msg: string, ok: boolean) => {
@@ -127,9 +130,12 @@ export default function BotSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(updates),
       });
-      const d = await r.json() as { ok?: boolean; reloaded?: boolean };
+      const d = await r.json() as { ok?: boolean; reloaded?: boolean; telegram_synced?: boolean; telegram_error?: string };
       if (r.ok) {
-        flash(d.reloaded ? 'Saved and settings reloaded.' : 'Saved. (Relay reload timed out — settings will apply within 60 seconds.)', true);
+        let msg = d.reloaded ? 'Saved and settings reloaded.' : 'Saved. (Relay reload timed out — settings will apply within 60 seconds.)';
+        if (d.telegram_synced) msg += ' Telegram profile updated.';
+        if (d.telegram_error) msg += ` Telegram sync failed: ${d.telegram_error}`;
+        flash(msg, !d.telegram_error);
         await loadSettings();
       } else {
         flash('Save failed.', false);
@@ -138,6 +144,49 @@ export default function BotSettingsPage() {
       flash('Network error.', false);
     } finally {
       setSaving(null);
+    }
+  };
+
+  const syncFromTelegram = async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch('/api/settings/bot/sync', { method: 'POST' });
+      const d = await r.json() as { ok?: boolean; bot_username?: string; bot_name?: string; error?: string };
+      if (r.ok) {
+        flash(`Synced from Telegram: @${d.bot_username ?? ''} (${d.bot_name ?? ''})`, true);
+        await loadSettings();
+      } else {
+        flash(d.error ?? 'Sync failed.', false);
+      }
+    } catch {
+      flash('Cannot reach Telegram API.', false);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const uploadAvatar = async (file: File) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      flash('Only JPG and PNG images are allowed.', false);
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch('/api/settings/bot/avatar', { method: 'POST', body: form });
+      const d = await r.json() as { ok?: boolean; error?: string };
+      if (r.ok) {
+        flash('Avatar saved to media library.', true);
+        await loadSettings();
+      } else {
+        flash(d.error ?? 'Avatar upload failed.', false);
+      }
+    } catch {
+      flash('Network error during avatar upload.', false);
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
 
@@ -172,6 +221,9 @@ export default function BotSettingsPage() {
   const db       = health?.checks.database;
   const telegram = relay?.telegram;
 
+  const avatarMediaId = settings['bot_avatar_media_id'];
+  const lastSynced    = settings['last_synced_at'];
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {toast && (
@@ -187,6 +239,13 @@ export default function BotSettingsPage() {
           <p className="mt-1 text-sm text-gray-500">Bot configuration, relay settings, and notification preferences.</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => void syncFromTelegram()}
+            disabled={syncing}
+            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-100 disabled:opacity-50"
+          >
+            {syncing ? 'Syncing…' : 'Sync From Telegram'}
+          </button>
           <button
             onClick={() => void reload()}
             disabled={saving === 'reload'}
@@ -265,10 +324,16 @@ export default function BotSettingsPage() {
 
       {/* Bot Identity */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-800">Bot Identity</h2>
+          {lastSynced && (
+            <span className="text-xs text-gray-400">
+              Last synced {new Date(lastSynced).toLocaleString()}
+            </span>
+          )}
         </div>
         <div className="px-6 py-4 space-y-4">
+          {/* Token — always read-only */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
             <input
@@ -278,12 +343,38 @@ export default function BotSettingsPage() {
             />
             <p className="mt-1 text-xs text-gray-400">Change in .env and redeploy to update the bot token.</p>
           </div>
+
+          {/* Username — read-only */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <input
+              readOnly
+              value={settings['bot_username'] ? `@${settings['bot_username']}` : ''}
+              placeholder="@your_bot"
+              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+            />
+            <p className="mt-1 text-xs text-gray-400">Username can only be changed in BotFather.</p>
+          </div>
+
+          {/* Bot ID — read-only */}
+          {settings['bot_id'] && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bot ID</label>
+              <input
+                readOnly
+                value={settings['bot_id']}
+                className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              />
+            </div>
+          )}
+
+          {/* Editable identity fields */}
           {([
-            ['bot_name',        'Display Name',     'Support Bot'],
-            ['bot_username',    'Username',         'my_support_bot (without @)'],
-            ['bot_description', 'Description',      'Customer support bot'],
-            ['bot_language',    'Language Code',    'en'],
-            ['support_chat_id', 'Support Group ID', '0 (0 = disabled)'],
+            ['bot_name',              'Display Name',        'Support Bot'],
+            ['bot_description',       'Description',         'Customer support bot'],
+            ['bot_short_description', 'Short About',         'Get help & support'],
+            ['bot_language',          'Language Code',       'en'],
+            ['support_chat_id',       'Support Group ID',    '0 (0 = disabled)'],
           ] as const).map(([key, label, placeholder]) => (
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -300,8 +391,47 @@ export default function BotSettingsPage() {
         <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
           <SaveBtn
             busy={saving === 'identity'}
-            onClick={() => void save('identity', ['bot_name', 'bot_username', 'bot_description', 'bot_language', 'support_chat_id'])}
+            onClick={() => void save('identity', ['bot_name', 'bot_description', 'bot_short_description', 'bot_language', 'support_chat_id'])}
           />
+        </div>
+      </div>
+
+      {/* Bot Avatar */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-base font-semibold text-gray-800">Bot Avatar</h2>
+        </div>
+        <div className="px-6 py-4 space-y-4">
+          {avatarMediaId && (
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/media/${avatarMediaId}/thumbnail`}
+                alt="Bot avatar"
+                className="h-16 w-16 rounded-full object-cover border border-gray-200"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <span className="text-sm text-gray-500">Current avatar (media #{avatarMediaId})</span>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Upload New Avatar</label>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              disabled={avatarUploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadAvatar(file);
+              }}
+              className="block text-sm text-gray-600 file:mr-4 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-50 disabled:opacity-50"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              JPG or PNG only. Stored in Media Library.
+              To update the actual Telegram profile photo, use BotFather.
+            </p>
+          </div>
         </div>
       </div>
 
