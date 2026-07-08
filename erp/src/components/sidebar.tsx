@@ -22,6 +22,7 @@ import {
   UserCog,
   Settings,
   Wrench,
+  ShieldCheck,
   Bot,
   Images,
   Zap,
@@ -81,9 +82,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     items: [
-      { href: '/admin-users', label: 'Admin Users', icon: UserCog },
-      { href: '/settings',    label: 'Settings',    icon: Settings, exact: true },
-      { href: '/maintenance', label: 'Maintenance', icon: Wrench },
+      { href: '/admin-users',          label: 'Admin Users',      icon: UserCog },
+      { href: '/settings/permissions', label: 'Staff Permissions', icon: ShieldCheck },
+      { href: '/settings',             label: 'Settings',          icon: Settings, exact: true },
+      { href: '/maintenance',          label: 'Maintenance',       icon: Wrench },
     ],
   },
 ];
