@@ -13,12 +13,13 @@ import asyncpg
 from bot.config import Config
 from bot.constants import PROVIDERS
 from bot.keyboards.common import build_back_cancel_keyboard
-from bot.keyboards.game_accounts import build_main_menu_keyboard
+from bot.keyboards.game_accounts import build_main_menu_keyboard, build_main_menu_keyboard_from_cms
 from bot.keyboards.withdrawal import (
     build_withdrawal_confirm_keyboard,
     build_withdrawal_provider_keyboard,
     build_withdrawal_review_keyboard,
 )
+from bot.services import BotMessageService
 from db.repositories.account_repo import get_user_game_accounts
 from db.repositories.withdrawal_repo import (
     create_withdrawal_request,
@@ -39,22 +40,26 @@ class WithdrawalStates(StatesGroup):
 
 @router.message(F.text == "💸 提款")
 async def handle_withdrawal_menu(
-    message: Message, state: FSMContext, pool: asyncpg.Pool
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("withdraw_not_registered", language=lang))
         return
     if user["status"] == "FROZEN":
-        await message.answer("❌ 您的账号已被冻结，无法提交提款申请。")
+        await message.answer(await messages.get_message("withdraw_account_frozen", language=lang))
         return
     if await has_pending_withdrawal(pool, user["id"]):
-        await message.answer("⚠️ 您有一个待审核的提款申请，请等待处理后再提交新申请。")
+        await message.answer(await messages.get_message("withdraw_pending_exists", language=lang))
         return
 
     accounts = await get_user_game_accounts(pool, user["id"])
     if not accounts:
-        await message.answer("⚠️ 您尚未领取任何游戏账号，请先在「🎮 我的游戏账号」领取账号。")
+        await message.answer(await messages.get_message("withdraw_no_game_account", language=lang))
         return
 
     providers = [acc["provider"] for acc in accounts]
@@ -67,18 +72,25 @@ async def handle_withdrawal_menu(
     )
     await state.set_state(WithdrawalStates.waiting_provider)
     await message.answer(
-        "💸 提款\n\n请选择游戏平台：",
+        await messages.get_message("withdraw_select_platform", language=lang),
         reply_markup=build_withdrawal_provider_keyboard(providers),
     )
 
 
 @router.callback_query(WithdrawalStates.waiting_provider, F.data.startswith("wd_prov:"))
 async def cb_withdrawal_provider(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
     if provider not in PROVIDERS:
-        await callback.answer("无效平台。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("withdraw_invalid_platform", language=lang),
+            show_alert=True,
+        )
         return
 
     data = await state.get_data()
@@ -93,7 +105,7 @@ async def cb_withdrawal_provider(
         f"👤 游戏账号：{html.escape(game_username)}"
     )
     await callback.message.answer(
-        "请输入提款金额（RM）\n\n例如：\n100\n300\n500",
+        await messages.get_message("withdraw_enter_amount", language=lang),
         reply_markup=build_back_cancel_keyboard(),
     )
     await callback.answer()
@@ -103,37 +115,47 @@ async def cb_withdrawal_provider(
 
 @router.message(WithdrawalStates.waiting_amount, F.text == "⬅️ 返回")
 async def wd_back_from_amount(
-    message: Message, state: FSMContext, pool: asyncpg.Pool
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     accounts = await get_user_game_accounts(pool, data["user_id"])
     providers = [acc["provider"] for acc in accounts]
     await state.set_state(WithdrawalStates.waiting_provider)
     await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
     await message.answer(
-        "💸 提款\n\n请选择游戏平台：",
+        await messages.get_message("withdraw_select_platform", language=lang),
         reply_markup=build_withdrawal_provider_keyboard(providers),
     )
 
 
 @router.message(WithdrawalStates.waiting_amount)
 async def process_withdrawal_amount(
-    message: Message, state: FSMContext, config: Config
+    message: Message,
+    state: FSMContext,
+    config: Config,
+    messages: BotMessageService,
 ) -> None:
-    text = (message.text or "").strip().replace(",", "")
+    lang = message.from_user.language_code or "zh"
+    text_input = (message.text or "").strip().replace(",", "")
     try:
-        amount = float(text)
+        amount = float(text_input)
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer(
-            "⚠️ 输入格式错误\n\n请输入正确金额，例如：\n\n100\n300\n500"
-        )
+        await message.answer(await messages.get_message("withdraw_amount_invalid", language=lang))
         return
 
     if amount < config.min_withdrawal_amount:
         await message.answer(
-            f"⚠️ 最低提款金额为 RM {config.min_withdrawal_amount:.2f}\n\n请重新输入金额："
+            await messages.get_message(
+                "withdraw_min_not_met",
+                language=lang,
+                variables={"min_amount": config.min_withdrawal_amount},
+            )
         )
         return
 
@@ -141,17 +163,19 @@ async def process_withdrawal_amount(
     await state.update_data(withdraw_amount=amount)
     await state.set_state(WithdrawalStates.confirming)
 
-    await message.answer(
-        f"💸 提款确认\n\n"
-        f"🎮 平台：{html.escape(data['provider'])}\n"
-        f"👤 游戏账号：{html.escape(data['game_username'])}\n"
-        f"💵 提款金额：RM {amount:.2f}\n\n"
-        f"🏦 收款银行：{html.escape(data['bank_name'])}\n"
-        f"💳 收款账号：{html.escape(data['bank_account'])}\n"
-        f"👤 账户名：{html.escape(data['bank_holder_name'])}",
-        reply_markup=build_withdrawal_confirm_keyboard(),
-        parse_mode="HTML",
+    text = await messages.get_message(
+        "withdraw_confirm",
+        language=lang,
+        variables={
+            "provider": html.escape(data["provider"]),
+            "game_username": html.escape(data["game_username"]),
+            "amount": amount,
+            "bank_name": html.escape(data["bank_name"]),
+            "bank_account": html.escape(data["bank_account"]),
+            "bank_holder_name": html.escape(data["bank_holder_name"]),
+        },
     )
+    await message.answer(text, reply_markup=build_withdrawal_confirm_keyboard(), parse_mode="HTML")
 
 
 @router.callback_query(WithdrawalStates.confirming, F.data == "wd_confirm")
@@ -161,7 +185,9 @@ async def cb_withdrawal_confirm(
     pool: asyncpg.Pool,
     bot: Bot,
     config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     data = await state.get_data()
 
     req = await create_withdrawal_request(
@@ -222,15 +248,26 @@ async def cb_withdrawal_confirm(
             req["id"],
         )
 
-    await callback.message.edit_text(
-        f"✅ 提款申请已提交！\n申请编号：#{req['id']}\n请等待管理员审核。"
+    submitted_text = await messages.get_message(
+        "withdraw_submitted",
+        language=lang,
+        variables={"req_id": req["id"]},
     )
-    await callback.message.answer("", reply_markup=build_main_menu_keyboard())
+    await callback.message.edit_text(submitted_text)
+    keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
+    await callback.message.answer("", reply_markup=keyboard)
     await callback.answer()
 
 
 @router.callback_query(F.data == "wd_cancel")
-async def cb_withdrawal_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_withdrawal_cancel(
+    callback: CallbackQuery,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
+    lang = callback.from_user.language_code or "zh"
     await state.clear()
-    await callback.message.edit_text("❌ 已取消提款申请。")
+    await callback.message.edit_text(
+        await messages.get_message("withdraw_cancelled", language=lang)
+    )
     await callback.answer()

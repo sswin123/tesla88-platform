@@ -21,8 +21,9 @@ from bot.keyboards.deposit import (
     build_bank_select_keyboard,
 )
 from db.repositories.bank_repo import get_active_banks
-from bot.keyboards.game_accounts import build_main_menu_keyboard
+from bot.keyboards.game_accounts import build_main_menu_keyboard, build_main_menu_keyboard_from_cms
 from bot.handlers.user.promotions import calculate_bonus
+from bot.services import BotMessageService
 from db.repositories.account_repo import get_user_game_accounts
 from db.repositories.deposit_repo import (
     create_deposit_request,
@@ -59,23 +60,25 @@ async def _start_deposit_flow(
     telegram_id: int,
     answer_fn,
     config: Config,
+    messages: BotMessageService,
+    lang: str = "zh",
     preselected_promo_id: int | None = None,
 ) -> bool:
     """Common setup for deposit flow. Returns False if blocked (responds to user)."""
     user = await get_user_by_telegram_id(pool, telegram_id)
     if not user:
-        await answer_fn("您尚未注册。请发送 /start 开始注册。")
+        await answer_fn(await messages.get_message("deposit_not_registered", language=lang))
         return False
     if user["status"] == "FROZEN":
-        await answer_fn("❌ 您的账号已被冻结，无法提交充值申请。")
+        await answer_fn(await messages.get_message("deposit_account_frozen", language=lang))
         return False
     if await has_pending_deposit(pool, user["id"]):
-        await answer_fn("⚠️ 您有一个待审核的充值申请，请等待处理后再提交新申请。")
+        await answer_fn(await messages.get_message("deposit_pending_exists", language=lang))
         return False
 
     accounts = await get_user_game_accounts(pool, user["id"])
     if not accounts:
-        await answer_fn("⚠️ 您尚未领取任何游戏账号，请先在「🎮 我的游戏账号」领取账号。")
+        await answer_fn(await messages.get_message("deposit_no_game_account", language=lang))
         return False
 
     providers = [acc["provider"] for acc in accounts]
@@ -88,7 +91,7 @@ async def _start_deposit_flow(
     )
     await state.set_state(DepositStates.waiting_provider)
     await answer_fn(
-        "💰 充值\n\n请选择游戏平台：",
+        await messages.get_message("deposit_select_platform", language=lang),
         reply_markup=build_deposit_provider_keyboard(providers),
     )
     return True
@@ -96,28 +99,41 @@ async def _start_deposit_flow(
 
 @router.message(F.text == "💰 充值")
 async def handle_deposit_menu(
-    message: Message, state: FSMContext, pool: asyncpg.Pool, config: Config
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     await _start_deposit_flow(
-        pool, state, message.from_user.id, message.answer, config
+        pool, state, message.from_user.id, message.answer, config, messages, lang
     )
 
 
 @router.callback_query(F.data.startswith("dep_from_promo:"))
 async def cb_dep_from_promo(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool, config: Config
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    config: Config,
+    messages: BotMessageService,
 ) -> None:
     """Entry point from 优惠中心 — pre-selects a promotion and starts deposit flow."""
+    lang = callback.from_user.language_code or "zh"
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
     if not promo or not is_promo_available(promo):
-        await callback.answer("⚠️ 该优惠已下线", show_alert=True)
+        await callback.answer(
+            await messages.get_message("deposit_promo_unavailable", language=lang),
+            show_alert=True,
+        )
         return
 
     await callback.answer()
     ok = await _start_deposit_flow(
         pool, state, callback.from_user.id,
-        callback.message.answer, config,
+        callback.message.answer, config, messages, lang,
         preselected_promo_id=promo_id,
     )
     if ok:
@@ -129,11 +145,15 @@ async def cb_dep_from_promo(
 
 @router.callback_query(DepositStates.waiting_provider, F.data.startswith("dep_prov:"))
 async def cb_deposit_provider(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
     if provider not in PROVIDERS:
-        await callback.answer("无效平台。", show_alert=True)
+        await callback.answer(await messages.get_message("deposit_promo_invalid", language=lang), show_alert=True)
         return
 
     data = await state.get_data()
@@ -167,7 +187,11 @@ async def cb_deposit_provider(
     promotions = await get_eligible_promotions_for_member(pool, data["user_id"])
     await state.set_state(DepositStates.waiting_promo)
     await callback.message.edit_text(
-        f"💰 充值 — {html.escape(provider)}\n\n请选择优惠：",
+        await messages.get_message(
+            "deposit_select_promo",
+            language=lang,
+            variables={"provider": html.escape(provider)},
+        ),
         reply_markup=build_promo_keyboard(promotions),
     )
     await callback.answer()
@@ -175,14 +199,18 @@ async def cb_deposit_provider(
 
 @router.callback_query(DepositStates.waiting_promo, F.data == "dep_back_prov")
 async def cb_deposit_back_provider(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     data = await state.get_data()
     accounts = await get_user_game_accounts(pool, data["user_id"])
     providers = [acc["provider"] for acc in accounts]
     await state.set_state(DepositStates.waiting_provider)
     await callback.message.edit_text(
-        "💰 充值\n\n请选择游戏平台：",
+        await messages.get_message("deposit_select_platform", language=lang),
         reply_markup=build_deposit_provider_keyboard(providers),
     )
     await callback.answer()
@@ -190,8 +218,12 @@ async def cb_deposit_back_provider(
 
 @router.callback_query(DepositStates.waiting_promo, F.data.startswith("dep_promo:"))
 async def cb_deposit_promo(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     raw = callback.data.split(":", 1)[1]
     data = await state.get_data()
     provider = data["provider"]
@@ -211,7 +243,10 @@ async def cb_deposit_promo(
     else:
         promo = await get_promotion_by_id(pool, int(raw))
         if not promo or not is_promo_available(promo):
-            await callback.answer("该优惠不可用。", show_alert=True)
+            await callback.answer(
+                await messages.get_message("deposit_promo_invalid", language=lang),
+                show_alert=True,
+            )
             return
 
         user_id = data["user_id"]
@@ -225,12 +260,17 @@ async def cb_deposit_promo(
             limit_exceeded = await has_weekly_claim_this_week(pool, user_id, promo["id"])
 
         if limit_exceeded:
-            limit_labels = {
-                "FIRST_DEPOSIT": "此优惠每位用户只能领取一次，您已达到领取上限。",
-                "DAILY": "此优惠今日已领取，请明天再来。",
-                "WEEKLY": "此优惠本周已领取，请下周再来。",
+            key_map = {
+                "FIRST_DEPOSIT": "deposit_promo_first_only",
+                "DAILY": "deposit_promo_daily_limit",
+                "WEEKLY": "deposit_promo_weekly_limit",
             }
-            await callback.answer(limit_labels.get(promo_type, "您已达到此优惠的领取上限。"), show_alert=True)
+            key = key_map.get(promo_type)
+            if key:
+                text = await messages.get_message(key, language=lang)
+            else:
+                text = "您已达到此优惠的领取上限。"
+            await callback.answer(text, show_alert=True)
             return
 
         await _apply_promo_to_state(state, promo)
@@ -244,21 +284,13 @@ async def cb_deposit_promo(
         await state.get_state(),
     )
     await callback.message.edit_text(f"💰 充值 — {html.escape(provider)}")
-    await callback.message.answer(
-        _promo_amount_prompt(selected_promo) if selected_promo else _amount_prompt(),
-        reply_markup=build_back_cancel_keyboard(),
+    amount_text = (
+        _promo_amount_prompt(selected_promo)
+        if selected_promo
+        else await messages.get_message("deposit_enter_amount", language=lang)
     )
+    await callback.message.answer(amount_text, reply_markup=build_back_cancel_keyboard())
     await callback.answer()
-
-
-def _amount_prompt() -> str:
-    return (
-        "请输入充值金额（RM）\n\n"
-        "例如：\n"
-        "100\n"
-        "300\n"
-        "500"
-    )
 
 
 def _promo_amount_prompt(promo: asyncpg.Record) -> str:
@@ -295,8 +327,6 @@ def _promo_amount_prompt(promo: asyncpg.Record) -> str:
         f"到期日：{expiry_str}",
     ]
 
-    # Build example amounts: min_deposit first, then round numbers above it.
-    # Candidates: 20, 50, 100, 300, 500, 1000 — pick first 3 that exceed min_dep.
     if min_dep == int(min_dep):
         examples = [str(int(min_dep))]
     else:
@@ -328,29 +358,35 @@ async def _apply_promo_to_state(state: FSMContext, promo: asyncpg.Record) -> Non
 
 @router.message(StateFilter(DepositStates.waiting_amount), F.text == "⬅️ 返回")
 async def dep_back_from_amount(
-    message: Message, state: FSMContext, pool: asyncpg.Pool
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     provider = data.get("provider", "")
     preselected = data.get("preselected_promo_id")
 
     if preselected:
-        # Came via 立即充值 — back goes to provider selection
         accounts = await get_user_game_accounts(pool, data["user_id"])
         providers = [acc["provider"] for acc in accounts]
         await state.set_state(DepositStates.waiting_provider)
         await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
         await message.answer(
-            "💰 充值\n\n请选择游戏平台：",
+            await messages.get_message("deposit_select_platform", language=lang),
             reply_markup=build_deposit_provider_keyboard(providers),
         )
     else:
-        # Normal flow — back to promo selection
         promotions = await get_eligible_promotions_for_member(pool, data["user_id"])
         await state.set_state(DepositStates.waiting_promo)
         await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
         await message.answer(
-            f"💰 充值 — {html.escape(provider)}\n\n请选择优惠：",
+            await messages.get_message(
+                "deposit_select_promo",
+                language=lang,
+                variables={"provider": html.escape(provider)},
+            ),
             reply_markup=build_promo_keyboard(promotions),
         )
 
@@ -358,7 +394,13 @@ async def dep_back_from_amount(
 # ── FSM Back: from waiting_receipt ────────────────────────────────────────────
 
 @router.message(DepositStates.waiting_receipt, F.text == "⬅️ 返回")
-async def dep_back_from_receipt(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
+async def dep_back_from_receipt(
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     provider = data.get("provider", "")
     game_username = data.get("game_username", "")
@@ -390,31 +432,41 @@ async def dep_back_from_receipt(message: Message, state: FSMContext, pool: async
             fetched = await get_promotion_by_id(pool, promotion_id)
             if fetched and is_promo_available(fetched):
                 promo_for_prompt = fetched
+        amount_text = (
+            _promo_amount_prompt(promo_for_prompt)
+            if promo_for_prompt
+            else await messages.get_message("deposit_enter_amount", language=lang)
+        )
         await message.answer(
-            f"💰 充值 — {html.escape(provider)}\n\n"
-            + (_promo_amount_prompt(promo_for_prompt) if promo_for_prompt else _amount_prompt()),
+            f"💰 充值 — {html.escape(provider)}\n\n{amount_text}",
             reply_markup=build_back_cancel_keyboard(),
         )
         return
 
     await state.set_state(DepositStates.waiting_bank_select)
-    await message.answer(
-        f"💰 充值预览\n\n"
-        f"🎮 平台：{html.escape(provider)}\n"
-        f"👤 游戏账号：{html.escape(game_username)}\n\n"
-        f"💵 充值金额：RM {amount:.2f}\n"
-        f"{credit_block}\n"
-        f"━━━━━━━━━━━━━━\n\n"
-        f"🏦 请选择收款账号：",
-        reply_markup=build_bank_select_keyboard(banks),
-        parse_mode="HTML",
+    text = await messages.get_message(
+        "deposit_preview",
+        language=lang,
+        variables={
+            "provider": html.escape(provider),
+            "game_username": html.escape(game_username),
+            "amount": amount,
+            "credit_block": credit_block,
+        },
     )
+    await message.answer(text, reply_markup=build_bank_select_keyboard(banks), parse_mode="HTML")
 
 
 # ── FSM Back: from waiting_bank_select ────────────────────────────────────────
 
 @router.message(DepositStates.waiting_bank_select, F.text == "⬅️ 返回")
-async def dep_back_from_bank_select(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
+async def dep_back_from_bank_select(
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     provider = data.get("provider", "")
     promotion_id = data.get("promotion_id")
@@ -426,9 +478,13 @@ async def dep_back_from_bank_select(message: Message, state: FSMContext, pool: a
         if fetched and is_promo_available(fetched):
             promo = fetched
 
+    amount_text = (
+        _promo_amount_prompt(promo)
+        if promo
+        else await messages.get_message("deposit_enter_amount", language=lang)
+    )
     await message.answer(
-        f"💰 充值 — {html.escape(provider)}\n\n"
-        + (_promo_amount_prompt(promo) if promo else _amount_prompt()),
+        f"💰 充值 — {html.escape(provider)}\n\n{amount_text}",
         reply_markup=build_back_cancel_keyboard(),
     )
 
@@ -437,13 +493,20 @@ async def dep_back_from_bank_select(message: Message, state: FSMContext, pool: a
 
 @router.callback_query(DepositStates.waiting_bank_select, F.data.startswith("dep_bank:"))
 async def cb_deposit_bank_select(
-    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     bank_id = int(callback.data.split(":", 1)[1])
     banks = await get_active_banks(pool)
     bank = next((b for b in banks if b["id"] == bank_id), None)
     if not bank:
-        await callback.answer("❌ 收款账号已失效，请重新选择。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("deposit_bank_invalid", language=lang),
+            show_alert=True,
+        )
         return
 
     await state.update_data(
@@ -473,23 +536,20 @@ async def cb_deposit_bank_select(
     else:
         credit_block = f"🪙 实际上分：RM {credit_amount:.2f}\n"
 
-    await callback.message.edit_text(
-        f"💰 充值确认\n\n"
-        f"🎮 平台：{html.escape(provider)}\n"
-        f"👤 游戏账号：{html.escape(game_username)}\n\n"
-        f"💵 充值金额：RM {amount:.2f}\n"
-        f"{credit_block}\n"
-        f"━━━━━━━━━━━━━━\n\n"
-        f"🏦 收款账号：\n"
-        f"银行：{html.escape(bank['bank_name'])}\n"
-        f"账户名：{html.escape(bank['account_name'])}\n"
-        f"账号：{html.escape(bank['account_number'])}\n\n"
-        f"📷 请上传转账收据截图\n\n"
-        f"支持格式：\n"
-        f"✅ JPG / PNG\n"
-        f"✅ Telegram 图片",
-        parse_mode="HTML",
+    text = await messages.get_message(
+        "deposit_confirm",
+        language=lang,
+        variables={
+            "provider": html.escape(provider),
+            "game_username": html.escape(game_username),
+            "amount": amount,
+            "credit_block": credit_block,
+            "bank_name": html.escape(bank["bank_name"]),
+            "account_name": html.escape(bank["account_name"]),
+            "account_number": html.escape(bank["account_number"]),
+        },
     )
+    await callback.message.edit_text(text, parse_mode="HTML")
     await callback.answer()
 
 
@@ -497,8 +557,13 @@ async def cb_deposit_bank_select(
 
 @router.message(StateFilter(DepositStates.waiting_amount))
 async def process_deposit_amount(
-    message: Message, state: FSMContext, pool: asyncpg.Pool, config: Config
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     current_state = await state.get_state()
     logger.info(
         "DEPOSIT_AMOUNT_HANDLER user=%s text=%s state=%s",
@@ -506,15 +571,13 @@ async def process_deposit_amount(
         message.text,
         current_state,
     )
-    text = (message.text or "").strip().replace(",", "")
+    text_input = (message.text or "").strip().replace(",", "")
     try:
-        amount = float(text)
+        amount = float(text_input)
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await message.answer(
-            "⚠️ 输入格式错误\n\n请输入正确金额，例如：\n\n100\n300\n500"
-        )
+        await message.answer(await messages.get_message("deposit_amount_invalid", language=lang))
         return
 
     data = await state.get_data()
@@ -528,8 +591,11 @@ async def process_deposit_amount(
 
     if promotion_id and amount < promo_min_deposit:
         await message.answer(
-            f"⚠️ 使用「{html.escape(promo_name)}」最低充值为 RM {promo_min_deposit:.2f}\n\n"
-            f"您的金额不符合条件，请重新输入：",
+            await messages.get_message(
+                "deposit_min_not_met",
+                language=lang,
+                variables={"promo_name": promo_name, "min_deposit": promo_min_deposit},
+            ),
             parse_mode="HTML",
         )
         return
@@ -571,27 +637,26 @@ async def process_deposit_amount(
             f"🪙 实际上分：RM {credit_amount:.2f}\n"
         )
 
-    # Load active bank accounts for selection
     banks = await get_active_banks(pool)
     if not banks:
         await message.answer(
-            "⚠️ 暂无可用收款账号，请联系客服。",
+            await messages.get_message("deposit_no_bank_available", language=lang),
             reply_markup=build_back_cancel_keyboard(),
         )
         return
 
     await state.set_state(DepositStates.waiting_bank_select)
-    await message.answer(
-        f"💰 充值预览\n\n"
-        f"🎮 平台：{html.escape(provider)}\n"
-        f"👤 游戏账号：{html.escape(game_username)}\n\n"
-        f"💵 充值金额：RM {amount:.2f}\n"
-        f"{credit_block}\n"
-        f"━━━━━━━━━━━━━━\n\n"
-        f"🏦 请选择收款账号：",
-        reply_markup=build_bank_select_keyboard(banks),
-        parse_mode="HTML",
+    text = await messages.get_message(
+        "deposit_preview",
+        language=lang,
+        variables={
+            "provider": html.escape(provider),
+            "game_username": html.escape(game_username),
+            "amount": amount,
+            "credit_block": credit_block,
+        },
     )
+    await message.answer(text, reply_markup=build_bank_select_keyboard(banks), parse_mode="HTML")
 
 
 @router.message(DepositStates.waiting_receipt, F.photo)
@@ -601,7 +666,9 @@ async def process_deposit_receipt(
     pool: asyncpg.Pool,
     bot: Bot,
     config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     file_id = message.photo[-1].file_id
 
@@ -610,10 +677,11 @@ async def process_deposit_receipt(
         eligible = await can_member_claim_promotion(pool, data["user_id"], promotion_id)
         if not eligible:
             await state.clear()
+            keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
             await message.answer(
                 "⚠️ 该优惠已无法申请（您已使用过此优惠或已有待审核申请）。\n\n"
                 "请重新发起充值并选择其他优惠。",
-                reply_markup=build_main_menu_keyboard(),
+                reply_markup=keyboard,
             )
             return
 
@@ -693,21 +761,33 @@ async def process_deposit_receipt(
             req["id"],
         )
 
-    await message.answer(
-        f"✅ 充值申请已提交！\n申请编号：#{req['id']}\n请等待管理员审核。",
-        reply_markup=build_main_menu_keyboard(),
+    text = await messages.get_message(
+        "deposit_submitted",
+        language=lang,
+        variables={"req_id": req["id"]},
     )
+    keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
+    await message.answer(text, reply_markup=keyboard)
 
 
 @router.message(DepositStates.waiting_receipt)
-async def process_deposit_receipt_invalid(message: Message) -> None:
-    await message.answer(
-        "⚠️ 格式不正确\n\n请上传图片截图（JPG / PNG / Telegram 图片）"
-    )
+async def process_deposit_receipt_invalid(
+    message: Message,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
+    await message.answer(await messages.get_message("deposit_receipt_invalid", language=lang))
 
 
 @router.callback_query(F.data == "dep_cancel")
-async def cb_deposit_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_deposit_cancel(
+    callback: CallbackQuery,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
+    lang = callback.from_user.language_code or "zh"
     await state.clear()
-    await callback.message.edit_text("❌ 已取消充值申请。")
+    await callback.message.edit_text(
+        await messages.get_message("deposit_cancelled", language=lang)
+    )
     await callback.answer()
