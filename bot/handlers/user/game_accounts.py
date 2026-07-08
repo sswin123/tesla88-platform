@@ -10,6 +10,7 @@ import asyncpg
 from bot.config import Config
 from bot.constants import PROVIDERS
 from bot.keyboards.game_accounts import build_game_accounts_keyboard, build_provider_select_keyboard
+from bot.services import BotMessageService
 from bot.utils.formatters import format_user_profile
 from db.repositories.account_repo import (
     assign_account,
@@ -24,20 +25,29 @@ router = Router()
 
 
 @router.message(F.text == "📋 我的资料")
-async def handle_my_profile(message: Message, pool: asyncpg.Pool) -> None:
+async def handle_my_profile(
+    message: Message,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("game_not_registered", language=lang))
         return
     await message.answer(format_user_profile(user))
 
 
-
 @router.message(F.text == "🎮 我的游戏账号")
-async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
+async def handle_my_game_accounts(
+    message: Message,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("game_not_registered", language=lang))
         return
 
     accounts = await get_user_game_accounts(pool, user["id"])
@@ -49,8 +59,8 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
         if p not in assigned_providers and available_counts.get(p, 0) > 0
     ]
 
-    # Build message text
-    lines = ["🎮 我的游戏账号"]
+    header = await messages.get_message("profile_game_accounts_header", language=lang)
+    lines = [header]
     for acc in accounts:
         lines.append(
             f"\n🎮 {html.escape(acc['provider'])}\n"
@@ -62,7 +72,8 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
         lines.append(f"\n\n可领取（有库存）：{'、'.join(html.escape(p) for p in claimable)}")
 
     if not accounts and not claimable:
-        lines.append("\n\n🎮 当前没有可领取的账号，请联系客服。")
+        no_stock = await messages.get_message("game_no_stock_available", language=lang)
+        lines.append(f"\n\n{no_stock}")
 
     keyboard = build_game_accounts_keyboard(accounts, claimable)
     await message.answer(
@@ -74,54 +85,74 @@ async def handle_my_game_accounts(message: Message, pool: asyncpg.Pool) -> None:
 
 @router.callback_query(F.data.startswith("game_claim:"))
 async def handle_claim_account(
-    callback: CallbackQuery, pool: asyncpg.Pool
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
     if provider not in PROVIDERS:
-        await callback.answer("无效的平台。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_invalid_platform", language=lang),
+            show_alert=True,
+        )
         return
 
     user = await get_user_by_telegram_id(pool, callback.from_user.id)
     if not user:
-        await callback.answer("您尚未注册。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_not_registered", language=lang),
+            show_alert=True,
+        )
         return
 
     account = await assign_account(pool, user["id"], provider)
 
     if not account:
         await callback.answer(
-            "⚠️ 当前暂无可用账号，请稍后再试或联系客服。",
+            await messages.get_message("game_no_stock_callback", language=lang),
             show_alert=True,
         )
         return
 
-    await callback.message.answer(
-        f"✅ 领取成功\n\n"
-        f"🎮 平台：{html.escape(provider)}\n"
-        f"👤 账号：<code>{html.escape(account['username'])}</code>\n"
-        f"🔑 密码：<code>{html.escape(account['password'])}</code>",
-        parse_mode="HTML",
+    text = await messages.get_message(
+        "game_claim_success",
+        language=lang,
+        variables={
+            "provider": html.escape(provider),
+            "username": f"<code>{html.escape(account['username'])}</code>",
+            "password": f"<code>{html.escape(account['password'])}</code>",
+        },
     )
+    await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
 
 @router.message(F.text == "🔄 更换游戏账号")
 async def handle_change_account_menu(
-    message: Message, pool: asyncpg.Pool
+    message: Message,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("game_not_registered", language=lang))
         return
 
     accounts = await get_user_game_accounts(pool, user["id"])
     if not accounts:
-        await message.answer("您尚未领取任何游戏账号。\n请先在「🎮 我的游戏账号」领取账号。")
+        await message.answer(
+            await messages.get_message("game_no_accounts_to_change", language=lang)
+        )
         return
 
     providers_with_accounts = [acc["provider"] for acc in accounts]
     keyboard = build_provider_select_keyboard("game_change", providers_with_accounts)
-    await message.answer("请选择要更换的游戏平台：", reply_markup=keyboard)
+    await message.answer(
+        await messages.get_message("game_select_change_platform", language=lang),
+        reply_markup=keyboard,
+    )
 
 
 @router.callback_query(F.data.startswith("game_change:"))
@@ -129,15 +160,23 @@ async def handle_change_account(
     callback: CallbackQuery,
     pool: asyncpg.Pool,
     config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
     if provider not in PROVIDERS:
-        await callback.answer("无效的平台。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_invalid_platform", language=lang),
+            show_alert=True,
+        )
         return
 
     user = await get_user_by_telegram_id(pool, callback.from_user.id)
     if not user:
-        await callback.answer("您尚未注册。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_not_registered", language=lang),
+            show_alert=True,
+        )
         return
 
     # Check cooldown
@@ -146,18 +185,22 @@ async def handle_change_account(
     )
     if in_cooldown:
         next_str = next_time.strftime("%Y-%m-%d %H:%M UTC") if next_time else "稍后"
-        await callback.answer(
-            f"❌ {provider} 距上次更换不足 {config.account_change_cooldown_hours} 小时。\n"
-            f"请于 {next_str} 后再试。",
-            show_alert=True,
+        cooldown_text = await messages.get_message(
+            "game_change_cooldown",
+            language=lang,
+            variables={
+                "provider": provider,
+                "cooldown_hours": config.account_change_cooldown_hours,
+                "next_time": next_str,
+            },
         )
+        await callback.answer(cooldown_text, show_alert=True)
         return
 
     # Attempt atomic release + reassign
     result = await release_and_reassign(pool, user["id"], provider)
 
     if result is None:
-        # No new stock — fetch current account to show in error
         accounts = await get_user_game_accounts(pool, user["id"])
         current = next((a for a in accounts if a["provider"] == provider), None)
         current_info = (
@@ -165,10 +208,12 @@ async def handle_change_account(
             if current
             else ""
         )
-        await callback.answer(
-            f"⚠️ 当前没有可用的新账号。\n您的现有账号保持不变。{current_info}",
-            show_alert=True,
+        no_stock_text = await messages.get_message(
+            "game_no_new_stock",
+            language=lang,
+            variables={"current_info": current_info},
         )
+        await callback.answer(no_stock_text, show_alert=True)
         return
 
     old_username, new_account = result
@@ -183,45 +228,75 @@ async def handle_change_account(
         ),
     ]])
 
+    success_text = await messages.get_message(
+        "game_change_success",
+        language=lang,
+        variables={
+            "provider": html.escape(provider),
+            "old_username": html.escape(old_username),
+            "new_username": f"<code>{html.escape(new_account['username'])}</code>",
+            "new_password": f"<code>{html.escape(new_account['password'])}</code>",
+        },
+    )
+    await callback.message.answer(success_text, reply_markup=keyboard, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("game_copy_user:"))
+async def handle_copy_username(
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = callback.from_user.language_code or "zh"
+    provider = callback.data.split(":", 1)[1]
+    user = await get_user_by_telegram_id(pool, callback.from_user.id)
+    if not user:
+        await callback.answer(
+            await messages.get_message("game_not_registered", language=lang),
+            show_alert=True,
+        )
+        return
+    accounts = await get_user_game_accounts(pool, user["id"])
+    account = next((a for a in accounts if a["provider"] == provider), None)
+    if not account:
+        await callback.answer(
+            await messages.get_message("game_account_not_found", language=lang),
+            show_alert=True,
+        )
+        return
     await callback.message.answer(
-        f"✅ 更换成功\n\n"
-        f"🎮 平台：{html.escape(provider)}\n\n"
-        f"📤 旧账号：{html.escape(old_username)}\n"
-        f"📥 新账号：<code>{html.escape(new_account['username'])}</code>\n"
-        f"🔑 密码：<code>{html.escape(new_account['password'])}</code>",
-        reply_markup=keyboard,
+        f"账号：<code>{html.escape(account['username'])}</code>",
         parse_mode="HTML",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("game_copy_user:"))
-async def handle_copy_username(callback: CallbackQuery, pool: asyncpg.Pool) -> None:
-    provider = callback.data.split(":", 1)[1]
-    user = await get_user_by_telegram_id(pool, callback.from_user.id)
-    if not user:
-        await callback.answer("您尚未注册。", show_alert=True)
-        return
-    accounts = await get_user_game_accounts(pool, user["id"])
-    account = next((a for a in accounts if a["provider"] == provider), None)
-    if not account:
-        await callback.answer("找不到该平台账号。", show_alert=True)
-        return
-    await callback.message.answer(f"账号：<code>{html.escape(account['username'])}</code>", parse_mode="HTML")
-    await callback.answer()
-
-
 @router.callback_query(F.data.startswith("game_copy_pass:"))
-async def handle_copy_password(callback: CallbackQuery, pool: asyncpg.Pool) -> None:
+async def handle_copy_password(
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
     user = await get_user_by_telegram_id(pool, callback.from_user.id)
     if not user:
-        await callback.answer("您尚未注册。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_not_registered", language=lang),
+            show_alert=True,
+        )
         return
     accounts = await get_user_game_accounts(pool, user["id"])
     account = next((a for a in accounts if a["provider"] == provider), None)
     if not account:
-        await callback.answer("找不到该平台账号。", show_alert=True)
+        await callback.answer(
+            await messages.get_message("game_account_not_found", language=lang),
+            show_alert=True,
+        )
         return
-    await callback.message.answer(f"密码：<code>{html.escape(account['password'])}</code>", parse_mode="HTML")
+    await callback.message.answer(
+        f"密码：<code>{html.escape(account['password'])}</code>",
+        parse_mode="HTML",
+    )
     await callback.answer()

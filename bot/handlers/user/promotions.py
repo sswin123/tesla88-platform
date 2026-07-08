@@ -20,6 +20,7 @@ from bot.keyboards.promotions import (
     games_label,
     promo_type_label,
 )
+from bot.services import BotMessageService
 from db.repositories.promotion_repo import (
     get_active_promotions,
     get_promotion_by_id,
@@ -126,15 +127,21 @@ def _build_detail_text(promo: asyncpg.Record) -> str:
 
 @router.message(F.text == "🎁 优惠中心")
 async def handle_promo_center(
-    message: Message, pool: asyncpg.Pool, state: FSMContext
+    message: Message,
+    pool: asyncpg.Pool,
+    state: FSMContext,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     await state.clear()
     promotions = await get_active_promotions(pool)
     if not promotions:
-        await message.answer("目前暂无进行中的优惠。敬请期待！")
+        await message.answer(
+            await messages.get_message("promo_none_active", language=lang)
+        )
         return
     await message.answer(
-        "🎁 <b>优惠中心</b>\n\n请选择您感兴趣的优惠：",
+        await messages.get_message("promo_list_header", language=lang),
         reply_markup=build_promo_list_keyboard(promotions),
         parse_mode="HTML",
     )
@@ -144,12 +151,19 @@ async def handle_promo_center(
 
 
 @router.message(F.text == "🎁 我的优惠")
-async def handle_my_promos(message: Message, pool: asyncpg.Pool) -> None:
+async def handle_my_promos(
+    message: Message,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(
+            await messages.get_message("promo_not_registered", language=lang)
+        )
         return
-    await _send_my_promos(message.answer, pool, user["id"])
+    await _send_my_promos(message.answer, pool, user["id"], messages, lang)
 
 
 # ── Inline: back to list ───────────────────────────────────────────────────────
@@ -157,12 +171,16 @@ async def handle_my_promos(message: Message, pool: asyncpg.Pool) -> None:
 
 @router.callback_query(F.data == "promo_list")
 async def cb_promo_list(
-    callback: CallbackQuery, pool: asyncpg.Pool, state: FSMContext
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    state: FSMContext,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     await state.clear()
     promotions = await get_active_promotions(pool)
     await callback.message.edit_text(
-        "🎁 <b>优惠中心</b>\n\n请选择您感兴趣的优惠：",
+        await messages.get_message("promo_list_header", language=lang),
         reply_markup=build_promo_list_keyboard(promotions),
         parse_mode="HTML",
     )
@@ -174,13 +192,20 @@ async def cb_promo_list(
 
 @router.callback_query(F.data.startswith("promo:"))
 async def cb_promo_detail(
-    callback: CallbackQuery, pool: asyncpg.Pool, state: FSMContext
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    state: FSMContext,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     await state.clear()
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
     if not promo or not is_promo_available(promo):
-        await callback.answer("⚠️ 该优惠已下线", show_alert=True)
+        await callback.answer(
+            await messages.get_message("promo_unavailable", language=lang),
+            show_alert=True,
+        )
         return
 
     await callback.message.edit_text(
@@ -196,12 +221,19 @@ async def cb_promo_detail(
 
 @router.callback_query(F.data.startswith("promo_calc:"))
 async def cb_promo_calculate(
-    callback: CallbackQuery, pool: asyncpg.Pool, state: FSMContext
+    callback: CallbackQuery,
+    pool: asyncpg.Pool,
+    state: FSMContext,
+    messages: BotMessageService,
 ) -> None:
+    lang = callback.from_user.language_code or "zh"
     promo_id = int(callback.data.split(":", 1)[1])
     promo = await get_promotion_by_id(pool, promo_id)
     if not promo or not is_promo_available(promo):
-        await callback.answer("⚠️ 该优惠已下线", show_alert=True)
+        await callback.answer(
+            await messages.get_message("promo_unavailable", language=lang),
+            show_alert=True,
+        )
         return
 
     await state.set_state(PromoStates.waiting_deposit_amount)
@@ -214,7 +246,7 @@ async def cb_promo_calculate(
         reply_markup=None,
     )
     await callback.message.answer(
-        "🧮 请输入充值金额（RM）\n\n例如：\n100\n300\n500",
+        await messages.get_message("promo_enter_amount", language=lang),
         reply_markup=build_back_cancel_keyboard(),
     )
     await callback.answer()
@@ -225,8 +257,12 @@ async def cb_promo_calculate(
 
 @router.message(PromoStates.waiting_deposit_amount, F.text == "⬅️ 返回")
 async def promo_back_from_calc(
-    message: Message, state: FSMContext, pool: asyncpg.Pool
+    message: Message,
+    state: FSMContext,
+    pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     promo_id = data.get("promo_id")
     await state.clear()
@@ -244,7 +280,10 @@ async def promo_back_from_calc(
 
     from bot.keyboards.game_accounts import build_main_menu_keyboard
     await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
-    await message.answer("❌ 优惠已失效，已返回主菜单。", reply_markup=build_main_menu_keyboard())
+    await message.answer(
+        await messages.get_message("promo_expired", language=lang),
+        reply_markup=build_main_menu_keyboard(),
+    )
 
 
 # ── FSM: receive deposit amount and calculate ─────────────────────────────────
@@ -252,8 +291,12 @@ async def promo_back_from_calc(
 
 @router.message(PromoStates.waiting_deposit_amount)
 async def handle_deposit_input(
-    message: Message, pool: asyncpg.Pool, state: FSMContext
+    message: Message,
+    pool: asyncpg.Pool,
+    state: FSMContext,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     raw = (message.text or "").strip().lstrip("RrMm").strip()
     try:
         deposit = Decimal(raw)
@@ -261,7 +304,7 @@ async def handle_deposit_input(
             raise ValueError
     except (InvalidOperation, ValueError):
         await message.answer(
-            "⚠️ 输入格式错误\n\n请输入正确金额，例如：\n\n100\n300\n500"
+            await messages.get_message("promo_amount_invalid", language=lang)
         )
         return
 
@@ -270,16 +313,21 @@ async def handle_deposit_input(
     promo = await get_promotion_by_id(pool, promo_id)
     if not promo or not is_promo_available(promo):
         await state.clear()
-        await message.answer("⚠️ 优惠已失效，请重新选择。")
+        await message.answer(
+            await messages.get_message("promo_unavailable", language=lang)
+        )
         return
 
     min_dep: Decimal = promo["min_deposit"]
     if deposit < min_dep:
         await message.answer(
-            f"⚠️ 此优惠最低充值为 RM{min_dep:,.2f}\n\n请重新输入金额："
+            await messages.get_message(
+                "promo_min_not_met",
+                language=lang,
+                variables={"min_dep": min_dep},
+            )
         )
         return
-
 
     max_bonus: Optional[Decimal] = promo["max_bonus"]
     ttype = promo.get("turnover_type", "BONUS")
@@ -330,12 +378,17 @@ async def handle_deposit_input(
 # ── Helper: my promos render ──────────────────────────────────────────────────
 
 
-async def _send_my_promos(answer_fn, pool: asyncpg.Pool, user_id: int) -> None:
+async def _send_my_promos(
+    answer_fn,
+    pool: asyncpg.Pool,
+    user_id: int,
+    messages: BotMessageService,
+    lang: str = "zh",
+) -> None:
     claims = await get_user_active_claims(pool, user_id)
     if not claims:
         await answer_fn(
-            "🎁 <b>我的优惠</b>\n\n您目前没有进行中的优惠。\n\n"
-            "点击「🎁 优惠中心」查看可选择的优惠！",
+            await messages.get_message("promo_my_claims_empty", language=lang),
             parse_mode="HTML",
         )
         return
