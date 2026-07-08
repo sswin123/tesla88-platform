@@ -30,7 +30,9 @@ from db.repositories.deposit_repo import (
     update_deposit_notification_msg_id,
 )
 from db.repositories.promotion_repo import (
+    can_member_claim_promotion,
     get_active_promotions,
+    get_eligible_promotions_for_member,
     get_promotion_by_id,
     has_daily_claim_today,
     has_first_deposit_claim,
@@ -162,7 +164,7 @@ async def cb_deposit_provider(
             return
         # Promo went offline — fall through to normal promo selection
 
-    promotions = await get_active_promotions(pool)
+    promotions = await get_eligible_promotions_for_member(pool, data["user_id"])
     await state.set_state(DepositStates.waiting_promo)
     await callback.message.edit_text(
         f"💰 充值 — {html.escape(provider)}\n\n请选择优惠：",
@@ -344,7 +346,7 @@ async def dep_back_from_amount(
         )
     else:
         # Normal flow — back to promo selection
-        promotions = await get_active_promotions(pool)
+        promotions = await get_eligible_promotions_for_member(pool, data["user_id"])
         await state.set_state(DepositStates.waiting_promo)
         await message.answer("⬅️ 返回", reply_markup=ReplyKeyboardRemove())
         await message.answer(
@@ -602,6 +604,18 @@ async def process_deposit_receipt(
 ) -> None:
     data = await state.get_data()
     file_id = message.photo[-1].file_id
+
+    promotion_id = data.get("promotion_id")
+    if promotion_id:
+        eligible = await can_member_claim_promotion(pool, data["user_id"], promotion_id)
+        if not eligible:
+            await state.clear()
+            await message.answer(
+                "⚠️ 该优惠已无法申请（您已使用过此优惠或已有待审核申请）。\n\n"
+                "请重新发起充值并选择其他优惠。",
+                reply_markup=build_main_menu_keyboard(),
+            )
+            return
 
     req = await create_deposit_request(
         pool,

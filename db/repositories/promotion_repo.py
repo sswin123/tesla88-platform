@@ -181,6 +181,57 @@ async def update_claim_status(
     )
 
 
+async def can_member_claim_promotion(
+    pool: asyncpg.Pool, user_id: int, promo_id: int
+) -> bool:
+    """Return True if the member is eligible to claim this promotion.
+
+    FIRST_DEPOSIT: blocked if any deposit_request using a FIRST_DEPOSIT promo
+                   is PENDING or APPROVED (i.e. claim is in-flight or done).
+                   REJECTED deposits allow a retry.
+    DAILY:         blocked if an ACTIVE/COMPLETED claim already exists today.
+    WEEKLY:        blocked if an ACTIVE/COMPLETED claim exists this ISO week.
+    UNLIMITED/MANUAL: always eligible.
+    """
+    promo = await get_promotion_by_id(pool, promo_id)
+    if not promo:
+        return False
+
+    promo_type = promo["promotion_type"]
+
+    if promo_type == "FIRST_DEPOSIT":
+        row = await pool.fetchrow(
+            """
+            SELECT dr.id FROM deposit_requests dr
+            JOIN promotions p ON p.id = dr.promotion_id
+            WHERE dr.user_id = $1
+              AND p.promotion_type = 'FIRST_DEPOSIT'
+              AND dr.status IN ('PENDING', 'APPROVED')
+            LIMIT 1
+            """,
+            user_id,
+        )
+        return row is None
+    elif promo_type == "DAILY":
+        return not await has_daily_claim_today(pool, user_id, promo_id)
+    elif promo_type == "WEEKLY":
+        return not await has_weekly_claim_this_week(pool, user_id, promo_id)
+    else:  # UNLIMITED, MANUAL
+        return True
+
+
+async def get_eligible_promotions_for_member(
+    pool: asyncpg.Pool, user_id: int
+) -> list[asyncpg.Record]:
+    """Return active promotions the member is still eligible to claim."""
+    promotions = await get_active_promotions(pool)
+    eligible = []
+    for promo in promotions:
+        if await can_member_claim_promotion(pool, user_id, promo["id"]):
+            eligible.append(promo)
+    return eligible
+
+
 async def create_promotion(
     pool: asyncpg.Pool,
     *,
