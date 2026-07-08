@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(request: NextRequest) {
+  if (!await requirePermission('withdraw.view')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const { searchParams } = request.nextUrl;
   const status = searchParams.get('status')?.trim() ?? '';
   const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));

@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { mediaService } from '@/lib/media';
 import { setSettings } from '@/lib/repositories/settings_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png']);
 
-async function requireSuperAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload || payload.role !== 'SUPER_ADMIN') return null;
-  return payload;
-}
-
 export async function POST(request: NextRequest) {
-  const payload = await requireSuperAdmin();
+  const payload = await requirePermission('bot.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let formData: FormData;

@@ -1,19 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { setSettings } from '@/lib/repositories/settings_repo';
 import { getMe } from '@/lib/telegram/bot_api';
-
-async function requireSuperAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload || payload.role !== 'SUPER_ADMIN') return null;
-  return payload;
-}
+import { requirePermission } from '@/lib/require_permission';
 
 export async function POST() {
-  const payload = await requireSuperAdmin();
+  const payload = await requirePermission('bot.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const botToken = process.env.BOT_TOKEN ?? '';

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAllSettings, setSettings } from '@/lib/repositories/settings_repo';
+import { requirePermission } from '@/lib/require_permission';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import {
   getMe,
@@ -36,13 +35,6 @@ const USER_WRITABLE_KEYS = new Set([
 // Keys that map to Telegram profile API calls
 const TG_PROFILE_KEYS = new Set(['bot_name', 'bot_description', 'bot_short_description']);
 
-async function requireSuperAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload || payload.role !== 'SUPER_ADMIN') return null;
-  return payload;
-}
 
 function maskToken(t: string): string {
   if (!t || t.length < 10) return '***';
@@ -50,7 +42,7 @@ function maskToken(t: string): string {
 }
 
 export async function GET() {
-  const payload = await requireSuperAdmin();
+  const payload = await requirePermission('bot.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const all = await getAllSettings();
@@ -67,7 +59,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const payload = await requireSuperAdmin();
+  const payload = await requirePermission('bot.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: Record<string, string>;

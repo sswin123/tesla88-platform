@@ -24,6 +24,11 @@ vi.mock('@/lib/repositories/audit_repo', () => ({
   logAudit: vi.fn(),
 }));
 
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
+
 import { GET as listGet, POST as listPost } from '@/app/api/broadcast/route';
 import { GET as detailGet, PATCH, DELETE } from '@/app/api/broadcast/[id]/route';
 import { POST as sendPost } from '@/app/api/broadcast/[id]/send/route';

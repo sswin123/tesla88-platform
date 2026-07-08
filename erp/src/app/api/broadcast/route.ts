@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getBroadcasts, createBroadcast } from '@/lib/repositories/broadcast_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { requirePermission } from '@/lib/require_permission';
 import type { BroadcastContentType, BroadcastAudienceType, BroadcastChannel } from '@/lib/types';
 
 const VALID_CONTENT_TYPES = new Set([
@@ -13,14 +12,8 @@ const VALID_AUDIENCE_TYPES = new Set([
 ]);
 const VALID_CHANNELS = new Set(['TELEGRAM', 'LIVECHAT']);
 
-async function requireAuth(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  return token ? await verifyJWT(token) : null;
-}
-
 export async function GET(req: NextRequest) {
-  const payload = await requireAuth(req);
+  const payload = await requirePermission('broadcast.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const sp     = req.nextUrl.searchParams;
@@ -34,7 +27,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const payload = await requireAuth(req);
+  const payload = await requirePermission('broadcast.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;

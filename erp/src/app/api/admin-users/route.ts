@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAllAdmins, createAdmin } from '@/lib/repositories/admin_repo';
 import type { AdminRole } from '@/lib/types';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 const VALID_ROLES: AdminRole[] = ['SUPER_ADMIN', 'ADMIN', 'CS', 'FINANCE', 'SUPERVISOR', 'SUPPORT'];
 
-async function getSuperAdminPayload() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload) return null;
-  if (payload.role !== 'SUPER_ADMIN') return null;
-  return payload;
-}
-
 export async function GET() {
-  const payload = await getSuperAdminPayload();
+  const payload = await requirePermission('staff.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admins = await getAllAdmins();
@@ -25,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = await getSuperAdminPayload();
+  const payload = await requirePermission('staff.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: {

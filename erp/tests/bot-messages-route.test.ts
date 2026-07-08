@@ -16,6 +16,11 @@ vi.mock('@/lib/repositories/audit_repo', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
+
 const mockListBotMessages     = vi.fn();
 const mockUpdateBotMessage    = vi.fn();
 const mockResetBotMessage     = vi.fn();
@@ -286,6 +291,9 @@ describe('Test 7 — Permission checks', () => {
     vi.mocked(verifyJWT).mockResolvedValueOnce({
       sub: 2, username: 'cs_user', role: 'CS', iat: 0, exp: 0,
     });
+    const { can } = await import('@/lib/permission_engine');
+    vi.mocked(can).mockResolvedValueOnce(false);
+
     const req = makeReq('GET', 'http://localhost/api/bot/messages');
     const res = await listMessages(req);
     expect(res.status).toBe(401);
@@ -296,6 +304,9 @@ describe('Test 7 — Permission checks', () => {
     vi.mocked(verifyJWT).mockResolvedValueOnce({
       sub: 3, username: 'finance_user', role: 'FINANCE', iat: 0, exp: 0,
     });
+    const { can } = await import('@/lib/permission_engine');
+    vi.mocked(can).mockResolvedValueOnce(false);
+
     const req = makeReq('PATCH', 'http://localhost/api/bot/messages/start_new_user', {
       language_code: 'zh',
       content: 'hacked',

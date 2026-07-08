@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getFinanceReport } from '@/lib/repositories/finance_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 function getDefaultDates(): { start: string; end: string } {
   const now = new Date();
@@ -14,10 +13,7 @@ function getDefaultDates(): { start: string; end: string } {
 
 // GET /api/finance/reports?start=YYYY-MM-DD&end=YYYY-MM-DD
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload) {
+  if (!await requirePermission('finance.view')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
