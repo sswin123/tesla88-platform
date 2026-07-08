@@ -30,6 +30,7 @@ from db.repositories.livechat_repo import (
     update_last_message_at,
     update_session_notification_msg_id,
 )
+from bot.services import BotMessageService
 from db.repositories.user_repo import get_user_by_telegram_id
 
 logger = logging.getLogger(__name__)
@@ -163,32 +164,32 @@ class HasLivechatSession(BaseFilter):
 
 @router.message(F.text == "📞 联系客服")
 async def handle_livechat_menu(
-    message: Message, state: FSMContext, pool: asyncpg.Pool
+    message: Message, state: FSMContext, pool: asyncpg.Pool, messages: BotMessageService
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("support_not_registered", language=lang))
         return
     if user["status"] == "FROZEN":
-        await message.answer("❌ 您的账号已被冻结，无法联系客服。")
+        await message.answer(await messages.get_message("support_account_frozen", language=lang))
         return
 
     existing = await get_open_or_active_session(pool, user["id"])
     if existing:
-        await message.answer("⚠️ 您已有進行中的客服會話。\n\n請直接發送消息繼續溝通。")
+        await message.answer(
+            await messages.get_message(
+                "support_session_exists",
+                language=lang,
+                variables={"session_id": existing["id"]},
+            )
+        )
         return
 
     await state.update_data(user_id=user["id"])
     await state.set_state(LiveChatStates.waiting_initial_message)
     await message.answer(
-        "💬 联系客服\n\n"
-        "请描述您遇到的问题。\n\n"
-        "支持：\n"
-        "✅ 文字\n"
-        "✅ 图片\n"
-        "✅ 文件\n"
-        "✅ 语音\n\n"
-        "客服会尽快回复您。",
+        await messages.get_message("support_menu", language=lang),
         reply_markup=build_livechat_cancel_keyboard(),
     )
 
@@ -199,9 +200,14 @@ async def handle_livechat_menu(
 @router.callback_query(
     LiveChatStates.waiting_initial_message, F.data == "lc_cancel"
 )
-async def cb_cancel_livechat(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_cancel_livechat(
+    callback: CallbackQuery, state: FSMContext, messages: BotMessageService
+) -> None:
+    lang = callback.from_user.language_code or "zh"
     await state.clear()
-    await callback.message.edit_text("❌ 已取消客服请求。")
+    await callback.message.edit_text(
+        await messages.get_message("support_cancelled", language=lang)
+    )
     await callback.answer()
 
 
@@ -215,7 +221,9 @@ async def handle_initial_message(
     pool: asyncpg.Pool,
     bot: Bot,
     config: Config,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     data = await state.get_data()
     user_id = data["user_id"]
 
@@ -232,9 +240,11 @@ async def handle_initial_message(
     if existing:
         await state.clear()
         await message.answer(
-            "⚠️ 您已有进行中的客服会话。\n\n"
-            f"会话编号：#{existing['id']}\n\n"
-            "请直接发送消息继续沟通。"
+            await messages.get_message(
+                "support_session_exists",
+                language=lang,
+                variables={"session_id": existing["id"]},
+            )
         )
         return
 
@@ -273,13 +283,15 @@ async def handle_initial_message(
     if session is None:
         session = await get_open_or_active_session(pool, user_id)
         if session is None:
-            await message.answer("⚠️ 系统繁忙，请稍后重试。")
+            await message.answer(await messages.get_message("support_system_busy", language=lang))
             return
         await state.clear()
         await message.answer(
-            "✅ 客服请求已提交\n\n"
-            f"会话编号：\n#{session['id']}\n\n"
-            "客服将尽快为您服务。"
+            await messages.get_message(
+                "support_submitted",
+                language=lang,
+                variables={"session_id": session["id"]},
+            )
         )
         return
 
@@ -372,11 +384,11 @@ async def handle_initial_message(
             )
 
     await message.answer(
-        f"✅ 客服请求已提交\n\n"
-        f"會話編號：\n"
-        f"#{session_id}\n\n"
-        f"客服將盡快為您服務。\n\n"
-        f"請保持在線。"
+        await messages.get_message(
+            "support_submitted",
+            language=lang,
+            variables={"session_id": session_id},
+        )
     )
 
 

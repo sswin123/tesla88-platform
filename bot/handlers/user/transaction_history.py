@@ -5,6 +5,7 @@ from aiogram.types import Message
 
 import asyncpg
 
+from bot.services import BotMessageService
 from db.repositories.deposit_repo import get_user_deposit_history
 from db.repositories.user_repo import get_user_by_telegram_id
 from db.repositories.withdrawal_repo import get_user_withdrawal_history
@@ -26,18 +27,22 @@ _WITHDRAWAL_STATUS = {
 
 
 @router.message(F.text == "📜 充值记录")
-async def handle_deposit_history(message: Message, pool: asyncpg.Pool) -> None:
+async def handle_deposit_history(
+    message: Message, pool: asyncpg.Pool, messages: BotMessageService
+) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("support_not_registered", language=lang))
         return
 
     records = await get_user_deposit_history(pool, user["id"])
     if not records:
-        await message.answer("📜 充值记录\n\n暂无充值记录。")
+        await message.answer(await messages.get_message("history_deposit_empty", language=lang))
         return
 
-    parts = ["📜 充值记录（最近 10 条）\n"]
+    header = await messages.get_message("history_deposit_header", language=lang)
+    parts = [header + "\n"]
     for r in records:
         bonus_amount = float(r["bonus_amount"])
         credit_amount = float(r["credit_amount"])
@@ -56,18 +61,22 @@ async def handle_deposit_history(message: Message, pool: asyncpg.Pool) -> None:
 
 
 @router.message(F.text == "📜 提款记录")
-async def handle_withdrawal_history(message: Message, pool: asyncpg.Pool) -> None:
+async def handle_withdrawal_history(
+    message: Message, pool: asyncpg.Pool, messages: BotMessageService
+) -> None:
+    lang = message.from_user.language_code or "zh"
     user = await get_user_by_telegram_id(pool, message.from_user.id)
     if not user:
-        await message.answer("您尚未注册。请发送 /start 开始注册。")
+        await message.answer(await messages.get_message("support_not_registered", language=lang))
         return
 
     records = await get_user_withdrawal_history(pool, user["id"])
     if not records:
-        await message.answer("📜 提款记录\n\n暂无提款记录。")
+        await message.answer(await messages.get_message("history_withdraw_empty", language=lang))
         return
 
-    parts = ["📜 提款记录（最近 10 条）\n"]
+    header = await messages.get_message("history_withdraw_header", language=lang)
+    parts = [header + "\n"]
     for r in records:
         status_text = _WITHDRAWAL_STATUS.get(r["status"], r["status"])
         entry = (
