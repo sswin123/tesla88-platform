@@ -15,8 +15,8 @@ from bot.keyboards.registration import (
     build_bank_keyboard,
     registration_start_keyboard,
 )
-from bot.utils.phone import normalize_phone
 from bot.services import BotMessageService
+from bot.utils.phone import normalize_phone
 from db.repositories.free_list_repo import check_phone_in_free_list
 from db.repositories.user_repo import (
     create_user,
@@ -26,14 +26,6 @@ from db.repositories.user_repo import (
 )
 
 router = Router()
-
-_PHONE_PROMPT = (
-    "请输入您的电话号码：\n\n"
-    "支持格式：\n"
-    "  0123456789\n"
-    "  60123456789\n"
-    "  +60123456789"
-)
 
 
 class RegistrationStates(StatesGroup):
@@ -79,68 +71,95 @@ async def cb_register_start(
     callback: CallbackQuery,
     state: FSMContext,
     pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
     user = await get_user_by_telegram_id(pool, callback.from_user.id)
     if user:
-        await callback.answer("此 Telegram 已注册。", show_alert=True)
+        lang = callback.from_user.language_code or "zh"
+        text = await messages.get_message("register_telegram_exists", language=lang)
+        await callback.answer(text, show_alert=True)
         return
 
+    lang = callback.from_user.language_code or "zh"
     await state.set_state(RegistrationStates.waiting_phone)
-    await callback.message.answer(_PHONE_PROMPT, reply_markup=back_keyboard())
+    text = await messages.get_message("register_enter_phone", language=lang)
+    await callback.message.answer(text, reply_markup=back_keyboard())
     await callback.answer()
 
 
 # ── Back navigation ───────────────────────────────────────────────────────────
 
 @router.message(RegistrationStates.waiting_phone, F.text == "⬅️ 返回")
-async def reg_back_to_start(message: Message, state: FSMContext) -> None:
+async def reg_back_to_start(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     await state.clear()
-    await message.answer("欢迎注册会员\n\n请选择：", reply_markup=registration_start_keyboard())
+    lang = message.from_user.language_code or "zh"
+    text = await messages.get_message("start_new_user", language=lang)
+    await message.answer(text, reply_markup=registration_start_keyboard())
 
 
 @router.message(RegistrationStates.waiting_bank, F.text == "⬅️ 返回")
-async def reg_back_to_phone(message: Message, state: FSMContext) -> None:
+async def reg_back_to_phone(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     data = await state.get_data()
     phone = data.get("phone", "")
     hint = f"（上次输入：{phone}）\n\n" if phone else ""
     await state.set_state(RegistrationStates.waiting_phone)
-    await message.answer(
-        f"请重新输入电话号码：\n\n{hint}"
-        "支持格式：\n"
-        "  0123456789\n"
-        "  60123456789\n"
-        "  +60123456789",
-        reply_markup=back_keyboard(),
+    lang = message.from_user.language_code or "zh"
+    text = await messages.get_message(
+        "register_back_to_phone",
+        language=lang,
+        variables={"hint": hint},
     )
+    await message.answer(text, reply_markup=back_keyboard())
 
 
 @router.message(RegistrationStates.waiting_bank_custom, F.text == "⬅️ 返回")
-async def reg_back_to_bank_from_custom(message: Message, state: FSMContext) -> None:
+async def reg_back_to_bank_from_custom(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     await state.set_state(RegistrationStates.waiting_bank)
-    await message.answer(
-        "请重新选择银行或电子钱包：",
-        reply_markup=build_bank_keyboard("reg_bank"),
-    )
+    lang = message.from_user.language_code or "zh"
+    text = await messages.get_message("register_back_to_bank", language=lang)
+    await message.answer(text, reply_markup=build_bank_keyboard("reg_bank"))
 
 
 @router.message(RegistrationStates.waiting_bank_account, F.text == "⬅️ 返回")
-async def reg_back_to_bank(message: Message, state: FSMContext) -> None:
+async def reg_back_to_bank(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     await state.set_state(RegistrationStates.waiting_bank)
-    await message.answer(
-        "请重新选择银行或电子钱包：",
-        reply_markup=build_bank_keyboard("reg_bank"),
-    )
+    lang = message.from_user.language_code or "zh"
+    text = await messages.get_message("register_back_to_bank", language=lang)
+    await message.answer(text, reply_markup=build_bank_keyboard("reg_bank"))
 
 
 @router.message(RegistrationStates.waiting_bank_holder, F.text == "⬅️ 返回")
-async def reg_back_to_account(message: Message, state: FSMContext) -> None:
+async def reg_back_to_account(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     data = await state.get_data()
     bank_name = data.get("bank_name", "")
     await state.set_state(RegistrationStates.waiting_bank_account)
-    await message.answer(
-        f"已选择：{bank_name}\n\n请重新输入银行账号：",
-        reply_markup=back_keyboard(),
+    lang = message.from_user.language_code or "zh"
+    text = await messages.get_message(
+        "register_back_to_account",
+        language=lang,
+        variables={"bank_name": bank_name},
     )
+    await message.answer(text, reply_markup=back_keyboard())
 
 
 # ── Forward navigation ────────────────────────────────────────────────────────
@@ -150,68 +169,82 @@ async def process_phone(
     message: Message,
     state: FSMContext,
     pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     phone = normalize_phone(message.text or "")
     if phone is None:
-        await message.answer(
-            "电话号码格式不正确，请重新输入：\n\n"
-            "支持格式：\n"
-            "  0123456789\n"
-            "  60123456789\n"
-            "  +60123456789"
-        )
+        text = await messages.get_message("register_phone_invalid", language=lang)
+        await message.answer(text)
         return
 
     existing = await get_user_by_phone(pool, phone)
     if existing:
         await state.clear()
-        await message.answer("此电话号码已注册。", reply_markup=ReplyKeyboardRemove())
+        text = await messages.get_message("register_phone_exists", language=lang)
+        await message.answer(text, reply_markup=ReplyKeyboardRemove())
         return
 
     await state.update_data(phone=phone)
     await state.set_state(RegistrationStates.waiting_bank)
-    await message.answer(
-        "请选择您的银行或电子钱包：",
-        reply_markup=build_bank_keyboard("reg_bank"),
-    )
+    text = await messages.get_message("register_select_bank", language=lang)
+    await message.answer(text, reply_markup=build_bank_keyboard("reg_bank"))
 
 
 # "Other" handler must come BEFORE the general reg_bank handler
 @router.callback_query(RegistrationStates.waiting_bank, F.data == "reg_bank:Other")
-async def process_bank_other(callback: CallbackQuery, state: FSMContext) -> None:
+async def process_bank_other(
+    callback: CallbackQuery,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     await state.set_state(RegistrationStates.waiting_bank_custom)
-    await callback.message.answer(
-        "请输入您的银行或电子钱包名称：",
-        reply_markup=back_keyboard(),
-    )
+    lang = callback.from_user.language_code or "zh"
+    text = await messages.get_message("register_enter_custom_bank", language=lang)
+    await callback.message.answer(text, reply_markup=back_keyboard())
     await callback.answer()
 
 
 @router.callback_query(RegistrationStates.waiting_bank, F.data.startswith("reg_bank:"))
-async def process_bank_selection(callback: CallbackQuery, state: FSMContext) -> None:
+async def process_bank_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
     bank_key = callback.data.split(":", 1)[1]
     bank_name = BANK_FULL_NAMES.get(bank_key, bank_key)
     await state.update_data(bank_name=bank_name)
     await state.set_state(RegistrationStates.waiting_bank_account)
-    await callback.message.answer(
-        f"已选择：{bank_name}\n\n请输入银行账号：",
-        reply_markup=back_keyboard(),
+    lang = callback.from_user.language_code or "zh"
+    text = await messages.get_message(
+        "register_bank_selected",
+        language=lang,
+        variables={"bank_name": bank_name},
     )
+    await callback.message.answer(text, reply_markup=back_keyboard())
     await callback.answer()
 
 
 @router.message(RegistrationStates.waiting_bank_custom)
-async def process_bank_custom(message: Message, state: FSMContext) -> None:
+async def process_bank_custom(
+    message: Message,
+    state: FSMContext,
+    messages: BotMessageService,
+) -> None:
+    lang = message.from_user.language_code or "zh"
     bank_name = (message.text or "").strip()
     if not bank_name:
-        await message.answer("银行名称不能为空，请重新输入：")
+        text = await messages.get_message("register_bank_name_empty", language=lang)
+        await message.answer(text)
         return
     await state.update_data(bank_name=bank_name)
     await state.set_state(RegistrationStates.waiting_bank_account)
-    await message.answer(
-        f"已选择：{bank_name}\n\n请输入银行账号：",
-        reply_markup=back_keyboard(),
+    text = await messages.get_message(
+        "register_bank_selected",
+        language=lang,
+        variables={"bank_name": bank_name},
     )
+    await message.answer(text, reply_markup=back_keyboard())
 
 
 @router.message(RegistrationStates.waiting_bank_account)
@@ -219,20 +252,25 @@ async def process_bank_account(
     message: Message,
     state: FSMContext,
     pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     bank_account = (message.text or "").strip()
     if not bank_account:
-        await message.answer("银行账号不能为空，请重新输入：")
+        text = await messages.get_message("register_account_empty", language=lang)
+        await message.answer(text)
         return
 
     existing = await get_user_by_bank_account(pool, bank_account)
     if existing:
-        await message.answer("此银行账号已被使用，请输入其他账号：")
+        text = await messages.get_message("register_account_exists", language=lang)
+        await message.answer(text)
         return
 
     await state.update_data(bank_account=bank_account)
     await state.set_state(RegistrationStates.waiting_bank_holder)
-    await message.answer("请输入银行户口姓名（请与银行资料一致）：", reply_markup=back_keyboard())
+    text = await messages.get_message("register_enter_holder_name", language=lang)
+    await message.answer(text, reply_markup=back_keyboard())
 
 
 @router.message(RegistrationStates.waiting_bank_holder)
@@ -240,10 +278,13 @@ async def process_bank_holder(
     message: Message,
     state: FSMContext,
     pool: asyncpg.Pool,
+    messages: BotMessageService,
 ) -> None:
+    lang = message.from_user.language_code or "zh"
     bank_holder_name = (message.text or "").strip()
     if not bank_holder_name:
-        await message.answer("银行户口姓名不能为空，请重新输入：")
+        text = await messages.get_message("register_holder_name_empty", language=lang)
+        await message.answer(text)
         return
 
     data = await state.get_data()
@@ -265,16 +306,19 @@ async def process_bank_holder(
         )
     except asyncpg.exceptions.UniqueViolationError:
         await state.clear()
-        await message.answer("注册失败：信息冲突，请重新注册。", reply_markup=ReplyKeyboardRemove())
+        text = await messages.get_message("register_conflict_error", language=lang)
+        await message.answer(text, reply_markup=ReplyKeyboardRemove())
         return
 
-    await message.answer(
-        f"✅ 注册成功！\n\n"
-        f"📱 电话：{data['phone']}\n"
-        f"🏦 银行：{data['bank_name']}\n"
-        f"💳 账号：{data['bank_account']}\n"
-        f"👤 户口姓名：{bank_holder_name}\n\n"
-        f"欢迎加入会员系统。\n\n"
-        f"请从下方菜单开始使用。",
-        reply_markup=build_main_menu_keyboard(),
+    text = await messages.get_message(
+        "register_success",
+        language=lang,
+        variables={
+            "phone": data["phone"],
+            "bank_name": data["bank_name"],
+            "bank_account": data["bank_account"],
+            "bank_holder_name": bank_holder_name,
+        },
     )
+    keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
+    await message.answer(text, reply_markup=keyboard)
