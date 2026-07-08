@@ -30,6 +30,7 @@ import {
   Globe,
   Smartphone,
   FileText,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -68,9 +69,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Control Center',
     items: [
-      { href: '/settings/bot',          label: 'Telegram Bot',  icon: Bot,      permission: 'bot.settings' },
-      { href: '/settings/bot/messages', label: 'Bot Messages',  icon: FileText, permission: 'bot.messages' },
-      { href: '/media-library',         label: 'Media Library', icon: Images,   permission: 'media.view' },
+      { href: '/settings/brand',        label: 'Brand Center',  icon: Building2, permission: 'brand.settings' },
+      { href: '/settings/bot',          label: 'Telegram Bot',  icon: Bot,       permission: 'bot.settings' },
+      { href: '/settings/bot/messages', label: 'Bot Messages',  icon: FileText,  permission: 'bot.messages' },
+      { href: '/media-library',         label: 'Media Library', icon: Images,    permission: 'media.view' },
     ],
   },
   {
