@@ -79,6 +79,13 @@ export async function updateBrandSettings(
   return r.rows[0];
 }
 
+export async function bumpBrandCacheVersion(): Promise<void> {
+  await pool.query(
+    `UPDATE cache_versions SET version = version + 1, updated_at = NOW()
+     WHERE component = 'brand_settings'`
+  );
+}
+
 export async function resetBrandSettings(updatedBy: string): Promise<BrandSettings> {
   const r = await pool.query(
     `UPDATE brand_settings SET

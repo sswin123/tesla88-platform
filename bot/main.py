@@ -35,7 +35,7 @@ from bot.handlers.user.transaction_history import router as transaction_history_
 from bot.handlers.user.withdrawal import router as withdrawal_router
 from bot.middlewares.admin_middleware import AdminMiddleware
 from bot.middlewares.fsm_timeout_middleware import FsmTimeoutMiddleware
-from bot.services import BotMessageService
+from bot.services import BotMessageService, BrandService
 from bot.api_server import start_relay_server
 from db.connection import create_pool
 from db.repositories.admin_repo import create_or_ensure_super_admin
@@ -70,9 +70,13 @@ async def main() -> None:
     bot = Bot(token=config.bot_token)
     dp = Dispatcher(storage=MemoryStorage())
 
-    dp["pool"] = pool
-    dp["config"] = config
-    dp["messages"] = BotMessageService(pool)
+    brand_svc   = BrandService(pool)
+    message_svc = BotMessageService(pool, brand_service=brand_svc)
+
+    dp["pool"]    = pool
+    dp["config"]  = config
+    dp["messages"] = message_svc
+    dp["brand"]   = brand_svc
 
     dp.message.middleware(AdminMiddleware())
     dp.callback_query.middleware(AdminMiddleware())
@@ -107,11 +111,36 @@ async def main() -> None:
     dp.include_router(livechat_agent_router)
     dp.include_router(promotion_manager_router)
 
+    async def _periodic_reload() -> None:
+        """Poll cache_versions every 30 s; reload messages and brand if changed."""
+        while True:
+            await asyncio.sleep(30)
+            try:
+                await message_svc.check_and_reload()
+            except Exception:
+                logger.exception("Periodic reload: message_svc error")
+            try:
+                reloaded, _old, new_name = await brand_svc.check_and_reload()
+                if reloaded and new_name:
+                    try:
+                        await bot.set_my_name(new_name)
+                        logger.info("BrandService: synced Telegram bot name → %r", new_name)
+                    except Exception:
+                        logger.exception("BrandService: Telegram name sync failed")
+            except Exception:
+                logger.exception("Periodic reload: brand_svc error")
+
+    reload_task = asyncio.create_task(_periodic_reload())
     relay_runner = await start_relay_server(bot, pool)
     logger.info("Bot starting — polling...")
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
+        reload_task.cancel()
+        try:
+            await reload_task
+        except asyncio.CancelledError:
+            pass
         await relay_runner.cleanup()
         await pool.close()
         await bot.session.close()

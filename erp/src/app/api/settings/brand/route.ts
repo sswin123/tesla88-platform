@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
-import { getBrandSettings, updateBrandSettings, type BrandUpdate } from '@/lib/repositories/brand_repo';
+import { getBrandSettings, updateBrandSettings, bumpBrandCacheVersion, type BrandUpdate } from '@/lib/repositories/brand_repo';
 import { invalidateBrandCache } from '@/lib/brand_service';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
@@ -33,6 +33,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const updated = await updateBrandSettings(body, payload.username);
     invalidateBrandCache();
+    bumpBrandCacheVersion().catch(() => {}); // non-blocking; bot detects on next poll
 
     logAudit({
       admin_id:    payload.sub,

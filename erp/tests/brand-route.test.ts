@@ -26,9 +26,10 @@ const mockUpdateBrand  = vi.fn();
 const mockInvalidate   = vi.fn();
 
 vi.mock('@/lib/repositories/brand_repo', () => ({
-  getBrandSettings:    (...a: unknown[]) => mockGetBrand(...a),
-  updateBrandSettings: (...a: unknown[]) => mockUpdateBrand(...a),
-  resetBrandSettings:  vi.fn(),
+  getBrandSettings:      (...a: unknown[]) => mockGetBrand(...a),
+  updateBrandSettings:   (...a: unknown[]) => mockUpdateBrand(...a),
+  resetBrandSettings:    vi.fn(),
+  bumpBrandCacheVersion: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/brand_service', () => ({

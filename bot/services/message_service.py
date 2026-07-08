@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
+
+if TYPE_CHECKING:
+    from bot.services.brand_service import BrandService
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +21,23 @@ class BotMessageService:
         svc = BotMessageService(pool)
         text = await svc.get_message("start_returning_user", variables={"first_name": "Ali"})
 
+    When a BrandService is supplied, brand variables (brand_name, company_name,
+    support_whatsapp, telegram_channel, website_domain) are automatically merged
+    into every message substitution so CMS templates can use {brand_name} etc.
+    Caller-supplied variables always override brand variables.
+
     Cache is loaded on first use.  Call check_and_reload() periodically to pick
     up ERP edits (cache_versions.version increment triggers a full reload).
     Never raises — returns a safe fallback string on any error.
     """
 
-    def __init__(self, pool: asyncpg.Pool) -> None:
+    def __init__(
+        self,
+        pool: asyncpg.Pool,
+        brand_service: "BrandService | None" = None,
+    ) -> None:
         self._pool = pool
+        self._brand_service = brand_service
         self._cache: dict[str, dict[str, str]] = {}  # key → {lang_code → content}
         self._version: int = 0
         self._loaded: bool = False
@@ -52,7 +65,15 @@ class BotMessageService:
 
         try:
             content = self._resolve(key, language)
-            return self._substitute(content, variables or {})
+            # Merge brand variables (brand vars first, caller vars override)
+            merged: dict[str, Any] = {}
+            if self._brand_service is not None:
+                try:
+                    merged = await self._brand_service.get_variables()
+                except Exception:
+                    logger.warning("BotMessageService: failed to get brand variables")
+            merged.update(variables or {})
+            return self._substitute(content, merged)
         except Exception:
             logger.exception("BotMessageService.get_message: key=%s", key)
             return key
