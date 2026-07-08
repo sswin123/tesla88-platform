@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getAudienceCount } from '@/lib/repositories/broadcast_repo';
 import type { BroadcastAudienceType } from '@/lib/types';
+import { requirePermission } from '@/lib/require_permission';
 
 const VALID_AUDIENCE_TYPES = new Set([
   'ALL','TAG','VIP','ACTIVE','INACTIVE','NEVER_DEPOSIT','DEPOSITED','SELECTED',
 ]);
 
 export async function GET(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('broadcast.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const sp   = req.nextUrl.searchParams;

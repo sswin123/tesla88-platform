@@ -11,6 +11,10 @@ vi.mock('next/headers', () => ({
 vi.mock('@/lib/repositories/support_repo', () => ({
   incrementQuickReplyUsage: vi.fn(),
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { POST } from '@/app/api/livechat/quick-replies/[id]/use/route';
 import { incrementQuickReplyUsage } from '@/lib/repositories/support_repo';

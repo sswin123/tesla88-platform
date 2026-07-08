@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import {
   bulkSetCategory,
   bulkSetActive,
@@ -9,13 +7,12 @@ import {
   restoreQuickReply,
   setQuickReplyPinned,
 } from '@/lib/repositories/support_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 type BulkAction = 'archive' | 'restore' | 'enable' | 'disable' | 'set_category' | 'pin' | 'unpin' | 'delete';
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('livechat.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as {

@@ -1,19 +1,13 @@
 import { NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
 import pool from '@/lib/db';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Authenticate request
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const payload = await requirePermission('deposit.view');
+  if (!payload) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
   const { rows } = await pool.query(

@@ -13,6 +13,10 @@ vi.mock('next/headers', () => ({
 vi.mock('@/lib/repositories/media_repo', () => ({
   listMediaFiltered: vi.fn().mockResolvedValue({ records: [], total: 0 }),
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { GET } from '@/app/api/media/route';
 import { listMediaFiltered } from '@/lib/repositories/media_repo';

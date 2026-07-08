@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(req: NextRequest) {
-  await requireAdmin(req);
+  const payload = await requirePermission('website.settings');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const res = await pool.query(
     `SELECT id, version_name, version_code, release_notes, media_id, min_android,
             is_current, force_update, download_count, created_by, created_at
@@ -13,7 +14,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin(req);
+  const payload = await requirePermission('website.settings');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json() as {
     version_name?: string; version_code?: number; release_notes?: string;
     media_id?: number | null; min_android?: string; is_current?: boolean; force_update?: boolean;
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
       `INSERT INTO apk_versions (version_name, version_code, release_notes, media_id, min_android, is_current, force_update, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [body.version_name, body.version_code, body.release_notes ?? null, body.media_id ?? null,
-       body.min_android ?? '6.0', body.is_current ?? false, body.force_update ?? false, admin.username]
+       body.min_android ?? '6.0', body.is_current ?? false, body.force_update ?? false, payload.username]
     );
     await client.query('COMMIT');
     return NextResponse.json(res.rows[0], { status: 201 });

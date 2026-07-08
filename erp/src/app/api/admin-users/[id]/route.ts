@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateAdmin } from '@/lib/repositories/admin_repo';
+import { updateAdmin, getStaffById, countActiveSuperAdmins } from '@/lib/repositories/admin_repo';
 import type { AdminRole } from '@/lib/types';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { requirePermission } from '@/lib/require_permission';
 
-const VALID_ROLES: AdminRole[] = ['SUPER_ADMIN', 'ADMIN', 'CS', 'FINANCE', 'SUPERVISOR', 'SUPPORT'];
+const VALID_ROLES: AdminRole[] = ['ADMIN', 'CS', 'FINANCE', 'SUPERVISOR', 'SUPPORT'];
 
 export async function PATCH(
   request: NextRequest,
@@ -19,6 +19,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   }
 
+  const target = await getStaffById(adminId);
+  if (!target) return NextResponse.json({ error: 'Admin not found' }, { status: 404 });
+  if (target.role === 'SUPER_ADMIN') {
+    return NextResponse.json({ error: 'Cannot edit SUPER_ADMIN accounts' }, { status: 403 });
+  }
+
   let body: { role?: string; is_active?: boolean };
   try {
     body = await request.json();
@@ -26,11 +32,23 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (body.role !== undefined && !VALID_ROLES.includes(body.role as AdminRole)) {
-    return NextResponse.json(
-      { error: `role must be one of: ${VALID_ROLES.join(', ')}` },
-      { status: 400 }
-    );
+  if (body.role !== undefined) {
+    if (!VALID_ROLES.includes(body.role as AdminRole)) {
+      return NextResponse.json(
+        { error: `role must be one of: ${VALID_ROLES.join(', ')}` },
+        { status: 400 }
+      );
+    }
+    if (target.id === payload.sub) {
+      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 403 });
+    }
+  }
+
+  if (body.is_active === false && target.role === 'SUPER_ADMIN') {
+    const activeCount = await countActiveSuperAdmins();
+    if (activeCount <= 1) {
+      return NextResponse.json({ error: 'Cannot disable the last active SUPER_ADMIN' }, { status: 403 });
+    }
   }
 
   const updated = await updateAdmin(adminId, {

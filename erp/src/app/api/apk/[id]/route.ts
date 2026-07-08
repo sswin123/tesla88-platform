@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { requireAdmin } from '@/lib/auth';
+import { requirePermission } from '@/lib/require_permission';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, ctx: RouteCtx) {
-  await requireAdmin(req);
+  const payload = await requirePermission('website.settings');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await ctx.params;
   const body = await req.json() as { is_current?: boolean; force_update?: boolean; release_notes?: string };
 
@@ -43,7 +44,8 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: RouteCtx) {
-  await requireAdmin(req);
+  const payload = await requirePermission('website.settings');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await ctx.params;
   const check = await pool.query('SELECT id, is_current FROM apk_versions WHERE id = $1', [id]);
   if (check.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });

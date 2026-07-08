@@ -16,6 +16,10 @@ vi.mock('@/lib/repositories/support_repo', () => ({
   getPinnedReplies: vi.fn(),
   getRecentlyUsedReplies: vi.fn(),
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { GET, POST } from '@/app/api/livechat/quick-replies/route';
 import {

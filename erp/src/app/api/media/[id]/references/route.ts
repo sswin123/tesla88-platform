@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;

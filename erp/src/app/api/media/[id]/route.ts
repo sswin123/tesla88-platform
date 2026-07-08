@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { mediaService } from '@/lib/media';
 import { findMediaById } from '@/lib/repositories/media_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
-
-async function getAdminPayload() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  return token ? verifyJWT(token) : null;
-}
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await getAdminPayload();
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
@@ -32,7 +25,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await getAdminPayload();
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
@@ -62,7 +55,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await getAdminPayload();
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;

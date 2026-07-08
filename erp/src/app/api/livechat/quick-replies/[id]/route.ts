@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import {
   updateQuickReply,
   archiveQuickReply,
@@ -9,18 +7,13 @@ import {
   setQuickReplyPinned,
 } from '@/lib/repositories/support_repo';
 import type { QuickReplyContentType } from '@/lib/types';
-
-async function requireAuth() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  return token ? await verifyJWT(token) : null;
-}
+import { requirePermission } from '@/lib/require_permission';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await requireAuth();
+  const payload = await requirePermission('livechat.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
@@ -71,7 +64,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await requireAuth();
+  const payload = await requirePermission('livechat.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;

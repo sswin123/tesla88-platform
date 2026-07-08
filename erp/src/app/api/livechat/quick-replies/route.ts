@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import {
   getQuickReplies,
   getAllQuickRepliesAdmin,
@@ -10,16 +8,16 @@ import {
   getRecentlyUsedReplies,
 } from '@/lib/repositories/support_repo';
 import type { QuickReplyContentType } from '@/lib/types';
+import { requirePermission } from '@/lib/require_permission';
 
 const VALID_TYPES = new Set([
   'TEXT', 'IMAGE', 'GIF', 'VIDEO', 'AUDIO', 'VOICE', 'DOCUMENT', 'PDF', 'APK', 'ZIP', 'RAR',
 ]);
 
 export async function GET(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  const adminUsername = payload?.username ?? '';
+  const payload = await requirePermission('livechat.manage');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const adminUsername = payload.username;
 
   const sp = req.nextUrl.searchParams;
   const isAdmin    = sp.get('admin')    === '1';
@@ -44,9 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('livechat.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;

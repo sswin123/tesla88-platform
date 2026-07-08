@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getBroadcastById, updateBroadcast } from '@/lib/repositories/broadcast_repo';
 import { sendBroadcast } from '@/lib/broadcast/send';
 import { logAudit } from '@/lib/repositories/audit_repo';
-
-async function requireAuth() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  return token ? await verifyJWT(token) : null;
-}
+import { requirePermission } from '@/lib/require_permission';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const payload = await requireAuth();
+  const payload = await requirePermission('broadcast.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;

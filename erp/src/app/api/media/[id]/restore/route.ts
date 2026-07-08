@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { mediaService } from '@/lib/media';
 import { logAudit } from '@/lib/repositories/audit_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (payload.role !== 'SUPER_ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

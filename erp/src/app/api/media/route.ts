@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { listMediaFiltered, type SortOption } from '@/lib/repositories/media_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 const VALID_SORTS = new Set<string>([
   'newest', 'oldest', 'most_used', 'most_downloaded', 'largest', 'smallest', 'recently_used',
 ]);
 
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
+  const payload = await requirePermission('media.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const sp = request.nextUrl.searchParams;

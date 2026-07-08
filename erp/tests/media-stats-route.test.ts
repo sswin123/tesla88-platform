@@ -26,6 +26,10 @@ vi.mock('@/lib/media', () => ({
     }),
   },
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { GET } from '@/app/api/media/stats/route';
 import { getRecentUploads } from '@/lib/repositories/media_repo';

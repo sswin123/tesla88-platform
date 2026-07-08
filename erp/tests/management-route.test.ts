@@ -34,6 +34,10 @@ vi.mock('@/lib/repositories/media_repo', () => ({
 vi.mock('@/lib/repositories/audit_repo', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { GET, PATCH, DELETE } from '../src/app/api/media/[id]/route';
 import { POST as replaceRoute } from '../src/app/api/media/[id]/replace/route';

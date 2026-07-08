@@ -26,6 +26,10 @@ vi.mock('@/lib/media', () => ({
 vi.mock('@/lib/repositories/audit_repo', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { POST as uploadSingle } from '../src/app/api/media/upload/route';
 import { POST as uploadMany } from '../src/app/api/media/upload/many/route';

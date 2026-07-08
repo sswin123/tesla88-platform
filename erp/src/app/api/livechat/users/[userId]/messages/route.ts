@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTimelineMessages } from '@/lib/repositories/support_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
   req: NextRequest,

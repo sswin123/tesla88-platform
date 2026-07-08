@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionsLiveChat, getSessionStats } from '@/lib/repositories/support_repo';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(request: NextRequest) {
+  const payload = await requirePermission('livechat.view');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = request.nextUrl;
   const status      = searchParams.get('status') ?? undefined;
   const search      = searchParams.get('search') ?? undefined;

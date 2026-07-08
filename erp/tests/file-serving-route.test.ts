@@ -16,6 +16,10 @@ vi.mock('@/lib/media', () => ({
     recordDownload: vi.fn(),
   },
 }));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import { GET as serveFile } from '../src/app/api/media/[id]/file/route';
 import { GET as serveThumbnail } from '../src/app/api/media/[id]/thumbnail/route';

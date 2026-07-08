@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn(), connect: vi.fn() } }));
-vi.mock('@/lib/auth', () => ({ requireAdmin: vi.fn().mockResolvedValue({ id: 1, username: 'admin' }) }));
+vi.mock('@/lib/auth', () => ({
+  verifyJWT:   vi.fn().mockResolvedValue({ sub: 1, username: 'admin', role: 'ADMIN', iat: 0, exp: 9999999999 }),
+  COOKIE_NAME: 'token',
+}));
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue({ get: () => ({ value: 'tok' }) }),
+}));
+vi.mock('@/lib/permission_engine', () => ({
+  can:             vi.fn().mockResolvedValue(true),
+  invalidateCache: vi.fn(),
+}));
 
 import pool from '@/lib/db';
 import { GET, POST } from '@/app/api/apk/route';
