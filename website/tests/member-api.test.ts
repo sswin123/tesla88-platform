@@ -54,18 +54,27 @@ describe('PATCH /api/member/profile', () => {
 
 describe('POST /api/member/deposits', () => {
   it('returns 400 when amount missing', async () => {
-    const res = await postDeposit(makeReq('POST', { provider: 'GAME_A' }) as never);
+    const res = await postDeposit(makeReq('POST', { provider: 'Mega888', payment_bank: 'Maybank' }) as never);
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when provider missing', async () => {
-    const res = await postDeposit(makeReq('POST', { amount: 100 }) as never);
+    const res = await postDeposit(makeReq('POST', { amount: 100, payment_bank: 'Maybank' }) as never);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when payment_bank missing', async () => {
+    const res = await postDeposit(makeReq('POST', { amount: 100, provider: 'Mega888' }) as never);
     expect(res.status).toBe(400);
   });
 
   it('returns 201 on valid submission', async () => {
-    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ id: 99 }] } as never);
-    const res = await postDeposit(makeReq('POST', { amount: 100, provider: 'GAME_A' }) as never);
+    /* New flow: (1) min amount, (2) pending check, (3) INSERT */
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [{ value: '30' }] } as never)  /* min amount */
+      .mockResolvedValueOnce({ rows: [] } as never)                  /* no pending */
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] } as never);      /* INSERT */
+    const res = await postDeposit(makeReq('POST', { amount: 100, provider: 'Mega888', payment_bank: 'Maybank' }) as never);
     expect(res.status).toBe(201);
   });
 });
