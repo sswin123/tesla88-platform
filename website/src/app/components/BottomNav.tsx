@@ -60,9 +60,10 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 inset-x-0 z-50 flex items-stretch"
+      className="lg:hidden fixed bottom-0 inset-x-0 z-50 flex items-start"
       style={{
-        height: 'var(--bottomnav-h)',
+        height: 'calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         background: 'rgba(10,11,20,0.97)',
         borderTop: '1px solid rgba(255 255 255 / 0.07)',
         backdropFilter: 'blur(12px)',

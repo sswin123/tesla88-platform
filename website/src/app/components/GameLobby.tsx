@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
 
 /* ── Fallback (hardcoded) providers used when ERP has no active entries ── */
@@ -194,10 +195,12 @@ export default function GameLobby() {
 
               {/* Logo or emoji */}
               {card.logoUrl ? (
-                <img
+                <Image
                   src={card.logoUrl}
                   alt={card.name}
-                  className="w-12 h-12 object-contain"
+                  width={48}
+                  height={48}
+                  className="object-contain"
                 />
               ) : (
                 <span className="text-3xl">{card.emoji ?? '🎮'}</span>

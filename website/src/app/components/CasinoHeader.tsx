@@ -60,9 +60,10 @@ export default function CasinoHeader({ brand, announcements = [], fallbackBanner
     <>
       {/* ── Main header bar ──────────────────────────────────── */}
       <header
-        className="fixed top-0 inset-x-0 z-50 flex items-center"
+        className="fixed top-0 inset-x-0 z-50 flex items-end"
         style={{
-          height: 'var(--header-h)',
+          height: 'calc(var(--header-h) + env(safe-area-inset-top, 0px))',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           background: 'linear-gradient(180deg, rgba(10,11,20,0.98) 0%, rgba(10,11,20,0.92) 100%)',
           borderBottom: '1px solid rgba(255 255 255 / 0.06)',
           backdropFilter: 'blur(12px)',
@@ -149,7 +150,7 @@ export default function CasinoHeader({ brand, announcements = [], fallbackBanner
         <div
           className="fixed z-40 inset-x-0 overflow-hidden flex items-center"
           style={{
-            top: 'var(--header-h)',
+            top: 'calc(var(--header-h) + env(safe-area-inset-top, 0px))',
             height: 'var(--ticker-h)',
             background: 'rgba(0,0,0,0.6)',
             borderBottom: '1px solid rgba(255 255 255 / 0.05)',

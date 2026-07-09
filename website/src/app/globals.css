@@ -28,10 +28,27 @@
 }
 
 /* ── Body & base ────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--bg-base);
   color: var(--text-base);
   font-family: ui-sans-serif, system-ui, sans-serif;
+  overscroll-behavior-y: contain;
+}
+
+/* Prevent double-tap zoom & tap flash on interactive elements */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Ensure inputs don't trigger iOS auto-zoom (font-size >= 16px) */
+input, select, textarea {
+  font-size: max(16px, 1em);
 }
 
 /* ── Brand utilities (kept for client pages) ─────────────────── */

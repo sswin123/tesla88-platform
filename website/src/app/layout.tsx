@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import pool from '@/lib/db';
 import { getBrand } from '@/lib/brand';
@@ -6,9 +6,16 @@ import CasinoHeader from './components/CasinoHeader';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
+import PwaRegister from './components/PwaRegister';
 import type { PublicAnnouncement } from './api/public/announcements/route';
 
 export const dynamic = 'force-dynamic';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 async function getFallbackBannerText(): Promise<string> {
   try {
@@ -39,14 +46,24 @@ async function getActiveAnnouncements(): Promise<PublicAnnouncement[]> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
-  const meta: Metadata = {
+  const iconId = brand.favicon_media_id ?? brand.logo_media_id;
+  return {
     title: brand.seo_title || brand.brand_name,
     description: brand.seo_description || undefined,
+    manifest: '/manifest.webmanifest',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: brand.brand_name,
+    },
+    formatDetection: { telephone: false },
+    icons: iconId
+      ? {
+          icon: `/api/public/media/${iconId}`,
+          apple: `/api/public/media/${iconId}`,
+        }
+      : undefined,
   };
-  if (brand.favicon_media_id) {
-    meta.icons = { icon: `/api/public/media/${brand.favicon_media_id}` };
-  }
-  return meta;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -59,10 +76,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   /* Ticker shows if we have ERP announcements OR a legacy banner text */
   const hasTicker = announcements.length > 0 || !!fallbackText;
 
-  /* Total offset from top = header + optional ticker */
+  /* Total offset from top = header + optional ticker + safe area (iPhone notch) */
   const topOffset = hasTicker
-    ? 'calc(var(--header-h) + var(--ticker-h))'
-    : 'var(--header-h)';
+    ? 'calc(var(--header-h) + var(--ticker-h) + env(safe-area-inset-top, 0px))'
+    : 'calc(var(--header-h) + env(safe-area-inset-top, 0px))';
 
   return (
     <html
@@ -87,7 +104,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           style={{
             paddingTop: topOffset,
             /* Extra bottom padding on mobile for the fixed bottom nav */
-            paddingBottom: 'var(--bottomnav-h)',
+            paddingBottom: 'calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))',
           }}
           className="lg:pb-0"
         >
@@ -114,6 +131,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* ── Floating support button (desktop only) ── */}
         <FloatingSupport whatsapp={brand.support_whatsapp} telegram={brand.support_telegram} />
+
+        {/* ── PWA service worker registration ── */}
+        <PwaRegister />
       </body>
     </html>
   );

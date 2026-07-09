@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 export interface Slide {
   id: number;
@@ -76,10 +77,13 @@ export default function HeroSlider({ slides }: Props) {
         >
           {s.imageUrl ? (
             <>
-              <img
+              <Image
                 src={s.imageUrl}
                 alt={s.title}
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+                priority={i === 0}
               />
               {/* Dark overlay for text readability */}
               <div
