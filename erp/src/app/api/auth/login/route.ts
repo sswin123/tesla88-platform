@@ -6,8 +6,18 @@ import {
   COOKIE_NAME,
   COOKIE_MAX_AGE,
 } from '@/lib/auth';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = rateLimit(`erp-login:${ip}`, 5, 15 * 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'Too many login attempts. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSecs) } }
+    );
+  }
+
   let body: { username?: string; password?: string };
   try {
     body = await request.json();

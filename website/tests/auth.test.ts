@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit:             vi.fn().mockReturnValue({ ok: true, retryAfterSecs: 0 }),
+  getClientIp:           vi.fn().mockReturnValue('test-ip'),
+  _resetRateLimitStore:  vi.fn(),
+}));
 vi.mock('bcryptjs', () => ({
   default: { hash: vi.fn().mockResolvedValue('hashed'), compare: vi.fn() },
 }));

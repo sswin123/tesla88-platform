@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getMember } from '@/lib/member-auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET() {
   const member = await getMember();
@@ -16,6 +17,14 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const rl = rateLimit(`withdraw:${member.sub}`, 3, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: '提交过于频繁，请稍后再试' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSecs) } }
+    );
+  }
 
   const body = await req.json() as { amount?: number };
   if (!body.amount || body.amount <= 0)
