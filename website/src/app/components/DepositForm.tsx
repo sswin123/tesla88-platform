@@ -12,9 +12,73 @@ interface PaymentBank {
   bank_name: string;
   account_number: string;
   account_name: string;
+  qr_media_id: number | null;
+  instructions: string | null;
 }
 
 type Step = 'form' | 'confirm' | 'success';
+
+function BankCard({ bank }: { bank: PaymentBank }) {
+  const [copied, setCopied] = useState(false);
+
+  function copyAccount() {
+    navigator.clipboard.writeText(bank.account_number).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {/* silent */});
+  }
+
+  return (
+    <div className="casino-card p-4 space-y-3">
+      {/* Bank name + account */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>{bank.bank_name}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{bank.account_name}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-mono font-bold" style={{ color: 'var(--brand-primary)' }}>
+            {bank.account_number}
+          </p>
+          <button
+            type="button"
+            onClick={copyAccount}
+            className="mt-1 text-xs px-2 py-0.5 rounded transition-all"
+            style={{
+              background: copied ? 'rgba(34,197,94,0.15)' : 'var(--bg-surface3)',
+              color: copied ? '#22c55e' : 'var(--text-muted)',
+              border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'var(--border-dim)'}`,
+            }}
+          >
+            {copied ? '✓ 已复制' : '复制账号'}
+          </button>
+        </div>
+      </div>
+
+      {/* QR Code */}
+      {bank.qr_media_id && (
+        <div className="flex justify-center pt-1">
+          <img
+            src={`/api/public/media/${bank.qr_media_id}`}
+            alt={`${bank.bank_name} QR`}
+            className="w-32 h-32 object-contain rounded-lg"
+            style={{ background: '#fff', padding: '4px' }}
+          />
+        </div>
+      )}
+
+      {/* Instructions */}
+      {bank.instructions && (
+        <p
+          className="text-xs rounded-lg px-3 py-2"
+          style={{ background: 'rgba(234,179,8,0.1)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.2)' }}
+        >
+          ⚠️ {bank.instructions}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function InputLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -180,27 +244,28 @@ export default function DepositForm() {
       )}
 
       {/* ── Platform bank accounts (transfer destination) ── */}
-      {platformBanks.length > 0 && (
-        <div className="casino-card p-4">
-          <p className="text-xs font-bold tracking-wider uppercase mb-3" style={{ color: 'var(--text-muted)' }}>
+      {platformBanks.length === 0 ? (
+        <div
+          className="casino-card p-5 text-center"
+          style={{ border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.05)' }}
+        >
+          <p className="text-2xl mb-2">🔧</p>
+          <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-base)' }}>
+            暂时无法存款
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            收款账户维护中，请联系{' '}
+            <a href="/chat" style={{ color: 'var(--brand-primary)' }}>在线客服</a>
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
             转账至以下账户
           </p>
-          <div className="space-y-2">
-            {platformBanks.map(b => (
-              <div key={b.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-base)' }}>{b.bank_name}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{b.account_name}</p>
-                </div>
-                <p
-                  className="text-sm font-mono font-bold"
-                  style={{ color: 'var(--brand-primary)' }}
-                >
-                  {b.account_number}
-                </p>
-              </div>
-            ))}
-          </div>
+          {platformBanks.map(b => (
+            <BankCard key={b.id} bank={b} />
+          ))}
         </div>
       )}
 

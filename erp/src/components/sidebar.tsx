@@ -34,6 +34,7 @@ import {
   Image,
   Bell,
   Joystick,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -85,7 +86,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/apk-manager',      label: 'APK Manager',      icon: Smartphone,  permission: 'website.settings' },
       { href: '/website-banners',        label: 'Banners',       icon: Image, permission: 'website.banner.manage' },
       { href: '/website-announcements', label: 'Announcements',    icon: Bell,     permission: 'website.announcement.manage' },
-      { href: '/website-game-providers', label: 'Game Providers', icon: Joystick, permission: 'website.game.manage' },
+      { href: '/website-game-providers',  label: 'Game Providers', icon: Joystick,   permission: 'website.game.manage' },
+      { href: '/website-payment-banks',   label: 'Payment Banks',  icon: CreditCard, permission: 'payment.bank.manage' },
     ],
   },
   {

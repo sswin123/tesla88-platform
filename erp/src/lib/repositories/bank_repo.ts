@@ -28,21 +28,29 @@ export async function createBank(data: {
   account_number: string;
   account_name: string;
   qr_image?: string | null;
+  qr_media_id?: number | null;
+  instructions?: string | null;
   display_order?: number;
 }): Promise<PaymentBank> {
   const { rows } = await pool.query<PaymentBank>(
-    `INSERT INTO payment_banks (bank_name, account_number, account_name, qr_image, display_order)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO payment_banks
+       (bank_name, account_number, account_name, qr_image, qr_media_id, instructions, display_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [data.bank_name, data.account_number, data.account_name,
-     data.qr_image ?? null, data.display_order ?? 0]
+    [
+      data.bank_name, data.account_number, data.account_name,
+      data.qr_image ?? null, data.qr_media_id ?? null,
+      data.instructions ?? null, data.display_order ?? 0,
+    ]
   );
   return rows[0];
 }
 
 export async function updateBank(
   id: number,
-  data: Partial<Pick<PaymentBank, 'bank_name' | 'account_number' | 'account_name' | 'qr_image' | 'display_order'>>
+  data: Partial<Pick<PaymentBank,
+    'bank_name' | 'account_number' | 'account_name' |
+    'qr_image' | 'qr_media_id' | 'instructions' | 'display_order'>>
 ): Promise<PaymentBank | null> {
   const fields = Object.keys(data) as (keyof typeof data)[];
   if (fields.length === 0) return null;

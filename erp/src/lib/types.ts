@@ -331,10 +331,12 @@ export interface PaymentBank {
   id: number;
   bank_name: string;
   account_number: string;
-  account_name: string;       // was account_holder
-  qr_image: string | null;    // new — base64 data URI or null
+  account_name: string;
+  qr_image: string | null;
+  qr_media_id: number | null;
+  instructions: string | null;
   is_active: boolean;
-  display_order: number;      // was sort_order
+  display_order: number;
   created_at: string;
   updated_at: string;
 }

@@ -1,0 +1,3 @@
+ALTER TABLE payment_banks
+  ADD COLUMN IF NOT EXISTS qr_media_id  INTEGER REFERENCES media(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS instructions TEXT;
