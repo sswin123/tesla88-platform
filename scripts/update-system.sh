@@ -95,6 +95,9 @@ log_step "Step 3 / 8 — Detect Services"
 
 load_env
 
+# Generate sub-project .env files from root .env before building
+"${SCRIPT_DIR}/gen-env.sh"
+
 # Root compose services (e.g. db, app)
 ROOT_SERVICES=$(dc config --services 2>/dev/null || true)
 log_info "Root compose services: $(echo "${ROOT_SERVICES}" | tr '\n' ' ')"
