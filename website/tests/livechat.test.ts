@@ -21,25 +21,26 @@ function makeReq(method: string, body?: unknown, search?: string) {
 /* ── Session ──────────────────────────────────────────────────── */
 
 describe('GET /api/livechat/session', () => {
-  it('returns 401 when not authenticated', async () => {
+  it('creates guest session when not authenticated (no cookie)', async () => {
     vi.mocked(getMember).mockResolvedValueOnce(null);
-    const res = await getSession();
-    expect(res.status).toBe(401);
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ id: 99, status: 'OPEN', created_at: new Date().toISOString() }] } as never);
+    const res = await getSession(new Request('http://localhost/api/livechat/session') as never);
+    expect(res.status).toBe(201);
   });
 
-  it('returns existing open session', async () => {
+  it('returns existing open session for authenticated member', async () => {
     vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ id: 5, status: 'OPEN', created_at: new Date().toISOString() }] } as never);
-    const res = await getSession();
+    const res = await getSession(new Request('http://localhost/api/livechat/session') as never);
     expect(res.status).toBe(200);
     const data = await res.json() as { id: number };
     expect(data.id).toBe(5);
   });
 
-  it('creates new session when none exists', async () => {
+  it('creates new session when none exists for authenticated member', async () => {
     vi.mocked(pool.query)
       .mockResolvedValueOnce({ rows: [] } as never)
       .mockResolvedValueOnce({ rows: [{ id: 10, status: 'OPEN', created_at: new Date().toISOString() }] } as never);
-    const res = await getSession();
+    const res = await getSession(new Request('http://localhost/api/livechat/session') as never);
     expect(res.status).toBe(201);
     const data = await res.json() as { id: number; status: string };
     expect(data.id).toBe(10);
@@ -48,7 +49,7 @@ describe('GET /api/livechat/session', () => {
 
   it('queries with correct user_id for session isolation', async () => {
     vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ id: 7, status: 'ACTIVE', created_at: new Date().toISOString() }] } as never);
-    await getSession();
+    await getSession(new Request('http://localhost/api/livechat/session') as never);
     const callArgs = vi.mocked(pool.query).mock.calls[0];
     expect(callArgs[1]).toEqual([1]); /* member.sub = 1 */
   });

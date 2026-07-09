@@ -43,6 +43,7 @@ export async function PATCH(
   if (action === 'new_session') {
     const existing = await getSessionById(sessionId);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (existing.user_id == null) return NextResponse.json({ error: 'Cannot create new session for guest' }, { status: 400 });
     const newSession = await createSessionForUser(existing.user_id, payload.username);
     logAudit({
       admin_id: payload.sub,

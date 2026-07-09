@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyMemberJWT, COOKIE_NAME } from '@/lib/auth';
 
-const PROTECTED = ['/chat', '/history', '/deposit', '/withdraw', '/profile', '/dashboard'];
+const PROTECTED = ['/history', '/deposit', '/withdraw', '/profile', '/dashboard'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -29,5 +29,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat', '/history', '/deposit', '/withdraw', '/profile', '/dashboard'],
+  matcher: ['/history', '/deposit', '/withdraw', '/profile', '/dashboard'],
 };

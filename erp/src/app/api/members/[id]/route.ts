@@ -7,55 +7,80 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const payload = await requirePermission('members.view');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
   const uid = parseInt(id, 10);
+  if (isNaN(uid)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
-  const [memberRows, accounts, deposits, withdrawals, bonuses] = await Promise.all([
-    pool.query(
-      `SELECT u.*,
-         (SELECT COUNT(*)::int FROM deposit_requests   WHERE user_id = u.id AND status = 'APPROVED') AS deposit_count,
-         (SELECT COUNT(*)::int FROM withdrawal_requests WHERE user_id = u.id AND status = 'PAID')    AS withdrawal_count
-       FROM users u WHERE u.id = $1`,
-      [uid]
-    ),
-    pool.query(
-      'SELECT provider, username, created_at FROM game_accounts WHERE user_id = $1 ORDER BY created_at',
-      [uid]
-    ),
-    pool.query(
-      `SELECT id, provider, deposit_amount, bonus_amount, credit_amount, status, created_at,
-              reviewed_at, p.name AS promo_name
-       FROM deposit_requests dr
-       LEFT JOIN promotions p ON p.id = dr.promotion_id
-       WHERE dr.user_id = $1 ORDER BY dr.created_at DESC LIMIT 20`,
-      [uid]
-    ),
-    pool.query(
-      `SELECT id, provider, game_username, withdraw_amount, bank_name, bank_account, status,
-              created_at, reviewed_at
-       FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
-      [uid]
-    ),
-    pool.query(
-      `SELECT bc.id, p.name AS promo_name, bc.deposit_amount, bc.bonus_amount,
-              bc.total_credit, bc.turnover_required, bc.turnover_completed,
-              bc.status, bc.claimed_at, bc.completed_at
-       FROM bonus_claims bc
-       JOIN promotions p ON p.id = bc.promotion_id
-       WHERE bc.user_id = $1 ORDER BY bc.claimed_at DESC LIMIT 20`,
-      [uid]
-    ),
-  ]);
+  try {
+    const [memberRows, accounts, deposits, withdrawals] = await Promise.all([
+      pool.query(
+        `SELECT u.*,
+           (SELECT COUNT(*)::int FROM deposit_requests   WHERE user_id = u.id AND status = 'APPROVED') AS deposit_count,
+           (SELECT COUNT(*)::int FROM withdrawal_requests WHERE user_id = u.id AND status = 'PAID')    AS withdrawal_count
+         FROM users u WHERE u.id = $1`,
+        [uid]
+      ),
+      pool.query(
+        'SELECT provider, username, created_at FROM game_accounts WHERE user_id = $1 ORDER BY created_at',
+        [uid]
+      ),
+      pool.query(
+        `SELECT id, provider, deposit_amount, bonus_amount, credit_amount, status, created_at,
+                reviewed_at, p.name AS promo_name
+         FROM deposit_requests dr
+         LEFT JOIN promotions p ON p.id = dr.promotion_id
+         WHERE dr.user_id = $1 ORDER BY dr.created_at DESC LIMIT 20`,
+        [uid]
+      ),
+      pool.query(
+        `SELECT id, provider, game_username, withdraw_amount, bank_name, bank_account, status,
+                created_at, reviewed_at
+         FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+        [uid]
+      ),
+    ]);
 
-  if (!memberRows.rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!memberRows.rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  return NextResponse.json({
-    member:      memberRows.rows[0],
-    accounts:    accounts.rows,
-    deposits:    deposits.rows,
-    withdrawals: withdrawals.rows,
-    bonuses:     bonuses.rows,
-  });
+    // bonus_claims may not exist in all deployments — run separately with fallback
+    let bonusRows: Record<string, unknown>[] = [];
+    try {
+      const bonuses = await pool.query(
+        `SELECT bc.id, p.name AS promo_name, bc.deposit_amount, bc.bonus_amount,
+                bc.total_credit, bc.turnover_required, bc.turnover_completed,
+                bc.status, bc.claimed_at, bc.completed_at
+         FROM bonus_claims bc
+         LEFT JOIN promotions p ON p.id = bc.promotion_id
+         WHERE bc.user_id = $1 ORDER BY bc.claimed_at DESC LIMIT 20`,
+        [uid]
+      );
+      bonusRows = bonuses.rows;
+    } catch { /* bonus_claims table may not exist in this deployment */ }
+
+    const member = memberRows.rows[0] as Record<string, unknown>;
+    // Compute total_bonus if the column isn't on users table
+    if (member.total_bonus == null) {
+      const sum = bonusRows.reduce(
+        (acc, b) => acc + parseFloat((b.bonus_amount as string) ?? '0'),
+        0
+      );
+      member.total_bonus = sum.toFixed(2);
+    }
+
+    return NextResponse.json({
+      member,
+      accounts:    accounts.rows,
+      deposits:    deposits.rows,
+      withdrawals: withdrawals.rows,
+      bonuses:     bonusRows,
+    });
+  } catch (err) {
+    console.error('[members/[id]] GET error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function PATCH(

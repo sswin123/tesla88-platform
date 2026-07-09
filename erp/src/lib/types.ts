@@ -233,7 +233,8 @@ export type MessageType =
 
 export interface SupportSession {
   id: number;
-  user_id: number;
+  user_id: number | null;
+  guest_id?: string | null;
   agent_id: number | null;
   agent_username: string | null;
   assigned_to_username: string | null;  // NEW: ERP assignment

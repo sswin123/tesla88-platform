@@ -18,7 +18,7 @@ export async function getSessions(options: {
     pool.query(
       `SELECT ss.*, u.first_name, u.phone, u.telegram_id
        FROM support_sessions ss
-       JOIN users u ON u.id = ss.user_id
+       LEFT JOIN users u ON u.id = ss.user_id
        ${where}
        ORDER BY ss.last_message_at DESC
        LIMIT $1 OFFSET $2`,
@@ -37,7 +37,7 @@ export async function getSessionById(id: number): Promise<SupportSession | null>
   const { rows } = await pool.query(
     `SELECT ss.*, u.first_name, u.phone, u.telegram_id
      FROM support_sessions ss
-     JOIN users u ON u.id = ss.user_id
+     LEFT JOIN users u ON u.id = ss.user_id
      WHERE ss.id = $1`,
     [id]
   );
@@ -139,12 +139,12 @@ export async function getSessionsLiveChat(opts: {
     countConditions.push(`ss.created_at >= NOW() - INTERVAL '7 days'`);
   }
   if (opts.vip) {
-    mainConditions.push(`EXISTS (
+    mainConditions.push(`ss.user_id IS NOT NULL AND EXISTS (
     SELECT 1 FROM user_tag_assignments uta
     JOIN customer_tags ct ON ct.id = uta.tag_id
     WHERE uta.user_id = ss.user_id AND ct.name = 'VIP'
   )`);
-    countConditions.push(`EXISTS (
+    countConditions.push(`ss.user_id IS NOT NULL AND EXISTS (
     SELECT 1 FROM user_tag_assignments uta
     JOIN customer_tags ct ON ct.id = uta.tag_id
     WHERE uta.user_id = ss.user_id AND ct.name = 'VIP'
@@ -154,30 +154,31 @@ export async function getSessionsLiveChat(opts: {
   const mainWhere = `WHERE ${mainConditions.join(' AND ')}`;
   const countWhere = `WHERE ${countConditions.join(' AND ')}`;
 
-  // One conversation row per customer: DISTINCT ON picks the most recently
-  // active session for each user_id; outer query re-orders by pinned/activity.
+  // One conversation row per customer (member or guest): DISTINCT ON picks the
+  // most recently active session; outer query re-orders by pinned/activity.
+  const dedupeKey = `COALESCE(ss.user_id::text, 'g:' || ss.guest_id)`;
   const [rows, count] = await Promise.all([
     pool.query(
       `SELECT sub.*
        FROM (
-         SELECT DISTINCT ON (ss.user_id)
+         SELECT DISTINCT ON (${dedupeKey})
            ss.*,
            u.first_name, u.phone, u.telegram_id, u.telegram_username,
            (SELECT content      FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_content,
            (SELECT message_type FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_type
          FROM support_sessions ss
-         JOIN users u ON u.id = ss.user_id
+         LEFT JOIN users u ON u.id = ss.user_id
          ${mainWhere}
-         ORDER BY ss.user_id, ss.last_message_at DESC NULLS LAST
+         ORDER BY ${dedupeKey}, ss.last_message_at DESC NULLS LAST
        ) sub
        ORDER BY sub.pinned_at DESC NULLS LAST, sub.last_message_at DESC NULLS LAST
        LIMIT $1 OFFSET $2`,
       mainParams
     ),
     pool.query<{ count: number }>(
-      `SELECT COUNT(DISTINCT ss.user_id)::int AS count
+      `SELECT COUNT(DISTINCT ${dedupeKey})::int AS count
        FROM support_sessions ss
-       JOIN users u ON u.id = ss.user_id
+       LEFT JOIN users u ON u.id = ss.user_id
        ${countWhere}`,
       countParams
     ),
@@ -185,8 +186,8 @@ export async function getSessionsLiveChat(opts: {
 
   const sessions = rows.rows as SupportSession[];
 
-  // Batch-load tags for all sessions (avoid N+1)
-  const userIds = sessions.map((s) => s.user_id);
+  // Batch-load tags for all sessions (avoid N+1) — guests have no user_id
+  const userIds = sessions.map((s) => s.user_id).filter((id): id is number => id != null);
   if (userIds.length > 0) {
     const tagRows = await pool.query<{ user_id: number; id: number; name: string; color: string; created_at: string }>(
       `SELECT uta.user_id, ct.id, ct.name, ct.color, ct.created_at
@@ -203,7 +204,7 @@ export async function getSessionsLiveChat(opts: {
       tagsByUser.set(tr.user_id, existing);
     }
     for (const s of sessions) {
-      s.tags = tagsByUser.get(s.user_id) ?? [];
+      s.tags = s.user_id != null ? (tagsByUser.get(s.user_id) ?? []) : [];
     }
   }
 
@@ -216,23 +217,85 @@ export async function getSessionWithDetails(id: number): Promise<{
   member: MemberCardData;
   hasMore: boolean;
 } | null> {
-  const [sessionRows] = await Promise.all([
-    pool.query(
-      `SELECT ss.*,
-              u.first_name, u.phone, u.telegram_id, u.telegram_username,
-              u.status AS member_status, u.created_at AS member_created_at,
-              u.total_deposit, u.total_withdraw, u.total_bonus,
-              u.net_deposit, u.last_seen_at,
-              u.bank_name, u.bank_account, u.bank_holder_name
-       FROM support_sessions ss
-       JOIN users u ON u.id = ss.user_id
-       WHERE ss.id = $1`,
-      [id]
-    ),
-  ]);
+  const { rows: sessionRows } = await pool.query(
+    `SELECT ss.*,
+            u.first_name, u.phone, u.telegram_id, u.telegram_username,
+            u.status AS member_status, u.created_at AS member_created_at,
+            u.total_deposit, u.total_withdraw, u.total_bonus,
+            u.net_deposit, u.last_seen_at,
+            u.bank_name, u.bank_account, u.bank_holder_name
+     FROM support_sessions ss
+     LEFT JOIN users u ON u.id = ss.user_id
+     WHERE ss.id = $1`,
+    [id]
+  );
 
-  if (!sessionRows.rows[0]) return null;
-  const row = sessionRows.rows[0];
+  if (!sessionRows[0]) return null;
+  const row = sessionRows[0];
+  const isGuest = row.user_id === null;
+
+  // Build the base session object
+  const session: SupportSession = {
+    id: row.id,
+    user_id: row.user_id,
+    guest_id: row.guest_id ?? null,
+    agent_id: row.agent_id,
+    agent_username: row.agent_username,
+    assigned_to_username: row.assigned_to_username,
+    status: row.status,
+    erp_unread_count: row.erp_unread_count,
+    pinned_at: row.pinned_at,
+    last_message_at: row.last_message_at,
+    created_at: row.created_at,
+    accepted_at: row.accepted_at,
+    closed_at: row.closed_at,
+    close_reason: row.close_reason,
+    first_name: isGuest ? (row.guest_id ?? 'Guest Visitor') : row.first_name,
+    phone: row.phone,
+    telegram_id: row.telegram_id,
+    telegram_username: row.telegram_username,
+  };
+
+  if (isGuest) {
+    // Guest session: only fetch messages for this specific session
+    const messageRows = await pool.query<SupportMessage>(
+      `SELECT id, session_id, sender_type, message_type, content, caption,
+              file_name, file_size, user_msg_id, group_msg_id, created_at,
+              reply_to_message_id, reply_to_content, reply_to_sender_type, status
+       FROM support_messages
+       WHERE session_id = $1
+       ORDER BY created_at DESC, id DESC
+       LIMIT 100`,
+      [id]
+    );
+    const member: MemberCardData = {
+      id: 0,
+      first_name: row.guest_id ?? 'Guest Visitor',
+      telegram_id: '',
+      telegram_username: null,
+      phone: '',
+      status: 'ACTIVE' as const,
+      created_at: row.created_at,
+      last_seen_at: null,
+      total_deposit: '0.00',
+      total_withdraw: '0.00',
+      total_bonus: '0.00',
+      net_deposit: '0.00',
+      last_deposit_at: null,
+      last_deposit_amount: null,
+      last_withdrawal_at: null,
+      last_withdrawal_amount: null,
+      bank_name: '',
+      bank_account: '',
+      bank_holder_name: '',
+      game_accounts: [],
+      current_promotion: null,
+      previous_sessions: [],
+      tags: [],
+    };
+    const messages = (messageRows.rows as SupportMessage[]).reverse();
+    return { session, messages, member, hasMore: messages.length >= 100 };
+  }
 
   const userId = row.user_id as number;
 
@@ -266,7 +329,7 @@ export async function getSessionWithDetails(id: number): Promise<{
        WHERE bc.user_id = $1 AND bc.status = 'ACTIVE'
        ORDER BY bc.claimed_at DESC LIMIT 1`,
       [userId]
-    ),
+    ).catch(() => ({ rows: [] as Array<{ name: string; bonus_amount: string; status: string }> })),
     pool.query(
       `SELECT id, status, created_at, closed_at, assigned_to_username
        FROM support_sessions
@@ -286,26 +349,6 @@ export async function getSessionWithDetails(id: number): Promise<{
       [userId]
     ),
   ]);
-
-  const session: SupportSession = {
-    id: row.id,
-    user_id: row.user_id,
-    agent_id: row.agent_id,
-    agent_username: row.agent_username,
-    assigned_to_username: row.assigned_to_username,
-    status: row.status,
-    erp_unread_count: row.erp_unread_count,
-    pinned_at: row.pinned_at,
-    last_message_at: row.last_message_at,
-    created_at: row.created_at,
-    accepted_at: row.accepted_at,
-    closed_at: row.closed_at,
-    close_reason: row.close_reason,
-    first_name: row.first_name,
-    phone: row.phone,
-    telegram_id: row.telegram_id,
-    telegram_username: row.telegram_username,
-  };
 
   const member: MemberCardData = {
     id: userId,
