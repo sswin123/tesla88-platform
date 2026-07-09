@@ -33,6 +33,7 @@ import {
   Building2,
   Image,
   Bell,
+  Joystick,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -83,7 +84,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/website-settings', label: 'Website Settings', icon: Globe,       permission: 'website.settings' },
       { href: '/apk-manager',      label: 'APK Manager',      icon: Smartphone,  permission: 'website.settings' },
       { href: '/website-banners',        label: 'Banners',       icon: Image, permission: 'website.banner.manage' },
-      { href: '/website-announcements', label: 'Announcements', icon: Bell,  permission: 'website.announcement.manage' },
+      { href: '/website-announcements', label: 'Announcements',    icon: Bell,     permission: 'website.announcement.manage' },
+      { href: '/website-game-providers', label: 'Game Providers', icon: Joystick, permission: 'website.game.manage' },
     ],
   },
   {

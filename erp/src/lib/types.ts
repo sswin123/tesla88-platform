@@ -14,6 +14,21 @@ export interface WebsiteAnnouncement {
   updated_at: string;
 }
 
+export interface WebsiteGameProvider {
+  id: number;
+  provider_code: string;
+  provider_name: string;
+  category: 'slot' | 'live' | 'sport' | 'fishing';
+  logo_media_id: number | null;
+  banner_media_id: number | null;
+  is_hot: boolean;
+  is_new: boolean;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WebsiteBanner {
   id: number;
   title: string;
