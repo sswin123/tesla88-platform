@@ -14,7 +14,7 @@ const TABS = [
   },
   {
     label: '记录',
-    href: '/dashboard',
+    href: '/history',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <circle cx="12" cy="12" r="9" />

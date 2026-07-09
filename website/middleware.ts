@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const SECRET   = new TextEncoder().encode(process.env.MEMBER_JWT_SECRET ?? 'member-dev-secret-change-in-production');
-const PROTECTED = ['/dashboard', '/profile', '/deposit', '/withdrawal', '/chat'];
+const PROTECTED = ['/dashboard', '/profile', '/deposit', '/withdrawal', '/chat', '/history'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -23,5 +23,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/profile/:path*', '/deposit/:path*', '/withdrawal/:path*', '/chat/:path*'],
+  matcher: ['/dashboard/:path*', '/profile/:path*', '/deposit/:path*', '/withdrawal/:path*', '/chat/:path*', '/history/:path*'],
 };
