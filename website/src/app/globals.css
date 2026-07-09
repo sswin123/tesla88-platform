@@ -1,43 +1,126 @@
 @import "tailwindcss";
 
-/* ── Brand CSS Variables ─────────────────────────────────────────────────────
-   Defaults match SSWIN88 fallback.
-   Overridden at runtime by <html style="--brand-primary:..."> set in layout.tsx.
-   ────────────────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   Casino Dark Theme — variables & utilities
+   Brand colors overridden at runtime by <html style=...> in layout.tsx
+   ══════════════════════════════════════════════════════════════ */
+
 :root {
+  /* Brand — ERP-driven, overridden via html style= */
   --brand-primary:   #1d4ed8;
   --brand-secondary: #1e40af;
+
+  /* Casino dark palette */
+  --bg-base:      #0a0b14;
+  --bg-surface:   #111222;
+  --bg-surface2:  #181928;
+  --bg-surface3:  #1f2035;
+  --border-dim:   rgba(255 255 255 / 0.06);
+  --border-mid:   rgba(255 255 255 / 0.11);
+  --text-base:    #e8e8f5;
+  --text-muted:   #7070a0;
+  --text-faint:   #44445a;
+
+  /* Header / nav heights */
+  --header-h:    60px;
+  --ticker-h:    36px;
+  --bottomnav-h: 64px;
 }
 
-/* ── Brand Theme Utilities ────────────────────────────────────────────────── */
+/* ── Body & base ────────────────────────────────────────────── */
+body {
+  background-color: var(--bg-base);
+  color: var(--text-base);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
 
-/* Primary action button */
+/* ── Brand utilities (kept for client pages) ─────────────────── */
 .btn-brand {
   background-color: var(--brand-primary);
-  color: white;
+  color: #fff;
+  transition: opacity 0.15s;
 }
-.btn-brand:hover {
-  background-color: var(--brand-secondary);
-}
+.btn-brand:hover { opacity: 0.85; }
 
-/* Brand-colored text */
-.text-brand {
-  color: var(--brand-primary);
-}
+.text-brand  { color: var(--brand-primary); }
 
-/* Input focus ring using brand color */
 .input-brand:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--brand-primary);
 }
 
-/* User chat bubble */
-.bubble-brand {
-  background-color: var(--brand-primary);
-  color: white;
+.bubble-brand      { background-color: var(--brand-primary); color: #fff; }
+.bubble-brand-time { color: rgb(255 255 255 / 0.65); }
+
+/* ── Casino card ─────────────────────────────────────────────── */
+.casino-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: 0.75rem;
+}
+.casino-card-hover:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--brand-primary) 15%, transparent);
 }
 
-/* Timestamp text inside user bubble (lighter tint) */
-.bubble-brand-time {
-  color: rgb(255 255 255 / 0.65);
+/* ── Glow effects ────────────────────────────────────────────── */
+.glow-brand {
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--brand-primary) 50%, transparent),
+    0 0 24px color-mix(in srgb, var(--brand-primary) 25%, transparent);
 }
+.glow-border {
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+}
+.glow-text {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--brand-primary) 70%, transparent);
+  color: var(--brand-primary);
+}
+
+/* ── Casino button variants ──────────────────────────────────── */
+.casino-btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--brand-primary),
+    var(--brand-secondary)
+  );
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+.casino-btn-primary:hover {
+  opacity: 0.9;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary) 50%, transparent);
+}
+
+.casino-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  color: var(--text-base);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.casino-btn-outline:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+}
+
+/* ── Ticker animation ────────────────────────────────────────── */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+.ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: ticker-scroll 28s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+
+/* ── Scrollbar (webkit) ──────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }

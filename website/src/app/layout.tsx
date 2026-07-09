@@ -1,42 +1,21 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import pool from '@/lib/db';
-import type { WebsiteSettings } from '@/lib/types';
 import { getBrand } from '@/lib/brand';
+import CasinoHeader from './components/CasinoHeader';
+import BottomNav from './components/BottomNav';
+import MemberPanel from './components/MemberPanel';
 
 export const dynamic = 'force-dynamic';
 
-async function getSettings(): Promise<WebsiteSettings> {
-  const keys = [
-    'site_banner_text', 'site_banner_media_id',
-    'site_contact_email', 'site_contact_phone',
-    'site_terms_url', 'website_enabled',
-  ];
+async function getBannerText(): Promise<string> {
   try {
-    const res = await pool.query<{ key: string; value: string }>(
-      'SELECT key, value FROM system_settings WHERE key = ANY($1)', [keys]
+    const res = await pool.query<{ value: string }>(
+      "SELECT value FROM system_settings WHERE key = 'site_banner_text'"
     );
-    const map = Object.fromEntries(res.rows.map(r => [r.key, r.value]));
-    return {
-      site_brand_name:      '',
-      site_primary_color:   '',
-      site_logo_media_id:   '',
-      site_banner_text:     map.site_banner_text      ?? '',
-      site_banner_media_id: map.site_banner_media_id  ?? '',
-      site_contact_email:   map.site_contact_email    ?? '',
-      site_contact_phone:   map.site_contact_phone    ?? '',
-      site_seo_title:       '',
-      site_seo_description: '',
-      site_terms_url:       map.site_terms_url        ?? '',
-      website_enabled:      map.website_enabled       ?? 'true',
-    };
+    return res.rows[0]?.value ?? '';
   } catch {
-    return {
-      site_brand_name: '', site_primary_color: '',
-      site_logo_media_id: '', site_banner_text: '', site_banner_media_id: '',
-      site_contact_email: '', site_contact_phone: '', site_seo_title: '',
-      site_seo_description: '', site_terms_url: '', website_enabled: 'true',
-    };
+    return '';
   }
 }
 
@@ -53,40 +32,56 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [s, brand] = await Promise.all([getSettings(), getBrand()]);
-  const color = brand.primary_color;
+  const [brand, bannerText] = await Promise.all([getBrand(), getBannerText()]);
+
+  /* Total offset from top = header + optional ticker */
+  const topOffset = bannerText
+    ? 'calc(var(--header-h) + var(--ticker-h))'
+    : 'var(--header-h)';
+
   return (
-    <html lang="en" style={{ '--brand-primary': color, '--brand-secondary': brand.secondary_color } as React.CSSProperties}>
-      <body className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 flex items-center h-14 gap-6">
-            {brand.logo_media_id
-              ? <img src={`/api/public/media/${brand.logo_media_id}`} alt="logo" className="h-8 w-auto" />
-              : <span className="font-bold text-lg" style={{ color }}>{brand.brand_name}</span>
-            }
-            <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Home</a>
-            <a href="/promotions" className="text-sm text-gray-600 hover:text-gray-900">Promotions</a>
-            <a href="/download" className="text-sm text-gray-600 hover:text-gray-900">Download</a>
-            <a href="/chat" className="text-sm text-gray-600 hover:text-gray-900">Support</a>
-            <div className="ml-auto flex gap-2">
-              <a href="/login" className="px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Login</a>
-              <a href="/register" className="px-3 py-1.5 text-sm rounded-md text-white" style={{ background: color }}>Register</a>
+    <html
+      lang="en"
+      style={
+        {
+          '--brand-primary':   brand.primary_color,
+          '--brand-secondary': brand.secondary_color,
+        } as React.CSSProperties
+      }
+    >
+      <body style={{ background: 'var(--bg-base)', color: 'var(--text-base)' }}>
+        {/* ── Sticky header + optional ticker ── */}
+        <CasinoHeader brand={brand} bannerText={bannerText} />
+
+        {/* ── Page shell ──────────────────────── */}
+        <div
+          style={{
+            paddingTop: topOffset,
+            /* Extra bottom padding on mobile for the fixed bottom nav */
+            paddingBottom: 'var(--bottomnav-h)',
+          }}
+          className="lg:pb-0"
+        >
+          {/* Responsive container with optional sidebar on desktop */}
+          <div className="max-w-7xl mx-auto px-4 py-5">
+            <div className="flex gap-5 items-start">
+
+              {/* Member panel: sidebar on desktop, hidden on mobile */}
+              <aside className="hidden lg:block w-56 shrink-0 sticky" style={{ top: topOffset }}>
+                <MemberPanel />
+              </aside>
+
+              {/* Main content */}
+              <main className="flex-1 min-w-0">
+                {children}
+              </main>
+
             </div>
           </div>
-        </nav>
-        <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
-        <footer className="border-t border-gray-200 mt-16 py-8 text-center text-sm text-gray-500">
-          <p>© {new Date().getFullYear()} {brand.brand_name}. All rights reserved.</p>
-          {(s.site_contact_email || s.site_contact_phone || brand.support_whatsapp || brand.telegram_channel) && (
-            <p className="mt-1 flex justify-center flex-wrap gap-x-3">
-              {s.site_contact_email && <span>Email: {s.site_contact_email}</span>}
-              {s.site_contact_phone && <span>Phone: {s.site_contact_phone}</span>}
-              {brand.support_whatsapp && <span>WhatsApp: {brand.support_whatsapp}</span>}
-              {brand.telegram_channel && <span>Telegram: {brand.telegram_channel}</span>}
-            </p>
-          )}
-          {s.site_terms_url && <a href={s.site_terms_url} className="mt-1 inline-block text-gray-400 hover:underline">Terms &amp; Conditions</a>}
-        </footer>
+        </div>
+
+        {/* ── Fixed bottom nav (mobile only) ── */}
+        <BottomNav />
       </body>
     </html>
   );
