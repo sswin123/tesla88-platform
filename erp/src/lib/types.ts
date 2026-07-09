@@ -1,5 +1,19 @@
 export type AdminRole = 'SUPER_ADMIN' | 'ADMIN' | 'CS' | 'FINANCE' | 'SUPERVISOR' | 'SUPPORT';
 
+export interface WebsiteAnnouncement {
+  id: number;
+  title: string;
+  message: string;
+  type: 'info' | 'promotion' | 'warning';
+  link_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WebsiteBanner {
   id: number;
   title: string;

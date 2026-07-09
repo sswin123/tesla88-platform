@@ -6,10 +6,11 @@ import CasinoHeader from './components/CasinoHeader';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
+import type { PublicAnnouncement } from './api/public/announcements/route';
 
 export const dynamic = 'force-dynamic';
 
-async function getBannerText(): Promise<string> {
+async function getFallbackBannerText(): Promise<string> {
   try {
     const res = await pool.query<{ value: string }>(
       "SELECT value FROM system_settings WHERE key = 'site_banner_text'"
@@ -17,6 +18,22 @@ async function getBannerText(): Promise<string> {
     return res.rows[0]?.value ?? '';
   } catch {
     return '';
+  }
+}
+
+async function getActiveAnnouncements(): Promise<PublicAnnouncement[]> {
+  try {
+    const res = await pool.query<PublicAnnouncement>(
+      `SELECT id, title, message, type, link_url, display_order
+       FROM website_announcements
+       WHERE is_active = TRUE
+         AND (start_at IS NULL OR start_at <= NOW())
+         AND (end_at   IS NULL OR end_at   >  NOW())
+       ORDER BY display_order ASC, id ASC`
+    );
+    return res.rows;
+  } catch {
+    return [];
   }
 }
 
@@ -33,10 +50,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [brand, bannerText] = await Promise.all([getBrand(), getBannerText()]);
+  const [brand, announcements, fallbackText] = await Promise.all([
+    getBrand(),
+    getActiveAnnouncements(),
+    getFallbackBannerText(),
+  ]);
+
+  /* Ticker shows if we have ERP announcements OR a legacy banner text */
+  const hasTicker = announcements.length > 0 || !!fallbackText;
 
   /* Total offset from top = header + optional ticker */
-  const topOffset = bannerText
+  const topOffset = hasTicker
     ? 'calc(var(--header-h) + var(--ticker-h))'
     : 'var(--header-h)';
 
@@ -52,7 +76,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body style={{ background: 'var(--bg-base)', color: 'var(--text-base)' }}>
         {/* ── Sticky header + optional ticker ── */}
-        <CasinoHeader brand={brand} bannerText={bannerText} />
+        <CasinoHeader
+          brand={brand}
+          announcements={announcements}
+          fallbackBannerText={announcements.length === 0 ? fallbackText : ''}
+        />
 
         {/* ── Page shell ──────────────────────── */}
         <div

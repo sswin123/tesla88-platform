@@ -1,9 +1,19 @@
 import type { PublicBrand } from '@/lib/brand';
+import type { PublicAnnouncement } from '@/app/api/public/announcements/route';
 
 interface Props {
   brand: PublicBrand;
-  bannerText?: string;
+  /** ERP-managed announcements (priority) */
+  announcements?: PublicAnnouncement[];
+  /** Legacy fallback from system_settings site_banner_text */
+  fallbackBannerText?: string;
 }
+
+const TYPE_ICONS: Record<string, string> = {
+  info:      '📢',
+  promotion: '🎁',
+  warning:   '⚠️',
+};
 
 const NAV_LINKS = [
   { label: '首页',     href: '/' },
@@ -12,10 +22,39 @@ const NAV_LINKS = [
   { label: '在线客服', href: '/chat' },
 ];
 
-export default function CasinoHeader({ brand, bannerText }: Props) {
+function buildTickerContent(
+  announcements: PublicAnnouncement[],
+  fallback: string
+): React.ReactNode {
+  if (announcements.length > 0) {
+    return announcements.map((a, i) => (
+      <span key={a.id} className="inline-flex items-center">
+        {a.link_url ? (
+          <a
+            href={a.link_url}
+            className="hover:underline"
+            style={{ color: 'inherit', textDecoration: 'none' }}
+          >
+            {TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}
+          </a>
+        ) : (
+          <span>{TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}</span>
+        )}
+        {i < announcements.length - 1 && (
+          <span className="mx-10 opacity-30 select-none">◆</span>
+        )}
+      </span>
+    ));
+  }
+  return <span>📢&nbsp;{fallback}</span>;
+}
+
+export default function CasinoHeader({ brand, announcements = [], fallbackBannerText = '' }: Props) {
   const logoUrl = brand.logo_media_id
     ? `/api/public/media/${brand.logo_media_id}`
     : null;
+
+  const hasTicker = announcements.length > 0 || !!fallbackBannerText;
 
   return (
     <>
@@ -106,7 +145,7 @@ export default function CasinoHeader({ brand, bannerText }: Props) {
       </header>
 
       {/* ── Announcement ticker ──────────────────────────────── */}
-      {bannerText && (
+      {hasTicker && (
         <div
           className="fixed z-40 inset-x-0 overflow-hidden flex items-center"
           style={{
@@ -116,9 +155,14 @@ export default function CasinoHeader({ brand, bannerText }: Props) {
             borderBottom: '1px solid rgba(255 255 255 / 0.05)',
           }}
         >
+          {/* Duplicate content for seamless infinite scroll (translateX(-50%) animation) */}
           <div className="ticker-track text-xs" style={{ color: 'var(--text-muted)' }}>
-            <span className="mr-16">📢&nbsp;{bannerText}</span>
-            <span className="mr-16">📢&nbsp;{bannerText}</span>
+            <span className="mr-16 inline-flex items-center gap-0">
+              {buildTickerContent(announcements, fallbackBannerText)}
+            </span>
+            <span className="mr-16 inline-flex items-center gap-0" aria-hidden>
+              {buildTickerContent(announcements, fallbackBannerText)}
+            </span>
           </div>
         </div>
       )}
