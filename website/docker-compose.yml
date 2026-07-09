@@ -1,0 +1,11 @@
+services:
+  website:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3002:3000"
+    environment:
+      NODE_ENV: production
+      DB_HOST: host.docker.internal

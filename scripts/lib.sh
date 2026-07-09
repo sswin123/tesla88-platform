@@ -29,9 +29,14 @@ ERP_DIR="${PROJECT_ROOT}/erp"
 # ── Well-known ports/URLs ─────────────────────────────────────────────────────
 ERP_HOST_PORT=3001
 BOT_RELAY_HOST_PORT=8090
+WEBSITE_HOST_PORT=3002
+
 ERP_HEALTH_URL="http://localhost:${ERP_HOST_PORT}/api/maintenance/health"
 ERP_STATUS_URL="http://localhost:${ERP_HOST_PORT}/api/maintenance/status"
 BOT_RELAY_HEALTH_URL="http://localhost:${BOT_RELAY_HOST_PORT}/health"
+WEBSITE_HEALTH_URL="http://localhost:${WEBSITE_HOST_PORT}/api/health"
+
+WEBSITE_DIR="${PROJECT_ROOT}/website"
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 load_env() {
@@ -60,6 +65,14 @@ erp_dc() {
     "$@"
 }
 
+# Website project (Next.js)
+website_dc() {
+  docker compose \
+    -f "${WEBSITE_DIR}/docker-compose.yml" \
+    --project-directory "${WEBSITE_DIR}" \
+    "$@"
+}
+
 # ── psql in the db container ──────────────────────────────────────────────────
 db_psql() {
   dc exec -T \
@@ -82,6 +95,13 @@ root_running() {
 erp_running() {
   local cid
   cid=$(erp_dc ps -q erp 2>/dev/null | head -1)
+  [[ -n "$cid" ]] || return 1
+  [[ "$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)" == "running" ]]
+}
+
+website_running() {
+  local cid
+  cid=$(website_dc ps -q website 2>/dev/null | head -1)
   [[ -n "$cid" ]] || return 1
   [[ "$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)" == "running" ]]
 }

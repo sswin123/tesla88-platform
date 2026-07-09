@@ -45,6 +45,10 @@ show_logs_and_exit() {
     echo -e "${YELLOW}── ERP service ─────────────────────────────────────────────────${NC}"
     erp_dc logs --tail=100 2>/dev/null || true
   fi
+  if [[ -f "${WEBSITE_DIR}/docker-compose.yml" ]]; then
+    echo -e "${YELLOW}── Website service ──────────────────────────────────────────────${NC}"
+    website_dc logs --tail=100 2>/dev/null || true
+  fi
   if [[ -n "${BACKUP_FILE}" && -f "${BACKUP_FILE}" ]]; then
     echo ""
     log_warn "A backup was taken before this run: ${BACKUP_FILE}"
@@ -105,7 +109,6 @@ for svc in ${ROOT_SERVICES}; do
 done
 
 # Separate compose files for ERP and Website
-WEBSITE_DIR="${PROJECT_ROOT}/website"
 HAS_ERP_COMPOSE=false
 HAS_WEBSITE_COMPOSE=false
 
@@ -177,15 +180,9 @@ fi
 # Website
 if $HAS_WEBSITE_COMPOSE; then
   log_info "Building website…"
-  docker compose \
-    -f "${WEBSITE_DIR}/docker-compose.yml" \
-    --project-directory "${WEBSITE_DIR}" \
-    build
+  website_dc build
   log_info "Restarting website…"
-  docker compose \
-    -f "${WEBSITE_DIR}/docker-compose.yml" \
-    --project-directory "${WEBSITE_DIR}" \
-    up -d
+  website_dc up -d
 fi
 
 log_success "All containers rebuilt and restarted."
@@ -246,10 +243,9 @@ if $HAS_ERP_COMPOSE; then
   check_http "ERP" "${ERP_HEALTH_URL}"
 fi
 
-# Website: HTTP check
+# Website: HTTP health check (waits up to 60s for Next.js to start)
 if $HAS_WEBSITE_COMPOSE; then
-  WEBSITE_PORT=3002  # adjust if website uses a different port
-  check_http "Website" "http://localhost:${WEBSITE_PORT}/"
+  wait_http "${WEBSITE_HEALTH_URL}" "Website" 60
 fi
 
 if [[ $health_errors -gt 0 ]]; then
@@ -273,6 +269,8 @@ echo -e "  ${GREEN}✓${NC} Migrations applied"
 echo -e "  ${GREEN}✓${NC} Containers rebuilt"
 echo -e "  ${GREEN}✓${NC} Health checks passed"
 echo ""
+$HAS_ERP_COMPOSE     && echo -e "  ${BOLD}ERP:${NC}      http://localhost:${ERP_HOST_PORT}"
+$HAS_WEBSITE_COMPOSE && echo -e "  ${BOLD}Website:${NC}  http://localhost:${WEBSITE_HOST_PORT}"
 [[ -n "${BACKUP_FILE}" ]] && echo -e "  ${BOLD}Backup:${NC}   ${BACKUP_FILE}"
 echo -e "  ${BOLD}Duration:${NC} ${ELAPSED}s"
 echo -e "  ${BOLD}Commit:${NC}   $(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
