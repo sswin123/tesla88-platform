@@ -3,7 +3,7 @@ import { usePathname } from 'next/navigation';
 
 const TABS = [
   {
-    label: 'Home',
+    label: '首页',
     href: '/',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -13,7 +13,7 @@ const TABS = [
     ),
   },
   {
-    label: 'History',
+    label: '记录',
     href: '/dashboard',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -23,7 +23,7 @@ const TABS = [
     ),
   },
   {
-    label: 'Promo',
+    label: '优惠',
     href: '/promotions',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -32,7 +32,7 @@ const TABS = [
     ),
   },
   {
-    label: 'Chat',
+    label: '客服',
     href: '/chat',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -41,7 +41,7 @@ const TABS = [
     ),
   },
   {
-    label: 'Profile',
+    label: '我的',
     href: '/profile',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

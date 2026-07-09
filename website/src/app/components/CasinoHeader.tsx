@@ -6,10 +6,10 @@ interface Props {
 }
 
 const NAV_LINKS = [
-  { label: 'Home',       href: '/' },
-  { label: 'Promotions', href: '/promotions' },
-  { label: 'Download',   href: '/download' },
-  { label: 'Support',    href: '/chat' },
+  { label: '首页',     href: '/' },
+  { label: '优惠活动', href: '/promotions' },
+  { label: '下载APP',  href: '/download' },
+  { label: '在线客服', href: '/chat' },
 ];
 
 export default function CasinoHeader({ brand, bannerText }: Props) {
@@ -84,10 +84,10 @@ export default function CasinoHeader({ brand, bannerText }: Props) {
           <button
             className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm casino-btn-outline"
             style={{ color: 'var(--text-muted)' }}
-            aria-label="Language selector"
+            aria-label="语言选择"
           >
             <span>🌐</span>
-            <span>EN</span>
+            <span>中文</span>
           </button>
 
           {/* Mobile: profile icon */}
@@ -95,7 +95,7 @@ export default function CasinoHeader({ brand, bannerText }: Props) {
             href="/profile"
             className="lg:hidden p-1.5 rounded-full"
             style={{ color: 'var(--text-muted)' }}
-            aria-label="Profile"
+            aria-label="个人中心"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <circle cx="12" cy="8" r="4" />

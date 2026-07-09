@@ -5,6 +5,7 @@ import { getBrand } from '@/lib/brand';
 import CasinoHeader from './components/CasinoHeader';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
+import FloatingSupport from './components/FloatingSupport';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* ── Fixed bottom nav (mobile only) ── */}
         <BottomNav />
+
+        {/* ── Floating support button (desktop only) ── */}
+        <FloatingSupport whatsapp={brand.support_whatsapp} telegram={brand.support_telegram} />
       </body>
     </html>
   );
