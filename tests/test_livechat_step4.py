@@ -38,6 +38,10 @@ class _FakeMsg:
     def __init__(self, **kwargs):
         self.text = kwargs.get("text")
         self.photo = kwargs.get("photo")
+        self.video = kwargs.get("video")
+        self.video_note = kwargs.get("video_note")
+        self.audio = kwargs.get("audio")
+        self.animation = kwargs.get("animation")
         self.document = kwargs.get("document")
         self.voice = kwargs.get("voice")
         self.sticker = kwargs.get("sticker")
