@@ -35,6 +35,8 @@ import {
   Bell,
   Joystick,
   CreditCard,
+  Activity,
+  HardDrive,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +90,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/website-announcements', label: 'Announcements',    icon: Bell,     permission: 'website.announcement.manage' },
       { href: '/website-game-providers',  label: 'Game Providers', icon: Joystick,   permission: 'website.game.manage' },
       { href: '/website-payment-banks',   label: 'Payment Banks',  icon: CreditCard, permission: 'payment.bank.manage' },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { href: '/system/health',  label: '健康监控', icon: Activity,  permission: 'maintenance.view' },
+      { href: '/system/backups', label: '备份管理', icon: HardDrive, permission: 'maintenance.view' },
     ],
   },
   {
