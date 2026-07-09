@@ -35,9 +35,11 @@ export default function MemberDetailPage() {
   const router   = useRouter();
   const [data, setData]         = useState<MemberPayload | null>(null);
   const [loading, setLoading]   = useState(true);
-  const [toggling, setToggling] = useState(false);
-  const [remarks, setRemarks]   = useState('');
+  const [toggling, setToggling]         = useState(false);
+  const [remarks, setRemarks]           = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
+  const [resetting, setResetting]       = useState(false);
+  const [newPassword, setNewPassword]   = useState<string | null>(null);
 
   async function load() {
     const r = await fetch(`/api/members/${params.id}`);
@@ -69,6 +71,21 @@ export default function MemberDetailPage() {
     setToggling(false);
   }
 
+  async function resetWebsitePassword() {
+    if (!data) return;
+    if (!confirm('确定要重置该会员的网站登录密码吗？')) return;
+    setResetting(true);
+    setNewPassword(null);
+    const r = await fetch(`/api/members/${data.member.id}/reset-website-password`, { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      setNewPassword(d.new_password as string);
+    } else {
+      alert('重置密码失败');
+    }
+    setResetting(false);
+  }
+
   async function saveRemarks() {
     if (!data) return;
     setSavingRemarks(true);
@@ -95,6 +112,9 @@ export default function MemberDetailPage() {
         <h1 className="text-2xl font-bold">Member #{member.id}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.back()}>← Back</Button>
+          <Button variant="outline" onClick={resetWebsitePassword} disabled={resetting}>
+            {resetting ? '重置中…' : '重置网站密码'}
+          </Button>
           <Button
             variant={member.status === 'ACTIVE' ? 'destructive' : 'default'}
             onClick={toggleStatus}
@@ -104,6 +124,14 @@ export default function MemberDetailPage() {
           </Button>
         </div>
       </div>
+
+      {newPassword && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+          <p className="font-semibold text-amber-800">新网站密码（仅显示一次）</p>
+          <p className="mt-1 font-mono text-lg tracking-wider text-amber-900">{newPassword}</p>
+          <p className="mt-1 text-amber-700">请将此密码告知会员，页面刷新后将不再显示。</p>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

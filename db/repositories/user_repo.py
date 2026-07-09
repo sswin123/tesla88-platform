@@ -48,19 +48,20 @@ async def create_user(
     bank_account: str,
     bank_holder_name: str,
     eligible_free_credit: bool,
+    website_password_hash: Optional[str] = None,
 ) -> asyncpg.Record:
     return await pool.fetchrow(
         """
         INSERT INTO users (
             telegram_id, telegram_username, first_name,
             phone, bank_name, bank_account, bank_holder_name,
-            eligible_free_credit
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            eligible_free_credit, website_password_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
         """,
         telegram_id, telegram_username, first_name,
         phone, bank_name, bank_account, bank_holder_name,
-        eligible_free_credit,
+        eligible_free_credit, website_password_hash,
     )
 
 

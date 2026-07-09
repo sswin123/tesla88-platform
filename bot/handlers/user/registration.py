@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import secrets
+import string
+
+import bcrypt
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -24,6 +29,15 @@ from db.repositories.user_repo import (
     get_user_by_phone,
     get_user_by_telegram_id,
 )
+
+
+def _generate_website_password(length: int = 10) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+def _hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
 router = Router()
 
@@ -292,6 +306,9 @@ async def process_bank_holder(
 
     eligible = await check_phone_in_free_list(pool, data["phone"])
 
+    website_password = _generate_website_password()
+    website_password_hash = _hash_password(website_password)
+
     try:
         await create_user(
             pool,
@@ -303,6 +320,7 @@ async def process_bank_holder(
             bank_account=data["bank_account"],
             bank_holder_name=bank_holder_name,
             eligible_free_credit=eligible,
+            website_password_hash=website_password_hash,
         )
     except asyncpg.exceptions.UniqueViolationError:
         await state.clear()
@@ -322,3 +340,12 @@ async def process_bank_holder(
     )
     keyboard = await build_main_menu_keyboard_from_cms(pool, lang)
     await message.answer(text, reply_markup=keyboard)
+
+    # Send website login credentials in a separate message
+    creds_text = (
+        f"🌐 *网站登录信息*\n\n"
+        f"账号（手机号）：`{data['phone']}`\n"
+        f"密码：`{website_password}`\n\n"
+        f"请保存好您的登录信息，密码可在网站个人中心修改。"
+    )
+    await message.answer(creds_text, parse_mode="Markdown")
