@@ -1,25 +1,41 @@
 import pool from '@/lib/db';
+import { getBrand } from '@/lib/brand';
 import type { PublicPromotion, WebsiteSettings } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-async function getData() {
-  const [settingsRes, promoRes] = await Promise.all([
-    pool.query<{ key: string; value: string }>('SELECT key, value FROM system_settings WHERE key = ANY($1)',
-      [['site_brand_name','site_primary_color','site_banner_text','site_banner_media_id','site_contact_email','site_contact_phone']]),
-    pool.query<PublicPromotion>(
+async function getBannerSettings(): Promise<Partial<WebsiteSettings>> {
+  try {
+    const res = await pool.query<{ key: string; value: string }>(
+      'SELECT key, value FROM system_settings WHERE key = ANY($1)',
+      [['site_banner_text', 'site_banner_media_id']]
+    );
+    return Object.fromEntries(res.rows.map(r => [r.key, r.value])) as Partial<WebsiteSettings>;
+  } catch {
+    return {};
+  }
+}
+
+async function getPromotions(): Promise<PublicPromotion[]> {
+  try {
+    const res = await pool.query<PublicPromotion>(
       `SELECT id, name, description, bonus_type, bonus_value, min_deposit, expiry_date
        FROM promotions WHERE is_active = TRUE AND deleted_at IS NULL
        AND (expiry_date IS NULL OR expiry_date > NOW()) ORDER BY id DESC LIMIT 3`
-    ),
-  ]);
-  const s = Object.fromEntries(settingsRes.rows.map(r => [r.key, r.value])) as Partial<WebsiteSettings>;
-  return { settings: s, promotions: promoRes.rows };
+    );
+    return res.rows;
+  } catch {
+    return [];
+  }
 }
 
 export default async function HomePage() {
-  const { settings: s, promotions } = await getData();
-  const color = s.site_primary_color ?? '#3B82F6';
+  const [s, brand, promotions] = await Promise.all([
+    getBannerSettings(),
+    getBrand(),
+    getPromotions(),
+  ]);
+  const color = brand.primary_color;
 
   return (
     <div>
@@ -30,11 +46,11 @@ export default async function HomePage() {
         )}
         <div className="p-10 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {s.site_banner_text || `Welcome to ${s.site_brand_name ?? 'Member Portal'}`}
+            {s.site_banner_text || `Welcome to ${brand.brand_name}`}
           </h1>
           <p className="text-gray-600 mb-8">Manage your account, check promotions, and get support anytime.</p>
           <div className="flex gap-4 justify-center">
-            <a href="/register" className="px-6 py-3 rounded-lg text-white font-medium" style={{ background: color }}>Get Started</a>
+            <a href="/register" className="px-6 py-3 rounded-lg font-medium btn-brand">Get Started</a>
             <a href="/login"    className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Login</a>
           </div>
         </div>
@@ -49,7 +65,7 @@ export default async function HomePage() {
               <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-5">
                 <h3 className="font-semibold text-gray-900">{p.name}</h3>
                 {p.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{p.description}</p>}
-                <p className="mt-3 text-sm font-medium" style={{ color }}>
+                <p className="mt-3 text-sm font-medium text-brand">
                   {p.bonus_type === 'PERCENTAGE' ? `${p.bonus_value}% bonus` : `RM ${p.bonus_value} bonus`} · Min deposit RM {p.min_deposit}
                 </p>
                 {p.expiry_date && <p className="text-xs text-gray-400 mt-1">Expires: {new Date(p.expiry_date).toLocaleDateString()}</p>}
@@ -57,7 +73,7 @@ export default async function HomePage() {
             ))}
           </div>
           <div className="mt-4 text-center">
-            <a href="/promotions" className="text-sm font-medium" style={{ color }}>View all promotions →</a>
+            <a href="/promotions" className="text-sm font-medium text-brand">View all promotions →</a>
           </div>
         </section>
       )}
@@ -77,7 +93,7 @@ export default async function HomePage() {
         <a href="/dashboard" className="bg-white rounded-xl border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
           <div className="text-3xl mb-2">👤</div>
           <h3 className="font-semibold">My Account</h3>
-          <p className="text-sm text-gray-500 mt-1">Check balance & history</p>
+          <p className="text-sm text-gray-500 mt-1">Check balance &amp; history</p>
         </a>
       </section>
     </div>

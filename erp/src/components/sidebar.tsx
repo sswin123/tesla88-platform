@@ -94,6 +94,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 interface MeData { isSuperAdmin: boolean; permissions: string[] }
+interface BrandData { brand_name: string; logo_media_id: number | null }
 
 export function filterNavGroups(
   groups: NavGroup[],
@@ -121,6 +122,7 @@ export function Sidebar() {
   const router   = useRouter();
   const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [me, setMe] = useState<MeData>({ isSuperAdmin: false, permissions: [] });
+  const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
 
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
@@ -137,6 +139,10 @@ export function Sidebar() {
         if (d?.maintenance_mode) setMaintenanceOn(true);
       })
       .catch(() => {});
+    fetch('/api/public/brand')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b: BrandData | null) => { if (b?.brand_name) setBrand(b); })
+      .catch(() => {});
   }, [loadMe]);
 
   async function handleLogout() {
@@ -147,8 +153,11 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-56 flex-col border-r bg-white">
-      <div className="border-b px-4 py-4">
-        <span className="text-base font-semibold tracking-tight">ERP Admin</span>
+      <div className="border-b px-4 py-4 flex items-center gap-2">
+        {brand.logo_media_id
+          ? <img src={`/api/public/media/${brand.logo_media_id}`} alt="logo" className="h-6 w-auto" />
+          : null}
+        <span className="text-base font-semibold tracking-tight truncate">{brand.brand_name}</span>
       </div>
 
       {maintenanceOn && (

@@ -59,10 +59,10 @@ export default function ProfilePage() {
           {msg   && <div className="text-green-700 text-sm bg-green-50 border border-green-200 rounded p-2">{msg}</div>}
           {error && <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded p-2">{error}</div>}
           <input value={newPass} onChange={e => setNewPass(e.target.value)} type="password" required minLength={8} placeholder="New password (min 8 chars)"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm input-brand" />
           <input value={confirm} onChange={e => setConfirm(e.target.value)} type="password" required minLength={8} placeholder="Confirm new password"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Update Password</button>
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm input-brand" />
+          <button type="submit" className="w-full py-2 btn-brand rounded-lg text-sm font-medium">Update Password</button>
         </form>
       </div>
     </div>

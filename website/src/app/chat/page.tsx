@@ -74,11 +74,11 @@ export default function ChatPage() {
             <div key={m.id} className={`flex ${m.sender_type === 'USER' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${
                 m.sender_type === 'USER'
-                  ? 'bg-blue-600 text-white rounded-br-sm'
+                  ? 'bubble-brand rounded-br-sm'
                   : 'bg-gray-100 text-gray-900 rounded-bl-sm'
               }`}>
                 {m.content}
-                <div className={`text-xs mt-0.5 ${m.sender_type === 'USER' ? 'text-blue-200' : 'text-gray-400'}`}>
+                <div className={`text-xs mt-0.5 ${m.sender_type === 'USER' ? 'bubble-brand-time' : 'text-gray-400'}`}>
                   {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
@@ -93,10 +93,10 @@ export default function ChatPage() {
             onChange={e => setInput(e.target.value)}
             placeholder={session?.status === 'CLOSED' ? 'Session closed' : 'Type a message…'}
             disabled={!session || session.status === 'CLOSED'}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm input-brand disabled:bg-gray-50"
           />
           <button type="submit" disabled={!input.trim() || !session || session.status === 'CLOSED' || sending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            className="px-4 py-2 btn-brand rounded-lg text-sm font-medium disabled:opacity-50">
             Send
           </button>
         </form>

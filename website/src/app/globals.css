@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+/* ── Brand CSS Variables ─────────────────────────────────────────────────────
+   Defaults match SSWIN88 fallback.
+   Overridden at runtime by <html style="--brand-primary:..."> set in layout.tsx.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --brand-primary:   #1d4ed8;
+  --brand-secondary: #1e40af;
+}
+
+/* ── Brand Theme Utilities ────────────────────────────────────────────────── */
+
+/* Primary action button */
+.btn-brand {
+  background-color: var(--brand-primary);
+  color: white;
+}
+.btn-brand:hover {
+  background-color: var(--brand-secondary);
+}
+
+/* Brand-colored text */
+.text-brand {
+  color: var(--brand-primary);
+}
+
+/* Input focus ring using brand color */
+.input-brand:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+/* User chat bubble */
+.bubble-brand {
+  background-color: var(--brand-primary);
+  color: white;
+}
+
+/* Timestamp text inside user bubble (lighter tint) */
+.bubble-brand-time {
+  color: rgb(255 255 255 / 0.65);
+}

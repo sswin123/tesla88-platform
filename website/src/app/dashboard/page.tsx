@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
       {/* Quick actions */}
       <div className="flex gap-3 mb-8">
-        <a href="/deposit" className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ Deposit</a>
+        <a href="/deposit" className="px-4 py-2 btn-brand text-sm rounded-lg">+ Deposit</a>
         <a href="/withdrawal" className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Withdraw</a>
         <a href="/profile" className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Profile</a>
         <a href="/chat" className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Support</a>

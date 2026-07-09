@@ -12,7 +12,7 @@ export function DownloadButton({ href, apkId }: { href: string; apkId: number })
     <a
       href={href}
       onClick={handleClick}
-      className="block w-full py-3 text-center rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700"
+      className="block w-full py-3 text-center rounded-lg font-semibold btn-brand"
       download
     >
       Download APK
