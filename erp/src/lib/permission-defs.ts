@@ -86,7 +86,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: 'brand.settings',  label: 'Brand Settings' },
       { key: 'staff.manage',    label: 'Staff Management' },
-      { key: 'website.settings',label: 'Website Settings' },
+      { key: 'website.settings',      label: 'Website Settings' },
+      { key: 'website.banner.manage', label: 'Website Banners' },
       { key: 'maintenance.view',label: 'Maintenance' },
       { key: 'audit.view',      label: 'Audit Log' },
     ],

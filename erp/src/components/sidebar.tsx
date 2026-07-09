@@ -31,6 +31,7 @@ import {
   Smartphone,
   FileText,
   Building2,
+  Image,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -80,6 +81,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/website-settings', label: 'Website Settings', icon: Globe,       permission: 'website.settings' },
       { href: '/apk-manager',      label: 'APK Manager',      icon: Smartphone,  permission: 'website.settings' },
+      { href: '/website-banners',  label: 'Banners',          icon: Image,       permission: 'website.banner.manage' },
     ],
   },
   {

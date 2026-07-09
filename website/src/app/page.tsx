@@ -1,11 +1,40 @@
 import pool from '@/lib/db';
 import type { PublicPromotion } from '@/lib/types';
-import HeroSlider from './components/HeroSlider';
+import HeroSlider, { type Slide } from './components/HeroSlider';
 import GameLobby from './components/GameLobby';
 import PromoBanner from './components/PromoBanner';
 import LiveTransaction from './components/LiveTransaction';
 
 export const dynamic = 'force-dynamic';
+
+interface BannerRow {
+  id: number; title: string; description: string | null;
+  image_media_id: number | null; link_url: string | null; button_text: string | null;
+}
+
+async function getBannerSlides(): Promise<Slide[]> {
+  try {
+    const res = await pool.query<BannerRow>(
+      `SELECT id, title, description, image_media_id, link_url, button_text
+       FROM website_banners
+       WHERE is_active = TRUE
+         AND (start_at IS NULL OR start_at <= NOW())
+         AND (end_at   IS NULL OR end_at   >  NOW())
+       ORDER BY display_order ASC, id ASC`
+    );
+    if (res.rows.length === 0) return [];
+    return res.rows.map(b => ({
+      id:       b.id,
+      title:    b.title,
+      subtitle: b.description ?? undefined,
+      cta:      b.button_text ?? undefined,
+      ctaHref:  b.link_url ?? undefined,
+      imageUrl: b.image_media_id ? `/api/public/media/${b.image_media_id}` : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 async function getPromotions(): Promise<PublicPromotion[]> {
   try {
@@ -23,13 +52,13 @@ async function getPromotions(): Promise<PublicPromotion[]> {
 }
 
 export default async function HomePage() {
-  const promotions = await getPromotions();
+  const [bannerSlides, promotions] = await Promise.all([getBannerSlides(), getPromotions()]);
 
   return (
     <div className="flex flex-col gap-8">
 
       {/* ── Hero Slider ───────────────────────────────────────── */}
-      <HeroSlider />
+      <HeroSlider slides={bannerSlides.length > 0 ? bannerSlides : undefined} />
 
       {/* ── Quick links ───────────────────────────────────────── */}
       <section>

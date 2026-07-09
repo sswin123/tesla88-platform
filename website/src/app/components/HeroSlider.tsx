@@ -8,6 +8,7 @@ export interface Slide {
   cta?: string;
   ctaHref?: string;
   accentColor?: string;
+  imageUrl?: string;
 }
 
 const FALLBACK_SLIDES: Slide[] = [
@@ -71,12 +72,31 @@ export default function HeroSlider({ slides }: Props) {
         <div
           key={s.id}
           className="absolute inset-0 transition-opacity duration-700"
-          style={{
-            opacity: i === current ? 1 : 0,
-            background: `radial-gradient(ellipse at 70% 50%, ${s.accentColor ?? 'var(--brand-primary)'}33 0%, transparent 65%),
-                         linear-gradient(135deg, ${s.accentColor ?? 'var(--brand-primary)'}1a 0%, var(--bg-surface2) 100%)`,
-          }}
-        />
+          style={{ opacity: i === current ? 1 : 0 }}
+        >
+          {s.imageUrl ? (
+            <>
+              <img
+                src={s.imageUrl}
+                alt={s.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* Dark overlay for text readability */}
+              <div
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 70%, transparent 100%)' }}
+              />
+            </>
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(ellipse at 70% 50%, ${s.accentColor ?? 'var(--brand-primary)'}33 0%, transparent 65%),
+                             linear-gradient(135deg, ${s.accentColor ?? 'var(--brand-primary)'}1a 0%, var(--bg-surface2) 100%)`,
+              }}
+            />
+          )}
+        </div>
       ))}
 
       {/* Border */}
@@ -89,21 +109,21 @@ export default function HeroSlider({ slides }: Props) {
       <div className="relative px-6 py-10 sm:px-12 sm:py-14">
         <p
           className="text-xs font-bold tracking-widest uppercase mb-3"
-          style={{ color: accent }}
+          style={{ color: slide.imageUrl ? '#fff' : accent }}
         >
           限时活动
         </p>
         <h1
           className="text-2xl sm:text-3xl font-bold mb-3 leading-tight"
           style={{
-            color: 'var(--text-base)',
-            textShadow: `0 0 40px ${accent}44`,
+            color: slide.imageUrl ? '#fff' : 'var(--text-base)',
+            textShadow: slide.imageUrl ? '0 2px 8px rgba(0,0,0,0.5)' : `0 0 40px ${accent}44`,
           }}
         >
           {slide.title}
         </h1>
         {slide.subtitle && (
-          <p className="text-sm mb-6 max-w-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mb-6 max-w-sm" style={{ color: slide.imageUrl ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)' }}>
             {slide.subtitle}
           </p>
         )}
