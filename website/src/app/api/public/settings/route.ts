@@ -4,7 +4,7 @@ import pool from '@/lib/db';
 const WEBSITE_KEYS = [
   'site_brand_name','site_primary_color','site_logo_media_id','site_banner_text',
   'site_banner_media_id','site_contact_email','site_contact_phone','site_seo_title',
-  'site_seo_description','site_terms_url','website_enabled','deposit_min_amount',
+  'site_seo_description','site_terms_url','website_enabled','deposit_min_amount','withdraw_min_amount',
 ];
 
 export async function GET() {

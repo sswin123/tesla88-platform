@@ -87,8 +87,10 @@ describe('POST /api/member/withdrawals', () => {
 
   it('returns 201 on valid submission', async () => {
     vi.mocked(pool.query)
-      .mockResolvedValueOnce({ rows: [{ bank_name: 'BANK', bank_account: '123', bank_holder_name: 'Alice' }] } as never)
-      .mockResolvedValueOnce({ rows: [{ id: 55 }] } as never);
+      .mockResolvedValueOnce({ rows: [{ bank_name: 'BANK', bank_account: '123', bank_holder_name: 'Alice', net_deposit: '500.00' }] } as never) /* user */
+      .mockResolvedValueOnce({ rows: [{ value: '30' }] } as never)    /* min amount */
+      .mockResolvedValueOnce({ rows: [] } as never)                    /* no pending */
+      .mockResolvedValueOnce({ rows: [{ id: 55 }] } as never);        /* INSERT */
     const res = await postWithdrawal(makeReq('POST', { amount: 200 }) as never);
     expect(res.status).toBe(201);
   });

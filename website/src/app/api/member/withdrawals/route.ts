@@ -19,15 +19,42 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as { amount?: number };
   if (!body.amount || body.amount <= 0)
-    return NextResponse.json({ error: 'amount required and must be positive' }, { status: 400 });
+    return NextResponse.json({ error: '请输入有效的提款金额' }, { status: 400 });
 
-  const userRes = await pool.query<{ bank_name: string; bank_account: string; bank_holder_name: string }>(
-    'SELECT bank_name, bank_account, bank_holder_name FROM users WHERE id = $1',
+  /* Fetch user bank info + balance */
+  const userRes = await pool.query<{
+    bank_name: string; bank_account: string; bank_holder_name: string; net_deposit: string;
+  }>(
+    'SELECT bank_name, bank_account, bank_holder_name, net_deposit FROM users WHERE id = $1',
     [member.sub]
   );
   const u = userRes.rows[0];
   if (!u?.bank_account)
-    return NextResponse.json({ error: 'No bank account on file. Contact support.' }, { status: 400 });
+    return NextResponse.json({ error: '账户未绑定银行卡，请联系客服' }, { status: 400 });
+
+  /* Minimum withdraw amount */
+  const settingRes = await pool.query<{ value: string }>(
+    `SELECT value FROM system_settings WHERE key = 'withdraw_min_amount'`
+  );
+  const minAmount = parseFloat(settingRes.rows[0]?.value ?? '30') || 30;
+  if (body.amount < minAmount)
+    return NextResponse.json({ error: `最低提款金额为 RM ${minAmount}` }, { status: 400 });
+
+  /* Balance check */
+  const balance = parseFloat(u.net_deposit ?? '0');
+  if (body.amount > balance)
+    return NextResponse.json({ error: '提款金额超过可用余额' }, { status: 400 });
+
+  /* Duplicate pending prevention */
+  const pendingRes = await pool.query<{ id: number }>(
+    `SELECT id FROM withdrawal_requests WHERE user_id = $1 AND status = 'PENDING' LIMIT 1`,
+    [member.sub]
+  );
+  if (pendingRes.rows.length > 0)
+    return NextResponse.json(
+      { error: '已有一笔提款申请处理中，请等待完成后再申请', pending_id: pendingRes.rows[0].id },
+      { status: 409 }
+    );
 
   const res = await pool.query(
     `INSERT INTO withdrawal_requests
