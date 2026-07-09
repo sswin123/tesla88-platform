@@ -219,6 +219,9 @@ export function Sidebar() {
           <LogOut size={16} />
           Logout
         </button>
+        <p className="mt-1 px-3 text-[10px] text-gray-300 select-none">
+          v1.0.0
+        </p>
       </div>
     </aside>
   );

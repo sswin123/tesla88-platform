@@ -29,6 +29,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public health API for external uptime monitoring (no sensitive data)
+  if (pathname === '/api/health/system') {
+    return NextResponse.next();
+  }
+
+  // Public brand data consumed by the website and bot (read-only, no sensitive data)
+  if (pathname.startsWith('/api/public/')) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
