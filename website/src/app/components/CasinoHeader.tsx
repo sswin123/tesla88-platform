@@ -101,16 +101,7 @@ export default function CasinoHeader({ brand, announcements = [], fallbackBanner
               <a
                 key={link.href}
                 href={link.href}
-                className="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => {
-                  (e.target as HTMLAnchorElement).style.color = 'var(--text-base)';
-                  (e.target as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.05)';
-                }}
-                onMouseLeave={e => {
-                  (e.target as HTMLAnchorElement).style.color = 'var(--text-muted)';
-                  (e.target as HTMLAnchorElement).style.background = '';
-                }}
+                className="casino-nav-link px-3 py-1.5 text-sm font-medium rounded-md"
               >
                 {link.label}
               </a>

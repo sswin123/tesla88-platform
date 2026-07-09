@@ -115,14 +115,12 @@ function DesktopRow({ tx }: { tx: TxRecord }) {
 
   return (
     <div
-      className="hidden lg:grid items-center px-5 py-3 transition-colors"
+      className="casino-row-hover hidden lg:grid items-center px-5 py-3 transition-colors"
       style={{
         gridTemplateColumns: '90px 80px 1fr 1fr 1fr 110px',
         gap: '1rem',
         borderBottom: '1px solid var(--border-dim)',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-surface2)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ''; }}
     >
       <TypeBadge type={tx.type} />
       <span className="text-xs font-mono" style={{ color: 'var(--text-faint)' }}>

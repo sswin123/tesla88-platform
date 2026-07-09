@@ -79,6 +79,17 @@ input, select, textarea {
   border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
   box-shadow: 0 0 12px color-mix(in srgb, var(--brand-primary) 15%, transparent);
 }
+.casino-nav-link {
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s;
+}
+.casino-nav-link:hover {
+  color: var(--text-base);
+  background: rgba(255, 255, 255, 0.05);
+}
+.casino-row-hover:hover {
+  background: var(--bg-surface2);
+}
 
 /* ── Glow effects ────────────────────────────────────────────── */
 .glow-brand {
