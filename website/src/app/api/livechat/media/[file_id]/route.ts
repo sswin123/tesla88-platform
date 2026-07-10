@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createReadStream, existsSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { join, extname } from 'path';
-import { Readable } from 'stream';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +26,10 @@ export async function GET(
   // Decode explicitly: Next.js may leave %3A un-decoded in route params
   const decodedId = decodeURIComponent(file_id);
 
+  console.log('[media] request', { file_id, decodedId, UPLOAD_DIR });
+
   if (!decodedId.startsWith('local:')) {
+    console.log('[media] rejected - not a local file_id');
     return new NextResponse('Not a local file', { status: 400 });
   }
 
@@ -34,19 +37,27 @@ export async function GET(
   const rawName = decodedId.slice('local:'.length);
   const safeName = rawName.replace(/[/\\]/g, '');
   const filePath = join(UPLOAD_DIR, safeName);
+  const exists = existsSync(filePath);
 
-  if (!existsSync(filePath)) {
+  console.log('[media] file', { rawName, safeName, filePath, exists });
+
+  if (!exists) {
     return new NextResponse('Not found', { status: 404 });
   }
 
   const mime = EXT_MIME[extname(safeName).toLowerCase()] ?? 'application/octet-stream';
-  const stream = createReadStream(filePath);
 
-  return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
-    headers: {
-      'Content-Type': mime,
-      'Cache-Control': 'public, max-age=3600, immutable',
-      'Content-Disposition': 'inline',
-    },
-  });
+  try {
+    const data = await readFile(filePath);
+    return new NextResponse(data, {
+      headers: {
+        'Content-Type': mime,
+        'Cache-Control': 'public, max-age=3600, immutable',
+        'Content-Disposition': 'inline',
+      },
+    });
+  } catch (err) {
+    console.error('[media] read error', err);
+    return new NextResponse('Read failed', { status: 500 });
+  }
 }

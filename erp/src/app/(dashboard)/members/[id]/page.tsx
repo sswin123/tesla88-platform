@@ -33,14 +33,14 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function MemberDetailPage() {
   const params   = useParams<{ id: string }>();
   const router   = useRouter();
-  const [data, setData]         = useState<MemberPayload | null>(null);
-  const [loadError, setLoadError] = useState('');
-  const [loading, setLoading]   = useState(true);
-  const [toggling, setToggling]         = useState(false);
-  const [remarks, setRemarks]           = useState('');
+  const [data, setData]               = useState<MemberPayload | null>(null);
+  const [loadError, setLoadError]     = useState('');
+  const [loading, setLoading]         = useState(true);
+  const [toggling, setToggling]       = useState(false);
+  const [remarks, setRemarks]         = useState('');
   const [savingRemarks, setSavingRemarks] = useState(false);
-  const [resetting, setResetting]       = useState(false);
-  const [newPassword, setNewPassword]   = useState<string | null>(null);
+  const [resetting, setResetting]     = useState(false);
+  const [newPassword, setNewPassword] = useState<string | null>(null);
 
   async function load() {
     const r = await fetch(`/api/members/${params.id}`);
@@ -115,13 +115,11 @@ export default function MemberDetailPage() {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Member #{member.id}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.back()}>← Back</Button>
-          <Button variant="outline" onClick={resetWebsitePassword} disabled={resetting}>
-            {resetting ? '重置中…' : '重置网站密码'}
-          </Button>
           <Button
             variant={member.status === 'ACTIVE' ? 'destructive' : 'default'}
             onClick={toggleStatus}
@@ -132,6 +130,7 @@ export default function MemberDetailPage() {
         </div>
       </div>
 
+      {/* New password banner */}
       {newPassword && (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
           <p className="font-semibold text-amber-800">新网站密码（仅显示一次）</p>
@@ -141,21 +140,57 @@ export default function MemberDetailPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
+
+        {/* 1. ACCOUNT */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Personal Info</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Account Info</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Name"        value={member.first_name} />
-            <Row label="Phone"       value={member.phone} />
-            <Row label="Telegram ID" value={member.telegram_id} />
-            <Row label="Username"    value={member.telegram_username ? `@${member.telegram_username}` : '—'} />
+            <Row label="UID"              value={`#${member.id}`} />
+            <Row label="Website Username" value={member.phone} />
+            <Row label="Phone"            value={member.phone} />
             <div className="flex justify-between">
               <span className="text-gray-500">Status</span>
               <Badge variant={member.status === 'ACTIVE' ? 'default' : 'destructive'}>{member.status}</Badge>
             </div>
             <Row label="Joined" value={new Date(member.created_at).toLocaleString()} />
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={resetWebsitePassword}
+                disabled={resetting}
+              >
+                {resetting ? '重置中…' : '重置网站密码'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
+        {/* 2. TELEGRAM */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Telegram</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Name"             value={member.first_name} />
+            <Row label="Telegram Username" value={member.telegram_username ? `@${member.telegram_username}` : '—'} />
+            <Row label="Telegram ID"      value={member.telegram_id} />
+          </CardContent>
+        </Card>
+
+        {/* 3. FINANCIALS */}
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+            <Row label="Total Deposits"    value={fmt(member.total_deposit)} />
+            <Row label="Total Withdrawals" value={fmt(member.total_withdraw)} />
+            <Row label="Net Deposit"       value={fmt(member.net_deposit)} />
+            <Row label="Total Bonus"       value={fmt(member.total_bonus)} />
+            <Row label="Deposit Count"     value={member.deposit_count} />
+            <Row label="Withdrawal Count"  value={member.withdrawal_count} />
+          </CardContent>
+        </Card>
+
+        {/* 4. BANK */}
         <Card>
           <CardHeader><CardTitle className="text-base">Bank Info</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -165,18 +200,7 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-            <Row label="Total Deposits"          value={fmt(member.total_deposit)} />
-            <Row label="Total Withdrawals"       value={fmt(member.total_withdraw)} />
-            <Row label="Net Deposit"             value={fmt(member.net_deposit)} />
-            <Row label="Total Bonus"             value={fmt(member.total_bonus)} />
-            <Row label="Deposit Count"           value={member.deposit_count} />
-            <Row label="Withdrawal Count"        value={member.withdrawal_count} />
-          </CardContent>
-        </Card>
-
+        {/* 5. GAME ACCOUNTS */}
         {accounts.length > 0 && (
           <Card>
             <CardHeader><CardTitle className="text-base">Game Accounts</CardTitle></CardHeader>
@@ -193,6 +217,7 @@ export default function MemberDetailPage() {
           </Card>
         )}
 
+        {/* 6. REMARKS */}
         <Card className={accounts.length > 0 ? '' : 'lg:col-span-2'}>
           <CardHeader><CardTitle className="text-base">Manual Remarks</CardTitle></CardHeader>
           <CardContent>
@@ -210,6 +235,7 @@ export default function MemberDetailPage() {
         </Card>
       </div>
 
+      {/* Deposit History */}
       <Card>
         <CardHeader><CardTitle className="text-base">Deposit History (last 20)</CardTitle></CardHeader>
         <CardContent>
@@ -235,6 +261,7 @@ export default function MemberDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Withdrawal History */}
       <Card>
         <CardHeader><CardTitle className="text-base">Withdrawal History (last 20)</CardTitle></CardHeader>
         <CardContent>
@@ -258,6 +285,7 @@ export default function MemberDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Bonus History */}
       <Card>
         <CardHeader><CardTitle className="text-base">Bonus History (last 20)</CardTitle></CardHeader>
         <CardContent>

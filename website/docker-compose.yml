@@ -18,6 +18,8 @@ services:
       UPLOAD_DIR: /data/uploads
     volumes:
       - website_uploads:/data/uploads
+    networks:
+      - sswin88
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -27,3 +29,7 @@ services:
 
 volumes:
   website_uploads:
+
+networks:
+  sswin88:
+    name: sswin88

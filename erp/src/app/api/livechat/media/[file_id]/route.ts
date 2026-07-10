@@ -11,12 +11,23 @@ export async function GET(
   // Decode explicitly: Next.js may leave %3A un-decoded in route params
   const decodedId = decodeURIComponent(file_id);
 
+  console.log('[erp-media] request', { file_id, decodedId });
+
   // Website-uploaded local files: proxy from website service
   if (decodedId.startsWith('local:')) {
     const websiteUrl = process.env.WEBSITE_URL;
+    console.log('[erp-media] proxying local file', { websiteUrl, decodedId });
     if (!websiteUrl) return new NextResponse('WEBSITE_URL not configured', { status: 503 });
-    const proxyRes = await fetch(`${websiteUrl}/api/livechat/media/${encodeURIComponent(decodedId)}`);
-    if (!proxyRes.ok) return new NextResponse('File not found', { status: 404 });
+    const proxyUrl = `${websiteUrl}/api/livechat/media/${encodeURIComponent(decodedId)}`;
+    console.log('[erp-media] proxy url', proxyUrl);
+    const proxyRes = await fetch(proxyUrl).catch((err: unknown) => {
+      console.error('[erp-media] proxy fetch error', err);
+      return null;
+    });
+    if (!proxyRes || !proxyRes.ok) {
+      console.log('[erp-media] proxy failed', proxyRes?.status);
+      return new NextResponse('File not found', { status: 404 });
+    }
     return new NextResponse(proxyRes.body, {
       headers: {
         'Content-Type': proxyRes.headers.get('Content-Type') ?? 'application/octet-stream',
