@@ -4,8 +4,29 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { SessionCard } from './SessionCard';
 import type { SupportSession, LiveChatSSEEvent } from '@/lib/types';
-import { useNotifications, loadNotifSettings, type NotifSettings } from '@/hooks/useNotifications';
+import { loadNotifSettings, type NotifSettings } from '@/hooks/useNotifications';
 import { NotificationSettings } from './NotificationSettings';
+
+// ── Notification helpers (inlined so ConversationList owns its single SSE) ──────
+function _playBeep() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880; osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+    osc.onended = () => { ctx.close(); };
+  } catch { /* ignore */ }
+}
+function _showBrowserNotif() {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try { new Notification('Live Chat', { body: 'New message from customer' }); } catch { /* ignore */ }
+}
 
 const TABS = [
   { label: 'All', value: '' },
@@ -40,13 +61,22 @@ export function ConversationList({
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [notifSettings, setNotifSettings] = useState<NotifSettings>(() => ({ sound: true, browser: true, titleFlash: true }));
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+
+  // Refs to current values for stable SSE closure
+  const tabRef           = useRef(tab);
+  const searchRef        = useRef(search);
+  const activeFiltersRef = useRef(activeFilters);
+  const sessionsRef      = useRef<SupportSession[]>([]);
+  const notifRef         = useRef(notifSettings);
+
+  useEffect(() => { tabRef.current = tab; },                   [tab]);
+  useEffect(() => { searchRef.current = search; },             [search]);
+  useEffect(() => { activeFiltersRef.current = activeFilters; }, [activeFilters]);
+  useEffect(() => { sessionsRef.current = sessions; },         [sessions]);
+  useEffect(() => { notifRef.current = notifSettings; },       [notifSettings]);
 
   // Load persisted notification settings on mount
   useEffect(() => { setNotifSettings(loadNotifSettings()); }, []);
-
-  // Desktop notifications hook
-  useNotifications(notifSettings);
 
   function buildParams(status: string, q: string, filters: Set<FilterKey>): URLSearchParams {
     const p = new URLSearchParams({ page: '1' });
@@ -86,17 +116,75 @@ export function ConversationList({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, search, activeFilters, load, currentUsername]);
 
-  // SSE for real-time updates
+  // Single stable SSE connection — lives for the full mount lifetime of ConversationList.
+  // Uses refs to read current filter/session state without recreating on every change.
   useEffect(() => {
+    let flashInterval: ReturnType<typeof setInterval> | null = null;
+    let originalTitle = document.title;
+    let flashing = false;
+
+    function stopFlash() {
+      if (flashInterval !== null) { clearInterval(flashInterval); flashInterval = null; }
+      document.title = originalTitle;
+      flashing = false;
+    }
+    function startFlash() {
+      if (flashing || !document.hidden) return;
+      flashing = true;
+      originalTitle = document.title;
+      let toggle = false;
+      flashInterval = setInterval(() => {
+        document.title = toggle ? 'Live Chat' : '🔴 New message — Live Chat';
+        toggle = !toggle;
+      }, 1000);
+    }
+    function handleVisibilityChange() { if (!document.hidden) stopFlash(); }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     const es = new EventSource('/api/livechat/stream');
-    esRef.current = es;
 
     es.onmessage = (e) => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const evt: LiveChatSSEEvent = JSON.parse(e.data);
-        // Re-fetch to get updated unread, last message, status
-        load(buildParams(tab, search, activeFilters));
+        const evt = JSON.parse(e.data as string) as LiveChatSSEEvent;
+
+        if (evt.type === 'new_message') {
+          // Check if the session is already in our list
+          const inView = sessionsRef.current.some(s => s.id === evt.session_id);
+
+          if (inView) {
+            // Targeted update — no API call needed
+            setSessions(prev => {
+              const idx = prev.findIndex(s => s.id === evt.session_id);
+              if (idx < 0) return prev;
+              const s = prev[idx];
+              const updated: SupportSession = {
+                ...s,
+                last_message_at: new Date().toISOString(),
+                erp_unread_count:
+                  evt.sender_type === 'USER' ? (s.erp_unread_count ?? 0) + 1 : s.erp_unread_count,
+              };
+              const rest = prev.filter((_, i) => i !== idx);
+              if (updated.pinned_at) return [updated, ...rest];
+              const insertAt = rest.findIndex(x => !x.pinned_at);
+              if (insertAt === -1) return [...rest, updated];
+              return [...rest.slice(0, insertAt), updated, ...rest.slice(insertAt)];
+            });
+          } else {
+            // New session not yet in view — full reload
+            load(buildParams(tabRef.current, searchRef.current, activeFiltersRef.current));
+          }
+
+          // Notifications for customer messages
+          if (evt.sender_type === 'USER') {
+            const s = notifRef.current;
+            if (s.sound) _playBeep();
+            if (s.browser) _showBrowserNotif();
+            if (s.titleFlash) startFlash();
+          }
+        } else {
+          // session_update (status change, close, etc.) → full reload for fresh stats
+          load(buildParams(tabRef.current, searchRef.current, activeFiltersRef.current));
+        }
       } catch {
         // ignore parse errors
       }
@@ -108,10 +196,11 @@ export function ConversationList({
 
     return () => {
       es.close();
-      esRef.current = null;
+      stopFlash();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, search, activeFilters, load, currentUsername]);
+  // load is a stable useCallback — this effect runs once on mount, cleans up on unmount
+  }, [load]);
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;

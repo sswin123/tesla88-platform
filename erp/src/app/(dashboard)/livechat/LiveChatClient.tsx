@@ -129,9 +129,13 @@ export default function LiveChatClient({
             <div>
               <p className="text-sm font-semibold">{member?.first_name ?? '…'}</p>
               <p className="text-xs text-gray-400">
-                {member?.telegram_username
-                  ? `@${member.telegram_username}`
-                  : `UID ${session.user_id}`}
+                {session.public_id
+                  ? session.public_id
+                  : member?.telegram_username
+                    ? `@${member.telegram_username}`
+                    : session.user_id
+                      ? `UID ${session.user_id}`
+                      : session.guest_id ?? 'Guest'}
                 {' · '}Session #{selectedId}
               </p>
             </div>

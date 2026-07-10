@@ -219,9 +219,14 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-56 flex-col border-r bg-white">
       <div className="border-b px-4 py-4 flex items-center gap-2">
-        {brand.logo_media_id
-          ? <img src={`/api/public/media/${brand.logo_media_id}`} alt="logo" className="h-6 w-auto" />
-          : null}
+        {brand.logo_media_id && (
+          <img
+            src={`/api/public/media/${brand.logo_media_id}`}
+            alt="logo"
+            className="h-6 w-auto"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
         <span className="text-base font-semibold tracking-tight truncate">{brand.brand_name}</span>
       </div>
 
