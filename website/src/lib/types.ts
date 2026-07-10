@@ -20,6 +20,7 @@ export interface WebsiteSettings {
 
 export interface MemberProfile {
   id: number;
+  public_id: string | null;
   first_name: string;
   phone: string;
   bank_name: string;

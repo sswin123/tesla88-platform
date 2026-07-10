@@ -203,7 +203,7 @@ type PickerTarget = 'logo' | 'favicon' | null;
 interface MeResponse { isSuperAdmin: boolean; permissions: string[] }
 
 const EMPTY_FORM: FormState = {
-  brand_name: '', company_name: '', tagline: '',
+  brand_name: '', company_name: '', tagline: '', member_id_prefix: 'SS',
   logo_media_id: null, favicon_media_id: null,
   primary_color: '#1d4ed8', secondary_color: '#1e40af', theme_mode: 'light',
   website_domain: '', api_domain: '',
@@ -334,6 +334,16 @@ export default function BrandCenterPage() {
             onChange={v => set('tagline', v)}
             placeholder="Optional brand tagline"
           />
+        </Field>
+        <Field label="Member ID Prefix (2–6 chars, A–Z 0–9)">
+          <TextInput
+            value={form.member_id_prefix}
+            onChange={v => set('member_id_prefix', v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+            placeholder="e.g. SS"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            New member IDs will use this prefix, e.g. {form.member_id_prefix || 'SS'}1000001. Only affects new registrations.
+          </p>
         </Field>
       </Section>
 

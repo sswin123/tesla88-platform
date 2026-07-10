@@ -50,7 +50,7 @@ async def create_user(
     eligible_free_credit: bool,
     website_password_hash: Optional[str] = None,
 ) -> asyncpg.Record:
-    return await pool.fetchrow(
+    new_user = await pool.fetchrow(
         """
         INSERT INTO users (
             telegram_id, telegram_username, first_name,
@@ -62,6 +62,15 @@ async def create_user(
         telegram_id, telegram_username, first_name,
         phone, bank_name, bank_account, bank_holder_name,
         eligible_free_credit, website_password_hash,
+    )
+    prefix_row = await pool.fetchrow(
+        "SELECT member_id_prefix FROM brand_settings WHERE id = 1"
+    )
+    prefix = (prefix_row["member_id_prefix"] if prefix_row else None) or "SS"
+    return await pool.fetchrow(
+        "UPDATE users SET public_id = $1 WHERE id = $2 RETURNING *",
+        f"{prefix}{1000000 + new_user['id']}",
+        new_user["id"],
     )
 
 

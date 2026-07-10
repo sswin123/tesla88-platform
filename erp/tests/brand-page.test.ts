@@ -34,6 +34,7 @@ const BASE_BRAND: BrandSettings = {
   seo_title: 'SSWIN88',
   seo_description: null,
   seo_keywords: null,
+  member_id_prefix: 'SS',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   updated_by: null,

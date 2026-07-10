@@ -64,6 +64,7 @@ export interface JWTPayload {
 
 export interface Member {
   id: number;
+  public_id: string | null;
   telegram_id: string;
   telegram_username: string | null;
   first_name: string;
@@ -253,6 +254,7 @@ export interface SupportSession {
   phone?: string;
   telegram_id?: string;
   telegram_username?: string;           // NEW: joined from users.telegram_username
+  public_id?: string | null;
   // computed / aggregated
   last_message_content?: string;        // NEW: last message preview text
   last_message_type?: MessageType;      // NEW

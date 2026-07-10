@@ -16,16 +16,16 @@ export async function GET(request: NextRequest) {
     const pattern = `%${search}%`;
     const [rows, count] = await Promise.all([
       pool.query(
-        `SELECT id, telegram_id, telegram_username, first_name, phone, status, created_at
+        `SELECT id, public_id, telegram_id, telegram_username, first_name, phone, status, created_at
          FROM users
-         WHERE id::text ILIKE $1 OR phone ILIKE $1 OR first_name ILIKE $1 OR telegram_username ILIKE $1
+         WHERE public_id ILIKE $1 OR id::text ILIKE $1 OR phone ILIKE $1 OR first_name ILIKE $1 OR telegram_username ILIKE $1
          ORDER BY created_at DESC
          LIMIT $2 OFFSET $3`,
         [pattern, limit, offset]
       ),
       pool.query<{ count: number }>(
         `SELECT COUNT(*)::int AS count FROM users
-         WHERE id::text ILIKE $1 OR phone ILIKE $1 OR first_name ILIKE $1 OR telegram_username ILIKE $1`,
+         WHERE public_id ILIKE $1 OR id::text ILIKE $1 OR phone ILIKE $1 OR first_name ILIKE $1 OR telegram_username ILIKE $1`,
         [pattern]
       ),
     ]);
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   const [rows, count] = await Promise.all([
     pool.query(
-      `SELECT id, telegram_id, telegram_username, first_name, phone, status, created_at
+      `SELECT id, public_id, telegram_id, telegram_username, first_name, phone, status, created_at
        FROM users
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,

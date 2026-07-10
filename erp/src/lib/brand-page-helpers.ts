@@ -4,6 +4,7 @@ export type FormState = {
   brand_name: string;
   company_name: string;
   tagline: string;
+  member_id_prefix: string;
   logo_media_id: number | null;
   favicon_media_id: number | null;
   primary_color: string;
@@ -43,10 +44,11 @@ export function hasBrandPermission(
 
 export function initForm(brand: BrandSettings): FormState {
   return {
-    brand_name:       brand.brand_name,
-    company_name:     brand.company_name,
-    tagline:          brand.tagline ?? '',
-    logo_media_id:    brand.logo_media_id,
+    brand_name:        brand.brand_name,
+    company_name:      brand.company_name,
+    tagline:           brand.tagline ?? '',
+    member_id_prefix:  brand.member_id_prefix ?? 'SS',
+    logo_media_id:     brand.logo_media_id,
     favicon_media_id: brand.favicon_media_id,
     primary_color:    brand.primary_color,
     secondary_color:  brand.secondary_color,
@@ -65,10 +67,11 @@ export function initForm(brand: BrandSettings): FormState {
 
 export function buildSavePatch(form: FormState): Record<string, unknown> {
   return {
-    brand_name:       form.brand_name,
-    company_name:     form.company_name,
-    tagline:          form.tagline || null,
-    logo_media_id:    form.logo_media_id ?? null,
+    brand_name:        form.brand_name,
+    company_name:      form.company_name,
+    tagline:           form.tagline || null,
+    member_id_prefix:  form.member_id_prefix || 'SS',
+    logo_media_id:     form.logo_media_id ?? null,
     favicon_media_id: form.favicon_media_id ?? null,
     primary_color:    form.primary_color,
     secondary_color:  form.secondary_color,

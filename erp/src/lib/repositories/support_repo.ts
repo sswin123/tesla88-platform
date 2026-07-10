@@ -16,7 +16,7 @@ export async function getSessions(options: {
 
   const [rows, count] = await Promise.all([
     pool.query(
-      `SELECT ss.*, u.first_name, u.phone, u.telegram_id
+      `SELECT ss.*, u.first_name, u.phone, u.telegram_id, u.public_id
        FROM support_sessions ss
        LEFT JOIN users u ON u.id = ss.user_id
        ${where}
@@ -35,7 +35,7 @@ export async function getSessions(options: {
 
 export async function getSessionById(id: number): Promise<SupportSession | null> {
   const { rows } = await pool.query(
-    `SELECT ss.*, u.first_name, u.phone, u.telegram_id
+    `SELECT ss.*, u.first_name, u.phone, u.telegram_id, u.public_id
      FROM support_sessions ss
      LEFT JOIN users u ON u.id = ss.user_id
      WHERE ss.id = $1`,
@@ -163,7 +163,7 @@ export async function getSessionsLiveChat(opts: {
        FROM (
          SELECT DISTINCT ON (${dedupeKey})
            ss.*,
-           u.first_name, u.phone, u.telegram_id, u.telegram_username,
+           u.first_name, u.phone, u.telegram_id, u.telegram_username, u.public_id,
            (SELECT content      FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_content,
            (SELECT message_type FROM support_messages WHERE session_id = ss.id ORDER BY created_at DESC LIMIT 1) AS last_message_type
          FROM support_sessions ss
@@ -219,7 +219,7 @@ export async function getSessionWithDetails(id: number): Promise<{
 } | null> {
   const { rows: sessionRows } = await pool.query(
     `SELECT ss.*,
-            u.first_name, u.phone, u.telegram_id, u.telegram_username,
+            u.first_name, u.phone, u.telegram_id, u.telegram_username, u.public_id,
             u.status AS member_status, u.created_at AS member_created_at,
             u.total_deposit, u.total_withdraw, u.total_bonus,
             u.net_deposit, u.last_seen_at,
@@ -254,6 +254,7 @@ export async function getSessionWithDetails(id: number): Promise<{
     phone: row.phone,
     telegram_id: row.telegram_id,
     telegram_username: row.telegram_username,
+    public_id: row.public_id ?? null,
     muted_until: row.muted_until ?? null,
   };
 

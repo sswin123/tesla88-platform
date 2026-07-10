@@ -8,7 +8,7 @@ export async function GET() {
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const res = await pool.query(
-    `SELECT id, first_name, phone, bank_name, bank_account, bank_holder_name,
+    `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
             status, total_deposit, total_withdraw, total_bonus, net_deposit,
             referral_code, created_at, last_seen_at
      FROM users WHERE id = $1`,

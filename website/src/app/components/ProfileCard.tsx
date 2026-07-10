@@ -89,6 +89,11 @@ export default function ProfileCard() {
             <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {profile.phone}
             </p>
+            {profile.public_id && (
+              <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-faint)' }}>
+                会员ID: {profile.public_id}
+              </p>
+            )}
             <span
               className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold"
               style={{

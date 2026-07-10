@@ -39,7 +39,7 @@ export default function MembersPage() {
       <h1 className="text-2xl font-bold">Member Management</h1>
 
       <Input
-        placeholder="Search by UID, phone, or name…"
+        placeholder="Search by Member ID, phone, or name…"
         value={search}
         onChange={(e) => handleSearch(e.target.value)}
         className="max-w-sm"
@@ -49,7 +49,7 @@ export default function MembersPage() {
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
-              {['UID', 'Name', 'Phone', 'Telegram', 'Status', 'Created At', 'Actions'].map((h) => (
+              {['Member ID', 'Name', 'Phone', 'Telegram', 'Status', 'Created At', 'Actions'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium text-gray-500">{h}</th>
               ))}
             </tr>
@@ -65,7 +65,7 @@ export default function MembersPage() {
               </tr>
             ) : rows.map((m) => (
               <tr key={m.id} className="border-b last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs">{m.id}</td>
+                <td className="px-4 py-3 font-mono text-xs">{m.public_id ?? `#${m.id}`}</td>
                 <td className="px-4 py-3">{m.first_name}</td>
                 <td className="px-4 py-3">{m.phone}</td>
                 <td className="px-4 py-3 text-gray-400">

@@ -19,6 +19,7 @@ export interface BrandSettings {
   seo_title: string | null;
   seo_description: string | null;
   seo_keywords: string | null;
+  member_id_prefix: string;
   created_at: string;
   updated_at: string;
   updated_by: string | null;
@@ -33,6 +34,7 @@ const ALL_COLS = `
   website_domain, api_domain,
   support_whatsapp, support_telegram, telegram_channel, facebook_url,
   seo_title, seo_description, seo_keywords,
+  member_id_prefix,
   created_at::text, updated_at::text, updated_by
 `.trim();
 
@@ -52,6 +54,7 @@ export async function updateBrandSettings(
     'website_domain', 'api_domain',
     'support_whatsapp', 'support_telegram', 'telegram_channel', 'facebook_url',
     'seo_title', 'seo_description', 'seo_keywords',
+    'member_id_prefix',
   ];
 
   const fields: string[] = [];

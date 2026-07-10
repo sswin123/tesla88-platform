@@ -21,6 +21,7 @@ const FALLBACK: BrandSettings = {
   seo_title: null,
   seo_description: null,
   seo_keywords: null,
+  member_id_prefix: 'SS',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   updated_by: null,

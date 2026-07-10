@@ -80,9 +80,11 @@ export function SessionCard({
           <span className="truncate text-xs text-gray-500">
             {session.guest_id
               ? session.guest_id
-              : session.telegram_username
-                ? `@${session.telegram_username}`
-                : `UID ${session.user_id}`}
+              : session.public_id
+                ? session.public_id
+                : session.telegram_username
+                  ? `@${session.telegram_username}`
+                  : `UID ${session.user_id}`}
           </span>
           <div className="flex items-center gap-1 flex-shrink-0">
             {session.source === 'telegram' && (

@@ -145,7 +145,8 @@ export default function MemberDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Account Info</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="UID"              value={`#${member.id}`} />
+            <Row label="Member ID"        value={member.public_id ?? `#${member.id}`} />
+            <Row label="Internal UID"     value={`#${member.id}`} />
             <Row label="Website Username" value={member.phone} />
             <Row label="Phone"            value={member.phone} />
             <div className="flex justify-between">

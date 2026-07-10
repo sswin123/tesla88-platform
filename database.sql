@@ -574,3 +574,8 @@ CREATE TABLE IF NOT EXISTS brand_settings (
 INSERT INTO brand_settings (id, brand_name, company_name, primary_color, secondary_color, theme_mode)
 VALUES (1, 'YourBrandName', 'YourBrandName', '#1d4ed8', '#1e40af', 'light')
 ON CONFLICT (id) DO NOTHING;
+
+-- Migration 021: Public Member ID
+ALTER TABLE users ADD COLUMN IF NOT EXISTS public_id VARCHAR(20) UNIQUE;
+ALTER TABLE brand_settings ADD COLUMN IF NOT EXISTS member_id_prefix VARCHAR(6) NOT NULL DEFAULT 'SS';
+UPDATE users SET public_id = 'SS' || (1000000 + id)::text WHERE public_id IS NULL;

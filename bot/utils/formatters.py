@@ -49,8 +49,11 @@ def format_user_profile(user: Any) -> str:
         if isinstance(created_at, datetime)
         else str(created_at)
     )
+    public_id = user.get("public_id") or ""
+    member_id_line = f"🪪 会员ID：{public_id}\n" if public_id else ""
     return (
         f"👤 会员资料\n\n"
+        f"{member_id_line}"
         f"📱 电话号码：{user['phone']}\n"
         f"🏦 银行名称：{user['bank_name']}\n"
         f"💳 银行账号：{user['bank_account']}\n"
