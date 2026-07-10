@@ -24,6 +24,35 @@ function AgentAvatar() {
   );
 }
 
+function ReplyQuote({ content, senderType, isSelf }: {
+  content: string;
+  senderType: string | null;
+  isSelf: boolean;
+}) {
+  return (
+    <div
+      className="border-l-2 rounded-r px-2 py-1 mb-2 text-xs"
+      style={isSelf
+        ? { borderColor: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.12)' }
+        : { borderColor: 'var(--brand-primary)', background: 'color-mix(in srgb, var(--brand-primary) 10%, transparent)' }
+      }
+    >
+      <p
+        className="font-semibold text-[10px] mb-0.5"
+        style={isSelf ? { color: 'rgba(255,255,255,0.6)' } : { color: 'var(--brand-primary)' }}
+      >
+        {senderType === 'AGENT' ? '客服' : '您'}
+      </p>
+      <p
+        className="line-clamp-2 leading-tight"
+        style={isSelf ? { color: 'rgba(255,255,255,0.75)' } : { color: 'var(--text-muted)' }}
+      >
+        {content}
+      </p>
+    </div>
+  );
+}
+
 function MediaContent({ msg, align }: { msg: ChatMessage; align: 'left' | 'right' }) {
   if (msg.message_type === 'PHOTO' && msg.content) {
     return (
@@ -58,16 +87,20 @@ function MediaContent({ msg, align }: { msg: ChatMessage; align: 'left' | 'right
 
 function UserBubble({ msg }: { msg: ChatMessage }) {
   const isMedia = msg.message_type === 'PHOTO' || msg.message_type === 'VIDEO';
+  const hasReply = !!msg.reply_to_content;
   return (
     <div className="flex justify-end items-end gap-2">
       <div className="max-w-[72%]">
         <div
-          className={isMedia ? 'p-1.5 rounded-2xl rounded-br-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed'}
+          className={isMedia && !hasReply ? 'p-1.5 rounded-2xl rounded-br-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed'}
           style={{
             background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))',
             color: '#fff',
           }}
         >
+          {hasReply && (
+            <ReplyQuote content={msg.reply_to_content!} senderType={msg.reply_to_sender_type} isSelf={true} />
+          )}
           <MediaContent msg={msg} align="right" />
         </div>
         <p className="text-right text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
@@ -80,14 +113,18 @@ function UserBubble({ msg }: { msg: ChatMessage }) {
 
 function AgentBubble({ msg }: { msg: ChatMessage }) {
   const isMedia = msg.message_type === 'PHOTO' || msg.message_type === 'VIDEO';
+  const hasReply = !!msg.reply_to_content;
   return (
     <div className="flex justify-start items-end gap-2">
       <AgentAvatar />
       <div className="max-w-[72%]">
         <div
-          className={isMedia ? 'p-1.5 rounded-2xl rounded-bl-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-bl-sm text-sm leading-relaxed'}
+          className={isMedia && !hasReply ? 'p-1.5 rounded-2xl rounded-bl-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-bl-sm text-sm leading-relaxed'}
           style={{ background: 'var(--bg-surface2)', color: 'var(--text-base)', border: '1px solid var(--border-dim)' }}
         >
+          {hasReply && (
+            <ReplyQuote content={msg.reply_to_content!} senderType={msg.reply_to_sender_type} isSelf={false} />
+          )}
           <MediaContent msg={msg} align="left" />
         </div>
         <p className="text-left text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
@@ -171,6 +208,9 @@ export default function ChatWindow({ brandName }: Props) {
       content,
       caption: null,
       created_at: new Date().toISOString(),
+      reply_to_message_id: null,
+      reply_to_content: null,
+      reply_to_sender_type: null,
     };
     setMessages(prev => [...prev, tempMsg]);
 
@@ -212,6 +252,9 @@ export default function ChatWindow({ brandName }: Props) {
       content: file_id,
       caption: null,
       created_at: new Date().toISOString(),
+      reply_to_message_id: null,
+      reply_to_content: null,
+      reply_to_sender_type: null,
     };
     setMessages(prev => [...prev, tempMsg]);
 

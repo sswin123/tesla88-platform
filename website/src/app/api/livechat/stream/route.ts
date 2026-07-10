@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
       const interval = setInterval(async () => {
         try {
           const msgs = await pool.query(
-            `SELECT id, sender_type, message_type, content, caption, created_at
+            `SELECT id, sender_type, message_type, content, caption, created_at,
+                    reply_to_message_id, reply_to_content, reply_to_sender_type
              FROM support_messages WHERE session_id = $1 AND id > $2 ORDER BY id ASC`,
             [sessionId, lastId]
           );

@@ -68,6 +68,9 @@ export interface ChatMessage {
   content: string | null;
   caption: string | null;
   created_at: string;
+  reply_to_message_id: number | null;
+  reply_to_content: string | null;
+  reply_to_sender_type: string | null;
 }
 
 export interface ChatSession {
