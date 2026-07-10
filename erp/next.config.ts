@@ -25,6 +25,14 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Allow up to 50MB file uploads from browser (default Next.js limit is 10MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
+  // Increase body size limit for route handlers (Next.js 15 default is 10MB)
+  middlewareClientMaxBodySize: 50 * 1024 * 1024,
   async headers() {
     return [
       {

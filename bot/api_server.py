@@ -20,7 +20,7 @@ import asyncpg
 from aiohttp import web
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
-from settings_cache import SettingsCache
+from bot.settings_cache import SettingsCache
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,7 @@ async def relay_message(request: web.Request) -> web.Response:
         reply_to_content: Optional[str] = data.get("reply_to_content")
         reply_to_sender_type: Optional[str] = data.get("reply_to_sender_type")
         telegram_reply_to_msg_id: Optional[int] = int(data["telegram_reply_to_msg_id"]) if data.get("telegram_reply_to_msg_id") else None
+        original_file_id: Optional[str] = data.get("original_file_id") or None
         if not content and message_type == "TEXT":
             return web.json_response({"error": "content required for TEXT"}, status=400)
     except (KeyError, ValueError, json.JSONDecodeError) as e:
@@ -235,26 +236,32 @@ async def relay_message(request: web.Request) -> web.Response:
         return web.json_response({"error": str(exc)}, status=502)
 
     # ── Store in support_messages ──────────────────────────────────────────────
-    # Store the Telegram file_id for media so ERP can later proxy or display it.
+    # If the ERP passed original_file_id (local:uuid.ext), use that — it allows
+    # both the ERP agent and the website customer to display the file via the
+    # shared uploads volume.  Fall back to the Telegram file_id only when no
+    # original_file_id is provided (e.g. quick-reply media stored by Telegram).
     stored_content = content if message_type == "TEXT" else None
     if tg_msg_id and message_type != "TEXT":
-        try:
-            if message_type == "PHOTO":
-                stored_content = msg.photo[-1].file_id
-            elif message_type == "VIDEO":
-                stored_content = msg.video.file_id if msg.video else None
-            elif message_type == "AUDIO":
-                stored_content = msg.audio.file_id if msg.audio else None
-            elif message_type == "VOICE":
-                stored_content = msg.voice.file_id if msg.voice else None
-            elif message_type == "STICKER":
-                stored_content = msg.sticker.file_id if msg.sticker else None
-            elif message_type == "VIDEO_NOTE":
-                stored_content = msg.video_note.file_id if msg.video_note else None
-            else:  # DOCUMENT, ANIMATION, LOCATION
-                stored_content = msg.document.file_id if hasattr(msg, "document") and msg.document else None
-        except Exception:
-            pass
+        if original_file_id:
+            stored_content = original_file_id
+        else:
+            try:
+                if message_type == "PHOTO":
+                    stored_content = msg.photo[-1].file_id
+                elif message_type == "VIDEO":
+                    stored_content = msg.video.file_id if msg.video else None
+                elif message_type == "AUDIO":
+                    stored_content = msg.audio.file_id if msg.audio else None
+                elif message_type == "VOICE":
+                    stored_content = msg.voice.file_id if msg.voice else None
+                elif message_type == "STICKER":
+                    stored_content = msg.sticker.file_id if msg.sticker else None
+                elif message_type == "VIDEO_NOTE":
+                    stored_content = msg.video_note.file_id if msg.video_note else None
+                else:  # DOCUMENT, ANIMATION, LOCATION
+                    stored_content = msg.document.file_id if hasattr(msg, "document") and msg.document else None
+            except Exception:
+                pass
 
     row = await pool.fetchrow(
         """INSERT INTO support_messages

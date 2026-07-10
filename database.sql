@@ -546,3 +546,31 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Migration 019: Customer mute support
 ALTER TABLE support_sessions ADD COLUMN IF NOT EXISTS muted_until TIMESTAMPTZ;
+
+-- Migration 020: Brand settings CMS
+CREATE TABLE IF NOT EXISTS brand_settings (
+  id               SERIAL PRIMARY KEY,
+  brand_name       TEXT NOT NULL DEFAULT 'YourBrandName',
+  company_name     TEXT NOT NULL DEFAULT 'YourBrandName',
+  tagline          TEXT,
+  logo_media_id    INTEGER,
+  favicon_media_id INTEGER,
+  primary_color    TEXT NOT NULL DEFAULT '#1d4ed8',
+  secondary_color  TEXT NOT NULL DEFAULT '#1e40af',
+  theme_mode       TEXT NOT NULL DEFAULT 'light',
+  website_domain   TEXT,
+  api_domain       TEXT,
+  support_whatsapp TEXT,
+  support_telegram TEXT,
+  telegram_channel TEXT,
+  facebook_url     TEXT,
+  seo_title        TEXT,
+  seo_description  TEXT,
+  seo_keywords     TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by       TEXT
+);
+INSERT INTO brand_settings (id, brand_name, company_name, primary_color, secondary_color, theme_mode)
+VALUES (1, 'YourBrandName', 'YourBrandName', '#1d4ed8', '#1e40af', 'light')
+ON CONFLICT (id) DO NOTHING;

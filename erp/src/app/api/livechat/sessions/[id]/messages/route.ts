@@ -210,6 +210,9 @@ export async function POST(
         session_id:               sessionId,
         message_type:             messageType,
         content:                  relayContent,
+        // Pass original local: file_id so relay stores it in DB instead of Telegram file_id.
+        // This lets both the ERP agent and the website customer display the file.
+        original_file_id:         content?.startsWith('local:') ? content : undefined,
         caption,
         file_name:                fileName,
         file_size:                fileSize,
