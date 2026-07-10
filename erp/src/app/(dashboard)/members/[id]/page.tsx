@@ -34,6 +34,7 @@ export default function MemberDetailPage() {
   const params   = useParams<{ id: string }>();
   const router   = useRouter();
   const [data, setData]         = useState<MemberPayload | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading]   = useState(true);
   const [toggling, setToggling]         = useState(false);
   const [remarks, setRemarks]           = useState('');
@@ -44,9 +45,15 @@ export default function MemberDetailPage() {
   async function load() {
     const r = await fetch(`/api/members/${params.id}`);
     if (r.ok) {
-      const d = await r.json();
+      const d = await r.json() as MemberPayload;
       setData(d);
-      setRemarks(d.member.remarks ?? '');
+      setRemarks(((d.member as unknown) as Record<string, unknown>).remarks as string ?? '');
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      console.error('[member detail]', r.status, d.error);
+      if (r.status === 401) setLoadError('权限不足，请重新登录');
+      else if (r.status === 404) setLoadError('找不到该会员');
+      else setLoadError(d.error ?? `加载失败 (${r.status})`);
     }
     setLoading(false);
   }
@@ -102,7 +109,7 @@ export default function MemberDetailPage() {
   }
 
   if (loading) return <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>;
-  if (!data)   return <div className="flex h-40 items-center justify-center text-gray-400">Member not found.</div>;
+  if (!data)   return <div className="flex h-40 items-center justify-center text-gray-400">{loadError || 'Member not found.'}</div>;
 
   const { member, accounts, deposits, withdrawals, bonuses } = data;
 

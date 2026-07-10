@@ -109,7 +109,77 @@ export async function POST(
     }
   }
 
-  // ── Forward to bot relay ───────────────────────────────────────────────────
+  // ── Compute audit action (shared by both delivery paths) ─────────────────
+  let auditAction = 'LIVECHAT_MESSAGE_SENT';
+  if (quickReplyUsed)                        auditAction = 'QUICK_REPLY_SENT';
+  else if (messageType === 'PHOTO')          auditAction = 'IMAGE_SENT';
+  else if (messageType === 'VIDEO')          auditAction = 'VIDEO_SENT';
+  else if (messageType === 'DOCUMENT')       auditAction = 'DOCUMENT_SENT';
+  else if (['AUDIO','VOICE'].includes(messageType)) auditAction = 'AUDIO_SENT';
+
+  // ── Detect delivery channel (Telegram vs web-only) ────────────────────────
+  const sessCheck = await pool.query<{ status: string; telegram_id: string | null }>(
+    `SELECT ss.status, u.telegram_id
+     FROM support_sessions ss
+     LEFT JOIN users u ON u.id = ss.user_id
+     WHERE ss.id = $1`,
+    [sessionId]
+  );
+  if (!sessCheck.rows[0])
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  if (!['OPEN','ACTIVE'].includes(sessCheck.rows[0].status))
+    return NextResponse.json({ error: 'Session not open/active' }, { status: 400 });
+
+  // No Telegram user → insert directly to DB (guest or website-only member)
+  if (!sessCheck.rows[0].telegram_id) {
+    const row = await pool.query(
+      `INSERT INTO support_messages
+         (session_id, sender_type, message_type, content, caption, file_name, file_size,
+          reply_to_message_id, reply_to_content, reply_to_sender_type)
+       VALUES ($1,'AGENT',$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, created_at`,
+      [sessionId, messageType, content, caption, fileName, fileSize,
+       replyToMsgId, replyToContent, replyToSenderType]
+    );
+    await pool.query(
+      `UPDATE support_sessions
+       SET status               = CASE WHEN status = 'OPEN' THEN 'ACTIVE' ELSE status END,
+           assigned_to_username = COALESCE(assigned_to_username, $2),
+           accepted_at          = CASE WHEN status = 'OPEN' THEN NOW() ELSE accepted_at END,
+           last_message_at      = NOW()
+       WHERE id = $1`,
+      [sessionId, payload.username]
+    );
+    logAudit({
+      admin_id:    payload.sub,
+      action:      auditAction,
+      target_type: 'support_session',
+      target_id:   sessionId,
+      new_value:   { message_type: messageType, ...(quickReplyUsed ? { quick_reply_used: true } : {}) },
+    }).catch(() => {});
+    return NextResponse.json({
+      ok: true,
+      message: {
+        id:                   row.rows[0].id as number,
+        session_id:           sessionId,
+        sender_type:          'AGENT',
+        message_type:         messageType,
+        content,
+        caption,
+        file_name:            fileName,
+        file_size:            fileSize,
+        reply_to_message_id:  replyToMsgId,
+        reply_to_content:     replyToContent,
+        reply_to_sender_type: replyToSenderType,
+        status:               'SENT',
+        created_at:           (row.rows[0].created_at as Date).toISOString(),
+        user_msg_id:          null,
+        group_msg_id:         null,
+      },
+    });
+  }
+
+  // ── Forward to bot relay (Telegram sessions) ──────────────────────────────
   let relayRes: Response;
   try {
     relayRes = await fetch(`${BOT_RELAY_URL}/relay`, {
@@ -146,20 +216,6 @@ export async function POST(
       { error: (relayData as { error?: string }).error ?? 'Relay failed' },
       { status: 502 }
     );
-  }
-
-  // Media-specific audit actions
-  let auditAction = 'LIVECHAT_MESSAGE_SENT';
-  if (quickReplyUsed) {
-    auditAction = 'QUICK_REPLY_SENT';
-  } else if (messageType === 'PHOTO') {
-    auditAction = 'IMAGE_SENT';
-  } else if (messageType === 'VIDEO') {
-    auditAction = 'VIDEO_SENT';
-  } else if (messageType === 'DOCUMENT') {
-    auditAction = 'DOCUMENT_SENT';
-  } else if (['AUDIO', 'VOICE'].includes(messageType)) {
-    auditAction = 'AUDIO_SENT';
   }
 
   logAudit({

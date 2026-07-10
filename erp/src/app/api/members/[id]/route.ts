@@ -24,7 +24,7 @@ export async function GET(
         [uid]
       ),
       pool.query(
-        'SELECT provider, username, created_at FROM game_accounts WHERE user_id = $1 ORDER BY created_at',
+        'SELECT provider, username, created_at FROM user_game_accounts WHERE user_id = $1 ORDER BY created_at',
         [uid]
       ),
       pool.query(
