@@ -54,18 +54,30 @@ function ReplyQuote({ content, senderType, isSelf }: {
 }
 
 function MediaContent({ msg, align }: { msg: ChatMessage; align: 'left' | 'right' }) {
+  const captionColor = align === 'right' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)';
+
   if (msg.message_type === 'PHOTO' && msg.content) {
+    const src = `/api/livechat/media/${encodeURIComponent(msg.content)}`;
     return (
       <div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/livechat/media/${encodeURIComponent(msg.content)}`}
+          src={src}
           alt={msg.caption ?? 'photo'}
           className="max-w-full rounded-xl"
           style={{ maxHeight: '240px', objectFit: 'contain', cursor: 'pointer' }}
-          onClick={() => window.open(`/api/livechat/media/${encodeURIComponent(msg.content!)}`, '_blank')}
+          onClick={() => window.open(src, '_blank')}
+          onError={(e) => {
+            const t = e.currentTarget;
+            t.style.display = 'none';
+            const p = document.createElement('p');
+            p.textContent = '📷 图片无法显示';
+            p.className = 'text-xs';
+            p.style.color = captionColor;
+            t.parentElement?.appendChild(p);
+          }}
         />
-        {msg.caption && <p className="text-xs mt-1" style={{ color: align === 'right' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>{msg.caption}</p>}
+        {msg.caption && <p className="text-xs mt-1" style={{ color: captionColor }}>{msg.caption}</p>}
       </div>
     );
   }
@@ -78,8 +90,24 @@ function MediaContent({ msg, align }: { msg: ChatMessage; align: 'left' | 'right
           className="max-w-full rounded-xl"
           style={{ maxHeight: '240px' }}
         />
-        {msg.caption && <p className="text-xs mt-1" style={{ color: align === 'right' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>{msg.caption}</p>}
+        {msg.caption && <p className="text-xs mt-1" style={{ color: captionColor }}>{msg.caption}</p>}
       </div>
+    );
+  }
+  if (msg.message_type === 'DOCUMENT' && msg.content) {
+    const url = `/api/livechat/media/${encodeURIComponent(msg.content)}`;
+    const name = msg.content.replace(/^local:[0-9a-f-]+\./, 'document.');
+    return (
+      <a
+        href={url}
+        download
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2 text-xs underline"
+        style={{ color: captionColor }}
+      >
+        📎 {msg.caption ?? name}
+      </a>
     );
   }
   return <span>{msg.content}</span>;

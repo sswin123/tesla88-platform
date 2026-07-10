@@ -134,12 +134,32 @@ function isActive(href: string, pathname: string, exact?: boolean): boolean {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
+function playNotifBeep(): void {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+    osc.onended = () => { ctx.close(); };
+  } catch { /* ignore */ }
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
   const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [me, setMe] = useState<MeData>({ isSuperAdmin: false, permissions: [] });
   const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
+  const [livechatUnread, setLivechatUnread] = useState(0);
 
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
@@ -147,6 +167,11 @@ export function Sidebar() {
       .then((d: MeData | null) => { if (d) setMe(d); })
       .catch(() => {});
   }, []);
+
+  // Auto-reset unread when user is on /livechat
+  useEffect(() => {
+    if (pathname.startsWith('/livechat')) setLivechatUnread(0);
+  }, [pathname]);
 
   useEffect(() => {
     loadMe();
@@ -160,6 +185,29 @@ export function Sidebar() {
       .then((r) => (r.ok ? r.json() : null))
       .then((b: BrandData | null) => { if (b?.brand_name) setBrand(b); })
       .catch(() => {});
+
+    // Fetch initial unread count
+    fetch('/api/livechat/unread')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { count: number } | null) => { if (d?.count) setLivechatUnread(d.count); })
+      .catch(() => {});
+
+    // SSE: increment unread + play sound when customer sends a message
+    const es = new EventSource('/api/livechat/stream');
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const evt = JSON.parse(e.data as string) as { sender_type?: string; type?: string };
+        if (evt.type === 'new_message' && evt.sender_type === 'USER') {
+          setLivechatUnread((n) => {
+            // Don't increment when user is already on the livechat page
+            if (window.location.pathname.startsWith('/livechat')) return n;
+            playNotifBeep();
+            return n + 1;
+          });
+        }
+      } catch { /* ignore */ }
+    };
+    return () => es.close();
   }, [loadMe]);
 
   async function handleLogout() {
@@ -204,7 +252,12 @@ export function Sidebar() {
                 )}
               >
                 <Icon size={16} />
-                {label}
+                <span className="flex-1">{label}</span>
+                {href === '/livechat' && livechatUnread > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {livechatUnread > 99 ? '99+' : livechatUnread}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

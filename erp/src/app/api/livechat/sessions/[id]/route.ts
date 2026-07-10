@@ -4,6 +4,7 @@ import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getSessionWithDetails, updateSessionAction, createSessionForUser, getSessionById } from '@/lib/repositories/support_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { getSetting } from '@/lib/repositories/settings_repo';
+import pool from '@/lib/db';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -53,6 +54,22 @@ export async function PATCH(
       new_value: { created_from_session: sessionId, assigned_to: payload.username },
     }).catch(() => {});
     return NextResponse.json({ ok: true, session: newSession, is_new_session: true });
+  }
+
+  // Mute requires special handling with duration
+  if (action === 'mute') {
+    const minutes = parseInt(body.duration_minutes as string, 10);
+    if (!minutes || minutes <= 0 || minutes > 1440) {
+      return NextResponse.json({ error: 'duration_minutes required (1-1440)' }, { status: 400 });
+    }
+    const { rows } = await pool.query(
+      `UPDATE support_sessions SET muted_until = NOW() + ($2 || ' minutes')::interval
+       WHERE id = $1 RETURNING *`,
+      [sessionId, minutes]
+    );
+    if (!rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    logAudit({ admin_id: payload.sub, action: 'LIVECHAT_CUSTOMER_MUTED', target_type: 'support_session', target_id: sessionId, new_value: { duration_minutes: minutes } }).catch(() => {});
+    return NextResponse.json({ ok: true, session: rows[0] });
   }
 
   const session = await updateSessionAction(sessionId, action, username);

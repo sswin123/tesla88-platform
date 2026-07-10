@@ -242,6 +242,7 @@ export interface SupportSession {
   status: SessionStatus;
   erp_unread_count: number;             // NEW
   pinned_at: string | null;             // NEW
+  muted_until: string | null;
   last_message_at: string;
   created_at: string;
   accepted_at: string | null;

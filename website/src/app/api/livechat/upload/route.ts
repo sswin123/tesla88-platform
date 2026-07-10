@@ -11,13 +11,32 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads');
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
 const ALLOWED: Record<string, string> = {
-  'image/jpeg':  'jpg',
-  'image/png':   'png',
-  'image/gif':   'gif',
-  'image/webp':  'webp',
-  'video/mp4':   'mp4',
-  'video/webm':  'webm',
+  // Images
+  'image/jpeg':                                                   'jpg',
+  'image/png':                                                    'png',
+  'image/gif':                                                    'gif',
+  'image/webp':                                                   'webp',
+  // Videos
+  'video/mp4':                                                    'mp4',
+  'video/webm':                                                   'webm',
+  'video/quicktime':                                              'mov',
+  // Documents
+  'application/pdf':                                              'pdf',
+  'text/plain':                                                   'txt',
+  'text/csv':                                                     'csv',
+  'application/msword':                                           'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel':                                     'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':       'xlsx',
+  'application/zip':                                              'zip',
+  'application/x-zip-compressed':                                 'zip',
 };
+
+function getMsgType(mimeType: string): 'PHOTO' | 'VIDEO' | 'DOCUMENT' {
+  if (mimeType.startsWith('image/')) return 'PHOTO';
+  if (mimeType.startsWith('video/')) return 'VIDEO';
+  return 'DOCUMENT';
+}
 
 export async function POST(req: NextRequest) {
   const member = await getMember();
@@ -52,6 +71,6 @@ export async function POST(req: NextRequest) {
   }
 
   const fileId = `local:${fileName}`;
-  const msgType = file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO';
-  return NextResponse.json({ file_id: fileId, message_type: msgType }, { status: 201 });
+  const msgType = getMsgType(file.type);
+  return NextResponse.json({ file_id: fileId, message_type: msgType, file_name: file.name }, { status: 201 });
 }

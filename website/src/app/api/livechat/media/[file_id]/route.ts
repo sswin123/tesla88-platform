@@ -8,13 +8,22 @@ export const runtime = 'nodejs';
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), 'uploads');
 
 const EXT_MIME: Record<string, string> = {
-  '.jpg': 'image/jpeg',
+  '.jpg':  'image/jpeg',
   '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
+  '.png':  'image/png',
+  '.gif':  'image/gif',
   '.webp': 'image/webp',
-  '.mp4': 'video/mp4',
+  '.mp4':  'video/mp4',
   '.webm': 'video/webm',
+  '.mov':  'video/quicktime',
+  '.pdf':  'application/pdf',
+  '.txt':  'text/plain',
+  '.csv':  'text/csv',
+  '.doc':  'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls':  'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.zip':  'application/zip',
 };
 
 export async function GET(
@@ -45,7 +54,9 @@ export async function GET(
     return new NextResponse('Not found', { status: 404 });
   }
 
-  const mime = EXT_MIME[extname(safeName).toLowerCase()] ?? 'application/octet-stream';
+  const ext = extname(safeName).toLowerCase();
+  const mime = EXT_MIME[ext] ?? 'application/octet-stream';
+  const isInline = ext === '.pdf' || mime.startsWith('image/') || mime.startsWith('video/');
 
   try {
     const data = await readFile(filePath);
@@ -53,7 +64,7 @@ export async function GET(
       headers: {
         'Content-Type': mime,
         'Cache-Control': 'public, max-age=3600, immutable',
-        'Content-Disposition': 'inline',
+        'Content-Disposition': isInline ? 'inline' : `attachment; filename="${safeName}"`,
       },
     });
   } catch (err) {

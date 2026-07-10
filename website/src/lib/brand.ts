@@ -21,8 +21,8 @@ export interface PublicBrand {
 }
 
 export const BRAND_FALLBACK: PublicBrand = {
-  brand_name: 'SSWIN88',
-  company_name: 'SSWIN88',
+  brand_name: 'YourBrandName',
+  company_name: 'YourBrandName',
   tagline: null,
   logo_media_id: null,
   favicon_media_id: null,

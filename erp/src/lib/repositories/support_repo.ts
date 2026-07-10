@@ -254,6 +254,7 @@ export async function getSessionWithDetails(id: number): Promise<{
     phone: row.phone,
     telegram_id: row.telegram_id,
     telegram_username: row.telegram_username,
+    muted_until: row.muted_until ?? null,
   };
 
   if (isGuest) {
@@ -414,6 +415,8 @@ export async function updateSessionAction(
     sql = `UPDATE support_sessions SET erp_unread_count=erp_unread_count+1 WHERE id=$1 RETURNING *`;
   } else if (action === 'reset_unread') {
     sql = `UPDATE support_sessions SET erp_unread_count=0 WHERE id=$1 RETURNING *`;
+  } else if (action === 'unmute') {
+    sql = `UPDATE support_sessions SET muted_until=NULL WHERE id=$1 RETURNING *`;
   } else {
     return null;
   }

@@ -5,6 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { SupportSession } from '@/lib/types';
 
+function getMuteLabel(mutedUntil: string | null): string | null {
+  if (!mutedUntil) return null;
+  const diff = Math.round((new Date(mutedUntil).getTime() - Date.now()) / 60000);
+  if (diff <= 0) return null;
+  return `🔇 Muted (${diff} min left)`;
+}
+
+const MUTE_PRESETS = [
+  { label: '5 minutes', minutes: 5 },
+  { label: '10 minutes', minutes: 10 },
+  { label: '30 minutes', minutes: 30 },
+  { label: '1 hour', minutes: 60 },
+];
+
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
   OPEN: 'secondary',
   ACTIVE: 'default',
@@ -35,6 +49,9 @@ export function SessionActions({
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferTarget, setTransferTarget] = useState('');
   const [transferring, setTransferring] = useState(false);
+  const [showMute, setShowMute] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [muteLoading, setMuteLoading] = useState(false);
 
   async function doAction(action: string) {
     if (acting) return;
@@ -92,7 +109,43 @@ export function SessionActions({
     setTransferring(false);
   }
 
+  async function handleMute(minutes: number) {
+    if (muteLoading) return;
+    setMuteLoading(true);
+    setShowMute(false);
+    const r = await fetch(`/api/livechat/sessions/${session.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mute', duration_minutes: minutes }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && (d as { session?: SupportSession }).session) {
+      onUpdate((d as { session: SupportSession }).session);
+    } else {
+      alert((d as { error?: string }).error ?? 'Mute failed');
+    }
+    setMuteLoading(false);
+  }
+
+  async function handleUnmute() {
+    if (muteLoading) return;
+    setMuteLoading(true);
+    const r = await fetch(`/api/livechat/sessions/${session.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'unmute' }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && (d as { session?: SupportSession }).session) {
+      onUpdate((d as { session: SupportSession }).session);
+    } else {
+      alert((d as { error?: string }).error ?? 'Unmute failed');
+    }
+    setMuteLoading(false);
+  }
+
   const isPinned = Boolean(session.pinned_at);
+  const muteLabel = getMuteLabel(session.muted_until ?? null);
 
   return (
     <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
@@ -184,6 +237,81 @@ export function SessionActions({
         >
           Mark Unread
         </Button>
+
+        {/* Mute / Unmute — only on non-closed sessions */}
+        {session.status !== 'CLOSED' && (
+          muteLabel ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-medium text-orange-600 whitespace-nowrap">
+                {muteLabel}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={muteLoading}
+                onClick={handleUnmute}
+                className="text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                Unmute
+              </Button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={muteLoading}
+                onClick={() => setShowMute((v) => !v)}
+              >
+                🔇 Mute
+              </Button>
+              {showMute && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMute(false)} />
+                  <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border bg-white shadow-lg p-2 space-y-1">
+                    {MUTE_PRESETS.map((p) => (
+                      <button
+                        key={p.minutes}
+                        className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-gray-100"
+                        onClick={() => handleMute(p.minutes)}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                    <div className="border-t pt-1 flex gap-1">
+                      <input
+                        type="number"
+                        min={1}
+                        max={1440}
+                        placeholder="min"
+                        value={customMinutes}
+                        onChange={(e) => setCustomMinutes(e.target.value)}
+                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const m = parseInt(customMinutes, 10);
+                            if (m > 0 && m <= 1440) void handleMute(m);
+                          }
+                        }}
+                      />
+                      <button
+                        className="rounded border border-gray-200 px-2 py-1 text-sm hover:bg-gray-100 disabled:opacity-40"
+                        disabled={!customMinutes || parseInt(customMinutes, 10) <= 0}
+                        onClick={() => {
+                          const m = parseInt(customMinutes, 10);
+                          if (m > 0 && m <= 1440) void handleMute(m);
+                        }}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        )}
+
         {session.status !== 'CLOSED' ? (
           <Button
             size="sm"

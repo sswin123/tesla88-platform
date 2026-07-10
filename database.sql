@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS support_sessions (
                          CHECK (status IN ('OPEN','ACTIVE','CLOSED')),
     erp_unread_count     INTEGER      NOT NULL DEFAULT 0,
     pinned_at            TIMESTAMPTZ,
+    muted_until          TIMESTAMPTZ,
     notification_msg_id  BIGINT,
     control_msg_id       BIGINT,
     last_message_at      TIMESTAMPTZ  DEFAULT NOW(),
@@ -542,3 +543,6 @@ INSERT INTO system_settings (key, value, description)
 VALUES ('LIVECHAT_REOPEN_DAYS', '30',
         'Days after session closure before a new session is created instead of reopening (0 = always reopen)')
 ON CONFLICT (key) DO NOTHING;
+
+-- Migration 019: Customer mute support
+ALTER TABLE support_sessions ADD COLUMN IF NOT EXISTS muted_until TIMESTAMPTZ;

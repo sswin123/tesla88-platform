@@ -55,6 +55,7 @@ export function SessionCard({
   const name = session.first_name ?? 'Unknown';
   const preview =
     session.last_message_content?.slice(0, 60) ?? `[${session.last_message_type ?? 'Media'}]`;
+  const isMuted = Boolean(session.muted_until && new Date(session.muted_until) > new Date());
 
   return (
     <button
@@ -67,7 +68,10 @@ export function SessionCard({
       <Avatar name={name} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium text-sm">{name}</span>
+          <span className="truncate font-medium text-sm">
+            {isMuted && <span title="Customer muted">🔇 </span>}
+            {name}
+          </span>
           <span className="flex-shrink-0 text-xs text-gray-400">
             {timeAgo(session.last_message_at)}
           </span>

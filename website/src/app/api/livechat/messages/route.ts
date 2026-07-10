@@ -63,6 +63,15 @@ export async function POST(req: NextRequest) {
   }
   if (!allowed) return NextResponse.json({ error: 'Session not found or closed' }, { status: 404 });
 
+  // Check if customer is muted
+  const muteCheck = await pool.query<{ muted_until: string | null }>(
+    `SELECT muted_until FROM support_sessions WHERE id = $1`,
+    [body.session_id]
+  );
+  if (muteCheck.rows[0]?.muted_until && new Date(muteCheck.rows[0].muted_until) > new Date()) {
+    return NextResponse.json({ error: '您发送太频繁，请稍后再试。' }, { status: 403 });
+  }
+
   const msg = await pool.query(
     `INSERT INTO support_messages (session_id, sender_type, message_type, content, caption)
      VALUES ($1, 'USER', $2, $3, $4) RETURNING id, created_at`,

@@ -425,6 +425,16 @@ async def _forward_user_message(
     target: int,
 ) -> None:
     session_id = session["id"]
+
+    # Block if customer is muted
+    muted_until = session.get("muted_until")
+    if muted_until is not None:
+        now = datetime.now(timezone.utc)
+        muted_aware = muted_until if muted_until.tzinfo else muted_until.replace(tzinfo=timezone.utc)
+        if muted_aware > now:
+            await message.answer("您发送太频繁，请稍后再试。")
+            return
+
     header = (
         f"👤 {html.escape(user['first_name'])} "
         f"(UID: {user['id']}) | #{session_id}"
