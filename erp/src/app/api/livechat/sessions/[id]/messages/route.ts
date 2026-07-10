@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
-import { getMoreMessages, getQuickReplyById } from '@/lib/repositories/support_repo';
+import { getMoreMessages, getNewMessages, getQuickReplyById } from '@/lib/repositories/support_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import pool from '@/lib/db';
 
@@ -13,6 +13,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const afterId = req.nextUrl.searchParams.get('after_id');
+  if (afterId !== null) {
+    const messages = await getNewMessages(parseInt(id, 10), parseInt(afterId, 10));
+    return NextResponse.json({ messages });
+  }
   const beforeId = parseInt(req.nextUrl.searchParams.get('before_id') ?? '2147483647', 10);
   const messages = await getMoreMessages(parseInt(id, 10), beforeId);
   return NextResponse.json({ messages });

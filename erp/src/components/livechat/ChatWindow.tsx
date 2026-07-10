@@ -219,7 +219,7 @@ export function ChatWindow({
     onScrollConsumed?.();
   }, [scrollToSessionId, onScrollConsumed]);
 
-  // SSE: new messages for this user (any session)
+  // SSE: new messages for this session (both USER and AGENT, supports guests)
   useEffect(() => {
     const es = new EventSource('/api/livechat/stream');
     es.onmessage = (e: MessageEvent) => {
@@ -230,29 +230,20 @@ export function ChatWindow({
           user_id?: number;
           sender_type?: string;
         };
-        if (
-          evt.type === 'new_message' &&
-          evt.sender_type === 'USER' &&
-          (evt.user_id === userId || evt.session_id === sessionId)
-        ) {
+        if (evt.type === 'new_message' && evt.session_id === sessionId) {
           const lastId = lastIdRef.current;
-          fetch(`/api/livechat/users/${userId}/messages?before_id=2147483647`)
+          fetch(`/api/livechat/sessions/${sessionId}/messages?after_id=${lastId}`)
             .then((r) => r.json())
             .then((d) => {
-              const allMsgs: SupportMessage[] = (d as { messages?: SupportMessage[] }).messages ?? [];
-              const newMsgs = lastId === 0
-                ? allMsgs
-                : allMsgs.filter((m) => m.id > lastId);
+              const newMsgs: SupportMessage[] = (d as { messages?: SupportMessage[] }).messages ?? [];
               if (newMsgs.length > 0) {
                 setMessages((prev) => {
                   const ids = new Set(prev.map((m) => m.id));
                   return [...prev, ...newMsgs.filter((m) => !ids.has(m.id))];
                 });
                 if (isNearBottomRef.current) {
-                  // User is at bottom — auto-scroll as before
                   setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
                 } else {
-                  // User is scrolled up — show floating button instead
                   setPendingNewCount((n) => n + newMsgs.length);
                 }
               }
@@ -264,7 +255,7 @@ export function ChatWindow({
       }
     };
     return () => es.close();
-  }, [userId, sessionId, setMessages]);
+  }, [sessionId, setMessages]);
 
   // Infinite scroll: load older messages by user
   const handleScroll = useCallback(() => {
@@ -286,7 +277,11 @@ export function ChatWindow({
       if (!firstId) return;
       const prevScrollHeight = el.scrollHeight;
       setLoadingMore(true);
-      fetch(`/api/livechat/users/${userId}/messages?before_id=${firstId}`)
+      /* For guest sessions (userId=0) use the session endpoint; for members use the user timeline */
+      const loadUrl = userId === 0
+        ? `/api/livechat/sessions/${sessionId}/messages?before_id=${firstId}`
+        : `/api/livechat/users/${userId}/messages?before_id=${firstId}`;
+      fetch(loadUrl)
         .then((r) => r.json())
         .then((d) => {
           const older: SupportMessage[] = (d as { messages?: SupportMessage[]; hasMore?: boolean }).messages ?? [];

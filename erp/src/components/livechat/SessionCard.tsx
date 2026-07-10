@@ -74,13 +74,23 @@ export function SessionCard({
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <span className="truncate text-xs text-gray-500">
-            {session.telegram_username
-              ? `@${session.telegram_username}`
-              : `UID ${session.user_id}`}
+            {session.guest_id
+              ? session.guest_id
+              : session.telegram_username
+                ? `@${session.telegram_username}`
+                : `UID ${session.user_id}`}
           </span>
-          <Badge variant={STATUS_VARIANT[session.status]} className="text-xs px-1.5 py-0">
-            {STATUS_LABEL[session.status]}
-          </Badge>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {session.source === 'telegram' && (
+              <span className="text-xs text-blue-400" title="Telegram">✈</span>
+            )}
+            {(session.source === 'website' || session.source === 'website_guest') && (
+              <span className="text-xs text-green-500" title="Website">🌐</span>
+            )}
+            <Badge variant={STATUS_VARIANT[session.status]} className="text-xs px-1.5 py-0">
+              {STATUS_LABEL[session.status]}
+            </Badge>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-2 mt-1">
           <p className="truncate text-xs text-gray-400">{preview}</p>

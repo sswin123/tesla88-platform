@@ -7,6 +7,22 @@ export async function GET(
   { params }: { params: Promise<{ file_id: string }> }
 ) {
   const { file_id } = await params;
+
+  // Website-uploaded local files: proxy from website service
+  if (file_id.startsWith('local:')) {
+    const websiteUrl = process.env.WEBSITE_URL;
+    if (!websiteUrl) return new NextResponse('WEBSITE_URL not configured', { status: 503 });
+    const proxyRes = await fetch(`${websiteUrl}/api/livechat/media/${encodeURIComponent(file_id)}`);
+    if (!proxyRes.ok) return new NextResponse('File not found', { status: 404 });
+    return new NextResponse(proxyRes.body, {
+      headers: {
+        'Content-Type': proxyRes.headers.get('Content-Type') ?? 'application/octet-stream',
+        'Cache-Control': 'public, max-age=3600, immutable',
+        'Content-Disposition': 'inline',
+      },
+    });
+  }
+
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return new NextResponse('Not configured', { status: 503 });
 

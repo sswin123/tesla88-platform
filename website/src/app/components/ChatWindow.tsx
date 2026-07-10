@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ChatMessage, ChatSession } from '@/lib/types';
 
+type UploadResult = { file_id: string; message_type: string };
+
 interface Props {
   brandName: string;
 }
@@ -22,18 +24,51 @@ function AgentAvatar() {
   );
 }
 
+function MediaContent({ msg, align }: { msg: ChatMessage; align: 'left' | 'right' }) {
+  if (msg.message_type === 'PHOTO' && msg.content) {
+    return (
+      <div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/livechat/media/${encodeURIComponent(msg.content)}`}
+          alt={msg.caption ?? 'photo'}
+          className="max-w-full rounded-xl"
+          style={{ maxHeight: '240px', objectFit: 'contain', cursor: 'pointer' }}
+          onClick={() => window.open(`/api/livechat/media/${encodeURIComponent(msg.content!)}`, '_blank')}
+        />
+        {msg.caption && <p className="text-xs mt-1" style={{ color: align === 'right' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>{msg.caption}</p>}
+      </div>
+    );
+  }
+  if (msg.message_type === 'VIDEO' && msg.content) {
+    return (
+      <div>
+        <video
+          src={`/api/livechat/media/${encodeURIComponent(msg.content)}`}
+          controls
+          className="max-w-full rounded-xl"
+          style={{ maxHeight: '240px' }}
+        />
+        {msg.caption && <p className="text-xs mt-1" style={{ color: align === 'right' ? 'rgba(255,255,255,0.8)' : 'var(--text-muted)' }}>{msg.caption}</p>}
+      </div>
+    );
+  }
+  return <span>{msg.content}</span>;
+}
+
 function UserBubble({ msg }: { msg: ChatMessage }) {
+  const isMedia = msg.message_type === 'PHOTO' || msg.message_type === 'VIDEO';
   return (
     <div className="flex justify-end items-end gap-2">
       <div className="max-w-[72%]">
         <div
-          className="px-3.5 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed"
+          className={isMedia ? 'p-1.5 rounded-2xl rounded-br-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-br-sm text-sm leading-relaxed'}
           style={{
             background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))',
             color: '#fff',
           }}
         >
-          {msg.content}
+          <MediaContent msg={msg} align="right" />
         </div>
         <p className="text-right text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
           {formatTime(msg.created_at)}
@@ -44,15 +79,16 @@ function UserBubble({ msg }: { msg: ChatMessage }) {
 }
 
 function AgentBubble({ msg }: { msg: ChatMessage }) {
+  const isMedia = msg.message_type === 'PHOTO' || msg.message_type === 'VIDEO';
   return (
     <div className="flex justify-start items-end gap-2">
       <AgentAvatar />
       <div className="max-w-[72%]">
         <div
-          className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm text-sm leading-relaxed"
+          className={isMedia ? 'p-1.5 rounded-2xl rounded-bl-sm' : 'px-3.5 py-2.5 rounded-2xl rounded-bl-sm text-sm leading-relaxed'}
           style={{ background: 'var(--bg-surface2)', color: 'var(--text-base)', border: '1px solid var(--border-dim)' }}
         >
-          {msg.content}
+          <MediaContent msg={msg} align="left" />
         </div>
         <p className="text-left text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
           {formatTime(msg.created_at)}
@@ -69,7 +105,9 @@ export default function ChatWindow({ brandName }: Props) {
   const [sending, setSending]     = useState(false);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Auto-scroll on new messages */
   useEffect(() => {
@@ -143,11 +181,54 @@ export default function ChatWindow({ brandName }: Props) {
     });
     setSending(false);
     if (!res.ok) {
-      /* Remove optimistic message on failure */
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
       setError('消息发送失败，请重试');
+    } else {
+      /* Replace temp id with real DB id so SSE dedup works correctly */
+      const data = await res.json() as { ok: boolean; id: number; created_at: string };
+      setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...m, id: data.id, created_at: data.created_at } : m));
     }
   }, [input, session, sending]);
+
+  const sendFile = useCallback(async (file: File) => {
+    if (!session || session.status === 'CLOSED' || uploading) return;
+    setUploading(true);
+
+    const form = new FormData();
+    form.append('file', file);
+    const upRes = await fetch('/api/livechat/upload', { method: 'POST', body: form });
+    if (!upRes.ok) {
+      setUploading(false);
+      setError('文件上传失败，请重试');
+      return;
+    }
+    const { file_id, message_type } = await upRes.json() as UploadResult;
+
+    /* Optimistic insert */
+    const tempMsg: ChatMessage = {
+      id: Date.now(),
+      sender_type: 'USER',
+      message_type: message_type as ChatMessage['message_type'],
+      content: file_id,
+      caption: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
+    const msgRes = await fetch('/api/livechat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: session.id, message_type, content: file_id }),
+    });
+    setUploading(false);
+    if (!msgRes.ok) {
+      setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+      setError('消息发送失败，请重试');
+    } else {
+      const data = await msgRes.json() as { ok: boolean; id: number; created_at: string };
+      setMessages(prev => prev.map(m => m.id === tempMsg.id ? { ...m, id: data.id, created_at: data.created_at } : m));
+    }
+  }, [session, uploading, setMessages]);
 
   const isActive = session?.status === 'ACTIVE';
   const isClosed = session?.status === 'CLOSED';
@@ -283,6 +364,39 @@ export default function ChatWindow({ brandName }: Props) {
         className="flex items-center gap-2 px-3 py-3 shrink-0"
         style={{ borderTop: '1px solid var(--border-dim)' }}
       >
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+          className="hidden"
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) { sendFile(f); e.target.value = ''; }
+          }}
+        />
+        {/* Media attach button */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading || isClosed || !session || uploading || sending}
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
+          style={{ background: 'var(--bg-surface3)', border: '1px solid var(--border-mid)' }}
+          aria-label="发送图片/视频"
+          title="发送图片/视频"
+        >
+          {uploading ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" strokeDasharray="31.4" strokeDashoffset="10" style={{ animation: 'spin 1s linear infinite' }} />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          )}
+        </button>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}

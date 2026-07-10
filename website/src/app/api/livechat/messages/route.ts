@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
   const guestId = req.cookies?.get(GUEST_COOKIE)?.value;
   if (!member && !guestId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json() as { session_id?: number; content?: string };
+  const body = await req.json() as { session_id?: number; content?: string; message_type?: string; caption?: string };
   if (!body.session_id) return NextResponse.json({ error: 'session_id required' }, { status: 400 });
   if (!body.content)    return NextResponse.json({ error: 'content required' }, { status: 400 });
+  const msgType = (['PHOTO', 'VIDEO', 'DOCUMENT', 'AUDIO'].includes(body.message_type ?? '') ? body.message_type : 'TEXT') as string;
 
   // Verify session ownership and open/active status
   let allowed = false;
@@ -62,10 +63,10 @@ export async function POST(req: NextRequest) {
   if (!allowed) return NextResponse.json({ error: 'Session not found or closed' }, { status: 404 });
 
   const msg = await pool.query(
-    `INSERT INTO support_messages (session_id, sender_type, message_type, content)
-     VALUES ($1, 'USER', 'TEXT', $2) RETURNING id, created_at`,
-    [body.session_id, body.content]
+    `INSERT INTO support_messages (session_id, sender_type, message_type, content, caption)
+     VALUES ($1, 'USER', $2, $3, $4) RETURNING id, created_at`,
+    [body.session_id, msgType, body.content, body.caption ?? null]
   );
   await pool.query('UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1', [body.session_id]);
-  return NextResponse.json({ ok: true, id: msg.rows[0].id }, { status: 201 });
+  return NextResponse.json({ ok: true, id: msg.rows[0].id as number, created_at: msg.rows[0].created_at as string }, { status: 201 });
 }

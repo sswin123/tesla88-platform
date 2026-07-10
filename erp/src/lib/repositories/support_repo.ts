@@ -462,6 +462,24 @@ export async function getMoreMessages(
   return rows.reverse();
 }
 
+export async function getNewMessages(
+  sessionId: number,
+  afterId: number,
+  limit = 50
+): Promise<SupportMessage[]> {
+  const { rows } = await pool.query<SupportMessage>(
+    `SELECT id, session_id, sender_type, message_type, content, caption,
+            file_name, file_size, user_msg_id, group_msg_id, created_at,
+            reply_to_message_id, reply_to_content, reply_to_sender_type, status
+     FROM support_messages
+     WHERE session_id = $1 AND id > $2
+     ORDER BY id ASC
+     LIMIT $3`,
+    [sessionId, afterId, limit]
+  );
+  return rows;
+}
+
 export async function getTimelineMessages(
   userId: number,
   beforeId: number = 2147483647,

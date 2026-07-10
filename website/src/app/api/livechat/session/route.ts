@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     if (existing.rows.length > 0) return NextResponse.json(existing.rows[0]);
 
     const created = await pool.query(
-      `INSERT INTO support_sessions (user_id, status, last_message_at) VALUES ($1, 'OPEN', NOW())
+      `INSERT INTO support_sessions (user_id, status, source, last_message_at) VALUES ($1, 'OPEN', 'website', NOW())
        RETURNING id, status, created_at`,
       [member.sub]
     );
@@ -48,8 +48,8 @@ export async function GET(req: NextRequest) {
 
   // Create new guest session
   const created = await pool.query(
-    `INSERT INTO support_sessions (user_id, guest_id, status, last_message_at)
-     VALUES (NULL, $1, 'OPEN', NOW())
+    `INSERT INTO support_sessions (user_id, guest_id, status, source, last_message_at)
+     VALUES (NULL, $1, 'OPEN', 'website_guest', NOW())
      RETURNING id, status, created_at`,
     [guestId]
   );
