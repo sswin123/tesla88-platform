@@ -32,7 +32,7 @@ export async function GET(
         [uid]
       ),
       pool.query(
-        `SELECT id, provider, deposit_amount, bonus_amount, credit_amount, status, created_at,
+        `SELECT dr.id, provider, deposit_amount, bonus_amount, credit_amount, status, dr.created_at,
                 reviewed_at, p.name AS promo_name
          FROM deposit_requests dr
          LEFT JOIN promotions p ON p.id = dr.promotion_id

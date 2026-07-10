@@ -7,6 +7,7 @@ import pool from '@/lib/db';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
+const WEBSITE_URL = process.env.WEBSITE_URL ?? '';
 
 export async function GET(
   req: NextRequest,
@@ -180,6 +181,23 @@ export async function POST(
   }
 
   // ── Forward to bot relay (Telegram sessions) ──────────────────────────────
+  // Relay expects base64 data URI for media; convert local: file_id back to base64
+  let relayContent = content;
+  if (content?.startsWith('local:') && messageType !== 'TEXT' && WEBSITE_URL) {
+    try {
+      const mediaRes = await fetch(
+        `${WEBSITE_URL}/api/livechat/media/${encodeURIComponent(content)}`
+      );
+      if (mediaRes.ok) {
+        const ct = mediaRes.headers.get('Content-Type') ?? 'application/octet-stream';
+        const buf = await mediaRes.arrayBuffer();
+        relayContent = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`;
+      }
+    } catch {
+      // Use file_id as-is; relay may not support it but won't crash here
+    }
+  }
+
   let relayRes: Response;
   try {
     relayRes = await fetch(`${BOT_RELAY_URL}/relay`, {
@@ -191,7 +209,7 @@ export async function POST(
       body: JSON.stringify({
         session_id:               sessionId,
         message_type:             messageType,
-        content,
+        content:                  relayContent,
         caption,
         file_name:                fileName,
         file_size:                fileSize,

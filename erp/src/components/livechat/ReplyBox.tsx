@@ -190,15 +190,36 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
     if (!trimmed && !pendingFile) return;
 
     if (pendingFile) {
-      const dataUri = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(pendingFile.file);
-      });
+      // Phase 1: upload file to website_uploads volume → get local: file_id
+      setSending(true);
+      setSendStatus('sending');
+      setError('');
+      const uploadForm = new FormData();
+      uploadForm.append('file', pendingFile.file);
+      let fileId: string;
+      let resolvedMsgType: string;
+      try {
+        const uploadRes = await fetch('/api/livechat/upload', { method: 'POST', body: uploadForm });
+        if (!uploadRes.ok) {
+          const d = await uploadRes.json().catch(() => ({})) as { error?: string };
+          setError(d.error ?? 'File upload failed');
+          setSendStatus('failed');
+          setSending(false);
+          return;
+        }
+        const up = await uploadRes.json() as { file_id: string; message_type: string };
+        fileId = up.file_id;
+        resolvedMsgType = up.message_type;
+      } catch {
+        setError('File upload failed');
+        setSendStatus('failed');
+        setSending(false);
+        return;
+      }
+      // Phase 2: send message with file_id stored in shared website_uploads volume
       const ok = await dispatchSend({
-        message_type: pendingFile.messageType,
-        content: dataUri,
+        message_type: resolvedMsgType,
+        content: fileId,
         caption: trimmed || null,
         file_name: pendingFile.file.name,
         file_size: pendingFile.file.size,

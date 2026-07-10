@@ -22,7 +22,13 @@ const ALLOWED: Record<string, string> = {
 export async function POST(req: NextRequest) {
   const member = await getMember();
   const guestId = req.cookies?.get(GUEST_COOKIE)?.value;
-  if (!member && !guestId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Allow ERP agent uploads authenticated via relay token
+  const authHeader = req.headers.get('Authorization');
+  const relayToken = process.env.BOT_RELAY_AUTH_TOKEN;
+  const isRelayUpload = relayToken && authHeader === `Bearer ${relayToken}`;
+  if (!member && !guestId && !isRelayUpload) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
