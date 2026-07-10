@@ -8,11 +8,14 @@ export async function GET(
 ) {
   const { file_id } = await params;
 
+  // Decode explicitly: Next.js may leave %3A un-decoded in route params
+  const decodedId = decodeURIComponent(file_id);
+
   // Website-uploaded local files: proxy from website service
-  if (file_id.startsWith('local:')) {
+  if (decodedId.startsWith('local:')) {
     const websiteUrl = process.env.WEBSITE_URL;
     if (!websiteUrl) return new NextResponse('WEBSITE_URL not configured', { status: 503 });
-    const proxyRes = await fetch(`${websiteUrl}/api/livechat/media/${encodeURIComponent(file_id)}`);
+    const proxyRes = await fetch(`${websiteUrl}/api/livechat/media/${encodeURIComponent(decodedId)}`);
     if (!proxyRes.ok) return new NextResponse('File not found', { status: 404 });
     return new NextResponse(proxyRes.body, {
       headers: {
@@ -28,7 +31,7 @@ export async function GET(
 
   // Telegram getFile API
   const infoRes = await fetch(
-    `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(file_id)}`
+    `https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(decodedId)}`
   );
   const info = await infoRes.json();
   if (!info.ok) return new NextResponse('File not found', { status: 404 });

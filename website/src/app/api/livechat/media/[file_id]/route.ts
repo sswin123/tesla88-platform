@@ -23,12 +23,15 @@ export async function GET(
 ) {
   const { file_id } = await params;
 
-  if (!file_id.startsWith('local:')) {
+  // Decode explicitly: Next.js may leave %3A un-decoded in route params
+  const decodedId = decodeURIComponent(file_id);
+
+  if (!decodedId.startsWith('local:')) {
     return new NextResponse('Not a local file', { status: 400 });
   }
 
   // Sanitize: strip path separators to prevent directory traversal
-  const rawName = file_id.slice('local:'.length);
+  const rawName = decodedId.slice('local:'.length);
   const safeName = rawName.replace(/[/\\]/g, '');
   const filePath = join(UPLOAD_DIR, safeName);
 

@@ -24,7 +24,11 @@ export async function GET(
         [uid]
       ),
       pool.query(
-        'SELECT provider, username, created_at FROM user_game_accounts WHERE user_id = $1 ORDER BY created_at',
+        `SELECT uga.provider, ap.username, uga.assigned_at AS created_at
+         FROM user_game_accounts uga
+         JOIN account_pool ap ON ap.id = uga.account_pool_id
+         WHERE uga.user_id = $1
+         ORDER BY uga.assigned_at`,
         [uid]
       ),
       pool.query(
