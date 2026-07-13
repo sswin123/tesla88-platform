@@ -14,16 +14,67 @@ export interface WebsiteAnnouncement {
   updated_at: string;
 }
 
-export interface WebsiteGameProvider {
+export type LobbyIconType = 'none' | 'emoji' | 'image' | 'gif' | 'svg';
+
+export interface LobbyIcon {
+  icon_type: LobbyIconType;
+  icon_emoji: string | null;
+  icon_media_id: number | null;
+  icon_svg: string | null;
+}
+
+export interface WebsiteLobbyCategory extends LobbyIcon {
+  id: number;
+  category_key: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Dynamic game lobby category (replaces hardcoded enum)
+export interface WebsiteGameCategory extends LobbyIcon {
+  id: number;
+  category_code: string;
+  category_name: string;
+  display_order: number;
+  is_default: boolean;
+  is_active: boolean;
+  image_display_size: 'small' | 'medium' | 'large';
+  image_display_mode: 'contain' | 'cover' | 'stretch';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebsiteGameProvider extends LobbyIcon {
   id: number;
   provider_code: string;
   provider_name: string;
-  category: 'slot' | 'live' | 'sport' | 'fishing';
+  category: string;         // legacy enum string — kept for backward compat
+  category_id: number | null; // FK to website_game_categories
   logo_media_id: number | null;
   banner_media_id: number | null;
   is_hot: boolean;
   is_new: boolean;
   is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebsiteGame extends LobbyIcon {
+  id: number;
+  provider_id: number | null;
+  provider_name?: string | null;
+  game_code: string;
+  game_name: string;
+  category: string;         // legacy enum string — kept for backward compat
+  category_id: number | null; // FK to website_game_categories
+  thumbnail_media_id: number | null;
+  banner_media_id: number | null;
+  is_hot: boolean;
+  is_new: boolean;
+  is_active: boolean;
+  source: 'manual' | 'api';
+  api_provider: string | null;
   display_order: number;
   created_at: string;
   updated_at: string;
@@ -93,13 +144,41 @@ export interface DepositRow {
   deposit_amount: string;
   bonus_amount: string;
   credit_amount: string;
+  payment_bank: string;            // legacy text field (kept for backward compat)
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reject_reason: string | null;
   created_at: string;
   reviewed_at: string | null;
   first_name: string;
   phone: string;
+  public_id: string | null;
   promo_name: string | null;
+  // Receiving bank (from payment_banks JOIN via receiving_bank_id)
+  receiving_bank_id: number | null;
+  receiving_bank_name: string | null;
+  receiving_bank_account_name: string | null;
+  receiving_bank_account_number: string | null;
+}
+
+export interface DepositDetail {
+  id: number;
+  deposit_amount: string;
+  bonus_amount: string;
+  credit_amount: string;
+  payment_bank: string;
+  game_username: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  created_at: string;
+  first_name: string;
+  phone: string;
+  public_id: string | null;
+  promo_name: string | null;
+  // Receiving bank full info
+  receiving_bank_id: number | null;
+  receiving_bank_name: string | null;
+  receiving_bank_account_name: string | null;
+  receiving_bank_account_number: string | null;
+  receiving_bank_qr_media_id: number | null;
 }
 
 export interface WithdrawalRow {
@@ -321,7 +400,7 @@ export interface MemberCardData {
   bank_account: string;
   bank_holder_name: string;
   // Game accounts
-  game_accounts: { provider: string; username: string }[];
+  game_accounts: { provider: string; username: string; display_name?: string | null; logo_media_id?: number | null }[];
   // Current promotion (null if none active)
   current_promotion: { name: string; bonus_amount: string; status: string } | null;
   // Previous sessions (up to 5, excluding current)
@@ -342,6 +421,10 @@ export interface PaymentBank {
   instructions: string | null;
   is_active: boolean;
   display_order: number;
+  maintenance_mode: boolean;
+  maintenance_message: string | null;
+  provider_binding: string | null;
+  priority: number;
   created_at: string;
   updated_at: string;
 }
