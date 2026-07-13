@@ -2,44 +2,48 @@
 import { useEffect, useState } from 'react';
 import { MediaPicker } from '@/components/media/MediaPicker';
 import type { MediaRecord } from '@/lib/media/types';
-import type { WebsiteGameProvider } from '@/lib/types';
+import type { WebsiteGameProvider, WebsiteGameCategory } from '@/lib/types';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  slot:    '老虎机 (Slot)',
-  live:    '真人 (Live)',
-  sport:   '体育 (Sports)',
-  fishing: '捕鱼 (Fishing)',
-};
+type IconType = 'none' | 'emoji' | 'image' | 'gif' | 'svg';
 
 interface FormState {
-  provider_code: string;
-  provider_name: string;
-  category: 'slot' | 'live' | 'sport' | 'fishing';
-  logo_media_id: number | null;
+  provider_code:   string;
+  provider_name:   string;
+  category_id:     number | null;   // FK to website_game_categories
+  logo_media_id:   number | null;
   banner_media_id: number | null;
-  is_hot: boolean;
-  is_new: boolean;
-  is_active: boolean;
-  display_order: string;
+  is_hot:          boolean;
+  is_new:          boolean;
+  is_active:       boolean;
+  display_order:   string;
+  icon_type:       IconType;
+  icon_emoji:      string;
+  icon_media_id:   number | null;
+  icon_svg:        string;
 }
 
 const BLANK: FormState = {
-  provider_code: '', provider_name: '', category: 'slot',
+  provider_code: '', provider_name: '', category_id: null,
   logo_media_id: null, banner_media_id: null,
   is_hot: false, is_new: false, is_active: true, display_order: '0',
+  icon_type: 'none', icon_emoji: '', icon_media_id: null, icon_svg: '',
 };
 
 function providerToForm(p: WebsiteGameProvider): FormState {
   return {
     provider_code:   p.provider_code,
     provider_name:   p.provider_name,
-    category:        p.category,
+    category_id:     p.category_id ?? null,
     logo_media_id:   p.logo_media_id,
     banner_media_id: p.banner_media_id,
     is_hot:          p.is_hot,
     is_new:          p.is_new,
     is_active:       p.is_active,
     display_order:   String(p.display_order),
+    icon_type:       (p.icon_type as IconType) ?? 'none',
+    icon_emoji:      p.icon_emoji ?? '',
+    icon_media_id:   p.icon_media_id ?? null,
+    icon_svg:        p.icon_svg ?? '',
   };
 }
 
@@ -51,20 +55,34 @@ function StatusBadge({ p }: { p: WebsiteGameProvider }) {
 
 export default function WebsiteGameProvidersPage() {
   const [providers, setProviders] = useState<WebsiteGameProvider[]>([]);
+  const [categories, setCategories] = useState<WebsiteGameCategory[]>([]);
   const [editId, setEditId]       = useState<number | null>(null);
   const [form, setForm]           = useState<FormState>(BLANK);
   const [showForm, setShowForm]   = useState(false);
-  const [pickerFor, setPickerFor] = useState<'logo' | 'banner' | null>(null);
+  const [pickerFor, setPickerFor] = useState<'logo' | 'banner' | 'icon' | null>(null);
   const [saving, setSaving]       = useState(false);
   const [msg, setMsg]             = useState('');
   const [error, setError]         = useState('');
 
-  async function load() {
-    const res = await fetch('/api/website/game-providers');
-    if (res.ok) setProviders(await res.json() as WebsiteGameProvider[]);
+  async function load(signal?: AbortSignal) {
+    const opts = signal ? { signal } : {};
+    const [provRes, catRes] = await Promise.all([
+      fetch('/api/website/game-providers', opts).catch(() => null),
+      fetch('/api/website/lobby-categories', opts).catch(() => null),
+    ]);
+    if (signal?.aborted) return;
+    if (provRes?.ok) setProviders(await provRes.json() as WebsiteGameProvider[]);
+    if (catRes?.ok) {
+      const all = await catRes.json() as WebsiteGameCategory[];
+      setCategories(all.filter(c => c.category_code !== 'all' && c.category_code !== 'hot'));
+    }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void load(ctrl.signal);
+    return () => ctrl.abort();
+  }, []);
 
   function startCreate() {
     setEditId(null); setForm(BLANK);
@@ -82,7 +100,7 @@ export default function WebsiteGameProvidersPage() {
     setForm(prev => ({ ...prev, [key]: value }));
   }
 
-  function handleMediaSelect(field: 'logo_media_id' | 'banner_media_id', m: MediaRecord | MediaRecord[]) {
+  function handleMediaSelect(field: 'logo_media_id' | 'banner_media_id' | 'icon_media_id', m: MediaRecord | MediaRecord[]) {
     const picked = Array.isArray(m) ? m[0] : m;
     if (picked) setField(field, picked.id);
     setPickerFor(null);
@@ -92,26 +110,45 @@ export default function WebsiteGameProvidersPage() {
     e.preventDefault();
     setSaving(true); setMsg(''); setError('');
 
+    const selectedCat = categories.find(c => c.id === form.category_id);
+
     const body = {
       provider_code:   form.provider_code.trim(),
       provider_name:   form.provider_name.trim(),
-      category:        form.category,
+      category:        selectedCat?.category_code ?? 'slot',
+      category_id:     form.category_id,
       logo_media_id:   form.logo_media_id,
       banner_media_id: form.banner_media_id,
       is_hot:          form.is_hot,
       is_new:          form.is_new,
       is_active:       form.is_active,
       display_order:   parseInt(form.display_order) || 0,
+      icon_type:       form.icon_type,
+      icon_emoji:      form.icon_type === 'emoji'  ? form.icon_emoji || null : null,
+      icon_media_id:   (form.icon_type === 'image' || form.icon_type === 'gif') ? form.icon_media_id : null,
+      icon_svg:        form.icon_type === 'svg'    ? form.icon_svg || null : null,
     };
 
     const url    = editId ? `/api/website/game-providers/${editId}` : '/api/website/game-providers';
     const method = editId ? 'PATCH' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      body: JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const saveCtrl = new AbortController();
+    const timeout = setTimeout(() => saveCtrl.abort(), 15_000);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+        signal: saveCtrl.signal,
+      });
+    } catch {
+      setSaving(false);
+      setError('请求超时或网络错误，请重试');
+      return;
+    } finally {
+      clearTimeout(timeout);
+    }
     setSaving(false);
 
     if (res.ok) {
@@ -198,21 +235,22 @@ export default function WebsiteGameProvidersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
-                <select value={form.category}
-                  onChange={e => setField('category', e.target.value as FormState['category'])}
+                <label className="block text-xs font-medium text-gray-700 mb-1">分类 Category</label>
+                <select value={form.category_id ?? ''}
+                  onChange={e => setField('category_id', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                  <option value="">— 未指定 —</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>{c.category_name} ({c.category_code})</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Display Order</label>
-                <input type="number" value={form.display_order}
+                <input type="text" inputMode="numeric" value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" />
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
 
               {/* Logo */}
@@ -243,6 +281,57 @@ export default function WebsiteGameProvidersPage() {
                       className="text-xs text-red-500 hover:underline">Clear</button>
                   )}
                 </div>
+              </div>
+
+              {/* Icon */}
+              <div className="col-span-2 border-t pt-3">
+                <label className="block text-xs font-medium text-gray-700 mb-2">图标 Icon</label>
+                <div className="flex gap-1 mb-2">
+                  {(['none', 'emoji', 'image', 'gif', 'svg'] as IconType[]).map(t => (
+                    <button key={t} type="button"
+                      onClick={() => setField('icon_type', t)}
+                      className={`flex-1 py-1 text-xs rounded border transition-colors ${
+                        form.icon_type === t
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                      }`}>
+                      {t === 'none' ? '无' : t.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                {form.icon_type === 'emoji' && (
+                  <input type="text" maxLength={4}
+                    value={form.icon_emoji}
+                    onChange={e => setField('icon_emoji', e.target.value)}
+                    placeholder="输入 Emoji，如 🎰"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                )}
+                {(form.icon_type === 'image' || form.icon_type === 'gif') && (
+                  <div className="flex items-center gap-2">
+                    {form.icon_media_id && (
+                      <img src={`/api/public/media/${form.icon_media_id}`} alt=""
+                        className="w-8 h-8 object-contain rounded border" />
+                    )}
+                    <button type="button" onClick={() => setPickerFor('icon')}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                      {form.icon_media_id ? '更换图片' : '选择图片'}
+                    </button>
+                    {form.icon_media_id && (
+                      <button type="button" onClick={() => setField('icon_media_id', null)}
+                        className="text-xs text-red-500 hover:underline">Clear</button>
+                    )}
+                  </div>
+                )}
+                {form.icon_type === 'svg' && (
+                  <textarea
+                    value={form.icon_svg}
+                    onChange={e => setField('icon_svg', e.target.value)}
+                    placeholder={'<svg ...>...</svg>'}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y"
+                  />
+                )}
               </div>
 
               {/* Toggles */}
@@ -285,7 +374,12 @@ export default function WebsiteGameProvidersPage() {
       {/* ── Media Picker ── */}
       {pickerFor && (
         <MediaPicker
-          onSelect={m => handleMediaSelect(pickerFor === 'logo' ? 'logo_media_id' : 'banner_media_id', m)}
+          onSelect={m => handleMediaSelect(
+            pickerFor === 'logo' ? 'logo_media_id'
+            : pickerFor === 'icon' ? 'icon_media_id'
+            : 'banner_media_id',
+            m
+          )}
           onClose={() => setPickerFor(null)}
         />
       )}
@@ -309,12 +403,10 @@ export default function WebsiteGameProvidersPage() {
             </div>
 
             {/* Logo preview */}
-            <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-              {p.logo_media_id ? (
+            <div className="w-12 h-12 rounded-lg bg-gray-100 shrink-0 overflow-hidden">
+              {p.logo_media_id && (
                 <img src={`/api/public/media/${p.logo_media_id}`} alt={p.provider_name}
                   className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-xl">🎮</span>
               )}
             </div>
 
@@ -323,7 +415,7 @@ export default function WebsiteGameProvidersPage() {
               <div className="flex items-center gap-2 mb-0.5">
                 <StatusBadge p={p} />
                 <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  {CATEGORY_LABELS[p.category] ?? p.category}
+                  {categories.find(c => c.id === p.category_id)?.category_name ?? p.category}
                 </span>
                 {p.is_hot && <span className="text-xs">🔥 HOT</span>}
                 {p.is_new && <span className="text-xs">✨ NEW</span>}
