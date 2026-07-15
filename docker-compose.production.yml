@@ -1,0 +1,188 @@
+# Production Docker Compose — apidemo.club
+# Domains: apidemo.club (website) | api.apidemo.club (ERP API) | erp.apidemo.club (ERP admin)
+# Server:  45.77.169.133 (Vultr Ubuntu 24.04)
+#
+# Usage:
+#   docker compose -f docker-compose.production.yml up -d
+#   docker compose -f docker-compose.production.yml logs -f
+#   docker compose -f docker-compose.production.yml ps
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Redis (session cache, rate limiting) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── ERP Admin Panel ────────────────────────────────────────────────────────
+  erp:
+    build:
+      context: ./erp
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV:            production
+      DATABASE_URL:        postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET:          ${JWT_SECRET}
+      TELEGRAM_BOT_TOKEN:  ${BOT_TOKEN}
+      BOT_RELAY_URL:       http://telegram-bot:8090
+      BOT_RELAY_AUTH_TOKEN: ${BOT_RELAY_AUTH_TOKEN}
+      WEBSITE_URL:         ${SITE_URL}
+      APP_VERSION:         ${APP_VERSION:-1.0.0}
+      BACKUP_DIR:          /backups
+      MEDIA_UPLOAD_DIR:    /uploads/media
+    volumes:
+      - erp_backups:/backups
+      - erp_uploads:/uploads/media
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/maintenance/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Website Member Portal ──────────────────────────────────────────────────
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      erp:
+        condition: service_healthy
+    environment:
+      NODE_ENV:             production
+      DB_HOST:              postgres
+      DB_PORT:              5432
+      DB_NAME:              ${POSTGRES_DB}
+      DB_USER:              ${POSTGRES_USER}
+      DB_PASSWORD:          ${POSTGRES_PASSWORD}
+      MEMBER_JWT_SECRET:    ${MEMBER_JWT_SECRET}
+      BOT_RELAY_AUTH_TOKEN: ${BOT_RELAY_AUTH_TOKEN}
+      ERP_INTERNAL_URL:     http://erp:3000
+      APP_VERSION:          ${APP_VERSION:-1.0.0}
+      UPLOAD_DIR:           /data/uploads
+      ERP_MEDIA_DIR:        /uploads/media
+    volumes:
+      - website_uploads:/data/uploads
+      - erp_uploads:/uploads/media:ro
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Telegram Bot + Relay ───────────────────────────────────────────────────
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BOT_TOKEN:             ${BOT_TOKEN}
+      SUPER_ADMIN_ID:        ${SUPER_ADMIN_ID}
+      POSTGRES_HOST:         postgres
+      POSTGRES_PORT:         5432
+      POSTGRES_DB:           ${POSTGRES_DB}
+      POSTGRES_USER:         ${POSTGRES_USER}
+      POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD}
+      JWT_SECRET:            ${JWT_SECRET}
+      MEMBER_JWT_SECRET:     ${MEMBER_JWT_SECRET}
+      CS_USERNAME:           ${CS_USERNAME}
+      ACCOUNT_CHANGE_COOLDOWN_HOURS: ${ACCOUNT_CHANGE_COOLDOWN_HOURS:-24}
+      ADMIN_CHAT_ID:         ${ADMIN_CHAT_ID}
+      SUPPORT_CHAT_ID:       ${SUPPORT_CHAT_ID}
+      BOT_RELAY_AUTH_TOKEN:  ${BOT_RELAY_AUTH_TOKEN}
+      BOT_RELAY_PORT:        8090
+      MIN_DEPOSIT_AMOUNT:    ${MIN_DEPOSIT_AMOUNT:-30}
+      MIN_WITHDRAWAL_AMOUNT: ${MIN_WITHDRAWAL_AMOUNT:-50}
+      ERP_URL:               http://erp:3000
+      WEBSITE_URL:           http://website:3000
+    ports:
+      - "8090:8090"
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: always
+    depends_on:
+      - website
+      - erp
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - sswin88
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  erp_backups:
+  erp_uploads:
+  website_uploads:
+  nginx_logs:
+
+networks:
+  sswin88:
+    name: sswin88
+    driver: bridge
