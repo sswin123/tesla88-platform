@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mediaService } from '@/lib/media';
+import { findMediaById } from '@/lib/repositories/media_repo';
 import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
@@ -15,7 +16,13 @@ export async function GET(
 
   // Phase 5.4A: thumbnail_status always NONE — getPreview returns original file
   const result = await mediaService.getPreview(mediaId);
-  if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!result) {
+    const record = await findMediaById(mediaId).catch(() => null);
+    if (record) {
+      console.warn(`[media/thumbnail] file missing on disk for id=${mediaId} key=${record.storageKey}`);
+    }
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   return new NextResponse(result.buffer as unknown as BodyInit, {
     status: 200,

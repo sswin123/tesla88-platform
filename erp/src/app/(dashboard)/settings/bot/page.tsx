@@ -466,8 +466,8 @@ export default function BotSettingsPage() {
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 mb-1">{label} <span className="text-gray-400 font-normal">(future use)</span></label>
               <input
-                type="number"
-                min={0}
+                type="text"
+                inputMode="numeric"
                 value={settings[key] ?? ''}
                 placeholder={placeholder}
                 onChange={(e) => set(key, e.target.value)}

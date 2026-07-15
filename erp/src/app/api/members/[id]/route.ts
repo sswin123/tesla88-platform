@@ -3,32 +3,36 @@ import pool from '@/lib/db';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { requirePermission } from '@/lib/require_permission';
 
+function maskPhone(phone: string): string {
+  if (!phone) return phone;
+  if (phone.length <= 6) return '*'.repeat(phone.length);
+  return phone.slice(0, 4) + '*'.repeat(phone.length - 6) + phone.slice(-2);
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const payload = await requirePermission('members.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const canViewPhone = !!(await requirePermission('member.view_phone'));
 
   const { id } = await params;
   const uid = parseInt(id, 10);
   if (isNaN(uid)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
   try {
-    const [memberRows, accounts, deposits, withdrawals] = await Promise.all([
+    const [memberRows, deposits, withdrawals] = await Promise.all([
       pool.query(
         `SELECT u.*,
            (SELECT COUNT(*)::int FROM deposit_requests   WHERE user_id = u.id AND status = 'APPROVED') AS deposit_count,
-           (SELECT COUNT(*)::int FROM withdrawal_requests WHERE user_id = u.id AND status = 'PAID')    AS withdrawal_count
-         FROM users u WHERE u.id = $1`,
-        [uid]
-      ),
-      pool.query(
-        `SELECT uga.provider, ap.username, uga.assigned_at AS created_at
-         FROM user_game_accounts uga
-         JOIN account_pool ap ON ap.id = uga.account_pool_id
-         WHERE uga.user_id = $1
-         ORDER BY uga.assigned_at`,
+           (SELECT COUNT(*)::int FROM withdrawal_requests WHERE user_id = u.id AND status = 'PAID')    AS withdrawal_count,
+           (SELECT COUNT(*)::int FROM users u2 WHERE u2.referred_by = u.id)                            AS total_referrals,
+           ref.public_id  AS referrer_public_id,
+           ref.first_name AS referrer_name
+         FROM users u
+         LEFT JOIN users ref ON ref.id = u.referred_by
+         WHERE u.id = $1`,
         [uid]
       ),
       pool.query(
@@ -48,6 +52,35 @@ export async function GET(
     ]);
 
     if (!memberRows.rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // Game accounts — use status filter if column exists, fall back gracefully
+    let accountRows: Record<string, unknown>[] = [];
+    try {
+      const accounts = await pool.query(
+        `SELECT uga.provider, ap.username, uga.assigned_at AS created_at
+         FROM user_game_accounts uga
+         JOIN account_pool ap ON ap.id = uga.account_pool_id
+         WHERE uga.user_id = $1 AND COALESCE(uga.status, 'ACTIVE') = 'ACTIVE'
+         ORDER BY uga.assigned_at`,
+        [uid]
+      );
+      accountRows = accounts.rows;
+    } catch {
+      // status column not yet migrated — fall back to unfiltered
+      try {
+        const accounts = await pool.query(
+          `SELECT uga.provider, ap.username, uga.assigned_at AS created_at
+           FROM user_game_accounts uga
+           JOIN account_pool ap ON ap.id = uga.account_pool_id
+           WHERE uga.user_id = $1
+           ORDER BY uga.assigned_at`,
+          [uid]
+        );
+        accountRows = accounts.rows;
+      } catch (e2) {
+        console.warn('[members/[id]] game accounts fallback failed:', e2);
+      }
+    }
 
     // bonus_claims may not exist in all deployments — run separately with fallback
     let bonusRows: Record<string, unknown>[] = [];
@@ -74,16 +107,21 @@ export async function GET(
       member.total_bonus = sum.toFixed(2);
     }
 
+    // Mask phone if caller lacks member.view_phone
+    if (!canViewPhone && member.phone) {
+      member.phone = maskPhone(member.phone as string);
+    }
+
     return NextResponse.json({
       member,
-      accounts:    accounts.rows,
+      accounts:    accountRows,
       deposits:    deposits.rows,
       withdrawals: withdrawals.rows,
       bonuses:     bonusRows,
     });
   } catch (err) {
     console.error('[members/[id]] GET error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error', details: String(err) }, { status: 500 });
   }
 }
 

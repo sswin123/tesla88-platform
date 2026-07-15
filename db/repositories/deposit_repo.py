@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 import asyncpg
+
+logger = logging.getLogger(__name__)
 
 
 async def has_pending_deposit(pool: asyncpg.Pool, user_id: int) -> bool:
@@ -26,7 +29,38 @@ async def create_deposit_request(
     credit_amount: float,
     payment_bank: str,
     receipt_file_id: str,
+    receiving_bank_id: Optional[int] = None,
 ) -> asyncpg.Record:
+    """Insert a new deposit request.
+
+    Tries the new schema (migration 027: receiving_bank_id column) first,
+    falls back to the legacy schema if the column does not yet exist.
+    """
+    base_params = (
+        user_id, provider, game_username,
+        deposit_amount, bonus_type_id, promotion_id, bonus_amount, credit_amount,
+        payment_bank, receipt_file_id,
+    )
+
+    # New schema: includes receiving_bank_id FK (migration 027)
+    if receiving_bank_id is not None:
+        try:
+            return await pool.fetchrow(
+                """
+                INSERT INTO deposit_requests (
+                    user_id, provider, game_username,
+                    deposit_amount, bonus_type_id, promotion_id, bonus_amount, credit_amount,
+                    payment_bank, receipt_file_id, receiving_bank_id
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                RETURNING *
+                """,
+                *base_params, receiving_bank_id,
+            )
+        except asyncpg.exceptions.UndefinedColumnError:
+            logger.warning("deposit_repo: receiving_bank_id column missing (migration 027 pending), falling back")
+
+    # Legacy schema: no receiving_bank_id column
     return await pool.fetchrow(
         """
         INSERT INTO deposit_requests (
@@ -37,9 +71,7 @@ async def create_deposit_request(
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
         RETURNING *
         """,
-        user_id, provider, game_username,
-        deposit_amount, bonus_type_id, promotion_id, bonus_amount, credit_amount,
-        payment_bank, receipt_file_id,
+        *base_params,
     )
 
 

@@ -41,13 +41,32 @@ export async function POST(req: NextRequest) {
   if (!u?.bank_account)
     return NextResponse.json({ error: '账户未绑定银行卡，请联系客服' }, { status: 400 });
 
-  /* Minimum withdraw amount */
-  const settingRes = await pool.query<{ value: string }>(
-    `SELECT value FROM system_settings WHERE key = 'withdraw_min_amount'`
+  /* Load financial settings */
+  const settingRes = await pool.query<{ key: string; value: string }>(
+    `SELECT key, value FROM system_settings WHERE key IN ('withdraw_min_amount','max_withdrawals_per_day')`
   );
-  const minAmount = parseFloat(settingRes.rows[0]?.value ?? '30') || 30;
+  const sMap = Object.fromEntries(settingRes.rows.map(r => [r.key, r.value]));
+  const minAmount = parseFloat(sMap.withdraw_min_amount ?? '30') || 30;
   if (body.amount < minAmount)
     return NextResponse.json({ error: `最低提款金额为 RM ${minAmount}` }, { status: 400 });
+
+  /* Daily withdrawal limit */
+  const maxPerDay = parseInt(sMap.max_withdrawals_per_day ?? '0', 10) || 0;
+  if (maxPerDay > 0) {
+    const todayRes = await pool.query<{ cnt: string }>(
+      `SELECT COUNT(*)::text AS cnt FROM withdrawal_requests
+       WHERE user_id = $1
+         AND created_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')`,
+      [member.sub]
+    );
+    const todayCount = parseInt(todayRes.rows[0]?.cnt ?? '0', 10);
+    if (todayCount >= maxPerDay) {
+      return NextResponse.json(
+        { error: `您今天的提款次数已达上限（${maxPerDay} 次）。请明天再试或联系客服。`, today_count: todayCount, limit: maxPerDay },
+        { status: 429 }
+      );
+    }
+  }
 
   /* Balance check */
   const balance = parseFloat(u.net_deposit ?? '0');

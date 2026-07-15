@@ -23,7 +23,7 @@ export default function PromoBanner({ promotions }: Props) {
   if (promotions.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {promotions.map(p => {
         const expired = isExpired(p);
         return (
@@ -42,11 +42,11 @@ export default function PromoBanner({ promotions }: Props) {
               }}
             />
 
-            <div className="p-5 flex flex-col flex-1">
+            <div className="p-3 flex flex-col flex-1">
               {/* Big bonus value */}
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-1.5">
                 <p
-                  className="text-4xl font-black leading-none"
+                  className="text-2xl font-black leading-none"
                   style={{
                     color: expired ? 'var(--text-faint)' : 'var(--brand-primary)',
                     textShadow: expired ? 'none' : '0 0 20px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
@@ -92,7 +92,7 @@ export default function PromoBanner({ promotions }: Props) {
               )}
 
               <div className="mt-auto">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
                     最低存款 RM {parseFloat(p.min_deposit).toFixed(0)}
                   </span>

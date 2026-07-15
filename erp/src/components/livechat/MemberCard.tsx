@@ -206,7 +206,28 @@ export function MemberCard({
             Game Accounts
           </p>
           {member.game_accounts.map((ga) => (
-            <Row key={`${ga.provider}-${ga.username}`} label={ga.provider} value={ga.username} />
+            <div
+              key={`${ga.provider}-${ga.username}`}
+              className="flex items-center gap-2 py-1.5 border-b last:border-0"
+            >
+              {ga.logo_media_id ? (
+                <img
+                  src={`/api/public/media/${ga.logo_media_id}`}
+                  alt={ga.display_name ?? ga.provider}
+                  className="h-6 w-6 rounded object-contain flex-shrink-0"
+                />
+              ) : (
+                <div className="h-6 w-6 rounded bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-400 flex-shrink-0">
+                  {(ga.display_name ?? ga.provider).slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <span className="text-xs font-medium text-gray-700 truncate">
+                {ga.display_name ?? ga.provider}
+              </span>
+              <span className="ml-auto text-xs text-gray-500 font-mono flex-shrink-0">
+                {ga.username}
+              </span>
+            </div>
           ))}
         </div>
       )}

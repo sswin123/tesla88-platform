@@ -19,7 +19,6 @@ const FALLBACK_SLIDES: Slide[] = [
     subtitle: '最高奖金 RM 500，立即注册领取',
     cta: '立即领取',
     ctaHref: '/register',
-    accentColor: '#2563eb',
   },
   {
     id: 2,
@@ -27,7 +26,6 @@ const FALLBACK_SLIDES: Slide[] = [
     subtitle: '无需申请，自动到账，天天享有',
     cta: '查看优惠',
     ctaHref: '/promotions',
-    accentColor: '#7c3aed',
   },
   {
     id: 3,
@@ -35,7 +33,6 @@ const FALLBACK_SLIDES: Slide[] = [
     subtitle: '专属推荐码，好友存款即送奖金',
     cta: '立即推荐',
     ctaHref: '/profile',
-    accentColor: '#0d9488',
   },
 ];
 

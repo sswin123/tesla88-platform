@@ -34,8 +34,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     module: 'Members',
     permissions: [
-      { key: 'members.view', label: 'View Members' },
-      { key: 'members.edit', label: 'Edit Members' },
+      { key: 'members.view',      label: 'View Members' },
+      { key: 'members.edit',      label: 'Edit Members' },
+      { key: 'member.view_phone', label: 'View Phone Numbers' },
+      { key: 'member.bank.edit',  label: 'Edit Member Bank Info (with audit log)' },
     ],
   },
   {
@@ -86,10 +88,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: 'brand.settings',  label: 'Brand Settings' },
       { key: 'staff.manage',    label: 'Staff Management' },
-      { key: 'website.settings',      label: 'Website Settings' },
-      { key: 'website.banner.manage',        label: 'Website Banners' },
-      { key: 'website.announcement.manage', label: 'Website Announcements' },
-      { key: 'website.game.manage',         label: 'Website Game Providers' },
+      { key: 'website.settings',              label: 'Website Settings' },
+      { key: 'website.builder.manage',        label: 'Website Builder (Homepage CMS)' },
+      { key: 'website.banner.manage',         label: 'Website Banners' },
+      { key: 'website.announcement.manage',   label: 'Website Announcements' },
+      { key: 'website.game.manage',           label: 'Website Game Providers' },
       { key: 'payment.bank.manage',         label: 'Payment Banks' },
       { key: 'maintenance.view',label: 'Maintenance' },
       { key: 'audit.view',      label: 'Audit Log' },

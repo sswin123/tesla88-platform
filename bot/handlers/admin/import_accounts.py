@@ -8,10 +8,10 @@ from aiogram.types import CallbackQuery, Message
 
 import asyncpg
 
-from bot.constants import PROVIDERS
 from bot.filters import IsAdmin
 from bot.keyboards.game_accounts import build_provider_select_keyboard
 from db.repositories.account_repo import bulk_import_accounts, parse_account_csv
+from db.repositories.provider_repo import get_active_providers
 
 router = Router()
 
@@ -22,9 +22,10 @@ class ImportAccountsStates(StatesGroup):
 
 
 @router.message(Command("import_accounts"), IsAdmin(["SUPER_ADMIN"]))
-async def cmd_import_accounts(message: Message, state: FSMContext) -> None:
+async def cmd_import_accounts(message: Message, state: FSMContext, pool: asyncpg.Pool) -> None:
+    providers = await get_active_providers(pool)
     await state.set_state(ImportAccountsStates.waiting_provider)
-    keyboard = build_provider_select_keyboard("imp_prov")
+    keyboard = build_provider_select_keyboard("imp_prov", providers)
     await message.answer(
         "请选择要导入账号的游戏平台：\n\n或发送 /cancel 取消。",
         reply_markup=keyboard,
@@ -43,10 +44,11 @@ async def cmd_cancel_import_accounts(message: Message, state: FSMContext) -> Non
     F.data.startswith("imp_prov:"),
 )
 async def process_provider_selection(
-    callback: CallbackQuery, state: FSMContext
+    callback: CallbackQuery, state: FSMContext, pool: asyncpg.Pool
 ) -> None:
     provider = callback.data.split(":", 1)[1]
-    if provider not in PROVIDERS:
+    providers = await get_active_providers(pool)
+    if provider not in providers:
         await callback.answer("无效的平台。", show_alert=True)
         return
 

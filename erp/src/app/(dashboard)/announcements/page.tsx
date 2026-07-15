@@ -314,8 +314,8 @@ export default function AnnouncementsPage() {
                 <Label htmlFor="ann-tag-id">Tag ID</Label>
                 <Input
                   id="ann-tag-id"
-                  type="number"
-                  min={1}
+                  type="text"
+                  inputMode="numeric"
                   value={form.target_tag_id}
                   onChange={F('target_tag_id')}
                   placeholder="e.g. 3"

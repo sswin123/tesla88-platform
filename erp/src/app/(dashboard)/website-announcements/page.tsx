@@ -229,10 +229,9 @@ export default function WebsiteAnnouncementsPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Display Order</label>
                 <input
-                  type="number" value={form.display_order}
+                  type="text" inputMode="numeric" value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  min="0"
                 />
               </div>
 

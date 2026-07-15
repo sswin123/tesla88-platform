@@ -8,8 +8,6 @@ from typing import Any, Optional, Sequence
 
 import asyncpg
 
-from bot.constants import PROVIDERS
-
 
 @dataclass
 class AccountImportResult:
@@ -70,7 +68,7 @@ async def bulk_import_accounts(
 
 
 async def get_account_stats(pool: asyncpg.Pool) -> list[dict[str, Any]]:
-    """Returns stats for every provider ordered by PROVIDERS list."""
+    """Returns stats for every provider in account_pool, ordered by provider name."""
     rows = await pool.fetch(
         """
         SELECT
@@ -81,16 +79,10 @@ async def get_account_stats(pool: asyncpg.Pool) -> list[dict[str, Any]]:
             COUNT(*) FILTER (WHERE status = 'DISABLED')  AS disabled
         FROM account_pool
         GROUP BY provider
+        ORDER BY provider
         """
     )
-    by_provider = {r["provider"]: dict(r) for r in rows}
-    return [
-        by_provider.get(
-            p,
-            {"provider": p, "total": 0, "available": 0, "assigned": 0, "disabled": 0},
-        )
-        for p in PROVIDERS
-    ]
+    return [dict(r) for r in rows]
 
 
 async def get_user_game_accounts(

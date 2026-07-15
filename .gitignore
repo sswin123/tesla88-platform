@@ -1,14 +1,12 @@
-__pycache__/
-*.pyc
-.env
-*.egg-info/
-.pytest_cache/
+node_modules/
+**/node_modules/
+.next/
+dist/
+build/
+coverage/
 logs/
-
-# ERP build artifacts
-erp/node_modules/
-erp/.next/
-erp/.env
-erp/.env.local
-erp/.env.production
-erp/tsconfig.tsbuildinfo
+backups/
+.env
+.env.local
+.env.production
+.DS_Store

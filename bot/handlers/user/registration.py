@@ -76,6 +76,18 @@ async def cmd_start(
         await message.answer(text, reply_markup=keyboard)
         return
 
+    # Parse referral code from deep link: /start REF_CODE
+    parts = (message.text or "").split(maxsplit=1)
+    if len(parts) == 2:
+        candidate = parts[1].strip()
+        if candidate:
+            referrer = await pool.fetchrow(
+                "SELECT id FROM users WHERE referral_code = $1 AND id != $2",
+                candidate, message.from_user.id,
+            )
+            if referrer:
+                await state.update_data(referrer_id=referrer["id"])
+
     text = await messages.get_message("start_new_user", language=lang)
     await message.answer(text, reply_markup=registration_start_keyboard())
 
@@ -321,6 +333,7 @@ async def process_bank_holder(
             bank_holder_name=bank_holder_name,
             eligible_free_credit=eligible,
             website_password_hash=website_password_hash,
+            referred_by=data.get("referrer_id"),
         )
     except asyncpg.exceptions.UniqueViolationError:
         await state.clear()

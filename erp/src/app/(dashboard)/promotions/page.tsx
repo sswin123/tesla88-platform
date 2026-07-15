@@ -278,20 +278,20 @@ export default function PromotionsPage() {
                     <Label className="mb-1 block">
                       Bonus Value {form.bonus_mode === 'PERCENTAGE' ? '(%)' : '(RM)'}
                     </Label>
-                    <Input type="number" value={form.bonus_value} onChange={F('bonus_value')} />
+                    <Input type="text" inputMode="decimal" value={form.bonus_value} onChange={F('bonus_value')} />
                   </div>
                 )}
                 <div>
                   <Label className="mb-1 block">Min Deposit (RM)</Label>
-                  <Input type="number" value={form.min_deposit} onChange={F('min_deposit')} />
+                  <Input type="text" inputMode="decimal" value={form.min_deposit} onChange={F('min_deposit')} />
                 </div>
                 <div>
                   <Label className="mb-1 block">Max Bonus (RM, optional)</Label>
-                  <Input type="number" value={form.max_bonus} onChange={F('max_bonus')} placeholder="No limit" />
+                  <Input type="text" inputMode="decimal" value={form.max_bonus} onChange={F('max_bonus')} placeholder="No limit" />
                 </div>
                 <div>
                   <Label className="mb-1 block">Turnover Multiplier</Label>
-                  <Input type="number" value={form.turnover_multiplier} onChange={F('turnover_multiplier')} step="0.1" />
+                  <Input type="text" inputMode="decimal" value={form.turnover_multiplier} onChange={F('turnover_multiplier')} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -314,7 +314,8 @@ export default function PromotionsPage() {
                 <p className="mb-2 text-sm font-medium">Bonus Preview</p>
                 <div className="flex gap-2">
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={previewDeposit}
                     onChange={(e) => setPreviewDeposit(e.target.value)}
                     placeholder="Deposit amount"

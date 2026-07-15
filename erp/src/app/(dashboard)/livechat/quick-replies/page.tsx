@@ -587,9 +587,17 @@ export default function QuickRepliesPage() {
             <div>
               <Label className="text-xs text-gray-500 mb-1 block">Sort Order</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={form.sortOrder}
-                onChange={e => setForm(f => ({ ...f, sortOrder: parseInt(e.target.value, 10) || 0 }))}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === '' || /^-?\d*$/.test(v)) setForm(f => ({ ...f, sortOrder: v === '' ? 0 : parseInt(v, 10) }));
+                }}
+                onBlur={e => {
+                  const n = parseInt(e.target.value, 10);
+                  setForm(f => ({ ...f, sortOrder: isNaN(n) ? 0 : n }));
+                }}
                 className="text-sm w-24"
               />
             </div>

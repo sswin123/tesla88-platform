@@ -8,10 +8,10 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 import asyncpg
 
 from bot.config import Config
-from bot.constants import PROVIDERS
 from bot.keyboards.game_accounts import build_game_accounts_keyboard, build_provider_select_keyboard
 from bot.services import BotMessageService
 from bot.utils.formatters import format_user_profile
+from db.repositories.provider_repo import get_active_providers
 from db.repositories.account_repo import (
     assign_account,
     get_provider_available_counts,
@@ -52,10 +52,11 @@ async def handle_my_game_accounts(
 
     accounts = await get_user_game_accounts(pool, user["id"])
     available_counts = await get_provider_available_counts(pool)
+    providers = await get_active_providers(pool)
 
     assigned_providers = {acc["provider"] for acc in accounts}
     claimable = [
-        p for p in PROVIDERS
+        p for p in providers
         if p not in assigned_providers and available_counts.get(p, 0) > 0
     ]
 
@@ -91,7 +92,8 @@ async def handle_claim_account(
 ) -> None:
     lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
-    if provider not in PROVIDERS:
+    providers = await get_active_providers(pool)
+    if provider not in providers:
         await callback.answer(
             await messages.get_message("game_invalid_platform", language=lang),
             show_alert=True,
@@ -164,7 +166,8 @@ async def handle_change_account(
 ) -> None:
     lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
-    if provider not in PROVIDERS:
+    providers = await get_active_providers(pool)
+    if provider not in providers:
         await callback.answer(
             await messages.get_message("game_invalid_platform", language=lang),
             show_alert=True,

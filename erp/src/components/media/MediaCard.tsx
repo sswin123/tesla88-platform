@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Image, Film, Music, FileText, File, Package, Archive } from 'lucide-react';
 import type { MediaRecord } from '@/lib/media/types';
 import { formatBytes } from '@/lib/utils/format-bytes';
@@ -39,6 +40,7 @@ export function MediaCard({
   selected: boolean;
   onClick: () => void;
 }) {
+  const [imgError, setImgError] = useState(false);
   const isVisual = item.mediaType === 'IMAGE' || item.mediaType === 'GIF';
   const Icon = TYPE_ICONS[item.mediaType] ?? File;
   const badgeClass = TYPE_BADGE[item.mediaType] ?? 'bg-gray-100 text-gray-500';
@@ -57,16 +59,22 @@ export function MediaCard({
     >
       {/* Thumbnail area — square aspect ratio */}
       <div className="aspect-square bg-gray-50 flex items-center justify-center relative">
-        {isVisual ? (
+        {isVisual && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`/api/media/${item.id}/thumbnail`}
             alt={item.displayName}
             className="w-full h-full object-cover"
-            onError={e => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            onError={() => {
+              console.warn(`[media] thumbnail missing for id=${item.id}`);
+              setImgError(true);
             }}
           />
+        ) : isVisual && imgError ? (
+          <div className="flex flex-col items-center justify-center gap-1 text-gray-400">
+            <span className="text-2xl">🖼</span>
+            <span className="text-[10px] text-center px-1">Image unavailable</span>
+          </div>
         ) : (
           <Icon size={32} className="text-gray-400" />
         )}

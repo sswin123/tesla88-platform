@@ -5,8 +5,9 @@ const SECRET = new TextEncoder().encode(
   process.env.MEMBER_JWT_SECRET ?? 'member-dev-secret-change-in-production'
 );
 
-export const COOKIE_NAME   = 'member_session';
-export const COOKIE_MAXAGE = 60 * 60 * 24 * 7; // 7 days
+export const COOKIE_NAME        = 'member_session';
+export const BANK_COOKIE_NAME   = 'bank_ok';
+export const COOKIE_MAXAGE      = 60 * 60 * 24 * 7; // 7 days
 
 export interface MemberJWTPayload {
   sub: number;

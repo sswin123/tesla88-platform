@@ -68,16 +68,8 @@ export function SessionCard({
       <Avatar name={name} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium text-sm">
+          <span className="truncate font-medium text-sm font-mono">
             {isMuted && <span title="Customer muted">🔇 </span>}
-            {name}
-          </span>
-          <span className="flex-shrink-0 text-xs text-gray-400">
-            {timeAgo(session.last_message_at)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="truncate text-xs text-gray-500">
             {session.guest_id
               ? session.guest_id
               : session.public_id
@@ -85,6 +77,14 @@ export function SessionCard({
                 : session.telegram_username
                   ? `@${session.telegram_username}`
                   : `UID ${session.user_id}`}
+          </span>
+          <span className="flex-shrink-0 text-xs text-gray-400">
+            {timeAgo(session.last_message_at)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          <span className="truncate text-xs text-gray-500">
+            {name}
           </span>
           <div className="flex items-center gap-1 flex-shrink-0">
             {session.source === 'telegram' && (

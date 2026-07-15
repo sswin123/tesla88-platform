@@ -579,3 +579,24 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS public_id VARCHAR(20) UNIQUE;
 ALTER TABLE brand_settings ADD COLUMN IF NOT EXISTS member_id_prefix VARCHAR(6) NOT NULL DEFAULT 'SS';
 UPDATE users SET public_id = 'SS' || (1000000 + id)::text WHERE public_id IS NULL;
+
+-- Migration 022: Bank soft-delete, Game Account soft-remove, Referral code backfill
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_status VARCHAR(10) NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE users ADD CONSTRAINT IF NOT EXISTS users_bank_status_check CHECK (bank_status IN ('ACTIVE', 'DELETED'));
+ALTER TABLE user_game_accounts ADD COLUMN IF NOT EXISTS status VARCHAR(10) NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE user_game_accounts ADD CONSTRAINT IF NOT EXISTS uga_status_check CHECK (status IN ('ACTIVE', 'REMOVED'));
+UPDATE users SET referral_code = public_id WHERE referral_code IS NULL AND public_id IS NOT NULL;
+
+-- Migration 023: Normalize phone numbers to 60XXXXXXXXX format
+UPDATE users
+SET phone = CASE
+  WHEN phone LIKE '+60%' THEN '60' || SUBSTRING(phone FROM 4)
+  WHEN phone LIKE '0%'   THEN '60' || SUBSTRING(phone FROM 2)
+  ELSE phone
+END
+WHERE phone LIKE '+60%' OR phone LIKE '0%';
+
+-- Migration 024: Website theme color customization
+ALTER TABLE brand_settings ADD COLUMN IF NOT EXISTS color_bg   TEXT NOT NULL DEFAULT '#0a0b14';
+ALTER TABLE brand_settings ADD COLUMN IF NOT EXISTS color_card TEXT NOT NULL DEFAULT '#111222';
+ALTER TABLE brand_settings ADD COLUMN IF NOT EXISTS color_text TEXT NOT NULL DEFAULT '#e8e8f5';

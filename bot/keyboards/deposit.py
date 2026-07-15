@@ -4,8 +4,6 @@ from typing import Any, Sequence
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.constants import PROVIDERS
-
 
 def build_deposit_provider_keyboard(providers: Sequence[str]) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []

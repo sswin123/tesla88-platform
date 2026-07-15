@@ -30,6 +30,7 @@ from bot.handlers.user.livechat import router as livechat_router
 from bot.handlers.user.promotions import router as promotions_router
 from bot.handlers.user.deposit import router as deposit_router
 from bot.handlers.user.game_accounts import router as game_accounts_router
+from bot.handlers.user.referral import router as referral_router
 from bot.handlers.user.registration import router as registration_router
 from bot.handlers.user.transaction_history import router as transaction_history_router
 from bot.handlers.user.withdrawal import router as withdrawal_router
@@ -88,6 +89,7 @@ async def main() -> None:
     # User routers first — registration catches /start and F.text menu buttons
     dp.include_router(registration_router)
     dp.include_router(game_accounts_router)
+    dp.include_router(referral_router)
     # All FSM-bearing routers BEFORE livechat so their state-filtered handlers
     # win over HasLivechatSession's catch-all.  livechat_router is last among
     # user routers so it only intercepts messages that no FSM handler claimed.

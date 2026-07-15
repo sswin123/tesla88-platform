@@ -49,29 +49,40 @@ async def create_user(
     bank_holder_name: str,
     eligible_free_credit: bool,
     website_password_hash: Optional[str] = None,
+    referred_by: Optional[int] = None,
 ) -> asyncpg.Record:
-    new_user = await pool.fetchrow(
-        """
-        INSERT INTO users (
-            telegram_id, telegram_username, first_name,
-            phone, bank_name, bank_account, bank_holder_name,
-            eligible_free_credit, website_password_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING *
-        """,
-        telegram_id, telegram_username, first_name,
-        phone, bank_name, bank_account, bank_holder_name,
-        eligible_free_credit, website_password_hash,
-    )
     prefix_row = await pool.fetchrow(
         "SELECT member_id_prefix FROM brand_settings WHERE id = 1"
     )
     prefix = (prefix_row["member_id_prefix"] if prefix_row else None) or "SS"
-    return await pool.fetchrow(
-        "UPDATE users SET public_id = $1 WHERE id = $2 RETURNING *",
-        f"{prefix}{1000000 + new_user['id']}",
-        new_user["id"],
-    )
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            new_user = await conn.fetchrow(
+                """
+                INSERT INTO users (
+                    telegram_id, telegram_username, first_name,
+                    phone, bank_name, bank_account, bank_holder_name,
+                    eligible_free_credit, website_password_hash, referred_by
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING *
+                """,
+                telegram_id, telegram_username, first_name,
+                phone, bank_name, bank_account, bank_holder_name,
+                eligible_free_credit, website_password_hash, referred_by,
+            )
+            updated = await conn.fetchrow(
+                "UPDATE users SET public_id = $1, referral_code = $1 WHERE id = $2 RETURNING *",
+                f"{prefix}{1000000 + new_user['id']}",
+                new_user["id"],
+            )
+            # Increment referrer's count when a referral code was used
+            if referred_by:
+                await conn.execute(
+                    "UPDATE users SET referral_count = referral_count + 1 WHERE id = $1",
+                    referred_by,
+                )
+    return updated
 
 
 async def update_user_status(

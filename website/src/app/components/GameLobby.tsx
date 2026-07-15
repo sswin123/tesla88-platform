@@ -3,28 +3,6 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
 
-/* ── Fallback (hardcoded) providers used when ERP has no active entries ── */
-interface FallbackProvider {
-  name: string;
-  emoji: string;
-  is_hot?: boolean;
-  category: 'slot' | 'live' | 'sport' | 'fishing';
-}
-
-const FALLBACK: FallbackProvider[] = [
-  { name: 'Mega888',        emoji: '🎰', is_hot: true, category: 'slot' },
-  { name: '918Kiss',        emoji: '💎', is_hot: true, category: 'slot' },
-  { name: 'Pussy888',       emoji: '🐱',               category: 'slot' },
-  { name: 'JILI',           emoji: '⚡', is_hot: true, category: 'slot' },
-  { name: 'JDB',            emoji: '🐉',               category: 'slot' },
-  { name: 'Pragmatic Play', emoji: '🎲', is_hot: true, category: 'slot' },
-  { name: 'Playtech',       emoji: '🎮',               category: 'live' },
-  { name: 'Evo888',         emoji: '🃏', is_hot: true, category: 'live' },
-  { name: 'Playtech',       emoji: '🎮',               category: 'sport' },
-  { name: 'JILI',           emoji: '⚡', is_hot: true, category: 'fishing' },
-  { name: 'JDB',            emoji: '🐉',               category: 'fishing' },
-  { name: 'Mega888',        emoji: '🎰',               category: 'fishing' },
-];
 
 const TABS = [
   { key: 'HOT',     label: '🔥 热门' },
@@ -69,23 +47,6 @@ function toCards(providers: PublicGameProvider[], tab: TabKey): CardItem[] {
   }));
 }
 
-function fallbackCards(tab: TabKey): CardItem[] {
-  const filtered = tab === 'HOT'
-    ? FALLBACK.filter(p => p.is_hot)
-    : FALLBACK.filter(p => {
-        const cat = TAB_TO_CATEGORY[tab as Exclude<TabKey, 'HOT'>];
-        return p.category === cat;
-      });
-
-  return filtered.map((p, i) => ({
-    key:    `fb-${tab}-${i}`,
-    name:   p.name,
-    emoji:  p.emoji,
-    logoUrl: null,
-    is_hot: p.is_hot ?? false,
-    is_new: false,
-  }));
-}
 
 export default function GameLobby() {
   const [tab, setTab]             = useState<TabKey>('HOT');
@@ -98,17 +59,13 @@ export default function GameLobby() {
       .catch(() => setProviders([]));
   }, []);
 
-  const useERP = providers !== null && providers.length > 0;
-
   const cards: CardItem[] = providers === null
     ? []  /* loading — show nothing */
-    : useERP
-      ? toCards(providers, tab)
-      : fallbackCards(tab);
+    : toCards(providers, tab);
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-base)' }}>
           游戏大厅
         </h2>
@@ -119,14 +76,14 @@ export default function GameLobby() {
 
       {/* Tab bar */}
       <div
-        className="flex gap-1 mb-4 p-1 rounded-xl overflow-x-auto"
+        className="flex gap-1 mb-2 p-1 rounded-xl overflow-x-auto"
         style={{ background: 'var(--bg-surface2)' }}
       >
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className="shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
+            className="shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
             style={
               tab === t.key
                 ? {
@@ -144,12 +101,12 @@ export default function GameLobby() {
 
       {/* Loading skeleton */}
       {providers === null && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-6 gap-1.5">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
               className="rounded-xl animate-pulse"
-              style={{ minHeight: '100px', background: 'var(--bg-surface2)' }}
+              style={{ minHeight: '72px', background: 'var(--bg-surface2)' }}
             />
           ))}
         </div>
@@ -162,13 +119,13 @@ export default function GameLobby() {
         </p>
       )}
       {providers !== null && cards.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-6 gap-1.5">
           {cards.map(card => (
             <a
               key={card.key}
               href="/download"
-              className="casino-card casino-card-hover relative flex flex-col items-center justify-center gap-2 p-4 text-center transition-all duration-200"
-              style={{ textDecoration: 'none', minHeight: '100px' }}
+              className="casino-card casino-card-hover relative flex flex-col items-center justify-center gap-1 p-2 text-center transition-all duration-200"
+              style={{ textDecoration: 'none', minHeight: '72px' }}
             >
               {/* HOT badge */}
               {card.is_hot && (
@@ -187,7 +144,7 @@ export default function GameLobby() {
               {card.is_new && !card.is_hot && (
                 <span
                   className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold leading-none"
-                  style={{ background: '#7c3aed', color: '#fff' }}
+                  style={{ background: 'var(--brand-primary)', color: '#fff' }}
                 >
                   NEW
                 </span>
@@ -203,7 +160,7 @@ export default function GameLobby() {
                   className="object-contain"
                 />
               ) : (
-                <span className="text-3xl">{card.emoji ?? '🎮'}</span>
+                <span className="text-2xl">{card.emoji ?? '🎮'}</span>
               )}
 
               <span

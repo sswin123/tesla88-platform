@@ -1,33 +1,89 @@
 @import "tailwindcss";
 
-/* ══════════════════════════════════════════════════════════════
-   Casino Dark Theme — variables & utilities
-   Brand colors overridden at runtime by <html style=...> in layout.tsx
-   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — Global CSS Variables
+   All brand/theme tokens are overridden at runtime by <html style=…>
+   in layout.tsx. Values here are the default (Classic Purple) fallback.
+   ══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Brand — ERP-driven, overridden via html style= */
-  --brand-primary:   #1d4ed8;
-  --brand-secondary: #1e40af;
+  /* ── Brand colors (ERP Brand Settings) ──────────────────────────── */
+  --brand-primary:   #7c3aed;
+  --brand-secondary: #6d28d9;
 
-  /* Casino dark palette */
-  --bg-base:      #0a0b14;
-  --bg-surface:   #111222;
-  --bg-surface2:  #181928;
-  --bg-surface3:  #1f2035;
-  --border-dim:   rgba(255 255 255 / 0.06);
-  --border-mid:   rgba(255 255 255 / 0.11);
-  --text-base:    #e8e8f5;
-  --text-muted:   #7070a0;
-  --text-faint:   #44445a;
+  /* ── Background layers ───────────────────────────────────────────── */
+  --bg-base:     #0a0b14;
+  --bg-surface:  #111222;
+  --bg-surface2: #181928;
+  --bg-surface3: #1f2035;
+  --bg-card:     #14152b;
+  --bg-elevated: var(--bg-surface);  /* alias used by nav/header */
 
-  /* Header / nav heights */
-  --header-h:    60px;
-  --ticker-h:    36px;
-  --bottomnav-h: 64px;
+  /* ── Borders ─────────────────────────────────────────────────────── */
+  --border-dim:  rgba(255 255 255 / 0.06);
+  --border-mid:  rgba(255 255 255 / 0.11);
+  --border-hi:   rgba(255 255 255 / 0.20);
+
+  /* ── Typography ──────────────────────────────────────────────────── */
+  --text-base:   #e8e8f5;
+  --text-muted:  #7070a0;
+  --text-faint:  #44445a;
+  --font-family: ui-sans-serif, system-ui, sans-serif;
+  --font-scale:  1;   /* multiplier: 0.9 = small, 1.0 = default, 1.1 = large */
+
+  /* ── Shape ───────────────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-card: 12px;
+  --radius-btn:  10px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ─────────────────────────────────────────────────────── */
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.3);
+  --shadow-card: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 20px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+
+  /* ── Animation ───────────────────────────────────────────────────── */
+  --anim-speed:    1;    /* multiplier: 0.5 = fast, 1 = normal, 2 = slow */
+  --dur-fast:      150ms;
+  --dur-normal:    250ms;
+  --dur-slow:      400ms;
+  --ease-out:      cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Spacing scale ───────────────────────────────────────────────── */
+  --spacing-scale: 1;  /* multiplier for custom spacing tokens */
+
+  /* ── Header / nav heights ────────────────────────────────────────── */
+  --header-h:    50px;
+  --ticker-h:    28px;
+  --bottomnav-h: 54px;
+
+  /* ── UI Density — compact mobile-first layout ───────────────────── */
+  --page-padding:   16px;
+  --section-gap:    20px;
+  --card-padding:   14px;
+  --card-gap:       12px;
+  --input-h:        46px;
+  --btn-h:          46px;
+  --grid-gap:       10px;
+
+  /* Typography scale */
+  --sz-page-title:  26px;
+  --sz-section:     20px;
+  --sz-card-title:  18px;
+  --sz-body:        14px;
+  --sz-secondary:   13px;
+  --sz-caption:     12px;
 }
 
-/* ── Body & base ────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   BASE
+   ══════════════════════════════════════════════════════════════════════ */
+
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -36,52 +92,207 @@ html {
 body {
   background-color: var(--bg-base);
   color: var(--text-base);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-family);
   overscroll-behavior-y: contain;
+  font-size: calc(14px * var(--font-scale));
 }
 
-/* Prevent double-tap zoom & tap flash on interactive elements */
+/* Prevent double-tap zoom & tap highlight on interactive elements */
 button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* Ensure inputs don't trigger iOS auto-zoom (font-size >= 16px) */
+/* Prevent iOS auto-zoom on inputs */
 input, select, textarea {
   font-size: max(16px, 1em);
 }
 
-/* ── Brand utilities (kept for client pages) ─────────────────── */
-.btn-brand {
-  background-color: var(--brand-primary);
-  color: #fff;
-  transition: opacity 0.15s;
-}
-.btn-brand:hover { opacity: 0.85; }
+/* ══════════════════════════════════════════════════════════════════════
+   ANIMATION SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
 
-.text-brand  { color: var(--brand-primary); }
-
-.input-brand:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--brand-primary);
+/* Keyframes */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
-.bubble-brand      { background-color: var(--brand-primary); color: #fff; }
-.bubble-brand-time { color: rgb(255 255 255 / 0.65); }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
-/* ── Casino card ─────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--brand-primary) 30%, transparent); }
+  50%       { box-shadow: 0 0 20px color-mix(in srgb, var(--brand-primary) 60%, transparent); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce-in {
+  0%   { transform: scale(0.8); opacity: 0; }
+  70%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+/* Animation utility classes */
+.animate-fade-in       { animation: fade-in calc(var(--dur-normal) * var(--anim-speed)) var(--ease-out) both; }
+.animate-fade-in-up    { animation: fade-in-up calc(var(--dur-slow) * var(--anim-speed)) var(--ease-out) both; }
+.animate-fade-in-down  { animation: fade-in-down calc(var(--dur-normal) * var(--anim-speed)) var(--ease-out) both; }
+.animate-slide-right   { animation: slide-in-right calc(var(--dur-normal) * var(--anim-speed)) var(--ease-out) both; }
+.animate-scale-in      { animation: scale-in calc(var(--dur-normal) * var(--anim-speed)) var(--ease-bounce) both; }
+.animate-bounce-in     { animation: bounce-in calc(var(--dur-slow) * var(--anim-speed)) var(--ease-bounce) both; }
+.animate-float         { animation: float 3s ease-in-out infinite; }
+.animate-glow-pulse    { animation: glow-pulse 2s ease-in-out infinite; }
+
+/* Stagger helpers */
+.stagger-1 { animation-delay: calc(60ms * var(--anim-speed)); }
+.stagger-2 { animation-delay: calc(120ms * var(--anim-speed)); }
+.stagger-3 { animation-delay: calc(180ms * var(--anim-speed)); }
+.stagger-4 { animation-delay: calc(240ms * var(--anim-speed)); }
+.stagger-5 { animation-delay: calc(300ms * var(--anim-speed)); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   SKELETON LOADING
+   ══════════════════════════════════════════════════════════════════════ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface3) 25%,
+    color-mix(in srgb, var(--bg-surface3) 60%, var(--border-mid)) 50%,
+    var(--bg-surface3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
+
+.text-page-title    { font-size: calc(var(--sz-page-title) * var(--font-scale)); font-weight: 800; letter-spacing: -0.02em; }
+.text-section-title { font-size: calc(var(--sz-section) * var(--font-scale)); font-weight: 700; letter-spacing: -0.01em; }
+.text-card-title    { font-size: calc(var(--sz-card-title) * var(--font-scale)); font-weight: 600; }
+.text-body          { font-size: calc(var(--sz-body) * var(--font-scale)); font-weight: 400; line-height: 1.6; }
+.text-secondary     { font-size: calc(var(--sz-secondary) * var(--font-scale)); font-weight: 400; line-height: 1.5; }
+.text-caption       { font-size: calc(var(--sz-caption) * var(--font-scale)); font-weight: 400; line-height: 1.5; }
+.text-micro         { font-size: calc(10px * var(--font-scale)); font-weight: 500; }
+.text-amount-lg     { font-size: calc(24px * var(--font-scale)); font-weight: 800; letter-spacing: -0.03em; }
+.text-amount-md     { font-size: calc(20px * var(--font-scale)); font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — COMPONENT UTILITIES
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
 .casino-card {
-  background-color: var(--bg-surface);
+  background-color: var(--bg-card, var(--bg-surface));
   border: 1px solid var(--border-dim);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: border-color calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              box-shadow   calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              transform    calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth);
 }
 .casino-card-hover:hover {
   border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
 }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.casino-btn-primary {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+  color: #fff;
+  font-weight: 600;
+  border-radius: var(--radius-btn);
+  min-height: var(--btn-h);
+  transition: opacity      calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              box-shadow   calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              transform    calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth);
+}
+.casino-btn-primary:hover  { opacity: 0.9; box-shadow: var(--shadow-glow); }
+.casino-btn-primary:active { transform: scale(0.97); }
+
+.casino-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  color: var(--text-base);
+  border-radius: var(--radius-btn);
+  min-height: var(--btn-h);
+  transition: border-color calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              background   calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
+              transform    calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth);
+}
+.casino-btn-outline:hover  {
+  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+}
+.casino-btn-outline:active { transform: scale(0.97); }
+
+/* ── Inputs ───────────────────────────────────────────────────────────── */
+.casino-input {
+  background: var(--bg-surface2);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text-base);
+  height: var(--input-h);
+  padding: 0 12px;
+  transition: border-color calc(var(--dur-fast) * var(--anim-speed)),
+              box-shadow   calc(var(--dur-fast) * var(--anim-speed));
+}
+.casino-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+}
+
+/* ── Navigation ───────────────────────────────────────────────────────── */
 .casino-nav-link {
   color: var(--text-muted);
-  transition: color 0.15s, background 0.15s;
+  transition: color      calc(var(--dur-fast) * var(--anim-speed)),
+              background calc(var(--dur-fast) * var(--anim-speed));
 }
 .casino-nav-link:hover {
   color: var(--text-base);
@@ -91,11 +302,10 @@ input, select, textarea {
   background: var(--bg-surface2);
 }
 
-/* ── Glow effects ────────────────────────────────────────────── */
+/* ── Glow effects ─────────────────────────────────────────────────────── */
 .glow-brand {
-  box-shadow:
-    0 0 10px color-mix(in srgb, var(--brand-primary) 50%, transparent),
-    0 0 24px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--brand-primary) 50%, transparent),
+              0 0 24px color-mix(in srgb, var(--brand-primary) 25%, transparent);
 }
 .glow-border {
   border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent) !important;
@@ -106,40 +316,29 @@ input, select, textarea {
   color: var(--brand-primary);
 }
 
-/* ── Casino button variants ──────────────────────────────────── */
-.casino-btn-primary {
-  background: linear-gradient(
-    135deg,
-    var(--brand-primary),
-    var(--brand-secondary)
-  );
-  color: #fff;
-  font-weight: 600;
-  border-radius: 0.5rem;
-  transition: opacity 0.15s, box-shadow 0.15s;
+/* ── Glass effect ─────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
 }
-.casino-btn-primary:hover {
-  opacity: 0.9;
-  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-primary) 50%, transparent);
+.glass-dark {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.casino-btn-outline {
-  background: transparent;
-  border: 1px solid var(--border-mid);
-  color: var(--text-base);
-  border-radius: 0.5rem;
-  transition: border-color 0.15s, background 0.15s;
-}
-.casino-btn-outline:hover {
-  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
-  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
-}
+/* ── Brand helpers ────────────────────────────────────────────────────── */
+.btn-brand       { background-color: var(--brand-primary); color: #fff; transition: opacity 0.15s; }
+.btn-brand:hover { opacity: 0.85; }
+.text-brand      { color: var(--brand-primary); }
+.input-brand:focus { outline: none; box-shadow: 0 0 0 2px var(--brand-primary); }
+.bubble-brand      { background-color: var(--brand-primary); color: #fff; }
+.bubble-brand-time { color: rgb(255 255 255 / 0.65); }
 
-/* ── Ticker animation ────────────────────────────────────────── */
-@keyframes ticker-scroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
+/* ── Ticker ───────────────────────────────────────────────────────────── */
 .ticker-track {
   display: flex;
   white-space: nowrap;
@@ -148,8 +347,95 @@ input, select, textarea {
 }
 .ticker-track:hover { animation-play-state: paused; }
 
-/* ── Scrollbar (webkit) ──────────────────────────────────────── */
-::-webkit-scrollbar       { width: 6px; height: 6px; }
+/* ── Scrollbar (webkit) ───────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   TOAST SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
+
+.toast-enter {
+  animation: fade-in-up calc(var(--dur-normal) * var(--anim-speed)) var(--ease-bounce) both;
+}
+.toast-exit {
+  animation: fade-in calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth) reverse both;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   BADGE SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.badge-brand {
+  background: color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  color: var(--brand-primary);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+}
+.badge-success { background: rgba(34,197,94,0.15); color: #22c55e; }
+.badge-warn    { background: rgba(251,191,36,0.15); color: #f59e0b; }
+.badge-danger  { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODAL / DIALOG SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fade-in calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth) both;
+}
+.modal-content {
+  animation: scale-in calc(var(--dur-normal) * var(--anim-speed)) var(--ease-bounce) both;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SECTION SPACING SYSTEM
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Use gap-2 (8px) between sections on mobile, gap-3 (12px) on desktop */
+.section-gap    { gap: 8px; }
+.section-pad    { padding: 10px 12px; }
+.card-pad       { padding: 12px; }
+.card-pad-md    { padding: 14px 16px; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   LAZY LOAD FADE-IN
+   ══════════════════════════════════════════════════════════════════════ */
+
+.lazy-img {
+  opacity: 0;
+  transition: opacity calc(var(--dur-slow) * var(--anim-speed)) var(--ease-smooth);
+}
+.lazy-img.loaded {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   FOCUS / ACCESSIBILITY
+   ══════════════════════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

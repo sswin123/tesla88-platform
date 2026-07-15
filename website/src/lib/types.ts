@@ -32,6 +32,8 @@ export interface MemberProfile {
   total_bonus: string;
   net_deposit: string;
   referral_code: string | null;
+  referral_count: number;
+  referred_by: number | null;
   created_at: string;
   last_seen_at: string | null;
 }

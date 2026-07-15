@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mediaService } from '@/lib/media';
+import { findMediaById } from '@/lib/repositories/media_repo';
 import { requirePermission } from '@/lib/require_permission';
 
 export async function GET(
@@ -14,7 +15,17 @@ export async function GET(
   if (isNaN(mediaId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
   const result = await mediaService.getBuffer(mediaId);
-  if (!result) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!result) {
+    const record = await findMediaById(mediaId).catch(() => null);
+    if (record) {
+      console.warn(`[media/file] file missing on disk for id=${mediaId} key=${record.storageKey}`);
+      return NextResponse.json(
+        { error: 'FILE_MISSING', file_id: String(mediaId), filename: record.originalFilename },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   // Increment download count without blocking the response
   mediaService.recordDownload(mediaId);

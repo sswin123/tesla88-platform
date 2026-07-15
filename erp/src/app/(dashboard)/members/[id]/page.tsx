@@ -30,6 +30,21 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+// Simple modal wrapper
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h3 className="font-semibold">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function MemberDetailPage() {
   const params   = useParams<{ id: string }>();
   const router   = useRouter();
@@ -41,6 +56,18 @@ export default function MemberDetailPage() {
   const [savingRemarks, setSavingRemarks] = useState(false);
   const [resetting, setResetting]     = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
+
+  // Bank edit modal state
+  const [showBankEdit, setShowBankEdit]   = useState(false);
+  const [bankForm, setBankForm]           = useState({ bank_name: '', bank_account: '', bank_holder_name: '', reason: '' });
+  const [savingBank, setSavingBank]       = useState(false);
+  const [deletingBank, setDeletingBank]   = useState(false);
+
+  // Game account edit modal state
+  const [editingGame, setEditingGame]     = useState<GameAccount | null>(null);
+  const [gameUsername, setGameUsername]   = useState('');
+  const [savingGame, setSavingGame]       = useState(false);
+  const [removingGame, setRemovingGame]   = useState<string | null>(null);
 
   async function load() {
     const r = await fetch(`/api/members/${params.id}`);
@@ -108,13 +135,193 @@ export default function MemberDetailPage() {
     setSavingRemarks(false);
   }
 
+  function openBankEdit() {
+    if (!data) return;
+    setBankForm({
+      bank_name: data.member.bank_name ?? '',
+      bank_account: data.member.bank_account ?? '',
+      bank_holder_name: data.member.bank_holder_name ?? '',
+      reason: '',
+    });
+    setShowBankEdit(true);
+  }
+
+  async function saveBank() {
+    if (!data) return;
+    if (!bankForm.reason.trim()) { alert('请填写修改原因（将记录在审计日志中）'); return; }
+    setSavingBank(true);
+    const r = await fetch(`/api/members/${data.member.id}/bank`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bankForm),
+    });
+    if (r.ok) {
+      setData((prev) => prev ? {
+        ...prev,
+        member: { ...prev.member, ...bankForm },
+      } : null);
+      setShowBankEdit(false);
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      alert(d.error ?? '保存失败');
+    }
+    setSavingBank(false);
+  }
+
+  async function deleteBank() {
+    if (!data) return;
+    if (!confirm('确定要删除该会员的银行信息吗？此操作不可逆。')) return;
+    setDeletingBank(true);
+    const r = await fetch(`/api/members/${data.member.id}/bank`, { method: 'DELETE' });
+    if (r.ok) {
+      setData((prev) => prev ? {
+        ...prev,
+        member: { ...prev.member, bank_status: 'DELETED' },
+      } : null);
+      setShowBankEdit(false);
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      alert(d.error ?? '删除失败');
+    }
+    setDeletingBank(false);
+  }
+
+  async function saveGameAccount() {
+    if (!data || !editingGame) return;
+    setSavingGame(true);
+    const r = await fetch(`/api/members/${data.member.id}/game-accounts/${encodeURIComponent(editingGame.provider)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: gameUsername }),
+    });
+    if (r.ok) {
+      setData((prev) => prev ? {
+        ...prev,
+        accounts: prev.accounts.map((a) =>
+          a.provider === editingGame.provider ? { ...a, username: gameUsername } : a
+        ),
+      } : null);
+      setEditingGame(null);
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      alert(d.error ?? '保存失败');
+    }
+    setSavingGame(false);
+  }
+
+  async function removeGameAccount(provider: string) {
+    if (!data) return;
+    if (!confirm(`确定要移除 ${provider} 游戏账号吗？`)) return;
+    setRemovingGame(provider);
+    const r = await fetch(`/api/members/${data.member.id}/game-accounts/${encodeURIComponent(provider)}`, {
+      method: 'DELETE',
+    });
+    if (r.ok) {
+      setData((prev) => prev ? {
+        ...prev,
+        accounts: prev.accounts.filter((a) => a.provider !== provider),
+      } : null);
+    } else {
+      const d = await r.json().catch(() => ({})) as { error?: string };
+      alert(d.error ?? '移除失败');
+    }
+    setRemovingGame(null);
+  }
+
   if (loading) return <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>;
   if (!data)   return <div className="flex h-40 items-center justify-center text-gray-400">{loadError || 'Member not found.'}</div>;
 
   const { member, accounts, deposits, withdrawals, bonuses } = data;
+  const referralCode      = (member as unknown as Record<string, string>).referral_code ?? null;
+  const referredById      = (member as unknown as Record<string, unknown>).referred_by ?? null;
+  const referrerPublicId  = (member as unknown as Record<string, string>).referrer_public_id ?? null;
+  const referrerName      = (member as unknown as Record<string, string>).referrer_name ?? null;
+  const referralCount     = (member as unknown as Record<string, number>).total_referrals ?? 0;
 
   return (
     <div className="space-y-4">
+      {/* Bank Edit Modal */}
+      {showBankEdit && (
+        <Modal title="修改银行信息（需要 member.bank.edit 权限）" onClose={() => setShowBankEdit(false)}>
+          <div className="space-y-3">
+            <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+              ⚠️ 银行信息修改将完整记录至审计日志，包括旧值、新值、操作人、IP 地址及修改原因。
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">银行名称</label>
+              <input
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                value={bankForm.bank_name}
+                onChange={(e) => setBankForm((p) => ({ ...p, bank_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">账号</label>
+              <input
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                value={bankForm.bank_account}
+                onChange={(e) => setBankForm((p) => ({ ...p, bank_account: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">持卡人姓名</label>
+              <input
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                value={bankForm.bank_holder_name}
+                onChange={(e) => setBankForm((p) => ({ ...p, bank_holder_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                修改原因 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                rows={2}
+                placeholder="例：会员申请更换银行，已核实身份证明"
+                value={bankForm.reason}
+                onChange={(e) => setBankForm((p) => ({ ...p, reason: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={saveBank} disabled={savingBank || !bankForm.reason.trim()} className="flex-1">
+                {savingBank ? '保存中…' : '确认修改'}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={deleteBank}
+                disabled={deletingBank}
+                className="flex-1"
+              >
+                {deletingBank ? '删除中…' : '删除银行信息'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Game Account Edit Modal */}
+      {editingGame && (
+        <Modal title={`编辑游戏账号 — ${editingGame.provider}`} onClose={() => setEditingGame(null)}>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">游戏账号用户名</label>
+              <input
+                className="w-full rounded border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                value={gameUsername}
+                onChange={(e) => setGameUsername(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button onClick={saveGameAccount} disabled={savingGame} className="flex-1">
+                {savingGame ? '保存中…' : '保存'}
+              </Button>
+              <Button variant="outline" onClick={() => setEditingGame(null)} className="flex-1">取消</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Member #{member.id}</h1>
@@ -193,11 +400,21 @@ export default function MemberDetailPage() {
 
         {/* 4. BANK */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Bank Info</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                Bank Info
+                {(member as unknown as Record<string, string>).bank_status === 'DELETED' && (
+                  <span className="text-xs font-normal text-red-500 border border-red-200 rounded px-1.5 py-0.5">已删除</span>
+                )}
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={openBankEdit}>✏️ Edit</Button>
+            </div>
+          </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Bank"        value={member.bank_name} />
-            <Row label="Account"     value={member.bank_account} />
-            <Row label="Holder Name" value={member.bank_holder_name} />
+            <Row label="Bank"        value={member.bank_name || '—'} />
+            <Row label="Account"     value={member.bank_account || '—'} />
+            <Row label="Holder Name" value={member.bank_holder_name || '—'} />
           </CardContent>
         </Card>
 
@@ -206,11 +423,26 @@ export default function MemberDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Game Accounts</CardTitle></CardHeader>
             <CardContent>
-              <div className="space-y-1 text-sm">
+              <div className="space-y-2 text-sm">
                 {accounts.map((a) => (
-                  <div key={`${a.provider}-${a.username}`} className="flex justify-between">
-                    <span className="text-gray-500">{a.provider}</span>
-                    <span className="font-mono">{a.username}</span>
+                  <div key={`${a.provider}-${a.username}`} className="flex items-center justify-between gap-2">
+                    <span className="text-gray-500 w-24 shrink-0">{a.provider}</span>
+                    <span className="font-mono flex-1">{a.username}</span>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        className="rounded px-2 py-0.5 text-xs border border-gray-200 hover:bg-gray-50"
+                        onClick={() => { setEditingGame(a); setGameUsername(a.username); }}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className="rounded px-2 py-0.5 text-xs border border-red-200 text-red-500 hover:bg-red-50"
+                        onClick={() => removeGameAccount(a.provider)}
+                        disabled={removingGame === a.provider}
+                      >
+                        {removingGame === a.provider ? '…' : '✕'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -218,7 +450,42 @@ export default function MemberDetailPage() {
           </Card>
         )}
 
-        {/* 6. REMARKS */}
+        {/* 6. REFERRAL INFO — always visible */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Referral Info</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row
+              label="Referral Code"
+              value={referralCode
+                ? <span className="font-mono text-purple-700 select-all">{referralCode}</span>
+                : <span className="text-gray-400">未生成</span>}
+            />
+            <Row
+              label="Referred By"
+              value={referredById
+                ? (
+                  <a
+                    href={`/members/${String(referredById)}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {referrerPublicId ?? `#${String(referredById)}`}
+                    {referrerName ? ` (${referrerName})` : ''}
+                  </a>
+                ) : '—'}
+            />
+            <Row label="Total Referred" value={referralCount} />
+            {referralCode && (
+              <div className="pt-1 border-t">
+                <p className="text-xs text-gray-400 mb-1">Telegram 邀请链接</p>
+                <span className="text-xs font-mono text-gray-600 break-all select-all">
+                  https://t.me/YourBot?start={referralCode}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 7. REMARKS */}
         <Card className={accounts.length > 0 ? '' : 'lg:col-span-2'}>
           <CardHeader><CardTitle className="text-base">Manual Remarks</CardTitle></CardHeader>
           <CardContent>

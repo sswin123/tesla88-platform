@@ -1,404 +1,450 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useCallback } from 'react';
 import { MediaPicker } from '@/components/media/MediaPicker';
 import type { MediaRecord } from '@/lib/media/types';
-import type { WebsiteBanner } from '@/lib/types';
+import {
+  ChevronUp, ChevronDown, Trash2, Plus, Eye, EyeOff, Save, AlertCircle,
+} from 'lucide-react';
 
-interface FormState {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface BannerSlide {
+  id: string;
   title: string;
-  description: string;
-  image_media_id: number | null;
-  mobile_image_media_id: number | null;
-  link_url: string;
+  subtitle: string;
   button_text: string;
-  display_order: string;
-  is_active: boolean;
-  start_at: string;
-  end_at: string;
+  button_url: string;
+  desktop_media_id: number | null;
+  desktop_media_url: string;
+  desktop_media_type: string;
+  desktop_mime_type: string;
+  mobile_media_id: number | null;
+  mobile_media_url: string;
+  mobile_media_type: string;
+  mobile_mime_type: string;
+  enabled: boolean;
+  display_order: number;
 }
 
-const BLANK: FormState = {
-  title: '', description: '', image_media_id: null, mobile_image_media_id: null,
-  link_url: '', button_text: '', display_order: '0',
-  is_active: true, start_at: '', end_at: '',
-};
-
-function toLocalDatetimeValue(iso: string | null): string {
-  if (!iso) return '';
-  return iso.slice(0, 16); /* "YYYY-MM-DDTHH:mm" */
+interface BannerConfig {
+  section_id: number | null;
+  slides: BannerSlide[];
+  autoplay_interval: number;
+  show_arrows: boolean;
+  show_dots: boolean;
 }
 
-function bannerToForm(b: WebsiteBanner): FormState {
-  return {
-    title:                 b.title,
-    description:           b.description ?? '',
-    image_media_id:        b.image_media_id,
-    mobile_image_media_id: b.mobile_image_media_id,
-    link_url:              b.link_url ?? '',
-    button_text:           b.button_text ?? '',
-    display_order:         String(b.display_order),
-    is_active:             b.is_active,
-    start_at:              toLocalDatetimeValue(b.start_at),
-    end_at:                toLocalDatetimeValue(b.end_at),
-  };
+// ─── Media Card ────────────────────────────────────────────────────────────────
+
+function MediaCard({
+  label,
+  hint,
+  mediaUrl,
+  mediaType,
+  mimeType,
+  onPickClick,
+  onDelete,
+}: {
+  label: string;
+  hint: string;
+  mediaUrl: string;
+  mediaType: string;
+  mimeType: string;
+  onPickClick: () => void;
+  onDelete: () => void;
+}) {
+  const hasMedia = !!mediaUrl;
+  const isVideo  = mediaType === 'VIDEO' || mimeType.startsWith('video/');
+  const isGif    = mediaType === 'GIF'   || mimeType === 'image/gif';
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+
+      {hasMedia ? (
+        <div
+          className="relative rounded-lg overflow-hidden border-2 border-gray-200 bg-black cursor-pointer group"
+          style={{ height: 100 }}
+          onClick={onPickClick}
+          title="点击更换媒体"
+        >
+          {isVideo ? (
+            <video src={mediaUrl} className="w-full h-full object-cover opacity-80" muted />
+          ) : (
+            <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 flex items-center justify-center transition-all">
+            <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              点击更换
+            </span>
+          </div>
+          <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded">
+            {isVideo ? 'VIDEO' : isGif ? 'GIF' : 'IMAGE'}
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onPickClick}
+          className="w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-blue-400 hover:text-blue-500 bg-gray-50 hover:bg-blue-50 transition-colors"
+          style={{ height: 100 }}
+        >
+          <Plus className="w-5 h-5" />
+          <span className="text-xs">上传媒体</span>
+        </button>
+      )}
+
+      {hasMedia && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="mt-1 flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+        >
+          <Trash2 className="w-3 h-3" /> 删除媒体
+        </button>
+      )}
+
+      <p className="mt-1.5 text-[10px] text-gray-400">{hint}</p>
+    </div>
+  );
 }
 
-function StatusBadge({ banner }: { banner: WebsiteBanner }) {
-  const now = new Date();
-  if (!banner.is_active)
-    return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">已停用</span>;
-  if (banner.start_at && new Date(banner.start_at) > now)
-    return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">未开始</span>;
-  if (banner.end_at && new Date(banner.end_at) < now)
-    return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-600">已过期</span>;
-  return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">显示中</span>;
-}
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function WebsiteBannersPage() {
-  const [banners, setBanners]     = useState<WebsiteBanner[]>([]);
-  const [editId, setEditId]       = useState<number | null>(null);
-  const [form, setForm]           = useState<FormState>(BLANK);
-  const [showForm, setShowForm]   = useState(false);
-  const [pickerFor, setPickerFor] = useState<'image' | 'mobile' | null>(null);
+  const [config, setConfig]       = useState<BannerConfig | null>(null);
+  const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
-  const [msg, setMsg]             = useState('');
+  const [saved, setSaved]         = useState(false);
   const [error, setError]         = useState('');
+  const [pickerFor, setPickerFor] = useState<{ slideId: string; field: 'desktop' | 'mobile' } | null>(null);
 
-  async function load() {
-    const res = await fetch('/api/website/banners');
-    if (res.ok) setBanners(await res.json() as WebsiteBanner[]);
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/website/banner-slides');
+      const data = await res.json() as BannerConfig;
+      setConfig(data);
+    } catch {
+      setError('加载失败，请刷新页面');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function updateSlide(id: string, patch: Partial<BannerSlide>) {
+    setConfig(prev => {
+      if (!prev) return prev;
+      return { ...prev, slides: prev.slides.map(s => s.id === id ? { ...s, ...patch } : s) };
+    });
   }
 
-  useEffect(() => { void load(); }, []);
-
-  function startCreate() {
-    setEditId(null);
-    setForm(BLANK);
-    setShowForm(true);
-    setMsg(''); setError('');
+  function clearMedia(slideId: string, field: 'desktop' | 'mobile') {
+    updateSlide(slideId, {
+      [`${field}_media_id`]:   null,
+      [`${field}_media_url`]:  '',
+      [`${field}_media_type`]: '',
+      [`${field}_mime_type`]:  '',
+    } as Partial<BannerSlide>);
   }
 
-  function startEdit(b: WebsiteBanner) {
-    setEditId(b.id);
-    setForm(bannerToForm(b));
-    setShowForm(true);
-    setMsg(''); setError('');
+  function addSlide() {
+    const newSlide: BannerSlide = {
+      id:                Date.now().toString(),
+      title:             '', subtitle: '', button_text: '', button_url: '',
+      desktop_media_id:  null, desktop_media_url: '', desktop_media_type: '', desktop_mime_type: '',
+      mobile_media_id:   null, mobile_media_url:  '', mobile_media_type:  '', mobile_mime_type:  '',
+      enabled:           true,
+      display_order:     (config?.slides.length ?? 0) * 10,
+    };
+    setConfig(prev => prev ? { ...prev, slides: [...prev.slides, newSlide] } : prev);
   }
 
-  function cancelForm() {
-    setShowForm(false);
-    setEditId(null);
+  function removeSlide(id: string) {
+    if (!confirm('确定要删除此横幅吗？')) return;
+    setConfig(prev => prev ? { ...prev, slides: prev.slides.filter(s => s.id !== id) } : prev);
   }
 
-  function setField(key: keyof FormState, value: string | boolean | number | null) {
-    setForm(prev => ({ ...prev, [key]: value }));
+  function moveSlide(idx: number, dir: 'up' | 'down') {
+    setConfig(prev => {
+      if (!prev) return prev;
+      const next = [...prev.slides];
+      const target = dir === 'up' ? idx - 1 : idx + 1;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...prev, slides: next.map((s, i) => ({ ...s, display_order: i * 10 })) };
+    });
   }
 
-  function handleMediaSelect(field: 'image_media_id' | 'mobile_image_media_id', m: MediaRecord | MediaRecord[]) {
-    const picked = Array.isArray(m) ? m[0] : m;
-    if (picked) setField(field, picked.id);
+  function handleMediaSelect(media: MediaRecord | MediaRecord[]) {
+    if (!pickerFor) return;
+    const single = Array.isArray(media) ? media[0] : media;
+    if (!single) return;
+    const { slideId, field } = pickerFor;
+    updateSlide(slideId, {
+      [`${field}_media_id`]:   single.id,
+      [`${field}_media_url`]:  `/api/public/media/${single.id}`,
+      [`${field}_media_type`]: single.mediaType ?? 'IMAGE',
+      [`${field}_mime_type`]:  single.mimeType  ?? 'image/jpeg',
+    } as Partial<BannerSlide>);
     setPickerFor(null);
   }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true); setMsg(''); setError('');
-
-    const body = {
-      title:                 form.title.trim(),
-      description:           form.description.trim() || null,
-      image_media_id:        form.image_media_id,
-      mobile_image_media_id: form.mobile_image_media_id,
-      link_url:              form.link_url.trim() || null,
-      button_text:           form.button_text.trim() || null,
-      display_order:         parseInt(form.display_order) || 0,
-      is_active:             form.is_active,
-      start_at:              form.start_at ? new Date(form.start_at).toISOString() : null,
-      end_at:                form.end_at   ? new Date(form.end_at).toISOString()   : null,
-    };
-
-    const url    = editId ? `/api/website/banners/${editId}` : '/api/website/banners';
-    const method = editId ? 'PATCH' : 'POST';
-
-    const res = await fetch(url, {
-      method,
-      body: JSON.stringify(body),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    setSaving(false);
-
-    if (res.ok) {
-      setMsg(editId ? 'Banner 已更新' : 'Banner 已创建');
-      setShowForm(false);
-      setEditId(null);
-      void load();
-    } else {
-      const d = await res.json() as { error: string };
-      setError(d.error ?? '保存失败');
+  async function handleSave() {
+    if (!config) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/website/banner-slides', {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(config),
+      });
+      if (!res.ok) { setError('保存失败，请重试'); return; }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setError('保存失败，请检查网络连接');
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function toggleActive(b: WebsiteBanner) {
-    await fetch(`/api/website/banners/${b.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_active: !b.is_active }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    void load();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-400 text-sm">加载中…</div>
+      </div>
+    );
   }
 
-  async function reorder(b: WebsiteBanner, dir: -1 | 1) {
-    const newOrder = b.display_order + dir;
-    await fetch(`/api/website/banners/${b.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ display_order: newOrder }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    void load();
-  }
-
-  async function remove(b: WebsiteBanner) {
-    if (!confirm(`Delete banner "${b.title}"?`)) return;
-    await fetch(`/api/website/banners/${b.id}`, { method: 'DELETE' });
-    void load();
-  }
+  const slides = config?.slides ?? [];
 
   return (
-    <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Website Banners</h1>
+    <div className="max-w-3xl mx-auto space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">横幅轮播管理</h1>
+          <p className="text-sm text-gray-500 mt-0.5">管理首页横幅图片，更改后立即生效</p>
+        </div>
         <button
-          onClick={startCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          onClick={addSlide}
+          className="flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors"
         >
-          + New Banner
+          <Plus className="w-4 h-4" /> 添加横幅
         </button>
       </div>
 
-      {msg   && <div className="mb-4 text-green-700 text-sm bg-green-50 border border-green-200 rounded p-3">{msg}</div>}
-      {error && <div className="mb-4 text-red-600 text-sm bg-red-50 border border-red-200 rounded p-3">{error}</div>}
+      {/* Global settings */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-wrap gap-5 items-center">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">自动播放间隔（毫秒）</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            min={1000} step={500}
+            value={config?.autoplay_interval ?? 5000}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === '' || /^\d*$/.test(v)) setConfig(prev => prev ? { ...prev, autoplay_interval: v === '' ? 5000 : parseInt(v, 10) } : prev);
+            }}
+            onBlur={e => {
+              const n = parseInt(e.target.value, 10);
+              setConfig(prev => prev ? { ...prev, autoplay_interval: isNaN(n) || n < 1000 ? 5000 : n } : prev);
+            }}
+            className="w-28 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config?.show_arrows ?? true}
+            onChange={e => setConfig(prev => prev ? { ...prev, show_arrows: e.target.checked } : prev)}
+            className="rounded"
+          />
+          显示左右箭头
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={config?.show_dots ?? true}
+            onChange={e => setConfig(prev => prev ? { ...prev, show_dots: e.target.checked } : prev)}
+            className="rounded"
+          />
+          显示圆点导航
+        </label>
+      </div>
 
-      {/* ── Create / Edit Form ── */}
-      {showForm && (
-        <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="text-base font-semibold mb-4">{editId ? 'Edit Banner' : 'New Banner'}</h2>
-          <form onSubmit={save} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {/* Title */}
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
-                <input
-                  value={form.title} onChange={e => setField('title', e.target.value)}
-                  required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Banner headline"
-                />
-              </div>
-
-              {/* Description */}
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={form.description} onChange={e => setField('description', e.target.value)}
-                  rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Subtitle / body text"
-                />
-              </div>
-
-              {/* Image */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Desktop Image</label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setPickerFor('image')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                    {form.image_media_id ? `Media #${form.image_media_id}` : 'Pick Image'}
-                  </button>
-                  {form.image_media_id && (
-                    <button type="button" onClick={() => setField('image_media_id', null)}
-                      className="text-xs text-red-500 hover:underline">Clear</button>
-                  )}
-                </div>
-              </div>
-
-              {/* Mobile image */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Image</label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setPickerFor('mobile')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                    {form.mobile_image_media_id ? `Media #${form.mobile_image_media_id}` : 'Pick Image'}
-                  </button>
-                  {form.mobile_image_media_id && (
-                    <button type="button" onClick={() => setField('mobile_image_media_id', null)}
-                      className="text-xs text-red-500 hover:underline">Clear</button>
-                  )}
-                </div>
-              </div>
-
-              {/* Link URL */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Link URL</label>
-                <input
-                  value={form.link_url} onChange={e => setField('link_url', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="/promotions"
-                />
-              </div>
-
-              {/* Button text */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Button Text</label>
-                <input
-                  value={form.button_text} onChange={e => setField('button_text', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="立即领取"
-                />
-              </div>
-
-              {/* Display order */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Display Order</label>
-                <input
-                  type="number" value={form.display_order}
-                  onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  min="0"
-                />
-              </div>
-
-              {/* Active toggle */}
-              <div className="flex items-center gap-2 pt-5">
-                <input type="checkbox" id="is_active" checked={form.is_active}
-                  onChange={e => setField('is_active', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300" />
-                <label htmlFor="is_active" className="text-sm font-medium text-gray-700">Active</label>
-              </div>
-
-              {/* Date scheduling */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Start At (optional)</label>
-                <input
-                  type="datetime-local" value={form.start_at}
-                  onChange={e => setField('start_at', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">End At (optional)</label>
-                <input
-                  type="datetime-local" value={form.end_at}
-                  onChange={e => setField('end_at', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                {saving ? 'Saving…' : editId ? 'Update Banner' : 'Create Banner'}
-              </button>
-              <button type="button" onClick={cancelForm}
-                className="px-5 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                Cancel
-              </button>
-            </div>
-          </form>
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
         </div>
       )}
 
-      {/* ── Banner list ── */}
-      {banners.length === 0 && !showForm ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">🖼</p>
-          <p>No banners yet. Create one to get started.</p>
+      {/* Slides */}
+      {slides.length === 0 ? (
+        <div
+          className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 py-16 cursor-pointer hover:border-blue-400 transition-colors"
+          onClick={addSlide}
+        >
+          <Plus className="w-8 h-8 text-gray-300" />
+          <p className="text-sm text-gray-400">暂无横幅，点击添加第一张</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {banners.map((b, idx) => (
-            <div key={b.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-4">
-              {/* Image preview */}
-              <div className="w-24 h-14 rounded-lg overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
-                {b.image_media_id ? (
-                  <img
-                    src={`/api/public/media/${b.image_media_id}`}
-                    alt={b.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl">🖼</span>
-                )}
-              </div>
+        <div className="space-y-4">
+          {slides.map((slide, idx) => (
+            <div key={slide.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-sm truncate">{b.title}</span>
-                  <StatusBadge banner={b} />
-                  <span className="text-xs text-gray-400 ml-1">#{b.display_order}</span>
+              {/* Slide header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-700">横幅 {idx + 1}</span>
+                  {!slide.desktop_media_url && (
+                    <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">缺少桌面图片</span>
+                  )}
+                  {!slide.enabled && (
+                    <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">已隐藏</span>
+                  )}
                 </div>
-                {b.description && (
-                  <p className="text-xs text-gray-500 truncate mb-1">{b.description}</p>
-                )}
-                {b.link_url && (
-                  <p className="text-xs text-blue-500 truncate">{b.link_url}</p>
-                )}
-                {(b.start_at || b.end_at) && (
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {b.start_at ? `Start: ${new Date(b.start_at).toLocaleString()}` : ''}
-                    {b.start_at && b.end_at ? ' · ' : ''}
-                    {b.end_at ? `End: ${new Date(b.end_at).toLocaleString()}` : ''}
-                  </p>
-                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveSlide(idx, 'up')}
+                    disabled={idx === 0}
+                    className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+                    title="上移"
+                  >
+                    <ChevronUp className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSlide(idx, 'down')}
+                    disabled={idx === slides.length - 1}
+                    className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+                    title="下移"
+                  >
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSlide(slide.id, { enabled: !slide.enabled })}
+                    className={`p-1.5 rounded transition-colors ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                    title={slide.enabled ? '已显示（点击隐藏）' : '已隐藏（点击显示）'}
+                  >
+                    {slide.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeSlide(slide.id)}
+                    className="p-1.5 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                    title="删除横幅"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1 shrink-0">
-                {/* Reorder */}
-                <button onClick={() => reorder(b, -1)} disabled={idx === 0}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                  title="Move up">↑</button>
-                <button onClick={() => reorder(b, 1)} disabled={idx === banners.length - 1}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                  title="Move down">↓</button>
+              {/* Slide body */}
+              <div className="p-4 space-y-4">
 
-                {/* Toggle */}
-                <button onClick={() => toggleActive(b)}
-                  className={`px-2.5 py-1 text-xs rounded-full font-medium ml-1 ${
-                    b.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}>
-                  {b.is_active ? 'Enabled' : 'Disabled'}
-                </button>
+                {/* Media pickers */}
+                <div className="grid grid-cols-2 gap-4">
+                  <MediaCard
+                    label="桌面端图片 / 视频"
+                    hint="推荐 1920×600 px · 16:5 · 最大 10MB · JPG/PNG/WEBP/GIF/MP4"
+                    mediaUrl={slide.desktop_media_url}
+                    mediaType={slide.desktop_media_type}
+                    mimeType={slide.desktop_mime_type}
+                    onPickClick={() => setPickerFor({ slideId: slide.id, field: 'desktop' })}
+                    onDelete={() => clearMedia(slide.id, 'desktop')}
+                  />
+                  <MediaCard
+                    label="手机端图片 / 视频"
+                    hint="推荐 1080×1350 px · 4:5 · 最大 8MB · JPG/PNG/WEBP/GIF/MP4"
+                    mediaUrl={slide.mobile_media_url}
+                    mediaType={slide.mobile_media_type}
+                    mimeType={slide.mobile_mime_type}
+                    onPickClick={() => setPickerFor({ slideId: slide.id, field: 'mobile' })}
+                    onDelete={() => clearMedia(slide.id, 'mobile')}
+                  />
+                </div>
 
-                {/* Edit */}
-                <button onClick={() => startEdit(b)}
-                  className="px-3 py-1 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 ml-1">
-                  Edit
-                </button>
-
-                {/* Delete */}
-                <button onClick={() => remove(b)}
-                  className="px-3 py-1 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 ml-1">
-                  Delete
-                </button>
+                {/* Text fields */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-0.5">标题（可选）</label>
+                    <input
+                      placeholder="横幅标题"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      value={slide.title}
+                      onChange={e => updateSlide(slide.id, { title: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-0.5">副标题（可选）</label>
+                    <input
+                      placeholder="横幅副标题"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      value={slide.subtitle}
+                      onChange={e => updateSlide(slide.id, { subtitle: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-0.5">按钮文字（可选）</label>
+                    <input
+                      placeholder="例：立即游戏"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      value={slide.button_text}
+                      onChange={e => updateSlide(slide.id, { button_text: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 mb-0.5">按钮链接（可选）</label>
+                    <input
+                      placeholder="例：/promotions"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      value={slide.button_url}
+                      onChange={e => updateSlide(slide.id, { button_url: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Media pickers ── */}
-      {pickerFor === 'image' && (
+      {/* Save bar */}
+      <div className="sticky bottom-4 flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 text-sm font-semibold px-6 py-3 rounded-2xl shadow-lg transition-all"
+          style={{
+            background: saved
+              ? '#22c55e'
+              : saving ? '#93c5fd' : '#2563eb',
+            color: '#fff',
+            cursor: saving ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <Save className="w-4 h-4" />
+          {saved ? '已保存 ✓' : saving ? '保存中…' : '保存更改'}
+        </button>
+      </div>
+
+      {/* Media Picker modal */}
+      {pickerFor && (
         <MediaPicker
-          onSelect={m => handleMediaSelect('image_media_id', m)}
+          onSelect={handleMediaSelect}
           onClose={() => setPickerFor(null)}
-          typeFilter={['IMAGE']}
-        />
-      )}
-      {pickerFor === 'mobile' && (
-        <MediaPicker
-          onSelect={m => handleMediaSelect('mobile_image_media_id', m)}
-          onClose={() => setPickerFor(null)}
-          typeFilter={['IMAGE']}
+          typeFilter={['IMAGE', 'GIF', 'VIDEO']}
         />
       )}
     </div>

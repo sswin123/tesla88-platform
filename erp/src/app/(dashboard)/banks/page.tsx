@@ -13,11 +13,17 @@ type FormData = {
   account_name: string;
   qr_image: string;
   display_order: string;
+  maintenance_mode: boolean;
+  maintenance_message: string;
+  provider_binding: string;
+  priority: string;
 };
 
 const EMPTY: FormData = {
   bank_name: '', account_number: '', account_name: '',
   qr_image: '', display_order: '0',
+  maintenance_mode: false, maintenance_message: '',
+  provider_binding: '', priority: '0',
 };
 
 export default function BankManagerPage() {
@@ -28,13 +34,28 @@ export default function BankManagerPage() {
   const [form, setForm]           = useState<FormData>(EMPTY);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
+  const [cmsProviders, setCmsProviders] = useState<string[]>([]);
   const fileRef                   = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
-    const r = await fetch('/api/banks');
-    setBanks(await r.json());
-    setLoading(false);
+    try {
+      const [banksRes, providersRes] = await Promise.all([
+        fetch('/api/banks'),
+        fetch('/api/website/game-providers/names'),
+      ]);
+      if (banksRes.ok) {
+        setBanks(await banksRes.json());
+      }
+      if (providersRes.ok) {
+        const provData = await providersRes.json();
+        if (Array.isArray(provData)) {
+          setCmsProviders(provData.map((p: { provider_name: string }) => p.provider_name));
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -49,11 +70,15 @@ export default function BankManagerPage() {
   function openEdit(b: PaymentBank) {
     setEditing(b);
     setForm({
-      bank_name:      b.bank_name,
-      account_number: b.account_number,
-      account_name:   b.account_name,
-      qr_image:       b.qr_image ?? '',
-      display_order:  String(b.display_order),
+      bank_name:           b.bank_name,
+      account_number:      b.account_number,
+      account_name:        b.account_name,
+      qr_image:            b.qr_image ?? '',
+      display_order:       String(b.display_order),
+      maintenance_mode:    b.maintenance_mode,
+      maintenance_message: b.maintenance_message ?? '',
+      provider_binding:    b.provider_binding ?? '',
+      priority:            String(b.priority),
     });
     setError('');
     setShowModal(true);
@@ -75,11 +100,15 @@ export default function BankManagerPage() {
     setSaving(true);
     setError('');
     const body = {
-      bank_name:      form.bank_name,
-      account_number: form.account_number,
-      account_name:   form.account_name,
-      qr_image:       form.qr_image || null,
-      display_order:  parseInt(form.display_order, 10) || 0,
+      bank_name:           form.bank_name,
+      account_number:      form.account_number,
+      account_name:        form.account_name,
+      qr_image:            form.qr_image || null,
+      display_order:       parseInt(form.display_order, 10) || 0,
+      maintenance_mode:    form.maintenance_mode,
+      maintenance_message: form.maintenance_message || null,
+      provider_binding:    form.provider_binding || null,
+      priority:            parseInt(form.priority, 10) || 0,
     };
     const url    = editing ? `/api/banks/${editing.id}` : '/api/banks';
     const method = editing ? 'PATCH' : 'POST';
@@ -93,7 +122,7 @@ export default function BankManagerPage() {
       await load();
     } else {
       const d = await r.json().catch(() => ({}));
-      setError(d.error ?? 'Save failed');
+      setError((d as { error?: string }).error ?? 'Save failed');
     }
     setSaving(false);
   }
@@ -106,7 +135,21 @@ export default function BankManagerPage() {
     });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      alert(d.error ?? 'Failed to update bank status');
+      alert((d as { error?: string }).error ?? 'Failed to update bank status');
+      return;
+    }
+    await load();
+  }
+
+  async function toggleMaintenance(b: PaymentBank) {
+    const r = await fetch(`/api/banks/${b.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maintenance_mode: !b.maintenance_mode }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert((d as { error?: string }).error ?? 'Failed to toggle maintenance mode');
       return;
     }
     await load();
@@ -117,7 +160,7 @@ export default function BankManagerPage() {
     const r = await fetch(`/api/banks/${b.id}`, { method: 'DELETE' });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      alert(d.error ?? 'Failed to delete bank');
+      alert((d as { error?: string }).error ?? 'Failed to delete bank');
       return;
     }
     await load();
@@ -126,7 +169,10 @@ export default function BankManagerPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Bank Manager</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Bank Manager</h1>
+          <p className="text-sm text-gray-500 mt-0.5">单一数据源 — Website 与 Telegram Bot 均从此处读取</p>
+        </div>
         <Button onClick={openCreate}>+ Add Bank</Button>
       </div>
 
@@ -137,18 +183,24 @@ export default function BankManagerPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
-                {['Order','Bank','Account Name','Account Number','QR','Status','Actions'].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
+                {['P','Order','Bank','Account Name','Account Number','Provider','QR','Status','Maintenance','Actions'].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y">
               {banks.map((b) => (
-                <tr key={b.id} className="hover:bg-gray-50">
+                <tr key={b.id} className={`hover:bg-gray-50 ${b.maintenance_mode ? 'bg-yellow-50' : ''}`}>
+                  <td className="px-3 py-2 text-gray-400 font-mono text-xs">{b.priority}</td>
                   <td className="px-3 py-2 text-gray-500">{b.display_order}</td>
                   <td className="px-3 py-2 font-medium">{b.bank_name}</td>
                   <td className="px-3 py-2">{b.account_name}</td>
                   <td className="px-3 py-2 font-mono">{b.account_number}</td>
+                  <td className="px-3 py-2">
+                    {b.provider_binding
+                      ? <Badge variant="secondary" className="text-xs">{b.provider_binding}</Badge>
+                      : <span className="text-gray-300 text-xs">All</span>}
+                  </td>
                   <td className="px-3 py-2">
                     {b.qr_image
                       ? <img src={b.qr_image} alt="QR" className="h-10 w-10 object-contain rounded" />
@@ -160,10 +212,29 @@ export default function BankManagerPage() {
                     </Badge>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-1">
+                    {b.maintenance_mode ? (
+                      <div>
+                        <Badge variant="destructive">Maintenance</Badge>
+                        {b.maintenance_message && (
+                          <div className="mt-0.5 text-xs text-gray-500 max-w-[140px] truncate">{b.maintenance_message}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Normal</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex gap-1 flex-wrap">
                       <Button size="sm" variant="outline" onClick={() => openEdit(b)}>Edit</Button>
                       <Button size="sm" variant="outline" onClick={() => toggleActive(b)}>
                         {b.is_active ? 'Disable' : 'Enable'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={b.maintenance_mode ? 'outline' : 'secondary'}
+                        onClick={() => toggleMaintenance(b)}
+                      >
+                        {b.maintenance_mode ? 'End Maint.' : 'Maintenance'}
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDelete(b)}>Del</Button>
                     </div>
@@ -171,7 +242,7 @@ export default function BankManagerPage() {
                 </tr>
               ))}
               {banks.length === 0 && (
-                <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">No banks yet.</td></tr>
+                <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No banks yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -179,8 +250,8 @@ export default function BankManagerPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-lg font-semibold">{editing ? 'Edit Bank' : 'Add Bank'}</h2>
             <div className="space-y-3">
               {([
@@ -198,6 +269,61 @@ export default function BankManagerPage() {
                   />
                 </div>
               ))}
+
+              {/* Provider Binding */}
+              <div>
+                <Label className="mb-1 block">Provider Binding (optional)</Label>
+                <select
+                  value={form.provider_binding}
+                  onChange={(e) => setForm((f) => ({ ...f, provider_binding: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">All Providers</option>
+                  {cmsProviders.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">If set, this bank only appears when customer deposits into that provider.</p>
+              </div>
+
+              {/* Priority */}
+              <div>
+                <Label className="mb-1 block">Priority (higher = shown first)</Label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={form.priority}
+                  onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+                />
+              </div>
+
+              {/* Maintenance Mode */}
+              <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="maintenance_mode"
+                    type="checkbox"
+                    checked={form.maintenance_mode}
+                    onChange={(e) => setForm((f) => ({ ...f, maintenance_mode: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="maintenance_mode" className="text-sm font-medium text-yellow-800">
+                    Maintenance Mode (hide from website & bot)
+                  </Label>
+                </div>
+                {form.maintenance_mode && (
+                  <div>
+                    <Input
+                      placeholder="Maintenance message shown to users (optional)"
+                      value={form.maintenance_message}
+                      onChange={(e) => setForm((f) => ({ ...f, maintenance_message: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <Label className="mb-1 block">QR Code Image (optional)</Label>
                 <input

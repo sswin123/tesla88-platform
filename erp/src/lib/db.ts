@@ -7,8 +7,13 @@ const pool = new Pool({
       ? { rejectUnauthorized: false }
       : false,
   max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 2_000,
+  idleTimeoutMillis:     30_000,
+  connectionTimeoutMillis: 5_000,
+});
+
+// Kill any query that runs longer than 15 s — prevents connection starvation
+pool.on('connect', (client) => {
+  client.query("SET statement_timeout = '15s'").catch(() => {});
 });
 
 export default pool;

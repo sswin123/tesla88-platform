@@ -34,7 +34,7 @@ def load_config() -> Config:
         postgres_password=os.environ["POSTGRES_PASSWORD"],
         cs_username=os.environ.get("CS_USERNAME", "support"),
         account_change_cooldown_hours=int(
-            os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "24")
+            os.environ.get("ACCOUNT_CHANGE_COOLDOWN_HOURS", "168")
         ),
         admin_chat_id=int(os.environ.get("ADMIN_CHAT_ID", "0")),
         support_chat_id=int(os.environ.get("SUPPORT_CHAT_ID", "0")),

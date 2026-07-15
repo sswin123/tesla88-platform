@@ -4,7 +4,14 @@ import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getSessionWithDetails, updateSessionAction, createSessionForUser, getSessionById } from '@/lib/repositories/support_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { getSetting } from '@/lib/repositories/settings_repo';
+import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+
+function maskPhone(phone: string): string {
+  if (!phone) return phone;
+  if (phone.length <= 6) return '*'.repeat(phone.length);
+  return phone.slice(0, 4) + '*'.repeat(phone.length - 6) + phone.slice(-2);
+}
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -13,13 +20,21 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const canViewPhone = !!(await requirePermission('member.view_phone'));
   const { id } = await params;
   const data = await getSessionWithDetails(parseInt(id, 10));
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const member = data.member
+    ? (!canViewPhone && data.member.phone)
+      ? { ...data.member, phone: maskPhone(data.member.phone) }
+      : data.member
+    : data.member;
+
   return NextResponse.json({
     session:  data.session,
     messages: data.messages,
-    member:   data.member,
+    member,
     hasMore:  data.hasMore,
   });
 }

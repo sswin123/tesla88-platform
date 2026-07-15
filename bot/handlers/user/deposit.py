@@ -12,7 +12,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 
 from bot.config import Config
-from bot.constants import BONUS_DISCLAIMER, PROVIDERS
+from bot.constants import BONUS_DISCLAIMER
 from bot.keyboards.common import build_back_cancel_keyboard
 from bot.keyboards.deposit import (
     build_deposit_provider_keyboard,
@@ -152,12 +152,11 @@ async def cb_deposit_provider(
 ) -> None:
     lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
-    if provider not in PROVIDERS:
-        await callback.answer(await messages.get_message("deposit_promo_invalid", language=lang), show_alert=True)
-        return
-
     data = await state.get_data()
     accounts = await get_user_game_accounts(pool, data["user_id"])
+    if not any(a["provider"] == provider for a in accounts):
+        await callback.answer(await messages.get_message("deposit_promo_invalid", language=lang), show_alert=True)
+        return
     game_account = next((a for a in accounts if a["provider"] == provider), None)
     game_username = game_account["username"] if game_account else ""
     await state.update_data(provider=provider, game_username=game_username)
@@ -423,7 +422,7 @@ async def dep_back_from_receipt(
             f"🪙 实际上分：RM {credit_amount:.2f}\n"
         )
 
-    banks = await get_active_banks(pool)
+    banks = await get_active_banks(pool, provider)
     if not banks:
         await state.set_state(DepositStates.waiting_amount)
         promotion_id = data.get("promotion_id")
@@ -500,7 +499,12 @@ async def cb_deposit_bank_select(
 ) -> None:
     lang = callback.from_user.language_code or "zh"
     bank_id = int(callback.data.split(":", 1)[1])
-    banks = await get_active_banks(pool)
+
+    # Load FSM data FIRST — provider must be known before calling get_active_banks
+    data = await state.get_data()
+    provider = data.get("provider", "")
+
+    banks = await get_active_banks(pool, provider)
     bank = next((b for b in banks if b["id"] == bank_id), None)
     if not bank:
         await callback.answer(
@@ -509,7 +513,10 @@ async def cb_deposit_bank_select(
         )
         return
 
+    # Store casino receiving bank in FSM state (overwrites the user's own bank placeholder)
     await state.update_data(
+        payment_bank=bank["bank_name"],      # casino bank name used in INSERT
+        receiving_bank_id=bank_id,           # FK for new schema (migration 027)
         selected_bank_id=bank_id,
         selected_bank_name=bank["bank_name"],
         selected_bank_account_name=bank["account_name"],
@@ -517,13 +524,13 @@ async def cb_deposit_bank_select(
     )
     await state.set_state(DepositStates.waiting_receipt)
 
+    # Refresh data after update
     data = await state.get_data()
-    provider = data.get("provider", "")
     game_username = data.get("game_username", "")
-    amount = data["deposit_amount"]
-    bonus_amount = data["bonus_amount"]
+    amount        = data["deposit_amount"]
+    bonus_amount  = data["bonus_amount"]
     credit_amount = data["credit_amount"]
-    promo_name = data.get("promo_name", "无优惠")
+    promo_name    = data.get("promo_name", "无优惠")
     turnover_required = data.get("turnover_required", 0.0)
 
     if bonus_amount > 0:
@@ -540,12 +547,12 @@ async def cb_deposit_bank_select(
         "deposit_confirm",
         language=lang,
         variables={
-            "provider": html.escape(provider),
+            "provider":      html.escape(provider),
             "game_username": html.escape(game_username),
-            "amount": amount,
-            "credit_block": credit_block,
-            "bank_name": html.escape(bank["bank_name"]),
-            "account_name": html.escape(bank["account_name"]),
+            "amount":        amount,
+            "credit_block":  credit_block,
+            "bank_name":     html.escape(bank["bank_name"]),
+            "account_name":  html.escape(bank["account_name"]),
             "account_number": html.escape(bank["account_number"]),
         },
     )
@@ -637,7 +644,7 @@ async def process_deposit_amount(
             f"🪙 实际上分：RM {credit_amount:.2f}\n"
         )
 
-    banks = await get_active_banks(pool)
+    banks = await get_active_banks(pool, provider)
     if not banks:
         await message.answer(
             await messages.get_message("deposit_no_bank_available", language=lang),
@@ -695,8 +702,9 @@ async def process_deposit_receipt(
         promotion_id=data.get("promotion_id"),
         bonus_amount=data["bonus_amount"],
         credit_amount=data["credit_amount"],
-        payment_bank=data["payment_bank"],
+        payment_bank=data["payment_bank"],       # now = casino bank name (set in cb_deposit_bank_select)
         receipt_file_id=file_id,
+        receiving_bank_id=data.get("receiving_bank_id"),  # FK (migration 027; None if column absent)
     )
     await state.clear()
 

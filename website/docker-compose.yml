@@ -17,8 +17,11 @@ services:
       BOT_RELAY_AUTH_TOKEN: ${BOT_RELAY_AUTH_TOKEN}
       APP_VERSION: ${APP_VERSION:-1.0.0}
       UPLOAD_DIR: /data/uploads
+      ERP_MEDIA_DIR: /uploads/media
+      ERP_INTERNAL_URL: ${ERP_INTERNAL_URL:-http://erp:3000}
     volumes:
       - website_uploads:/data/uploads
+      - erp_erp_uploads:/uploads/media:ro
     networks:
       - sswin88
     healthcheck:
@@ -30,6 +33,8 @@ services:
 
 volumes:
   website_uploads:
+  erp_erp_uploads:
+    external: true
 
 networks:
   sswin88:

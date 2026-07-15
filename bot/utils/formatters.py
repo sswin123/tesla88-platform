@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Sequence
 
-from bot.constants import PROVIDERS
-
 
 def format_user_info(user: Any) -> str:
     status_emoji = "🟢" if user["status"] == "ACTIVE" else "🔴"
@@ -68,7 +66,7 @@ def format_game_accounts(
 ) -> str:
     """Format game accounts section for admin search_user output."""
     if all_providers is None:
-        all_providers = PROVIDERS
+        all_providers = []
 
     if not accounts:
         return "🎮 游戏平台账号\n\n尚未领取任何账号"

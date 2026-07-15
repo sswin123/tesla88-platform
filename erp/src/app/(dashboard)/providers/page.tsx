@@ -133,10 +133,18 @@ export default function ProvidersPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Sort Order</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   className="mt-1 block w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   value={editForm.sort_order ?? 0}
-                  onChange={(e) => setEditForm({ ...editForm, sort_order: Number(e.target.value) })}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '' || /^-?\d*$/.test(v)) setEditForm({ ...editForm, sort_order: v === '' ? 0 : parseInt(v, 10) });
+                  }}
+                  onBlur={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setEditForm({ ...editForm, sort_order: isNaN(n) ? 0 : n });
+                  }}
                 />
               </div>
             </div>
@@ -217,8 +225,20 @@ export default function ProvidersPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Sort Order</label>
-              <input type="number" className="mt-1 block w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                value={addForm.sort_order} onChange={(e) => setAddForm({ ...addForm, sort_order: Number(e.target.value) })} />
+              <input
+                type="text"
+                inputMode="numeric"
+                className="mt-1 block w-full rounded border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                value={addForm.sort_order}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '' || /^-?\d*$/.test(v)) setAddForm({ ...addForm, sort_order: v === '' ? 0 : parseInt(v, 10) });
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setAddForm({ ...addForm, sort_order: isNaN(n) ? 0 : n });
+                }}
+              />
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Description</label>

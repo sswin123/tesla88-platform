@@ -71,9 +71,9 @@ function TableHeader() {
 /* ── Empty state ────────────────────────────────────────────────── */
 function EmptyState() {
   return (
-    <div className="py-16 text-center">
+    <div className="py-10 text-center">
       <div
-        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
+        className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl"
         style={{ background: 'var(--bg-surface3)' }}
       >
         📋
@@ -91,9 +91,9 @@ function EmptyState() {
 /* ── Bet records placeholder ────────────────────────────────────── */
 function BetPlaceholder() {
   return (
-    <div className="py-16 text-center">
+    <div className="py-10 text-center">
       <div
-        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"
+        className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-xl"
         style={{ background: 'var(--bg-surface3)' }}
       >
         🎲
@@ -161,14 +161,14 @@ export default function TransactionTabs() {
     <div>
       {/* ── Tab bar ─────────────────────────────────────────── */}
       <div
-        className="flex gap-1 mb-4 p-1 rounded-xl"
+        className="flex gap-1 mb-3 p-1 rounded-xl"
         style={{ background: 'var(--bg-surface2)', width: 'fit-content' }}
       >
         {TABS.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200"
             style={
               tab === t.key
                 ? {
@@ -205,7 +205,7 @@ export default function TransactionTabs() {
               </div>
 
               {/* Mobile: stacked cards */}
-              <div className="flex flex-col gap-3 lg:hidden">
+              <div className="flex flex-col gap-2 lg:hidden">
                 {visible.map(tx => (
                   <TransactionCard key={`${tx.type}-${tx.id}`} tx={tx} />
                 ))}
@@ -213,10 +213,11 @@ export default function TransactionTabs() {
 
               {/* Load more */}
               {hasMore && (
-                <div className="text-center mt-4">
+                <div className="text-center mt-3">
                   <button
                     onClick={() => setShown(n => n + PAGE_SIZE)}
-                    className="casino-btn-outline px-6 py-2 text-sm"
+                    className="casino-btn-outline px-5 text-sm"
+                    style={{ minHeight: '36px' }}
                   >
                     加载更多（剩余 {rows.length - shown} 条）
                   </button>

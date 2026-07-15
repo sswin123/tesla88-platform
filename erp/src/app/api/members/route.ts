@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
 
+function maskPhone(phone: string): string {
+  if (!phone) return phone;
+  if (phone.length <= 6) return '*'.repeat(phone.length);
+  return phone.slice(0, 4) + '*'.repeat(phone.length - 6) + phone.slice(-2);
+}
+
 export async function GET(request: NextRequest) {
-  if (!await requirePermission('members.view')) {
+  const payload = await requirePermission('members.view');
+  if (!payload) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const canViewPhone = !!(await requirePermission('member.view_phone'));
   const { searchParams } = request.nextUrl;
   const search = searchParams.get('search')?.trim() ?? '';
   const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
@@ -29,7 +37,8 @@ export async function GET(request: NextRequest) {
         [pattern]
       ),
     ]);
-    return NextResponse.json({ data: rows.rows, total: count.rows[0].count, page, limit });
+    const data = canViewPhone ? rows.rows : rows.rows.map((r) => ({ ...r, phone: maskPhone(r.phone as string) }));
+    return NextResponse.json({ data, total: count.rows[0].count, page, limit });
   }
 
   const [rows, count] = await Promise.all([
@@ -42,5 +51,6 @@ export async function GET(request: NextRequest) {
     ),
     pool.query<{ count: number }>('SELECT COUNT(*)::int AS count FROM users'),
   ]);
-  return NextResponse.json({ data: rows.rows, total: count.rows[0].count, page, limit });
+  const data = canViewPhone ? rows.rows : rows.rows.map((r) => ({ ...r, phone: maskPhone(r.phone as string) }));
+  return NextResponse.json({ data, total: count.rows[0].count, page, limit });
 }

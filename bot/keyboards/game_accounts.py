@@ -11,14 +11,13 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from bot.constants import PROVIDERS
 from db.repositories.button_repo import get_buttons_by_group
 
 logger = logging.getLogger(__name__)
 
 
 def build_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Persistent 5×2 main menu shown to registered users (hardcoded fallback)."""
+    """Persistent 6-row main menu shown to registered users (hardcoded fallback)."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📋 我的资料"), KeyboardButton(text="🎮 我的游戏账号")],
@@ -26,6 +25,7 @@ def build_main_menu_keyboard() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="📜 充值记录"), KeyboardButton(text="📜 提款记录")],
             [KeyboardButton(text="🎁 优惠中心"), KeyboardButton(text="🎁 我的优惠")],
             [KeyboardButton(text="🔄 更换游戏账号"), KeyboardButton(text="📞 联系客服")],
+            [KeyboardButton(text="🎁 我的邀请")],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -65,7 +65,7 @@ def build_provider_select_keyboard(
     providers: Sequence[str] | None = None,
 ) -> InlineKeyboardMarkup:
     """2-column provider selection keyboard."""
-    items = list(providers) if providers is not None else PROVIDERS
+    items = list(providers) if providers is not None else []
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
     for p in items:

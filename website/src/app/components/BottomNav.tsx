@@ -6,7 +6,7 @@ const TABS = [
     label: '首页',
     href: '/',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M3 12L12 3l9 9" />
         <path d="M9 21V12h6v9" />
       </svg>
@@ -16,7 +16,7 @@ const TABS = [
     label: '记录',
     href: '/history',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 3" />
       </svg>
@@ -26,7 +26,7 @@ const TABS = [
     label: '优惠',
     href: '/promotions',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
       </svg>
     ),
@@ -35,7 +35,7 @@ const TABS = [
     label: '客服',
     href: '/chat',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
       </svg>
     ),
@@ -44,7 +44,7 @@ const TABS = [
     label: '我的',
     href: '/profile',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <circle cx="12" cy="8" r="4" />
         <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
       </svg>
@@ -64,8 +64,8 @@ export default function BottomNav() {
       style={{
         height: 'calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        background: 'rgba(10,11,20,0.97)',
-        borderTop: '1px solid rgba(255 255 255 / 0.07)',
+        background: 'color-mix(in srgb, var(--bg-elevated) 97%, transparent)',
+        borderTop: '1px solid var(--border-dim)',
         backdropFilter: 'blur(12px)',
       }}
     >

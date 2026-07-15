@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
-import { getBrandSettings, updateBrandSettings, bumpBrandCacheVersion, type BrandUpdate } from '@/lib/repositories/brand_repo';
+import {
+  getBrandSettings, updateBrandSettings, bumpBrandCacheVersion,
+  VALID_LOGO_SIZES, VALID_LOGO_ALIGNS,
+  type BrandUpdate,
+} from '@/lib/repositories/brand_repo';
 import { invalidateBrandCache } from '@/lib/brand_service';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
@@ -28,7 +32,22 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
-  const oldBrand = await getBrandSettings();
+  // Validate enum fields
+  if ('logo_size' in body && !VALID_LOGO_SIZES.has((body as Record<string, unknown>).logo_size as string)) {
+    return NextResponse.json(
+      { error: `Invalid logo_size. Allowed: ${[...VALID_LOGO_SIZES].join(', ')}` },
+      { status: 400 }
+    );
+  }
+  if ('logo_align' in body && !VALID_LOGO_ALIGNS.has((body as Record<string, unknown>).logo_align as string)) {
+    return NextResponse.json(
+      { error: `Invalid logo_align. Allowed: ${[...VALID_LOGO_ALIGNS].join(', ')}` },
+      { status: 400 }
+    );
+  }
+
+  let oldBrand = null;
+  try { oldBrand = await getBrandSettings(); } catch { /* non-critical audit snapshot */ }
 
   try {
     const updated = await updateBrandSettings(body, payload.username);

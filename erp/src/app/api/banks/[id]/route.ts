@@ -33,6 +33,10 @@ export async function PATCH(
     qr_image?: string | null;
     display_order?: number;
     is_active?: boolean;
+    maintenance_mode?: boolean;
+    maintenance_message?: string | null;
+    provider_binding?: string | null;
+    priority?: number;
   };
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }

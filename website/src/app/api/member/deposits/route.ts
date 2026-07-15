@@ -3,7 +3,10 @@ import pool from '@/lib/db';
 import { getMember } from '@/lib/member-auth';
 import { rateLimit } from '@/lib/rate-limit';
 
-const VALID_PROVIDERS = ['918Kiss', 'Mega888', 'Pussy888', 'Newtown', 'Ace333', 'Live22'] as const;
+
+function isMissingColumnError(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as Record<string, unknown>).code === '42703';
+}
 
 export async function GET() {
   const member = await getMember();
@@ -31,18 +34,66 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as {
     amount?: number;
     provider?: string;
+    receiving_bank_id?: number;
     payment_bank?: string;
     promotion_id?: number;
     game_username?: string;
+    receipt_media_id?: number;
     receipt_file_id?: string;
   };
 
   if (!body.amount || body.amount <= 0)
     return NextResponse.json({ error: '请输入有效的存款金额' }, { status: 400 });
-  if (!body.provider || !(VALID_PROVIDERS as readonly string[]).includes(body.provider))
+  if (!body.provider)
     return NextResponse.json({ error: '请选择游戏' }, { status: 400 });
-  if (!body.payment_bank)
-    return NextResponse.json({ error: '请选择付款方式' }, { status: 400 });
+  // Validate provider against DB (active providers only)
+  const providerCheck = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*) AS cnt FROM website_game_providers WHERE provider_name = $1 AND is_active = TRUE`,
+    [body.provider]
+  );
+  if (parseInt(providerCheck.rows[0]?.cnt ?? '0', 10) === 0)
+    return NextResponse.json({ error: '请选择游戏' }, { status: 400 });
+  if (!body.receiving_bank_id && !body.payment_bank)
+    return NextResponse.json({ error: '请选择收款银行' }, { status: 400 });
+
+  // Resolve receiving bank text — fallback if maintenance_mode column not yet migrated
+  let paymentBankText = body.payment_bank ?? '';
+  if (body.receiving_bank_id) {
+    let bankRow: { bank_name: string } | undefined;
+    for (const sql of [
+      `SELECT bank_name FROM payment_banks WHERE id = $1 AND is_active = TRUE AND maintenance_mode = FALSE`,
+      `SELECT bank_name FROM payment_banks WHERE id = $1 AND is_active = TRUE`,
+    ]) {
+      try {
+        const res = await pool.query<{ bank_name: string }>(sql, [body.receiving_bank_id]);
+        bankRow = res.rows[0];
+        break;
+      } catch (err) {
+        if (isMissingColumnError(err)) continue;
+        throw err;
+      }
+    }
+    if (!bankRow) {
+      return NextResponse.json({ error: '所选银行不可用' }, { status: 400 });
+    }
+    paymentBankText = bankRow.bank_name;
+  }
+
+  // Auto-lookup game_username from assigned game accounts if not provided
+  let gameUsername = body.game_username ?? '';
+  if (!gameUsername && body.provider) {
+    try {
+      const ugaRow = await pool.query<{ username: string }>(
+        `SELECT ap.username FROM user_game_accounts uga
+         JOIN account_pool ap ON ap.id = uga.account_pool_id
+         WHERE uga.user_id = $1 AND uga.provider = $2`,
+        [member.sub, body.provider]
+      );
+      gameUsername = ugaRow.rows[0]?.username ?? '';
+    } catch {
+      // user_game_accounts.status may not exist yet; skip auto-lookup
+    }
+  }
 
   /* Minimum deposit check */
   const minRow = await pool.query<{ value: string }>(
@@ -63,7 +114,7 @@ export async function POST(req: NextRequest) {
       { status: 409 }
     );
 
-  /* Bonus calculation from promotion */
+  /* Bonus calculation */
   let bonusAmount = 0;
   let promotionId: number | null = body.promotion_id ?? null;
 
@@ -83,13 +134,11 @@ export async function POST(req: NextRequest) {
     );
     const promo = promoRes.rows[0];
     if (!promo) {
-      promotionId = null; /* promo no longer valid, ignore silently */
+      promotionId = null;
     } else if (body.amount >= parseFloat(promo.min_deposit)) {
       if (promo.bonus_type === 'PERCENTAGE') {
         bonusAmount = body.amount * (parseFloat(promo.bonus_value) / 100);
-        if (promo.max_bonus) {
-          bonusAmount = Math.min(bonusAmount, parseFloat(promo.max_bonus));
-        }
+        if (promo.max_bonus) bonusAmount = Math.min(bonusAmount, parseFloat(promo.max_bonus));
       } else {
         bonusAmount = parseFloat(promo.bonus_value);
       }
@@ -99,23 +148,50 @@ export async function POST(req: NextRequest) {
 
   const creditAmount = body.amount + bonusAmount;
 
-  const res = await pool.query<{ id: number }>(
-    `INSERT INTO deposit_requests
-       (user_id, provider, game_username, deposit_amount, bonus_amount,
-        credit_amount, payment_bank, receipt_file_id, status, promotion_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', $9)
-     RETURNING id`,
-    [
-      member.sub,
-      body.provider,
-      body.game_username ?? '',
-      body.amount,
-      bonusAmount,
-      creditAmount,
-      body.payment_bank,
-      body.receipt_file_id ?? '',
-      promotionId,
-    ]
-  );
-  return NextResponse.json({ ok: true, id: res.rows[0].id, bonus_amount: bonusAmount, credit_amount: creditAmount }, { status: 201 });
+  // INSERT — try new schema first (migration 027), fall back to legacy schema
+  const baseParams = [
+    member.sub, body.provider, gameUsername,
+    body.amount, bonusAmount, creditAmount,
+    paymentBankText, body.receipt_file_id ?? '',
+    promotionId,
+  ];
+
+  const insertAttempts: Array<{ sql: string; params: unknown[] }> = [
+    {
+      sql: `INSERT INTO deposit_requests
+              (user_id, provider, game_username, deposit_amount, bonus_amount,
+               credit_amount, payment_bank, receipt_file_id, status, promotion_id,
+               receiving_bank_id, receipt_media_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', $9, $10, $11)
+            RETURNING id`,
+      params: [...baseParams, body.receiving_bank_id ?? null, body.receipt_media_id ?? null],
+    },
+    {
+      sql: `INSERT INTO deposit_requests
+              (user_id, provider, game_username, deposit_amount, bonus_amount,
+               credit_amount, payment_bank, receipt_file_id, status, promotion_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', $9)
+            RETURNING id`,
+      params: [...baseParams],
+    },
+  ];
+
+  for (const attempt of insertAttempts) {
+    try {
+      const res = await pool.query<{ id: number }>(attempt.sql, attempt.params);
+      return NextResponse.json(
+        { ok: true, id: res.rows[0].id, bonus_amount: bonusAmount, credit_amount: creditAmount },
+        { status: 201 }
+      );
+    } catch (err) {
+      if (isMissingColumnError(err)) {
+        console.warn('[member/deposits] migration 027 pending, trying legacy INSERT');
+        continue;
+      }
+      console.error('[member/deposits] INSERT error:', err);
+      return NextResponse.json({ error: '提交失败，请重试' }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({ error: '系统错误，请联系客服' }, { status: 500 });
 }

@@ -22,7 +22,7 @@ function SettingRow({
 }) {
   const inner = (
     <div
-      className="flex items-center gap-3 px-5 py-4 cursor-pointer transition-colors"
+      className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
       style={{ color: danger ? '#f87171' : 'var(--text-base)' }}
       onMouseEnter={e => {
         (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-surface2)';
@@ -112,7 +112,7 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="mx-5 mb-4 rounded-xl p-4"
+      className="mx-4 mb-3 rounded-xl p-3"
       style={{ background: 'var(--bg-surface3)' }}
     >
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -202,7 +202,7 @@ export default function SettingsList() {
   return (
     <div className="casino-card overflow-hidden">
       <h3
-        className="text-xs font-bold tracking-wider uppercase px-5 pt-5 pb-3"
+        className="text-xs font-bold tracking-wider uppercase px-4 pt-3 pb-2"
         style={{ color: 'var(--text-muted)' }}
       >
         账户设置
@@ -236,6 +236,15 @@ export default function SettingsList() {
             label="语言"
             value="简体中文"
             chevron={false}
+          />
+        </div>
+
+        {/* Invite Friends */}
+        <div style={{ borderBottom: '1px solid var(--border-dim)' }}>
+          <SettingRow
+            icon={<span className="text-base">🎁</span>}
+            label="邀请好友"
+            href="/profile/invite"
           />
         </div>
 

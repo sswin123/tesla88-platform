@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS website_game_providers (
   provider_name    VARCHAR(200) NOT NULL,
   category         VARCHAR(20)  NOT NULL DEFAULT 'slot'
                      CHECK (category IN ('slot', 'live', 'sport', 'fishing')),
-  logo_media_id    INTEGER REFERENCES media(id) ON DELETE SET NULL,
-  banner_media_id  INTEGER REFERENCES media(id) ON DELETE SET NULL,
+  logo_media_id    INTEGER REFERENCES media_library(id) ON DELETE SET NULL,
+  banner_media_id  INTEGER REFERENCES media_library(id) ON DELETE SET NULL,
   is_hot           BOOLEAN NOT NULL DEFAULT FALSE,
   is_new           BOOLEAN NOT NULL DEFAULT FALSE,
   is_active        BOOLEAN NOT NULL DEFAULT TRUE,

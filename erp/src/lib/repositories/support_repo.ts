@@ -303,11 +303,14 @@ export async function getSessionWithDetails(id: number): Promise<{
 
   const [gameRows, lastDepRow, lastWithdrawRow, promoRow, allSessionRows, tagsResult, messageRows] = await Promise.all([
     pool.query(
-      `SELECT ap.provider, ap.username
+      `SELECT ap.provider, ap.username,
+              wgp.provider_name AS display_name,
+              wgp.logo_media_id
        FROM user_game_accounts uga
        JOIN account_pool ap ON ap.id = uga.account_pool_id
+       LEFT JOIN website_game_providers wgp ON wgp.provider_name = ap.provider
        WHERE uga.user_id = $1
-       ORDER BY ap.provider`,
+       ORDER BY COALESCE(wgp.display_order, 9999), ap.provider`,
       [userId]
     ),
     pool.query(

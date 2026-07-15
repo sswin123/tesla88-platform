@@ -8,9 +8,14 @@ const MOCK_BRAND = vi.hoisted(() => ({
   tagline: '最好的游戏平台',
   logo_media_id: 5,
   favicon_media_id: null,
+  logo_size: 'medium',
+  logo_align: 'left',
   primary_color: '#ff6600',
   secondary_color: '#cc4400',
   theme_mode: 'dark',
+  color_bg: '#0a0b14',
+  color_card: '#111222',
+  color_text: '#e8e8f5',
   website_domain: null,
   api_domain: null,
   support_whatsapp: null,
@@ -20,6 +25,8 @@ const MOCK_BRAND = vi.hoisted(() => ({
   seo_title: 'TestCasino Online',
   seo_description: 'Best online casino in Malaysia',
   seo_keywords: null,
+  design_preset: 'classic_purple',
+  design_overrides: {},
 }));
 
 vi.mock('@/lib/brand', () => ({

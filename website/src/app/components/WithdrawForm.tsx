@@ -56,7 +56,7 @@ export default function WithdrawForm() {
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!profile?.bank_account) { setError('账户未绑定银行卡，请联系客服'); return; }
+    if (!profile?.bank_account) { window.location.href = '/complete-bank-information'; return; }
     if (numAmount < minAmount)  { setError(`最低提款金额为 RM ${minAmount}`); return; }
     if (numAmount > balance)    { setError('提款金额超过可用余额'); return; }
     setStep('confirm');
@@ -93,9 +93,9 @@ export default function WithdrawForm() {
   /* ── Loading skeleton ────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="casino-card p-5 h-28 rounded-2xl" style={{ background: 'var(--bg-surface)' }} />
-        <div className="casino-card p-5 h-40 rounded-2xl" style={{ background: 'var(--bg-surface)' }} />
+      <div className="space-y-3 animate-pulse">
+        <div className="casino-card p-4 h-24 rounded-2xl" style={{ background: 'var(--bg-surface)' }} />
+        <div className="casino-card p-4 h-32 rounded-2xl" style={{ background: 'var(--bg-surface)' }} />
       </div>
     );
   }
@@ -103,7 +103,7 @@ export default function WithdrawForm() {
   /* ── No bank account warning ─────────────────────────────────── */
   if (!loading && !profile?.bank_account) {
     return (
-      <div className="casino-card p-6 text-center space-y-4">
+      <div className="casino-card p-4 text-center space-y-3">
         <p className="text-4xl">🏦</p>
         <p className="font-semibold" style={{ color: 'var(--text-base)' }}>未绑定银行账户</p>
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -119,29 +119,29 @@ export default function WithdrawForm() {
   /* ── Success screen ──────────────────────────────────────────── */
   if (step === 'success') {
     return (
-      <div className="casino-card p-8 text-center">
+      <div className="casino-card p-5 text-center">
         <div
-          className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'rgba(34,197,94,0.15)', fontSize: '2rem' }}
+          className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+          style={{ background: 'rgba(34,197,94,0.15)', fontSize: '1.5rem' }}
         >
           ✓
         </div>
-        <h2 className="text-lg font-bold mb-2" style={{ color: '#22c55e' }}>
+        <h2 className="text-base font-bold mb-1.5" style={{ color: '#22c55e' }}>
           提款申请已提交
         </h2>
         <p className="text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
           流水号：<span className="font-mono font-bold" style={{ color: 'var(--text-base)' }}>#{successId}</span>
         </p>
-        <p className="text-xs mb-6" style={{ color: 'var(--text-faint)' }}>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
           我们将在 1-3 个工作日内处理您的提款申请
         </p>
-        <div className="flex gap-3 justify-center">
-          <a href="/history" className="casino-btn-outline px-5 py-2.5 text-sm">
+        <div className="flex gap-2 justify-center">
+          <a href="/history" className="casino-btn-outline px-4 text-sm">
             查看记录
           </a>
           <button
             onClick={() => { setStep('form'); setAmount(''); setSuccessId(null); }}
-            className="casino-btn-primary px-5 py-2.5 text-sm"
+            className="casino-btn-primary px-4 text-sm"
           >
             再次提款
           </button>
@@ -166,7 +166,7 @@ export default function WithdrawForm() {
 
   /* ── Withdraw form ───────────────────────────────────────────── */
   return (
-    <form onSubmit={handleFormSubmit} className="space-y-5">
+    <form onSubmit={handleFormSubmit} className="space-y-4">
       {error && (
         <div
           className="text-sm px-4 py-3 rounded-xl"
@@ -177,12 +177,12 @@ export default function WithdrawForm() {
       )}
 
       {/* ── Balance card ── */}
-      <div className="casino-card p-5">
-        <p className="text-xs font-bold tracking-wider uppercase mb-1" style={{ color: 'var(--text-muted)' }}>
+      <div className="casino-card p-4">
+        <p className="text-xs font-bold tracking-wider uppercase mb-0.5" style={{ color: 'var(--text-muted)' }}>
           可用余额
         </p>
         <p
-          className="text-3xl font-black"
+          className="text-2xl font-black"
           style={{
             color: 'var(--brand-primary)',
             textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
@@ -193,7 +193,7 @@ export default function WithdrawForm() {
       </div>
 
       {/* ── Bank info ── */}
-      <div className="casino-card p-4">
+      <div className="casino-card p-3">
         <p className="text-xs font-bold tracking-wider uppercase mb-3" style={{ color: 'var(--text-muted)' }}>
           提款至
         </p>
@@ -229,7 +229,7 @@ export default function WithdrawForm() {
             step="1"
             placeholder={`最低 RM ${minAmount}`}
             required
-            className="w-full pl-10 pr-4 py-3 rounded-xl text-sm"
+            className="w-full pl-10 pr-4 py-2 rounded-xl text-sm"
             style={inputStyle(focusedField === 'amount')}
           />
         </div>
@@ -266,7 +266,7 @@ export default function WithdrawForm() {
 
       <button
         type="submit"
-        className="casino-btn-primary w-full py-3.5 text-sm font-bold"
+        className="casino-btn-primary w-full text-sm font-bold"
       >
         下一步：确认详情
       </button>

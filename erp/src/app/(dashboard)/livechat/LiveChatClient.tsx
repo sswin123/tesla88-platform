@@ -127,15 +127,19 @@ export default function LiveChatClient({
           {/* Session header */}
           <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
             <div>
-              <p className="text-sm font-semibold">{member?.first_name ?? '…'}</p>
+              <p className="text-sm font-semibold font-mono">
+                {session.guest_id
+                  ? session.guest_id
+                  : session.public_id
+                    ? session.public_id
+                    : member?.telegram_username
+                      ? `@${member.telegram_username}`
+                      : session.user_id
+                        ? `UID ${session.user_id}`
+                        : 'Guest'}
+              </p>
               <p className="text-xs text-gray-400">
-                {session.public_id
-                  ? session.public_id
-                  : member?.telegram_username
-                    ? `@${member.telegram_username}`
-                    : session.user_id
-                      ? `UID ${session.user_id}`
-                      : session.guest_id ?? 'Guest'}
+                {member?.first_name ?? '…'}
                 {' · '}Session #{selectedId}
               </p>
             </div>

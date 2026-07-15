@@ -37,6 +37,10 @@ import {
   CreditCard,
   Activity,
   HardDrive,
+  Layout,
+  SlidersHorizontal,
+  Palette,
+  PanelTop,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,12 +88,17 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Website',
     items: [
-      { href: '/website-settings', label: 'Website Settings', icon: Globe,       permission: 'website.settings' },
-      { href: '/apk-manager',      label: 'APK Manager',      icon: Smartphone,  permission: 'website.settings' },
-      { href: '/website-banners',        label: 'Banners',       icon: Image, permission: 'website.banner.manage' },
-      { href: '/website-announcements', label: 'Announcements',    icon: Bell,     permission: 'website.announcement.manage' },
-      { href: '/website-game-providers',  label: 'Game Providers', icon: Joystick,   permission: 'website.game.manage' },
-      { href: '/website-payment-banks',   label: 'Payment Banks',  icon: CreditCard, permission: 'payment.bank.manage' },
+      { href: '/website-builder',                        label: 'Website Builder',  icon: Layout,             permission: 'website.builder.manage' },
+      { href: '/design-system',                          label: 'Design System',    icon: Palette,            permission: 'website.builder.manage' },
+      { href: '/website-builder/header-builder',         label: 'Header Builder',   icon: PanelTop,           permission: 'website.builder.manage' },
+      { href: '/website-builder/website-config',         label: 'Website Config',   icon: SlidersHorizontal, permission: 'website.builder.manage' },
+      { href: '/website-settings',               label: 'Website Settings', icon: Globe,              permission: 'website.settings' },
+      { href: '/apk-manager',             label: 'APK Manager',      icon: Smartphone, permission: 'website.settings' },
+      { href: '/website-banners',         label: 'Banners',          icon: Image,      permission: 'website.banner.manage' },
+      { href: '/website-announcements',   label: 'Announcements',    icon: Bell,       permission: 'website.announcement.manage' },
+      { href: '/website-lobby-categories', label: 'Lobby Categories', icon: Joystick,   permission: 'website.game.manage' },
+      { href: '/website-game-providers',  label: 'Game Providers',   icon: Joystick,   permission: 'website.game.manage' },
+      { href: '/website-games',           label: 'Games Library',    icon: Joystick,   permission: 'website.game.manage' },
     ],
   },
   {
@@ -160,6 +169,7 @@ export function Sidebar() {
   const [me, setMe] = useState<MeData>({ isSuperAdmin: false, permissions: [] });
   const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
   const [livechatUnread, setLivechatUnread] = useState(0);
+  const [depositsUnread, setDepositsUnread] = useState(0);
 
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
@@ -171,6 +181,14 @@ export function Sidebar() {
   // Auto-reset unread when user is on /livechat
   useEffect(() => {
     if (pathname.startsWith('/livechat')) setLivechatUnread(0);
+  }, [pathname]);
+
+  // Auto-reset deposit badge when user navigates to /deposits
+  useEffect(() => {
+    if (pathname.startsWith('/deposits')) {
+      setDepositsUnread(0);
+      fetch('/api/deposits/unread', { method: 'POST' }).catch(() => {});
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -186,20 +204,25 @@ export function Sidebar() {
       .then((b: BrandData | null) => { if (b?.brand_name) setBrand(b); })
       .catch(() => {});
 
-    // Fetch initial unread count
+    // Fetch initial livechat unread count
     fetch('/api/livechat/unread')
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { count: number } | null) => { if (d?.count) setLivechatUnread(d.count); })
       .catch(() => {});
 
-    // SSE: increment unread + play sound when customer sends a message
-    const es = new EventSource('/api/livechat/stream');
-    es.onmessage = (e: MessageEvent) => {
+    // Fetch initial deposit unread count
+    fetch('/api/deposits/unread')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { count: number } | null) => { if (d?.count) setDepositsUnread(d.count); })
+      .catch(() => {});
+
+    // SSE: live chat — increment unread + play sound when customer sends a message
+    const chatEs = new EventSource('/api/livechat/stream');
+    chatEs.onmessage = (e: MessageEvent) => {
       try {
         const evt = JSON.parse(e.data as string) as { sender_type?: string; type?: string };
         if (evt.type === 'new_message' && evt.sender_type === 'USER') {
           setLivechatUnread((n) => {
-            // Don't increment when user is already on the livechat page
             if (window.location.pathname.startsWith('/livechat')) return n;
             playNotifBeep();
             return n + 1;
@@ -207,7 +230,23 @@ export function Sidebar() {
         }
       } catch { /* ignore */ }
     };
-    return () => es.close();
+
+    // SSE: deposits — increment badge + play sound when new pending deposit arrives
+    const depositEs = new EventSource('/api/deposits/stream');
+    depositEs.onmessage = (e: MessageEvent) => {
+      try {
+        const evt = JSON.parse(e.data as string) as { type?: string };
+        if (evt.type === 'new_deposit') {
+          setDepositsUnread((n) => {
+            if (window.location.pathname.startsWith('/deposits')) return n;
+            playNotifBeep();
+            return n + 1;
+          });
+        }
+      } catch { /* ignore */ }
+    };
+
+    return () => { chatEs.close(); depositEs.close(); };
   }, [loadMe]);
 
   async function handleLogout() {
@@ -261,6 +300,11 @@ export function Sidebar() {
                 {href === '/livechat' && livechatUnread > 0 && (
                   <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {livechatUnread > 99 ? '99+' : livechatUnread}
+                  </span>
+                )}
+                {href === '/deposits' && depositsUnread > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {depositsUnread > 99 ? '99+' : depositsUnread}
                   </span>
                 )}
               </Link>

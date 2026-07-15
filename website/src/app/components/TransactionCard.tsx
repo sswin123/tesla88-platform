@@ -71,10 +71,10 @@ function MobileCard({ tx }: { tx: TxRecord }) {
 
   return (
     <div
-      className="casino-card p-4 lg:hidden"
+      className="casino-card p-3 lg:hidden"
       style={{ borderLeft: `3px solid ${tx.type === 'TOP_UP' ? '#22c55e' : '#f97316'}` }}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <TypeBadge type={tx.type} />
         <StatusDot status={tx.status} />
       </div>

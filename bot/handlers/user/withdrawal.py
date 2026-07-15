@@ -11,7 +11,6 @@ from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
 import asyncpg
 
 from bot.config import Config
-from bot.constants import PROVIDERS
 from bot.keyboards.common import build_back_cancel_keyboard
 from bot.keyboards.game_accounts import build_main_menu_keyboard, build_main_menu_keyboard_from_cms
 from bot.keyboards.withdrawal import (
@@ -86,15 +85,14 @@ async def cb_withdrawal_provider(
 ) -> None:
     lang = callback.from_user.language_code or "zh"
     provider = callback.data.split(":", 1)[1]
-    if provider not in PROVIDERS:
+    data = await state.get_data()
+    accounts = await get_user_game_accounts(pool, data["user_id"])
+    if not any(a["provider"] == provider for a in accounts):
         await callback.answer(
             await messages.get_message("withdraw_invalid_platform", language=lang),
             show_alert=True,
         )
         return
-
-    data = await state.get_data()
-    accounts = await get_user_game_accounts(pool, data["user_id"])
     game_account = next((a for a in accounts if a["provider"] == provider), None)
     game_username = game_account["username"] if game_account else ""
 
