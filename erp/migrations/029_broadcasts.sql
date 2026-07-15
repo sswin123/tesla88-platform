@@ -2,7 +2,7 @@
 -- Phase 5.5 — Broadcast Center
 -- Depends on: 027_media_library.sql (media_library table, set_updated_at function)
 
-CREATE TABLE broadcasts (
+CREATE TABLE IF NOT EXISTS broadcasts (
   id               SERIAL        PRIMARY KEY,
   title            VARCHAR(255)  NOT NULL,
   content_type     VARCHAR(20)   NOT NULL DEFAULT 'TEXT'
@@ -27,11 +27,12 @@ CREATE TABLE broadcasts (
   updated_at       TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_broadcasts_status     ON broadcasts(status);
-CREATE INDEX idx_broadcasts_created_at ON broadcasts(created_at DESC);
-CREATE INDEX idx_broadcasts_media_id   ON broadcasts(media_id) WHERE media_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_broadcasts_status     ON broadcasts(status);
+CREATE INDEX IF NOT EXISTS idx_broadcasts_created_at ON broadcasts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_broadcasts_media_id   ON broadcasts(media_id) WHERE media_id IS NOT NULL;
 
 -- Reuse the existing set_updated_at() function from migration 027
+DROP TRIGGER IF EXISTS set_broadcasts_updated_at ON broadcasts;
 CREATE TRIGGER set_broadcasts_updated_at
   BEFORE UPDATE ON broadcasts
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();

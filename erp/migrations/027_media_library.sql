@@ -3,7 +3,7 @@
 -- Binary files are never stored here — only metadata.
 -- storage_key is an opaque token interpreted only by StorageProvider.
 
-CREATE TABLE media_library (
+CREATE TABLE IF NOT EXISTS media_library (
   id                SERIAL PRIMARY KEY,
 
   -- Multi-tenant preparation (no logic in v1.0; NULL = default tenant)
@@ -68,10 +68,10 @@ CREATE TABLE media_library (
   CONSTRAINT chk_download_count         CHECK (download_count >= 0)
 );
 
-CREATE INDEX idx_media_tenant    ON media_library (tenant_id) WHERE tenant_id IS NOT NULL;
-CREATE INDEX idx_media_active    ON media_library (is_active, created_at DESC) WHERE deleted_at IS NULL;
-CREATE INDEX idx_media_type      ON media_library (media_type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_media_provider  ON media_library (storage_provider);
+CREATE INDEX IF NOT EXISTS idx_media_tenant    ON media_library (tenant_id) WHERE tenant_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_media_active    ON media_library (is_active, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_media_type      ON media_library (media_type) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_media_provider  ON media_library (storage_provider);
 
 -- Reusable trigger function (shared with quick_replies in migration 028)
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -79,6 +79,7 @@ RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_media_library_updated_at ON media_library;
 CREATE TRIGGER trg_media_library_updated_at
   BEFORE UPDATE ON media_library
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();

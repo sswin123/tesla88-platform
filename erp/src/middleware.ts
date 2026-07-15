@@ -29,6 +29,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Lightweight container healthcheck (no DB or external calls)
+  if (pathname === '/api/ping') {
+    return NextResponse.next();
+  }
+
   // Public health API for external uptime monitoring (no sensitive data)
   if (pathname === '/api/health/system') {
     return NextResponse.next();

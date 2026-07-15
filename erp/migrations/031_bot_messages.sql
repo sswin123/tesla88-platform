@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS bot_message_keys (
 CREATE INDEX IF NOT EXISTS idx_bmk_category ON bot_message_keys(category);
 CREATE INDEX IF NOT EXISTS idx_bmk_module   ON bot_message_keys(module);
 
+DROP TRIGGER IF EXISTS set_bot_message_keys_updated_at ON bot_message_keys;
 CREATE TRIGGER set_bot_message_keys_updated_at
   BEFORE UPDATE ON bot_message_keys
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS bot_message_translations (
 
 CREATE INDEX IF NOT EXISTS idx_bmt_key_id ON bot_message_translations(key_id);
 
+DROP TRIGGER IF EXISTS set_bot_message_translations_updated_at ON bot_message_translations;
 CREATE TRIGGER set_bot_message_translations_updated_at
   BEFORE UPDATE ON bot_message_translations
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -91,6 +93,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_bot_message_history ON bot_message_translations;
 CREATE TRIGGER trg_bot_message_history
   BEFORE UPDATE ON bot_message_translations
   FOR EACH ROW EXECUTE FUNCTION fn_bot_message_history();
@@ -116,6 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_bb_group_key ON bot_buttons(group_key);
 CREATE INDEX IF NOT EXISTS idx_bb_active    ON bot_buttons(group_key, language_code)
   WHERE is_active = TRUE;
 
+DROP TRIGGER IF EXISTS set_bot_buttons_updated_at ON bot_buttons;
 CREATE TRIGGER set_bot_buttons_updated_at
   BEFORE UPDATE ON bot_buttons
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();

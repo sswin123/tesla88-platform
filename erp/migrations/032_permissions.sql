@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 
 CREATE INDEX IF NOT EXISTS idx_rp_role ON role_permissions(role);
 
+DROP TRIGGER IF EXISTS set_role_permissions_updated_at ON role_permissions;
 CREATE TRIGGER set_role_permissions_updated_at
   BEFORE UPDATE ON role_permissions
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
