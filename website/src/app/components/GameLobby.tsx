@@ -114,9 +114,18 @@ export default function GameLobby() {
 
       {/* Provider grid */}
       {providers !== null && cards.length === 0 && (
-        <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>
-          暂无游戏供应商
-        </p>
+        <div
+          className="flex flex-col items-center justify-center py-12 rounded-2xl"
+          style={{ background: 'var(--bg-surface2)' }}
+        >
+          <div className="text-4xl mb-3">🎮</div>
+          <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-base)' }}>
+            Coming Soon
+          </p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            暂无游戏，敬请期待
+          </p>
+        </div>
       )}
       {providers !== null && cards.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-6 gap-1.5">
