@@ -30,15 +30,18 @@ END $$;
 EOSQL
 
 # ── 引导检测：若追踪表为空但 brand_settings.erp_domain 已存在 ───────────────
-# 说明数据库由旧版脚本（无追踪）迁移完毕，将所有迁移文件标记为已执行
+# 说明数据库由旧版脚本（无追踪）迁移完毕，将所有迁移文件标记为已执行。
+# 引导路径与正常迁移路径完全互斥——引导完成后直接跳到 Seed，绝不再扫描 migrations/。
 tracking_count=$(psql "${DATABASE_URL}" -t -c \
-    "SELECT COUNT(*) FROM schema_migrations;" | tr -d ' \n')
+    "SELECT COUNT(*) FROM schema_migrations;" | tr -d ' \r\n')
+
+bootstrap_done=0
 
 if [ "${tracking_count}" = "0" ]; then
     erp_domain_exists=$(psql "${DATABASE_URL}" -t -c "
         SELECT COUNT(*) FROM information_schema.columns
         WHERE table_name = 'brand_settings' AND column_name = 'erp_domain';
-    " | tr -d ' \n')
+    " | tr -d ' \r\n')
 
     if [ "${erp_domain_exists}" = "1" ]; then
         echo "=== 引导模式：检测到已迁移数据库，标记所有迁移为已执行 ==="
@@ -48,42 +51,39 @@ if [ "${tracking_count}" = "0" ]; then
                 "INSERT INTO schema_migrations (filename) VALUES ('${name}') ON CONFLICT DO NOTHING;"
             echo "  → 已标记: ${name}"
         done
-        echo "=== 引导完成，继续执行 Seed ==="
-        # 不在此 exit 0 — 继续执行下方的 Seed 段，确保默认数据始终写入
+        bootstrap_done=1
+        echo "=== 引导完成（跳过 Migration 流程，直接执行 Seed） ==="
     fi
 fi
 
-# ── 正常迁移流程 ───────────────────────────────────────────────────────────
-applied=0
-skipped=0
+# ── 正常迁移流程（引导模式下完全跳过） ─────────────────────────────────────
+if [ "${bootstrap_done}" = "0" ]; then
+    applied=0
+    skipped=0
 
-for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
-    name=$(basename "$f")
+    for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
+        name=$(basename "$f")
 
-    # 检查是否已执行
-    count=$(psql "${DATABASE_URL}" -t -c \
-        "SELECT COUNT(*) FROM schema_migrations WHERE filename = '${name}';" \
-        | tr -d ' \n')
+        count=$(psql "${DATABASE_URL}" -t -c \
+            "SELECT COUNT(*) FROM schema_migrations WHERE filename = '${name}';" \
+            | tr -d ' \r\n')
 
-    if [ "${count}" = "1" ]; then
-        echo "→ SKIP [已执行] ${name}"
-        skipped=$((skipped + 1))
-        continue
-    fi
+        if [ "${count}" = "1" ]; then
+            echo "→ SKIP [已执行] ${name}"
+            skipped=$((skipped + 1))
+            continue
+        fi
 
-    echo "→ 执行 [${applied}] ${name}"
-    # ON_ERROR_STOP=on：任何 SQL 错误立即退出 psql（非零退出码）
-    psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -f "$f"
+        echo "→ 执行 [${applied}] ${name}"
+        psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -f "$f"
+        psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -c \
+            "INSERT INTO schema_migrations (filename) VALUES ('${name}');"
+        echo "  ✓ 完成"
+        applied=$((applied + 1))
+    done
 
-    # 记录已执行
-    psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -c \
-        "INSERT INTO schema_migrations (filename) VALUES ('${name}');"
-
-    echo "  ✓ 完成"
-    applied=$((applied + 1))
-done
-
-echo "=== 迁移完成：执行 ${applied} 个，跳过 ${skipped} 个 ==="
+    echo "=== 迁移完成：执行 ${applied} 个，跳过 ${skipped} 个 ==="
+fi
 
 # ── 确保 Seed 追踪表存在（与 schema_migrations 同级） ─────────────────────────
 psql "${DATABASE_URL}" -v ON_ERROR_STOP=on <<'EOSQL'
