@@ -84,3 +84,18 @@ for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
 done
 
 echo "=== 迁移完成：执行 ${applied} 个，跳过 ${skipped} 个 ==="
+
+# ── Seed：初始化默认数据（在迁移完成后执行） ────────────────────────────────
+SEEDS_DIR="${MIGRATIONS_DIR}/seeds"
+if [ -d "${SEEDS_DIR}" ]; then
+    echo "=== 开始 Seed 初始化 ==="
+    seed_count=0
+    for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
+        name=$(basename "$f")
+        echo "→ Seed: ${name}"
+        psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -f "$f"
+        echo "  ✓ 完成"
+        seed_count=$((seed_count + 1))
+    done
+    echo "=== Seed 完成：执行 ${seed_count} 个文件 ==="
+fi
