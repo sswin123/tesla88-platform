@@ -16,13 +16,18 @@ MIGRATIONS_DIR="/migrations"
 echo "=== 开始数据库迁移 ==="
 echo "数据库: ${DATABASE_URL%%@*}@***"
 
-# ── 确保追踪表存在 ─────────────────────────────────────────────────────────
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -c "
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    filename   VARCHAR(255) PRIMARY KEY,
-    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-"
+# ── 确保追踪表存在（DO 块捕获并发竞态，彻底幂等） ────────────────────────────
+psql "${DATABASE_URL}" -v ON_ERROR_STOP=on <<'EOSQL'
+DO $$
+BEGIN
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        filename   VARCHAR(255) PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+EXCEPTION WHEN unique_violation OR duplicate_table THEN
+    NULL;
+END $$;
+EOSQL
 
 # ── 引导检测：若追踪表为空但 brand_settings.erp_domain 已存在 ───────────────
 # 说明数据库由旧版脚本（无追踪）迁移完毕，将所有迁移文件标记为已执行
