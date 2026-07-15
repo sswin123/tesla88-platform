@@ -85,17 +85,44 @@ done
 
 echo "=== 迁移完成：执行 ${applied} 个，跳过 ${skipped} 个 ==="
 
-# ── Seed：初始化默认数据（在迁移完成后执行） ────────────────────────────────
+# ── 确保 Seed 追踪表存在（与 schema_migrations 同级） ─────────────────────────
+psql "${DATABASE_URL}" -v ON_ERROR_STOP=on <<'EOSQL'
+DO $$
+BEGIN
+    CREATE TABLE IF NOT EXISTS schema_seeds (
+        filename    VARCHAR(255) PRIMARY KEY,
+        executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+EXCEPTION WHEN unique_violation OR duplicate_table THEN
+    NULL;
+END $$;
+EOSQL
+
+# ── Seed：初始化默认数据（有追踪，幂等，执行失败立即 exit 1） ────────────────
 SEEDS_DIR="${MIGRATIONS_DIR}/seeds"
 if [ -d "${SEEDS_DIR}" ]; then
     echo "=== 开始 Seed 初始化 ==="
-    seed_count=0
+    seed_applied=0
+    seed_skipped=0
     for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
         name=$(basename "$f")
+
+        already=$(psql "${DATABASE_URL}" -t -c \
+            "SELECT COUNT(*) FROM schema_seeds WHERE filename = '${name}';" \
+            | tr -d ' \n')
+
+        if [ "${already}" = "1" ]; then
+            echo "→ SKIP [已执行] ${name}"
+            seed_skipped=$((seed_skipped + 1))
+            continue
+        fi
+
         echo "→ Seed: ${name}"
         psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -f "$f"
+        psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -c \
+            "INSERT INTO schema_seeds (filename) VALUES ('${name}');"
         echo "  ✓ 完成"
-        seed_count=$((seed_count + 1))
+        seed_applied=$((seed_applied + 1))
     done
-    echo "=== Seed 完成：执行 ${seed_count} 个文件 ==="
+    echo "=== Seed 完成：执行 ${seed_applied} 个，跳过 ${seed_skipped} 个 ==="
 fi

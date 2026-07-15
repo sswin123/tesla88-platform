@@ -467,6 +467,11 @@ async def notify_withdrawal(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def ping(request: web.Request) -> web.Response:
+    """GET /ping — lightweight liveness probe, no external calls."""
+    return web.json_response({"ok": True})
+
+
 async def health(request: web.Request) -> web.Response:
     """GET /health — relay status, uptime, and Telegram connectivity."""
     bot: Bot = request.app["bot"]
@@ -540,6 +545,7 @@ async def start_relay_server(bot: Bot, pool: asyncpg.Pool) -> web.AppRunner:
     await sc.start()
     app["settings_cache"] = sc
 
+    app.router.add_get("/ping",              ping)
     app.router.add_get("/health",            health)
     app.router.add_post("/reload-settings",  reload_settings)
     app.router.add_post("/restart",          restart)
