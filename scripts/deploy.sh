@@ -1,214 +1,248 @@
 #!/usr/bin/env bash
-# deploy.sh — First-time production deployment for apidemo.club
+# deploy.sh — 一键 Production 部署（适用于 Demo 前每次执行）
 #
-# Run once on a fresh Ubuntu 24.04 server after:
-#   1. git clone <repo> telegram-member-bot && cd telegram-member-bot
-#   2. cp .env.example .env && nano .env   (fill in all secrets)
-#   3. chmod +x scripts/*.sh && ./scripts/deploy.sh
+# 功能：
+#   1. Git Pull 最新代码
+#   2. Build Docker 镜像（仅重建有变更的）
+#   3. 启动全部服务
+#   4. 等待 Migration 完成
+#   5. 等待所有服务 Healthy
+#   6. 检查公网 URL
+#   7. 输出部署状态
 #
-# What this script does:
-#   1. Verifies prerequisites (Docker, git, curl, openssl)
-#   2. Validates .env completeness
-#   3. Generates SSL certificates (self-signed; replace with Let's Encrypt later)
-#   4. Creates nginx/ssl directory and certs
-#   5. Builds all Docker images
-#   6. Starts postgres and runs database migrations
-#   7. Starts all remaining services
-#   8. Runs health checks
-#   9. Prints access URLs and next steps
+# 用法：
+#   ./scripts/deploy.sh
+#
+# 首次部署（需要先生成 SSL 证书）：
+#   ./scripts/deploy.sh --fresh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/lib.sh"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_FILE="$PROJECT_ROOT/docker-compose.production.yml"
+DC="docker compose -f $COMPOSE_FILE"
 
-# ── Check root or sudo ────────────────────────────────────────────────────────
-if [[ $EUID -ne 0 ]] && ! sudo -n true 2>/dev/null; then
-  log_warn "Not running as root. Some steps may require sudo."
-fi
+FRESH_INSTALL=false
+[[ "${1:-}" == "--fresh" ]] && FRESH_INSTALL=true
 
-# ── Prerequisites ─────────────────────────────────────────────────────────────
-log_step "Step 1 — Prerequisites"
+# ── 颜色 ──────────────────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
-require_docker
+ok()   { echo -e "${GREEN}  ✓${NC}  $*"; }
+fail() { echo -e "${RED}  ✗${NC}  $*" >&2; }
+info() { echo -e "${BLUE}  →${NC}  $*"; }
+warn() { echo -e "${YELLOW}  ⚠${NC}  $*"; }
+step() { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
+die()  { fail "$*"; exit 1; }
 
-for cmd in git curl openssl; do
-  if command -v "$cmd" &>/dev/null; then
-    log_success "${cmd}"
-  else
-    die "'${cmd}' not found. Install it first."
-  fi
-done
+DEPLOY_START=$(date +%s)
 
-# ── Validate .env ─────────────────────────────────────────────────────────────
-log_step "Step 2 — Validate .env"
+echo ""
+echo -e "${BOLD}${CYAN}╔════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${CYAN}║     Tesla88 / SSWIN88 Production       ║${NC}"
+echo -e "${BOLD}${CYAN}║     Deploy — $(date '+%Y-%m-%d %H:%M:%S')       ║${NC}"
+echo -e "${BOLD}${CYAN}╚════════════════════════════════════════╝${NC}"
+echo ""
 
-load_env
+# ── 工具函数 ──────────────────────────────────────────────────────────────────
 
-required_vars=(
-  BOT_TOKEN SUPER_ADMIN_ID
-  POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD
-  JWT_SECRET MEMBER_JWT_SECRET
-  CS_USERNAME ADMIN_CHAT_ID SUPPORT_CHAT_ID
-  BOT_RELAY_AUTH_TOKEN
-)
+wait_for_migrate() {
+    local max_wait=300
+    local elapsed=0
+    local cid state exit_code
 
-for var in "${required_vars[@]}"; do
-  val="${!var:-}"
-  if [[ -z "$val" ]] || [[ "$val" == *"change"* ]] || [[ "$val" == *"your_"* ]] || [[ "$val" == *"changeme"* ]]; then
-    die "Environment variable '${var}' is not set or still contains placeholder value.\nEdit .env and retry."
-  fi
-  log_success "  ${var}"
-done
+    info "等待数据库 Migration 完成..."
+    sleep 3
 
-# ── SSL Certificates ──────────────────────────────────────────────────────────
-log_step "Step 3 — SSL Certificates"
+    while [ $elapsed -lt $max_wait ]; do
+        cid=$($DC ps -q migrate 2>/dev/null | head -1)
+        if [ -z "$cid" ]; then
+            sleep 3; elapsed=$((elapsed + 3)); continue
+        fi
 
-SSL_DIR="${PROJECT_ROOT}/nginx/ssl"
-mkdir -p "${SSL_DIR}"
+        state=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || echo "starting")
+        case "$state" in
+            exited)
+                exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$cid" 2>/dev/null || echo "1")
+                if [ "$exit_code" = "0" ]; then
+                    ok "Migration 完成"
+                    return 0
+                else
+                    fail "Migration 失败 (exit code: $exit_code)"
+                    echo ""
+                    echo -e "${YELLOW}Migration 日志：${NC}"
+                    $DC logs migrate 2>/dev/null | tail -30
+                    return 1
+                fi
+                ;;
+            running) info "  Migration 运行中… (${elapsed}s)"; sleep 5; elapsed=$((elapsed + 5)) ;;
+            *)       sleep 3; elapsed=$((elapsed + 3)) ;;
+        esac
+    done
 
-if [[ -f "${SSL_DIR}/apidemo.club.crt" ]] && [[ -f "${SSL_DIR}/apidemo.club.key" ]]; then
-  log_info "SSL certificates already exist — skipping generation"
-else
-  log_info "Generating self-signed SSL certificate for apidemo.club…"
-  log_info "(Replace with Let's Encrypt cert via: certbot certonly --standalone -d apidemo.club -d api.apidemo.club -d erp.apidemo.club)"
-
-  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout "${SSL_DIR}/apidemo.club.key" \
-    -out    "${SSL_DIR}/apidemo.club.crt" \
-    -subj "/C=MY/ST=Kuala Lumpur/L=Kuala Lumpur/O=apidemo/CN=apidemo.club" \
-    -addext "subjectAltName=DNS:apidemo.club,DNS:www.apidemo.club,DNS:api.apidemo.club,DNS:erp.apidemo.club" \
-    2>/dev/null
-
-  chmod 600 "${SSL_DIR}/apidemo.club.key"
-  chmod 644 "${SSL_DIR}/apidemo.club.crt"
-  log_success "Self-signed SSL certificate created (valid 10 years)"
-fi
-
-# ── Build Images ──────────────────────────────────────────────────────────────
-log_step "Step 4 — Build Docker Images"
-
-log_info "Building all images (this may take 5–10 minutes on first run)…"
-docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-  --project-directory "${PROJECT_ROOT}" \
-  build --no-cache --parallel
-
-log_success "All images built"
-
-# ── Start Database ────────────────────────────────────────────────────────────
-log_step "Step 5 — Start Database"
-
-docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-  --project-directory "${PROJECT_ROOT}" \
-  up -d postgres
-
-log_info "Waiting for PostgreSQL to be ready…"
-for i in $(seq 1 30); do
-  if docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-       --project-directory "${PROJECT_ROOT}" \
-       exec -T postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" &>/dev/null; then
-    log_success "PostgreSQL is ready"
-    break
-  fi
-  if [[ $i -eq 30 ]]; then
-    die "PostgreSQL did not become ready in 60s"
-  fi
-  sleep 2
-done
-
-# ── Run Migrations ────────────────────────────────────────────────────────────
-log_step "Step 6 — Database Migrations"
-
-log_info "Applying all migrations (001–048)…"
-
-applied=0
-failed=0
-
-for sql_file in $(find "${MIGRATIONS_DIR}" -name '*.sql' | sort -V); do
-  migration_name="$(basename "${sql_file}")"
-  if docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-       --project-directory "${PROJECT_ROOT}" \
-       exec -T \
-       -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-       postgres psql \
-       -U "${POSTGRES_USER}" \
-       -d "${POSTGRES_DB}" \
-       -f "/dev/stdin" < "${sql_file}" &>/dev/null; then
-    applied=$((applied + 1))
-  else
-    failed=$((failed + 1))
-    log_warn "  Migration may have partially applied: ${migration_name}"
-  fi
-done
-
-log_success "Migrations applied: ${applied} | Warnings: ${failed}"
-
-# ── Start All Services ────────────────────────────────────────────────────────
-log_step "Step 7 — Start All Services"
-
-docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-  --project-directory "${PROJECT_ROOT}" \
-  up -d
-
-log_info "Waiting for all services to become healthy…"
-sleep 10
-
-# ── Health Checks ─────────────────────────────────────────────────────────────
-log_step "Step 8 — Health Checks"
-
-all_ok=true
-
-check_url() {
-  local label="$1" url="$2"
-  local code
-  code=$(http_status "$url")
-  if [[ "$code" =~ ^2 ]]; then
-    log_success "  ${label}  →  HTTP ${code}"
-  else
-    log_error   "  ${label}  →  HTTP ${code}  (${url})"
-    all_ok=false
-  fi
+    fail "Migration 超时 (${max_wait}s)"
+    return 1
 }
 
-# Give services more time to start
-log_info "Waiting 30s for services to fully start…"
-sleep 30
+wait_for_healthy() {
+    local service="$1"
+    local max_wait="${2:-240}"
+    local elapsed=0
+    local cid health
 
-check_url "Website        " "http://localhost/"
-check_url "ERP Admin      " "http://localhost/api/maintenance/health"
-check_url "Bot relay      " "http://localhost:8090/health"
+    while [ $elapsed -lt $max_wait ]; do
+        cid=$($DC ps -q "$service" 2>/dev/null | head -1)
+        if [ -n "$cid" ]; then
+            health=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "starting")
+            case "$health" in
+                healthy)   ok "${service} healthy"; return 0 ;;
+                unhealthy) fail "${service} unhealthy"; return 1 ;;
+            esac
+        fi
+        sleep 5; elapsed=$((elapsed + 5))
+    done
 
-# ── Summary ───────────────────────────────────────────────────────────────────
-log_step "Deployment Complete"
+    fail "${service} 超时 (${max_wait}s)"
+    return 1
+}
 
-echo ""
-echo "  Production URLs:"
-echo "    Website:  https://apidemo.club"
-echo "    API:      https://api.apidemo.club"
-echo "    ERP:      https://erp.apidemo.club"
-echo ""
-echo "  Service status:"
-docker compose -f "${PROJECT_ROOT}/docker-compose.production.yml" \
-  --project-directory "${PROJECT_ROOT}" \
-  ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-echo ""
+check_http() {
+    local url="$1"
+    local label="${2:-$url}"
+    local code
 
-if $all_ok; then
-  log_success "All checks passed. Platform is live!"
-else
-  log_warn "Some checks failed. Check logs:"
-  echo "  docker compose -f docker-compose.production.yml logs -f"
+    if command -v curl >/dev/null 2>&1; then
+        code=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 15 "$url" 2>/dev/null || echo "000")
+    else
+        code=$(wget -q --spider --server-response --timeout=10 "$url" 2>&1 | awk '/HTTP\// {print $2}' | tail -1 || echo "000")
+    fi
+
+    if echo "$code" | grep -qE "^(2|3)"; then
+        ok "${label} → HTTP ${code}"
+        return 0
+    else
+        fail "${label} → HTTP ${code}"
+        return 1
+    fi
+}
+
+# ── 0. 切换到项目目录 ─────────────────────────────────────────────────────────
+cd "$PROJECT_ROOT"
+ok "项目目录: $PROJECT_ROOT"
+
+# ── 1. 检查 Docker ────────────────────────────────────────────────────────────
+step "检查环境"
+
+command -v docker >/dev/null 2>&1 || die "Docker 未安装"
+docker info >/dev/null 2>&1       || die "Docker daemon 未运行"
+docker compose version >/dev/null 2>&1 || die "Docker Compose V2 未安装"
+ok "Docker & Docker Compose"
+
+[ -f "$PROJECT_ROOT/.env" ] || die ".env 文件不存在，请先创建并填写环境变量"
+ok ".env 文件存在"
+
+# ── 2. Git Pull ───────────────────────────────────────────────────────────────
+step "Git Pull"
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    die "当前目录不是 Git 仓库"
 fi
 
+BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+info "当前版本: ${BEFORE:0:7}"
+
+if git pull origin main 2>&1 | tee /tmp/git-pull.log | grep -qE "Already up to date|up-to-date"; then
+    ok "已是最新版本"
+else
+    AFTER=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    ok "已更新到: ${AFTER:0:7}"
+    info "变更文件:"
+    git diff --name-only "$BEFORE" HEAD 2>/dev/null | head -20 | while read -r f; do echo "    $f"; done
+fi
+
+# ── 3. SSL 证书（首次部署或 --fresh 时执行）──────────────────────────────────
+step "SSL 证书"
+
+SSL_VOLUME_EXISTS=$(docker volume ls -q | grep -c "nginx_ssl" || true)
+
+if [ "$FRESH_INSTALL" = "true" ] || [ "$SSL_VOLUME_EXISTS" = "0" ]; then
+    info "首次部署，生成 SSL 证书..."
+    $DC run --rm certgen
+    ok "SSL 证书已生成"
+else
+    ok "SSL 证书 Volume 已存在，跳过"
+fi
+
+# ── 4. Build & Start ──────────────────────────────────────────────────────────
+step "Build & 启动服务"
+
+info "Building 镜像（仅重建有变更的）..."
+$DC build --parallel
+
+info "启动全部服务..."
+$DC up -d
+
+ok "Docker 指令已执行"
+
+# ── 5. 等待 Migration ────────────────────────────────────────────────────────
+step "Database Migration"
+
+wait_for_migrate || die "Migration 失败，停止部署"
+
+# ── 6. 等待服务 Healthy ──────────────────────────────────────────────────────
+step "等待服务 Healthy"
+
+info "等待 PostgreSQL..."
+wait_for_healthy postgres 60  || die "PostgreSQL unhealthy"
+
+info "等待 ERP..."
+wait_for_healthy erp 240      || { fail "ERP unhealthy"; warn "查看日志: docker compose logs erp"; die "部署失败"; }
+
+info "等待 Website..."
+wait_for_healthy website 240  || { fail "Website unhealthy"; warn "查看日志: docker compose logs website"; die "部署失败"; }
+
+info "等待 Telegram Bot..."
+wait_for_healthy telegram-bot 120 || warn "Telegram Bot unhealthy，请检查 BOT_TOKEN"
+
+info "等待 Nginx..."
+wait_for_healthy nginx 60     || warn "Nginx unhealthy，请检查 nginx 配置"
+
+# ── 7. URL 健康检查 ──────────────────────────────────────────────────────────
+step "公网 URL 检查"
+
+ALL_OK=true
+
+check_http "https://apidemo.club"     "Website (apidemo.club)"     || ALL_OK=false
+check_http "https://erp.apidemo.club" "ERP (erp.apidemo.club)"     || ALL_OK=false
+check_http "http://localhost:8090/ping" "Telegram Bot (localhost:8090)" || warn "Bot relay 未响应"
+
+# ── 8. 服务状态 ──────────────────────────────────────────────────────────────
+step "服务状态"
+
+$DC ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $DC ps
+
+# ── 9. 部署完成 ──────────────────────────────────────────────────────────────
+DEPLOY_END=$(date +%s)
+ELAPSED=$((DEPLOY_END - DEPLOY_START))
+
 echo ""
-echo "  Next steps:"
-echo "    • Replace self-signed SSL with Let's Encrypt:"
-echo "      certbot certonly --standalone -d apidemo.club -d api.apidemo.club -d erp.apidemo.club"
-echo "      cp /etc/letsencrypt/live/apidemo.club/fullchain.pem nginx/ssl/apidemo.club.crt"
-echo "      cp /etc/letsencrypt/live/apidemo.club/privkey.pem  nginx/ssl/apidemo.club.key"
-echo "      docker compose -f docker-compose.production.yml restart nginx"
+if [ "$ALL_OK" = "true" ]; then
+    echo -e "${BOLD}${GREEN}╔════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${GREEN}║         Production Ready  ✓            ║${NC}"
+    echo -e "${BOLD}${GREEN}║                                        ║${NC}"
+    echo -e "${BOLD}${GREEN}║  Website   → https://apidemo.club      ║${NC}"
+    echo -e "${BOLD}${GREEN}║  ERP       → https://erp.apidemo.club  ║${NC}"
+    echo -e "${BOLD}${GREEN}║  Telegram Bot  ✓                       ║${NC}"
+    echo -e "${BOLD}${GREEN}║  Migration     ✓                       ║${NC}"
+    echo -e "${BOLD}${GREEN}║  Nginx         ✓                       ║${NC}"
+    echo -e "${BOLD}${GREEN}║                                        ║${NC}"
+    printf "${BOLD}${GREEN}║  部署耗时: %-29s║${NC}\n" "${ELAPSED}s"
+    echo -e "${BOLD}${GREEN}╚════════════════════════════════════════╝${NC}"
+else
+    echo -e "${BOLD}${YELLOW}╔════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${YELLOW}║     部署完成（部分服务有警告）          ║${NC}"
+    echo -e "${BOLD}${YELLOW}║  查看日志: docker compose logs -f      ║${NC}"
+    echo -e "${BOLD}${YELLOW}╚════════════════════════════════════════╝${NC}"
+fi
 echo ""
-echo "    • Create your first admin account:"
-echo "      docker compose -f docker-compose.production.yml exec erp node scripts/create-admin.js"
-echo ""
-echo "    • Monitor logs:"
-echo "      docker compose -f docker-compose.production.yml logs -f"
