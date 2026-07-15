@@ -10,3 +10,4 @@ backups/
 .env.local
 .env.production
 .DS_Store
+nginx/ssl/

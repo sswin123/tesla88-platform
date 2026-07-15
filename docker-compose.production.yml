@@ -45,6 +45,15 @@ services:
       timeout: 3s
       retries: 3
 
+  # ── SSL 证书生成（一次性，若 ./nginx/ssl/ 已有证书则跳过） ─────────────────
+  certgen:
+    image: alpine
+    volumes:
+      - ./nginx/ssl:/ssl
+      - ./scripts/nginx-entrypoint.sh:/certgen.sh:ro
+    command: ["sh", "/certgen.sh"]
+    restart: "no"
+
   # ── Database Migrations (一次性，其他服务在此完成后才启动) ───────────────────
   migrate:
     image: postgres:14-alpine
@@ -180,14 +189,18 @@ services:
     image: nginx:alpine
     restart: always
     depends_on:
-      - website
-      - erp
+      website:
+        condition: service_healthy
+      erp:
+        condition: service_healthy
+      certgen:
+        condition: service_completed_successfully
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro       # 由 certgen 服务写入，nginx 只读
       - nginx_logs:/var/log/nginx
     networks:
       - sswin88
