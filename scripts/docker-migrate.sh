@@ -32,16 +32,16 @@ EOSQL
 # ── 引导检测：若追踪表为空但 brand_settings.erp_domain 已存在 ───────────────
 # 说明数据库由旧版脚本（无追踪）迁移完毕，将所有迁移文件标记为已执行。
 # 引导路径与正常迁移路径完全互斥——引导完成后直接跳到 Seed，绝不再扫描 migrations/。
-tracking_count=$(psql "${DATABASE_URL}" -t -c \
-    "SELECT COUNT(*) FROM schema_migrations;" | tr -d ' \r\n')
+tracking_count=$(psql "${DATABASE_URL}" -t -A -c \
+    "SELECT COUNT(*) FROM schema_migrations;" | tr -d '[:space:]')
 
 bootstrap_done=0
 
 if [ "${tracking_count}" = "0" ]; then
-    erp_domain_exists=$(psql "${DATABASE_URL}" -t -c "
-        SELECT COUNT(*) FROM information_schema.columns
-        WHERE table_name = 'brand_settings' AND column_name = 'erp_domain';
-    " | tr -d ' \r\n')
+    erp_domain_exists=$(psql "${DATABASE_URL}" -t -A -c \
+        "SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_name = 'brand_settings' AND column_name = 'erp_domain';" \
+        | tr -d '[:space:]')
 
     if [ "${erp_domain_exists}" = "1" ]; then
         echo "=== 引导模式：检测到已迁移数据库，标记所有迁移为已执行 ==="
@@ -64,9 +64,9 @@ if [ "${bootstrap_done}" = "0" ]; then
     for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
         name=$(basename "$f")
 
-        count=$(psql "${DATABASE_URL}" -t -c \
-            "SELECT COUNT(*) FROM schema_migrations WHERE filename = '${name}';" \
-            | tr -d ' \r\n')
+        count=$(psql "${DATABASE_URL}" -t -A -c \
+            "SELECT 1 FROM schema_migrations WHERE filename = '${name}' LIMIT 1;" \
+            | tr -d '[:space:]')
 
         if [ "${count}" = "1" ]; then
             echo "→ SKIP [已执行] ${name}"
@@ -107,9 +107,9 @@ if [ -d "${SEEDS_DIR}" ]; then
     for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
         name=$(basename "$f")
 
-        already=$(psql "${DATABASE_URL}" -t -c \
-            "SELECT COUNT(*) FROM schema_seeds WHERE filename = '${name}';" \
-            | tr -d ' \n')
+        already=$(psql "${DATABASE_URL}" -t -A -c \
+            "SELECT 1 FROM schema_seeds WHERE filename = '${name}' LIMIT 1;" \
+            | tr -d '[:space:]')
 
         if [ "${already}" = "1" ]; then
             echo "→ SKIP [已执行] ${name}"
