@@ -24,20 +24,15 @@ warn() { echo -e "${YELLOW}  ⚠  ${NC}$*"; }
 step() { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
 die()  { fail "$*"; exit 1; }
 
-DEPLOY_START=$(date +%s)
-
-# Compose 项目名 = 目录名小写（Docker Compose V2 规则）
-COMPOSE_PROJECT=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9_-' '-' | sed 's/-*$//')
-MIGRATE_CONTAINER="${COMPOSE_PROJECT}-migrate-1"
-NGINX_CONTAINER="${COMPOSE_PROJECT}-nginx-1"
-
 # 各项检查结果（用于最终 Banner）
 R_MIGRATION="✗ FAIL"; R_SEED="✗ FAIL"
-R_POSTGRES="✗ FAIL"; R_REDIS="✗ FAIL"
-R_ERP="✗ FAIL";      R_WEBSITE="✗ FAIL"
-R_BOT="⚠ SKIP";     R_NGINX="✗ FAIL"
+R_POSTGRES="✗ FAIL";  R_REDIS="⚠ SKIP"
+R_ERP="✗ FAIL";       R_WEBSITE="✗ FAIL"
+R_BOT="⚠ SKIP";      R_NGINX="✗ FAIL"
 R_ERP_REACH="✗ FAIL"; R_WEB_REACH="✗ FAIL"
 R_HTTP="✗ FAIL"
+
+DEPLOY_START=$(date +%s)
 
 echo ""
 echo -e "${BOLD}${CYAN}╔════════════════════════════════════════╗${NC}"
@@ -45,50 +40,52 @@ echo -e "${BOLD}${CYAN}║     Tesla88 / SSWIN88 Production       ║${NC}"
 echo -e "${BOLD}${CYAN}║     Deploy — $(date '+%Y-%m-%d %H:%M:%S')       ║${NC}"
 echo -e "${BOLD}${CYAN}╚════════════════════════════════════════╝${NC}"
 echo ""
-info "Compose 项目: ${COMPOSE_PROJECT}"
 
 # ════════════════════════════════════════════════════════════════════════
 # wait_for_migrate
 #
-#   One-shot Container 生命周期：Created → Running → Exited
-#   不等 Healthy，不用 docker compose ps。
-#   直接 docker inspect <container-name> 读取 State.Status + State.ExitCode。
+# One-shot Container 生命周期：Created → Running → Exited
+# 不使用 docker compose ps，不硬编码容器名。
 #
-#   Step 1：等待容器出现（最长 max_wait 秒）
-#   Step 2：循环读取 State.Status
+# 流程：
+#   Step 1：通过 Label 查找 migrate 容器 ID（docker ps -a --filter）
+#   Step 2：docker inspect <id> 读取 State.Status + State.ExitCode
 #     exited + ExitCode=0  → 成功
-#     exited + ExitCode!=0 → 失败，打印 200 行日志，exit 1
+#     exited + ExitCode!=0 → 打印 200 行日志，exit 1
 #     running              → 继续等待
-#     其他状态             → 继续等待
-#   超时                   → 打印日志，exit 1
+#     其他                 → 继续等待
+#   超时 300s              → 打印日志，exit 1
 # ════════════════════════════════════════════════════════════════════════
 wait_for_migrate() {
-    local max_wait=300 elapsed=0 state exit_code
+    local project="$1"
+    local max_wait=300 elapsed=0 migrate_cid="" state exit_code
 
-    info "等待 Migration 容器出现（${MIGRATE_CONTAINER}）..."
+    info "等待 Migration 容器出现（project=${project}）..."
 
-    # Step 1：容器出现
+    # Step 1：等待容器出现
     while [ $elapsed -lt $max_wait ]; do
-        if docker inspect "$MIGRATE_CONTAINER" >/dev/null 2>&1; then
-            break
-        fi
+        migrate_cid=$(docker ps -a \
+            --filter "label=com.docker.compose.service=migrate" \
+            --filter "label=com.docker.compose.project=${project}" \
+            --format "{{.ID}}" 2>/dev/null | head -1)
+        [ -n "$migrate_cid" ] && break
         sleep 2; elapsed=$((elapsed + 2))
     done
 
-    if ! docker inspect "$MIGRATE_CONTAINER" >/dev/null 2>&1; then
+    if [ -z "$migrate_cid" ]; then
         fail "Migration 容器未出现（超时 ${max_wait}s）"
         return 1
     fi
 
-    info "Migration 容器已发现，等待执行完毕..."
+    info "Migration 容器已发现（${migrate_cid:0:12}），等待执行完毕..."
 
-    # Step 2：等待退出
+    # Step 2：轮询 State.Status
     while [ $elapsed -lt $max_wait ]; do
-        state=$(docker inspect --format '{{.State.Status}}' "$MIGRATE_CONTAINER" 2>/dev/null || echo "")
+        state=$(docker inspect --format '{{.State.Status}}' "$migrate_cid" 2>/dev/null || echo "")
 
         case "$state" in
             exited)
-                exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$MIGRATE_CONTAINER" 2>/dev/null || echo "1")
+                exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "1")
                 if [ "$exit_code" = "0" ]; then
                     ok "Migration 完成（ExitCode=0）"
                     return 0
@@ -96,7 +93,7 @@ wait_for_migrate() {
                     fail "Migration 失败（ExitCode=${exit_code}）"
                     echo ""
                     echo -e "${YELLOW}━━━ Migration 日志（最后 200 行）━━━${NC}"
-                    docker logs "$MIGRATE_CONTAINER" 2>&1 | tail -200
+                    docker logs "$migrate_cid" 2>&1 | tail -200
                     return 1
                 fi
                 ;;
@@ -113,12 +110,13 @@ wait_for_migrate() {
 
     fail "Migration 超时（${max_wait}s）"
     echo -e "${YELLOW}━━━ Migration 日志（最后 50 行）━━━${NC}"
-    docker logs "$MIGRATE_CONTAINER" 2>&1 | tail -50
+    docker logs "$migrate_cid" 2>&1 | tail -50
     return 1
 }
 
 # ════════════════════════════════════════════════════════════════════════
-# wait_for_healthy  — 长驻服务（postgres/erp/website/nginx/bot）
+# wait_for_healthy — 长驻服务（postgres/redis/erp/website/nginx/bot）
+# 使用 docker compose ps -q <service> 获取 ID，不硬编码容器名。
 # ════════════════════════════════════════════════════════════════════════
 wait_for_healthy() {
     local service="$1" max_wait="${2:-240}" elapsed=0 cid health
@@ -139,11 +137,18 @@ wait_for_healthy() {
 
 # ════════════════════════════════════════════════════════════════════════
 # check_internal — 从 Nginx 容器内部测试后端连通性
-#   目的：提前发现 nginx → backend 502，不等客户打开浏览器才知道
+#   使用 docker compose ps -q nginx 获取容器 ID，不硬编码容器名。
+#   目的：提前发现 nginx → backend 502，不等客户打开浏览器。
 # ════════════════════════════════════════════════════════════════════════
 check_internal() {
     local target="$1" label="$2"
-    if docker exec "$NGINX_CONTAINER" wget -qO- --timeout=10 "$target" >/dev/null 2>&1; then
+    local nginx_cid
+    nginx_cid=$($DC ps -q nginx 2>/dev/null | head -1)
+    if [ -z "$nginx_cid" ]; then
+        fail "Nginx 容器未运行，无法执行内部连通测试"
+        return 1
+    fi
+    if docker exec "$nginx_cid" wget -qO- --timeout=10 "$target" >/dev/null 2>&1; then
         ok "${label} ✓"
         return 0
     else
@@ -153,17 +158,28 @@ check_internal() {
 }
 
 # ════════════════════════════════════════════════════════════════════════
-# check_http — 公网 URL HTTP 状态码检查
+# check_http — 公网 URL 返回 2xx/3xx 才算通过
 # ════════════════════════════════════════════════════════════════════════
 check_http() {
     local url="$1" label="${2:-$url}" code
     if command -v curl >/dev/null 2>&1; then
         code=$(curl -sk -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 15 "$url" 2>/dev/null || echo "000")
     else
-        code=$(wget -q --spider --server-response --timeout=15 "$url" 2>&1 | awk '/HTTP\// {print $2}' | tail -1 || echo "000")
+        code=$(wget -q --spider --server-response --timeout=15 "$url" 2>&1 \
+               | awk '/HTTP\// {print $2}' | tail -1 || echo "000")
     fi
     echo "$code" | grep -qE "^(2|3)" && { ok "${label} → HTTP ${code}"; return 0; }
     fail "${label} → HTTP ${code}"; return 1
+}
+
+# ── 辅助：Banner 结果行 ───────────────────────────────────────────────────────
+result_line() {
+    local label="$1" result="$2"
+    case "$result" in
+        "✓ PASS") echo -e "  ${GREEN}✓  PASS${NC}  ${label}" ;;
+        "⚠ WARN"|"⚠ SKIP") echo -e "  ${YELLOW}⚠  WARN${NC}  ${label}" ;;
+        *) echo -e "  ${RED}✗  FAIL${NC}  ${label}" ;;
+    esac
 }
 
 # ────────────────────────────────────────────────────────────────────────
@@ -172,11 +188,21 @@ cd "$PROJECT_ROOT"
 
 # ── 1/8  环境检查 ─────────────────────────────────────────────────────────────
 step "1 / 8  环境检查"
-command -v docker >/dev/null 2>&1        || die "Docker 未安装"
-docker info >/dev/null 2>&1              || die "Docker daemon 未运行"
-docker compose version >/dev/null 2>&1   || die "Docker Compose V2 未安装"
-[ -f "$PROJECT_ROOT/.env" ]              || die ".env 文件不存在，请先创建"
-ok "Docker & Compose ✓  |  .env ✓  |  项目: ${COMPOSE_PROJECT}"
+command -v docker >/dev/null 2>&1       || die "Docker 未安装"
+docker info >/dev/null 2>&1             || die "Docker daemon 未运行"
+docker compose version >/dev/null 2>&1  || die "Docker Compose V2 未安装"
+[ -f "$PROJECT_ROOT/.env" ]             || die ".env 文件不存在，请先创建"
+
+# 从 docker compose config 获取项目名（不依赖目录名）
+PROJECT_NAME=$($DC config 2>/dev/null | awk '/^name:/{print $2; exit}')
+if [ -z "$PROJECT_NAME" ]; then
+    # 极少数情况下 config 无 name 行，降级使用目录名
+    PROJECT_NAME=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' \
+                   | tr -cs 'a-z0-9_-' '-' | sed 's/-*$//')
+    warn "compose config 未返回 name，使用目录名: ${PROJECT_NAME}"
+fi
+
+ok "Docker & Compose ✓  |  .env ✓  |  项目: ${PROJECT_NAME}"
 
 # ── 2/8  Git Pull ─────────────────────────────────────────────────────────────
 step "2 / 8  Git Pull"
@@ -186,7 +212,7 @@ AFTER=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 if [ "$BEFORE" = "$AFTER" ]; then
     ok "已是最新版本（${AFTER:0:7}）"
 else
-    ok "已更新：${BEFORE:0:7} → ${AFTER:0:7}"
+    ok "${BEFORE:0:7} → ${AFTER:0:7}"
     git diff --name-only "$BEFORE" HEAD 2>/dev/null | head -15 | while read -r f; do info "  $f"; done
 fi
 
@@ -211,7 +237,7 @@ ok "Docker Compose Up 完成"
 
 # ── 5/8  Migration ────────────────────────────────────────────────────────────
 step "5 / 8  Database Migration"
-if wait_for_migrate; then
+if wait_for_migrate "$PROJECT_NAME"; then
     R_MIGRATION="✓ PASS"
     R_SEED="✓ PASS"
 else
@@ -221,83 +247,43 @@ fi
 # ── 6/8  服务健康检查 ─────────────────────────────────────────────────────────
 step "6 / 8  服务健康检查"
 
-if wait_for_healthy postgres 60; then
-    R_POSTGRES="✓ PASS"
-else
-    die "PostgreSQL unhealthy，停止部署"
-fi
-
-if wait_for_healthy redis 60; then
-    R_REDIS="✓ PASS"
-else
-    warn "Redis unhealthy"
-fi
-
-if wait_for_healthy erp 240; then
-    R_ERP="✓ PASS"
-else
-    $DC logs erp 2>/dev/null | tail -20
-    die "ERP unhealthy，停止部署"
-fi
-
-if wait_for_healthy website 240; then
-    R_WEBSITE="✓ PASS"
-else
-    $DC logs website 2>/dev/null | tail -20
-    die "Website unhealthy，停止部署"
-fi
-
-if wait_for_healthy telegram-bot 120; then
-    R_BOT="✓ PASS"
-else
-    warn "Telegram Bot unhealthy（请检查 BOT_TOKEN，不影响部署继续）"
-    R_BOT="⚠ WARN"
-fi
-
-if wait_for_healthy nginx 60; then
-    R_NGINX="✓ PASS"
-else
-    warn "Nginx unhealthy"
-    R_NGINX="⚠ WARN"
-fi
+wait_for_healthy postgres 60 && R_POSTGRES="✓ PASS" || die "PostgreSQL unhealthy，停止部署"
+wait_for_healthy redis    60 && R_REDIS="✓ PASS"    || warn "Redis unhealthy（继续部署）"
+wait_for_healthy erp     240 && R_ERP="✓ PASS"      || { $DC logs erp 2>/dev/null | tail -20; die "ERP unhealthy，停止部署"; }
+wait_for_healthy website 240 && R_WEBSITE="✓ PASS"  || { $DC logs website 2>/dev/null | tail -20; die "Website unhealthy，停止部署"; }
+wait_for_healthy telegram-bot 120 \
+    && R_BOT="✓ PASS" \
+    || { warn "Telegram Bot unhealthy（请检查 BOT_TOKEN）"; R_BOT="⚠ WARN"; }
+wait_for_healthy nginx    60 && R_NGINX="✓ PASS"    || { warn "Nginx unhealthy"; R_NGINX="⚠ WARN"; }
 
 # ── 7/8  Nginx → 后端内部连通测试 ────────────────────────────────────────────
 step "7 / 8  Nginx → 后端连通测试"
 
-if check_internal "http://erp:3000/login" "Nginx → ERP (http://erp:3000/login)"; then
-    R_ERP_REACH="✓ PASS"
-else
-    die "ERP 无法从 Nginx 访问（Connection refused），停止部署"
-fi
+check_internal "http://erp:3000/login" "Nginx → ERP (http://erp:3000/login)" \
+    && R_ERP_REACH="✓ PASS" \
+    || die "ERP 无法从 Nginx 访问，停止部署"
 
-if check_internal "http://website:3000" "Nginx → Website (http://website:3000)"; then
-    R_WEB_REACH="✓ PASS"
-else
-    die "Website 无法从 Nginx 访问（Connection refused），停止部署"
-fi
+check_internal "http://website:3000" "Nginx → Website (http://website:3000)" \
+    && R_WEB_REACH="✓ PASS" \
+    || die "Website 无法从 Nginx 访问，停止部署"
 
 # ── 8/8  公网 HTTP 检查 ───────────────────────────────────────────────────────
 step "8 / 8  公网 HTTP 检查"
-HTTP_ALL=true
-check_http "https://apidemo.club"           "https://apidemo.club"           || HTTP_ALL=false
-check_http "https://erp.apidemo.club/login" "https://erp.apidemo.club/login" || HTTP_ALL=false
-[ "$HTTP_ALL" = "true" ] && R_HTTP="✓ PASS" || R_HTTP="✗ FAIL"
+
+HTTP_OK=true
+check_http "https://apidemo.club"           "https://apidemo.club"           || HTTP_OK=false
+check_http "https://erp.apidemo.club/login" "https://erp.apidemo.club/login" || HTTP_OK=false
+
+if [ "$HTTP_OK" = "true" ]; then
+    R_HTTP="✓ PASS"
+else
+    R_HTTP="✗ FAIL"
+    die "公网 HTTP 检查失败（请确认 DNS 和 Cloudflare 配置）"
+fi
 
 # ── 最终汇总 Banner ───────────────────────────────────────────────────────────
 DEPLOY_END=$(date +%s)
 ELAPSED=$((DEPLOY_END - DEPLOY_START))
-
-# 辅助：根据结果输出带颜色的行
-result_line() {
-    local label="$1" result="$2"
-    if [[ "$result" == "✓ PASS" ]]; then
-        echo -e "  ${GREEN}✓  PASS${NC}  ${label}"
-    elif [[ "$result" == "⚠ WARN" || "$result" == "⚠ SKIP" ]]; then
-        echo -e "  ${YELLOW}⚠  WARN${NC}  ${label}"
-    else
-        echo -e "  ${RED}✗  FAIL${NC}  ${label}"
-    fi
-}
 
 echo ""
 echo -e "${BOLD}${GREEN}=======================================${NC}"
@@ -322,7 +308,7 @@ echo ""
 echo -e "${BOLD}${GREEN}=======================================${NC}"
 echo -e "  Website  →  https://apidemo.club"
 echo -e "  ERP      →  https://erp.apidemo.club"
-echo -e "  部署耗时: ${ELAPSED}s"
+echo -e "  部署耗时:   ${ELAPSED}s"
 echo ""
 echo -e "${BOLD}${GREEN}  Deployment Finished Successfully${NC}"
 echo -e "${BOLD}${GREEN}=======================================${NC}"
