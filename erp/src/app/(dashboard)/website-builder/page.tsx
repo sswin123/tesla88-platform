@@ -2555,8 +2555,13 @@ function AddSectionModal({
 
   async function handle() {
     setAdding(true);
-    await onAdd(type, name || SECTION_TYPE_LABELS[type]);
-    setAdding(false);
+    try {
+      await onAdd(type, name || SECTION_TYPE_LABELS[type]);
+    } catch {
+      // Error toast already shown by parent via showError
+    } finally {
+      setAdding(false);
+    }
   }
 
   return (
@@ -2609,6 +2614,7 @@ export default function WebsiteBuilderPage() {
   const [editingSection, setEditing] = useState<HomepageSection | null>(null);
   const [showAdd, setShowAdd]       = useState(false);
   const [toast, setToast]           = useState('');
+  const [toastError, setToastError] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [dragIdx, setDragIdx]       = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -2654,9 +2660,19 @@ export default function WebsiteBuilderPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/website/homepage-sections');
-    if (res.ok) setSections(await res.json() as HomepageSection[]);
+    try {
+      const res = await fetch('/api/website/homepage-sections');
+      if (res.ok) {
+        setSections(await res.json() as HomepageSection[]);
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        showError(data.error ?? '无法加载区块列表');
+      }
+    } catch {
+      showError('网络错误，无法连接服务器');
+    }
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -2673,20 +2689,39 @@ export default function WebsiteBuilderPage() {
   }, [sections]);
 
   function showToast(msg: string) {
+    setToastError(false);
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
   }
 
+  function showError(msg: string) {
+    setToastError(true);
+    setToast(msg);
+    setTimeout(() => setToast(''), 5000);
+  }
+
+  async function apiErrorMsg(res: Response): Promise<string> {
+    try {
+      const data = await res.json() as { error?: string };
+      return data.error ?? `服务器错误 (${res.status})`;
+    } catch {
+      return `服务器错误 (${res.status})`;
+    }
+  }
+
   async function toggleSection(section: HomepageSection) {
-    const res = await fetch(`/api/website/homepage-sections/${section.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_enabled: !section.is_enabled }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/website/homepage-sections/${section.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_enabled: !section.is_enabled }),
+      });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
       const next = sections.map(s => s.id === section.id ? { ...s, is_enabled: !s.is_enabled } : s);
       setSectionsWithHistory(next, sections);
       showToast(section.is_enabled ? '已隐藏' : '已显示');
+    } catch {
+      showError('网络错误，无法切换显示状态');
     }
   }
 
@@ -2697,12 +2732,17 @@ export default function WebsiteBuilderPage() {
     [next[idx], next[target]] = [next[target], next[idx]];
     const ordered = next.map((s, i) => ({ ...s, display_order: i * 10 }));
     setSectionsWithHistory(ordered, sections);
-    await fetch('/api/website/homepage-sections/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orders: ordered.map(s => ({ id: s.id, display_order: s.display_order })) }),
-    });
-    showToast('顺序已更新');
+    try {
+      const res = await fetch('/api/website/homepage-sections/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: ordered.map(s => ({ id: s.id, display_order: s.display_order })) }),
+      });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
+      showToast('顺序已更新');
+    } catch {
+      showError('网络错误，无法保存顺序');
+    }
   }
 
   async function handleDrop(targetIdx: number) {
@@ -2715,36 +2755,47 @@ export default function WebsiteBuilderPage() {
     const ordered = next.map((s, i) => ({ ...s, display_order: i * 10 }));
     setSectionsWithHistory(ordered, sections);
     setDragIdx(null); setDragOverIdx(null);
-    await fetch('/api/website/homepage-sections/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orders: ordered.map(s => ({ id: s.id, display_order: s.display_order })) }),
-    });
-    showToast('顺序已更新');
+    try {
+      const res = await fetch('/api/website/homepage-sections/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: ordered.map(s => ({ id: s.id, display_order: s.display_order })) }),
+      });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
+      showToast('顺序已更新');
+    } catch {
+      showError('网络错误，无法保存顺序');
+    }
   }
 
   async function saveSection(id: number, patch: Partial<HomepageSection>) {
-    const res = await fetch(`/api/website/homepage-sections/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/website/homepage-sections/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
       const updated = await res.json() as HomepageSection;
       const next = sections.map(s => s.id === id ? updated : s);
       setSectionsWithHistory(next, sections);
       setEditing(null);
       showToast('保存成功');
+    } catch {
+      showError('网络错误，无法保存区块');
     }
   }
 
   async function deleteSection(id: number) {
-    const res = await fetch(`/api/website/homepage-sections/${id}`, { method: 'DELETE' });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/website/homepage-sections/${id}`, { method: 'DELETE' });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
       const next = sections.filter(s => s.id !== id);
       setSectionsWithHistory(next, sections);
       setDeleteConfirm(null);
       showToast('已删除');
+    } catch {
+      showError('网络错误，无法删除区块');
     }
   }
 
@@ -2756,13 +2807,16 @@ export default function WebsiteBuilderPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ section_type: type, name, config, display_order }),
     });
-    if (res.ok) {
-      const created = await res.json() as HomepageSection;
-      const next = [...sections, created];
-      setSectionsWithHistory(next, sections);
-      setShowAdd(false);
-      showToast('添加成功');
+    if (!res.ok) {
+      const msg = await apiErrorMsg(res);
+      showError(msg);
+      throw new Error(msg);
     }
+    const created = await res.json() as HomepageSection;
+    const next = [...sections, created];
+    setSectionsWithHistory(next, sections);
+    setShowAdd(false);
+    showToast('添加成功');
   }
 
   return (
@@ -2889,8 +2943,8 @@ export default function WebsiteBuilderPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg">
-          {toast}
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 max-w-sm text-center ${toastError ? 'bg-red-600' : 'bg-gray-900'}`}>
+          {toastError ? '✕' : '✓'} {toast}
         </div>
       )}
     </div>
