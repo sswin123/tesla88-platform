@@ -48,8 +48,8 @@ if [ "${tracking_count}" = "0" ]; then
                 "INSERT INTO schema_migrations (filename) VALUES ('${name}') ON CONFLICT DO NOTHING;"
             echo "  → 已标记: ${name}"
         done
-        echo "=== 引导完成，本次无需执行任何迁移 ==="
-        exit 0
+        echo "=== 引导完成，继续执行 Seed ==="
+        # 不在此 exit 0 — 继续执行下方的 Seed 段，确保默认数据始终写入
     fi
 fi
 
