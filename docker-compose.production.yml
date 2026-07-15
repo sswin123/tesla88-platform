@@ -19,7 +19,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # database.sql 不再作为 initdb 脚本使用；
+      # 所有 Schema 由 erp/migrations/000_base_schema.sql 开始的编号迁移链处理
     networks:
       - sswin88
     healthcheck:
