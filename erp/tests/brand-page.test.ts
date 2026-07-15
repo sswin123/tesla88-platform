@@ -32,10 +32,14 @@ const BASE_BRAND: BrandSettings = {
   color_text: '#e8e8f5',
   website_domain: 'https://sswin88.com',
   api_domain: null,
+  erp_domain: null,
   support_whatsapp: '+60123456789',
   support_telegram: null,
   telegram_channel: null,
   facebook_url: null,
+  instagram_url: null,
+  tiktok_url: null,
+  support_email: null,
   seo_title: 'SSWIN88',
   seo_description: null,
   seo_keywords: null,
@@ -61,8 +65,9 @@ describe('测试 1 — 模块导出检查（页面渲染验证等价）', () => 
       'brand_name', 'company_name', 'tagline',
       'logo_media_id', 'favicon_media_id',
       'primary_color', 'secondary_color', 'theme_mode',
-      'website_domain', 'api_domain',
-      'support_whatsapp', 'support_telegram', 'telegram_channel', 'facebook_url',
+      'website_domain', 'api_domain', 'erp_domain',
+      'support_whatsapp', 'support_telegram', 'telegram_channel',
+      'facebook_url', 'instagram_url', 'tiktok_url', 'support_email',
       'seo_title', 'seo_description', 'seo_keywords',
     ];
     requiredKeys.forEach(k => expect(k in form).toBe(true));
@@ -124,15 +129,16 @@ describe('测试 3 — 保存品牌名称：buildSavePatch 构建正确的 PATCH
     expect(patch.tagline).toBeNull();
   });
 
-  it('包含全部 17 个字段', () => {
+  it('包含全部新字段', () => {
     const form = initForm(BASE_BRAND);
     const patch = buildSavePatch(form);
     const expectedKeys = [
       'brand_name', 'company_name', 'tagline',
       'logo_media_id', 'favicon_media_id',
       'primary_color', 'secondary_color', 'theme_mode',
-      'website_domain', 'api_domain',
-      'support_whatsapp', 'support_telegram', 'telegram_channel', 'facebook_url',
+      'website_domain', 'api_domain', 'erp_domain',
+      'support_whatsapp', 'support_telegram', 'telegram_channel',
+      'facebook_url', 'instagram_url', 'tiktok_url', 'support_email',
       'seo_title', 'seo_description', 'seo_keywords',
     ];
     expectedKeys.forEach(k => expect(k in patch).toBe(true));
