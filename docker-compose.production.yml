@@ -44,6 +44,22 @@ services:
       timeout: 3s
       retries: 3
 
+  # ── Database Migrations (一次性，其他服务在此完成后才启动) ───────────────────
+  migrate:
+    image: postgres:14-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    volumes:
+      - ./erp/migrations:/migrations:ro
+      - ./scripts/docker-migrate.sh:/docker-migrate.sh:ro
+    command: ["sh", "/docker-migrate.sh"]
+    networks:
+      - sswin88
+    restart: "no"
+
   # ── ERP Admin Panel ────────────────────────────────────────────────────────
   erp:
     build:
@@ -53,6 +69,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       NODE_ENV:            production
       DATABASE_URL:        postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -70,11 +88,11 @@ services:
     networks:
       - sswin88
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/maintenance/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null --timeout=5 http://localhost:3000/api/health/system 2>/dev/null || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
 
   # ── Website Member Portal ──────────────────────────────────────────────────
   website:
@@ -121,6 +139,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       BOT_TOKEN:             ${BOT_TOKEN}
       SUPER_ADMIN_ID:        ${SUPER_ADMIN_ID}
