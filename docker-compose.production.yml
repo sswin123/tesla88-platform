@@ -45,11 +45,11 @@ services:
       timeout: 3s
       retries: 3
 
-  # ── SSL 证书生成（一次性，若 ./nginx/ssl/ 已有证书则跳过） ─────────────────
+  # ── SSL 证书生成（一次性，若 nginx_ssl volume 已有证书则跳过） ─────────────
   certgen:
     image: alpine
     volumes:
-      - ./nginx/ssl:/ssl
+      - nginx_ssl:/ssl
       - ./scripts/nginx-entrypoint.sh:/certgen.sh:ro
     command: ["sh", "/certgen.sh"]
     restart: "no"
@@ -200,7 +200,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro       # 由 certgen 服务写入，nginx 只读
+      - nginx_ssl:/etc/nginx/ssl:ro         # 由 certgen 服务写入，nginx 只读
       - nginx_logs:/var/log/nginx
     networks:
       - sswin88
@@ -216,6 +216,7 @@ volumes:
   erp_backups:
   erp_uploads:
   website_uploads:
+  nginx_ssl:
   nginx_logs:
 
 networks:

@@ -135,27 +135,21 @@ docker compose -f docker-compose.production.yml logs <service-name> --tail=50
 
 ### 自签名证书（自动）
 
-**首次部署时，若 `./nginx/ssl/` 目录不存在证书，nginx 会自动生成自签名证书。**
+**首次部署时，`certgen` 服务会自动生成自签名证书并写入 `nginx_ssl` Docker 命名卷，无需任何手动操作。**
 
-- 无需任何手动操作，部署后 nginx 即可正常运行
+- 证书存储于 Docker 命名卷 `nginx_ssl`（由 Docker 管理，不在宿主机目录）
 - 自签名证书有效期 10 年
 - 浏览器会显示"不安全"警告（这是预期行为，不影响功能）
-
-证书文件保存于宿主机：
-```
-./nginx/ssl/apidemo.club.crt
-./nginx/ssl/apidemo.club.key
-```
 
 ### Let's Encrypt 正式证书（推荐）
 
 安装正式证书可消除浏览器安全警告，步骤如下：
 
-**方法 A（推荐）：Certbot + nginx 插件**
+**方法 A（推荐）：Certbot + standalone**
 
 ```bash
 # 安装 certbot
-sudo apt install certbot python3-certbot-nginx -y
+sudo apt install certbot -y
 
 # 临时停止 nginx 容器，释放 80/443 端口
 docker compose -f docker-compose.production.yml stop nginx
@@ -169,30 +163,41 @@ sudo certbot certonly --standalone \
   --email admin@apidemo.club \
   --agree-tos --non-interactive
 
-# 复制证书到 nginx ssl 目录
-mkdir -p ./nginx/ssl
-sudo cp /etc/letsencrypt/live/apidemo.club/fullchain.pem ./nginx/ssl/apidemo.club.crt
-sudo cp /etc/letsencrypt/live/apidemo.club/privkey.pem   ./nginx/ssl/apidemo.club.key
-sudo chown $USER:$USER ./nginx/ssl/*
+# 将证书写入 nginx_ssl 命名卷（通过 alpine 辅助容器）
+docker run --rm \
+  -v telegram-member-bot_nginx_ssl:/ssl \
+  -v /etc/letsencrypt/live/apidemo.club:/src:ro \
+  alpine sh -c "cp /src/fullchain.pem /ssl/apidemo.club.crt && cp /src/privkey.pem /ssl/apidemo.club.key"
 
 # 重启 nginx
 docker compose -f docker-compose.production.yml start nginx
 ```
 
+> **注意**：Docker 命名卷前缀为项目名（默认为目录名）。若项目目录为 `/opt/tesla88`，卷名为 `tesla88_nginx_ssl`；若目录为 `telegram-member-bot`，卷名为 `telegram-member-bot_nginx_ssl`。请用 `docker volume ls` 确认实际卷名。
+
 **方法 B：Cloudflare Origin Certificate**
 
 1. Cloudflare 控制台 → SSL/TLS → Origin Server → Create Certificate
-2. 下载证书和私钥
-3. 保存为 `./nginx/ssl/apidemo.club.crt` 和 `./nginx/ssl/apidemo.club.key`
+2. 下载证书和私钥，分别保存为 `fullchain.pem` 和 `privkey.pem`
+3. 写入命名卷：
+   ```bash
+   docker run --rm \
+     -v <项目名>_nginx_ssl:/ssl \
+     -v /path/to/certs:/src:ro \
+     alpine sh -c "cp /src/fullchain.pem /ssl/apidemo.club.crt && cp /src/privkey.pem /ssl/apidemo.club.key"
+   ```
 4. 重启 nginx：`docker compose -f docker-compose.production.yml restart nginx`
 
 ### 证书自动续期（Let's Encrypt）
 
 ```bash
 # 添加 crontab 自动续期（每月 1 号凌晨 3 点执行）
+# 注意：将 <卷名> 替换为实际的 nginx_ssl 卷名（用 docker volume ls 查看）
 echo "0 3 1 * * certbot renew --quiet && \
-  cp /etc/letsencrypt/live/apidemo.club/fullchain.pem /opt/tesla88/nginx/ssl/apidemo.club.crt && \
-  cp /etc/letsencrypt/live/apidemo.club/privkey.pem /opt/tesla88/nginx/ssl/apidemo.club.key && \
+  docker run --rm \
+    -v <卷名>:/ssl \
+    -v /etc/letsencrypt/live/apidemo.club:/src:ro \
+    alpine sh -c 'cp /src/fullchain.pem /ssl/apidemo.club.crt && cp /src/privkey.pem /ssl/apidemo.club.key' && \
   docker compose -f /opt/tesla88/docker-compose.production.yml restart nginx" \
   | sudo crontab -
 ```
