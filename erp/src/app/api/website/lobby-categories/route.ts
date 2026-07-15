@@ -16,6 +16,8 @@ export async function GET() {
               icon_type, icon_emoji, icon_media_id, icon_svg,
               display_order, is_default, is_active,
               image_display_size, image_display_mode,
+              image_custom_width, image_custom_height,
+              hover_animation, border_style, background_style, shadow_style,
               created_at, updated_at
        FROM website_game_categories
        ORDER BY display_order ASC, id ASC`
@@ -45,6 +47,8 @@ export async function POST(req: NextRequest) {
       is_active?: boolean;
       image_display_size?: string;
       image_display_mode?: string;
+      image_custom_width?: number | null;
+      image_custom_height?: number | null;
     };
     try { body = await req.json(); }
     catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -61,18 +65,24 @@ export async function POST(req: NextRequest) {
       await pool.query('UPDATE website_game_categories SET is_default = FALSE');
     }
 
-    const validSizes = ['small', 'medium', 'large'];
+    const validSizes = ['auto', 'small', 'medium', 'large', 'custom'];
     const validModes = ['contain', 'cover', 'stretch'];
     const image_display_size = validSizes.includes(body.image_display_size ?? '')
-      ? body.image_display_size! : 'medium';
+      ? body.image_display_size! : 'auto';
     const image_display_mode = validModes.includes(body.image_display_mode ?? '')
       ? body.image_display_mode! : 'contain';
+    const clampDim = (v: unknown) =>
+      typeof v === 'number' ? Math.max(24, Math.min(200, Math.round(v))) : null;
+    const image_custom_width  = clampDim(body.image_custom_width);
+    const image_custom_height = clampDim(body.image_custom_height);
 
     const res = await pool.query<WebsiteGameCategory>(
       `INSERT INTO website_game_categories
          (category_code, category_name, icon_type, icon_emoji, icon_media_id, icon_svg,
-          display_order, is_default, is_active, image_display_size, image_display_mode)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          display_order, is_default, is_active,
+          image_display_size, image_display_mode,
+          image_custom_width, image_custom_height)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         code,
@@ -86,6 +96,8 @@ export async function POST(req: NextRequest) {
         body.is_active ?? true,
         image_display_size,
         image_display_mode,
+        image_custom_width,
+        image_custom_height,
       ]
     );
     return NextResponse.json(res.rows[0], { status: 201 });

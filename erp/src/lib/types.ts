@@ -38,8 +38,16 @@ export interface WebsiteGameCategory extends LobbyIcon {
   display_order: number;
   is_default: boolean;
   is_active: boolean;
-  image_display_size: 'small' | 'medium' | 'large';
-  image_display_mode: 'contain' | 'cover' | 'stretch';
+  // Image display settings (v2)
+  image_display_size:  'auto' | 'small' | 'medium' | 'large' | 'custom';
+  image_display_mode:  'contain' | 'cover' | 'stretch';
+  image_custom_width:  number | null;
+  image_custom_height: number | null;
+  // Reserved future fields
+  hover_animation:    string | null;
+  border_style:       string | null;
+  background_style:   string | null;
+  shadow_style:       string | null;
   created_at: string;
   updated_at: string;
 }

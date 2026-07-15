@@ -45,8 +45,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     if ('image_display_size' in body) {
-      const s = ['small', 'medium', 'large'].includes(body.image_display_size as string)
-        ? body.image_display_size : 'medium';
+      const s = ['auto', 'small', 'medium', 'large', 'custom'].includes(body.image_display_size as string)
+        ? body.image_display_size : 'auto';
       fields.push(`image_display_size = $${i++}`);
       values.push(s);
     }
@@ -56,6 +56,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ? body.image_display_mode : 'contain';
       fields.push(`image_display_mode = $${i++}`);
       values.push(m);
+    }
+
+    const clampDim = (v: unknown) =>
+      typeof v === 'number' ? Math.max(24, Math.min(200, Math.round(v))) : null;
+
+    if ('image_custom_width' in body) {
+      fields.push(`image_custom_width = $${i++}`);
+      values.push(clampDim(body.image_custom_width));
+    }
+
+    if ('image_custom_height' in body) {
+      fields.push(`image_custom_height = $${i++}`);
+      values.push(clampDim(body.image_custom_height));
     }
 
     // Setting is_default = true → clear all others first

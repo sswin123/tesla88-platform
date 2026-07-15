@@ -14,13 +14,15 @@ interface LobbyIconData {
 }
 
 interface PublicCategoryIcon extends LobbyIconData {
-  id:                 number;
-  category_code:      string;
-  category_name:      string;
-  is_default:         boolean;
-  display_order:      number;
-  image_display_size: 'small' | 'medium' | 'large';
-  image_display_mode: 'contain' | 'cover' | 'stretch';
+  id:                  number;
+  category_code:       string;
+  category_name:       string;
+  is_default:          boolean;
+  display_order:       number;
+  image_display_size:  'auto' | 'small' | 'medium' | 'large' | 'custom';
+  image_display_mode:  'contain' | 'cover' | 'stretch';
+  image_custom_width:  number | null;
+  image_custom_height: number | null;
 }
 
 const CATEGORY_IMAGE_SIZE_PX: Record<'small' | 'medium' | 'large', number> = {
@@ -28,6 +30,13 @@ const CATEGORY_IMAGE_SIZE_PX: Record<'small' | 'medium' | 'large', number> = {
   medium: 64,
   large:  80,
 };
+
+// CSS class names injected once for auto-responsive category icon sizing
+const CAT_AUTO_CSS = `
+.gl-cat-img-auto { width: 72px; height: 72px; }
+@media (max-width: 1023px) { .gl-cat-img-auto { width: 64px; height: 64px; } }
+@media (max-width: 639px)  { .gl-cat-img-auto { width: 56px; height: 56px; } }
+`;
 
 // Unified card — same shape regardless of whether the data came from
 // website_game_providers (platform mode) or website_games (games mode).
@@ -126,6 +135,11 @@ export interface GameLobbyConfig {
   icon_position?:  string;  // 'left'|'right'|'top'|'bottom'
   icon_gap?:       string;  // gap between icon and label
   icon_hover?:     string;  // 'none'|'scale'|'glow'|'rotate'|'shadow'|'brightness'
+
+  // Global category image defaults — per-category settings override these
+  category_image_size_default?: 'auto' | 'small' | 'medium' | 'large' | 'custom';
+  category_image_mode_default?: 'contain' | 'cover' | 'stretch';
+  category_hover_default?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -294,27 +308,43 @@ interface IconRendererProps {
   accent?:            string;
   style?:             React.CSSProperties;
   // Per-category image overrides — only applied when icon_type is 'image'|'gif'
-  imageDisplaySize?:  'small' | 'medium' | 'large';
+  imageDisplaySize?:  'auto' | 'small' | 'medium' | 'large' | 'custom';
   imageDisplayMode?:  'contain' | 'cover' | 'stretch';
+  imageCustomWidth?:  number | null;
+  imageCustomHeight?: number | null;
 }
 
 function IconRenderer({
   icon, sizePx = 20, shape = 'square', hover = 'none',
   accent = 'var(--brand-primary)', style,
-  imageDisplaySize, imageDisplayMode,
+  imageDisplaySize, imageDisplayMode, imageCustomWidth, imageCustomHeight,
 }: IconRendererProps) {
   const [hovered, setHovered] = useState(false);
 
   if (icon.icon_type === 'none') return null;
 
-  // For image/gif: use per-category size if provided, otherwise fall back to global sizePx
-  const imgPx = (icon.icon_type === 'image' || icon.icon_type === 'gif') && imageDisplaySize
-    ? CATEGORY_IMAGE_SIZE_PX[imageDisplaySize]
+  const isImageIcon = icon.icon_type === 'image' || icon.icon_type === 'gif';
+
+  // Determine if we use CSS-responsive auto sizing
+  const useAutoClass = isImageIcon && imageDisplaySize === 'auto';
+
+  // Resolve fixed pixel size for non-auto image icons
+  const imgPx = isImageIcon && !useAutoClass
+    ? imageDisplaySize === 'custom'
+      ? Math.max(24, Math.min(200, imageCustomWidth ?? 72))
+      : imageDisplaySize === 'small'  ? CATEGORY_IMAGE_SIZE_PX.small
+      : imageDisplaySize === 'medium' ? CATEGORY_IMAGE_SIZE_PX.medium
+      : imageDisplaySize === 'large'  ? CATEGORY_IMAGE_SIZE_PX.large
+      : sizePx
     : sizePx;
 
+  const imgH = isImageIcon && !useAutoClass && imageDisplaySize === 'custom'
+    ? Math.max(24, Math.min(200, imageCustomHeight ?? imgPx))
+    : imgPx;
+
   const objFit: React.CSSProperties['objectFit'] =
-    imageDisplayMode === 'cover'   ? 'cover'   :
-    imageDisplayMode === 'stretch' ? 'fill'    :
+    imageDisplayMode === 'cover'   ? 'cover' :
+    imageDisplayMode === 'stretch' ? 'fill'  :
     'contain';
 
   const borderRadius =
@@ -353,22 +383,41 @@ function IconRenderer({
     );
   }
 
-  if ((icon.icon_type === 'image' || icon.icon_type === 'gif') && icon.icon_media_url) {
+  if (isImageIcon && icon.icon_media_url) {
+    if (useAutoClass) {
+      // Auto responsive mode — CSS class controls width/height across breakpoints
+      return (
+        <div
+          className="gl-cat-img-auto"
+          style={{ ...baseStyle, borderRadius, overflow: 'hidden', background: 'transparent' }}
+          {...events}
+        >
+          <img
+            src={icon.icon_media_url}
+            alt=""
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: objFit, display: 'block' }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         style={{
           ...baseStyle,
-          width:          imgPx,
-          height:         imgPx,
+          width:      imgPx,
+          height:     imgH,
           borderRadius,
-          overflow:       'hidden',
-          background:     'transparent',
+          overflow:   'hidden',
+          background: 'transparent',
         }}
         {...events}
       >
         <img
           src={icon.icon_media_url}
           alt=""
+          loading="lazy"
           style={{ width: '100%', height: '100%', objectFit: objFit, display: 'block' }}
         />
       </div>
@@ -489,6 +538,7 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
             <img
               src={imgUrl}
               alt={card.name}
+              loading="lazy"
               style={{
                 position:       'absolute',
                 inset:          0,
@@ -664,7 +714,7 @@ function ProviderFilter({ cards, activeCategory, activeProvider, onSelect, cfg, 
         return (
           <button key={p.id} onClick={() => onSelect(isActive ? null : p.id)} style={itemStyle(isActive)}>
             {p.logo && providerDisplay !== 'text' && (
-              <img src={p.logo} alt={p.name}
+              <img src={p.logo} alt={p.name} loading="lazy"
                 style={{ width: logoSize, height: logoSize, objectFit: 'contain' }} />
             )}
             {providerDisplay !== 'logo' && <span>{p.name}</span>}
@@ -752,6 +802,8 @@ function CategoryTabs({ categories, cards, active, onSelect, cfg, accent }: Tabs
             accent={accent}
             imageDisplaySize={cat.image_display_size}
             imageDisplayMode={cat.image_display_mode}
+            imageCustomWidth={cat.image_custom_width}
+            imageCustomHeight={cat.image_custom_height}
           />
         ) : null;
 
@@ -944,6 +996,7 @@ export default function GameLobbySection({ config }: { config: GameLobbyConfig }
   const keyframes = `
     ${GL_KEYFRAMES}
     ${getAnimCSS(animation)}
+    ${CAT_AUTO_CSS}
   `;
 
   return (

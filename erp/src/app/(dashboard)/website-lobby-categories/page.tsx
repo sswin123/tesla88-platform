@@ -7,45 +7,53 @@ import type { WebsiteGameCategory } from '@/lib/types';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type IconType = 'none' | 'emoji' | 'image' | 'gif' | 'svg';
-type ImageDisplaySize = 'small' | 'medium' | 'large';
+type ImageDisplaySize = 'auto' | 'small' | 'medium' | 'large' | 'custom';
 type ImageDisplayMode = 'contain' | 'cover' | 'stretch';
 
-const IMAGE_SIZE_PX: Record<ImageDisplaySize, number> = { small: 48, medium: 64, large: 80 };
+// Pixel values for fixed presets. Auto uses responsive values below.
+const IMAGE_SIZE_PX: Record<'small' | 'medium' | 'large', number> = { small: 48, medium: 64, large: 80 };
+// Auto responsive sizes per breakpoint
+const AUTO_PX = { desktop: 72, tablet: 64, mobile: 56 } as const;
 
 interface FormState {
-  category_code:      string;
-  category_name:      string;
-  icon_type:          IconType;
-  icon_emoji:         string;
-  icon_media_id:      number | null;
-  icon_svg:           string;
-  display_order:      string;
-  is_default:         boolean;
-  is_active:          boolean;
-  image_display_size: ImageDisplaySize;
-  image_display_mode: ImageDisplayMode;
+  category_code:       string;
+  category_name:       string;
+  icon_type:           IconType;
+  icon_emoji:          string;
+  icon_media_id:       number | null;
+  icon_svg:            string;
+  display_order:       string;
+  is_default:          boolean;
+  is_active:           boolean;
+  image_display_size:  ImageDisplaySize;
+  image_display_mode:  ImageDisplayMode;
+  image_custom_width:  string;
+  image_custom_height: string;
 }
 
 const BLANK: FormState = {
   category_code: '', category_name: '',
   icon_type: 'none', icon_emoji: '', icon_media_id: null, icon_svg: '',
   display_order: '0', is_default: false, is_active: true,
-  image_display_size: 'medium', image_display_mode: 'contain',
+  image_display_size: 'auto', image_display_mode: 'contain',
+  image_custom_width: '72', image_custom_height: '72',
 };
 
 function catToForm(c: WebsiteGameCategory): FormState {
   return {
-    category_code:      c.category_code,
-    category_name:      c.category_name,
-    icon_type:          (c.icon_type as IconType) ?? 'none',
-    icon_emoji:         c.icon_emoji ?? '',
-    icon_media_id:      c.icon_media_id ?? null,
-    icon_svg:           c.icon_svg ?? '',
-    display_order:      String(c.display_order),
-    is_default:         c.is_default,
-    is_active:          c.is_active,
-    image_display_size: (c.image_display_size as ImageDisplaySize) ?? 'medium',
-    image_display_mode: (c.image_display_mode as ImageDisplayMode) ?? 'contain',
+    category_code:       c.category_code,
+    category_name:       c.category_name,
+    icon_type:           (c.icon_type as IconType) ?? 'none',
+    icon_emoji:          c.icon_emoji ?? '',
+    icon_media_id:       c.icon_media_id ?? null,
+    icon_svg:            c.icon_svg ?? '',
+    display_order:       String(c.display_order),
+    is_default:          c.is_default,
+    is_active:           c.is_active,
+    image_display_size:  (c.image_display_size as ImageDisplaySize) ?? 'auto',
+    image_display_mode:  (c.image_display_mode as ImageDisplayMode) ?? 'contain',
+    image_custom_width:  String(c.image_custom_width ?? 72),
+    image_custom_height: String(c.image_custom_height ?? 72),
   };
 }
 
@@ -217,8 +225,10 @@ export default function GameLobyCategoriesPage() {
       display_order:      parseInt(form.display_order) || 0,
       is_default:         form.is_default,
       is_active:          form.is_active,
-      image_display_size: form.image_display_size,
-      image_display_mode: form.image_display_mode,
+      image_display_size:  form.image_display_size,
+      image_display_mode:  form.image_display_mode,
+      image_custom_width:  form.image_display_size === 'custom' ? (parseInt(form.image_custom_width) || 72) : null,
+      image_custom_height: form.image_display_size === 'custom' ? (parseInt(form.image_custom_height) || 72) : null,
     };
 
     const url    = editId ? `/api/website/lobby-categories/${editId}` : '/api/website/lobby-categories';
@@ -350,83 +360,124 @@ export default function GameLobyCategoriesPage() {
                 </label>
               </div>
 
-              {/* Image Display Size — only relevant for image/gif icons */}
-              {(form.icon_type === 'image' || form.icon_type === 'gif') && (
-                <div className="col-span-2 border-t pt-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-2">
-                    图片显示尺寸
-                    <span className="ml-1 text-gray-400 font-normal">（容器大小，图片自动缩放适应）</span>
-                  </label>
-                  <div className="flex items-start gap-6">
-                    {/* Controls */}
-                    <div className="space-y-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-600 w-16 shrink-0">图片尺寸</label>
+              {/* Image Display Settings — only relevant for image/gif icons */}
+              {(form.icon_type === 'image' || form.icon_type === 'gif') && (() => {
+                const objFit = form.image_display_mode === 'contain' ? 'contain'
+                  : form.image_display_mode === 'cover' ? 'cover' : 'fill';
+
+                // Resolve the rendered px for each device breakpoint
+                function devicePx(device: 'desktop' | 'tablet' | 'mobile'): number {
+                  if (form.image_display_size === 'auto')   return AUTO_PX[device];
+                  if (form.image_display_size === 'small')  return IMAGE_SIZE_PX.small;
+                  if (form.image_display_size === 'medium') return IMAGE_SIZE_PX.medium;
+                  if (form.image_display_size === 'large')  return IMAGE_SIZE_PX.large;
+                  if (form.image_display_size === 'custom') {
+                    return Math.max(24, Math.min(200, parseInt(form.image_custom_width) || 72));
+                  }
+                  return 64;
+                }
+
+                return (
+                  <div className="col-span-2 border-t pt-4 space-y-4">
+                    <p className="text-xs font-semibold text-gray-700">图片显示设置</p>
+
+                    {/* Controls row */}
+                    <div className="flex flex-wrap gap-4 items-end">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">图片尺寸</label>
                         <select
                           value={form.image_display_size}
                           onChange={e => setField('image_display_size', e.target.value)}
                           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
                         >
+                          <option value="auto">Auto（响应式，默认）</option>
                           <option value="small">Small（48 × 48 px）</option>
-                          <option value="medium">Medium（64 × 64 px）— 默认</option>
+                          <option value="medium">Medium（64 × 64 px）</option>
                           <option value="large">Large（80 × 80 px）</option>
+                          <option value="custom">Custom（自定义）</option>
                         </select>
+                        {form.image_display_size === 'auto' && (
+                          <p className="mt-1 text-xs text-blue-500">
+                            Desktop 72px · Tablet 64px · Mobile 56px
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-600 w-16 shrink-0">显示模式</label>
+
+                      {/* Custom dimension inputs */}
+                      {form.image_display_size === 'custom' && (
+                        <>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">宽度 (px)</label>
+                            <input
+                              type="number" min={24} max={200}
+                              value={form.image_custom_width}
+                              onChange={e => setField('image_custom_width', e.target.value)}
+                              className="w-20 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">高度 (px)</label>
+                            <input
+                              type="number" min={24} max={200}
+                              value={form.image_custom_height}
+                              onChange={e => setField('image_custom_height', e.target.value)}
+                              className="w-20 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400 self-end pb-2">范围：24 – 200 px</p>
+                        </>
+                      )}
+
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">显示模式</label>
                         <select
                           value={form.image_display_mode}
                           onChange={e => setField('image_display_mode', e.target.value)}
                           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
                         >
-                          <option value="contain">Contain（保留完整图片，留白）</option>
-                          <option value="cover">Cover（填满容器，可能裁切）</option>
-                          <option value="stretch">Stretch（拉伸填满，可能变形）</option>
+                          <option value="contain">Contain（保留完整，留白）</option>
+                          <option value="cover">Cover（填满，可能裁切）</option>
+                          <option value="stretch">Stretch（拉伸填满）</option>
                         </select>
                       </div>
                     </div>
 
-                    {/* Live preview — three size comparison */}
-                    <div className="flex items-end gap-4">
-                      {(['small', 'medium', 'large'] as ImageDisplaySize[]).map(sz => {
-                        const px = IMAGE_SIZE_PX[sz];
-                        const isActive = form.image_display_size === sz;
-                        const objectFit = form.image_display_mode === 'contain' ? 'contain'
-                          : form.image_display_mode === 'cover' ? 'cover' : 'fill';
-                        return (
-                          <button
-                            key={sz}
-                            type="button"
-                            onClick={() => setField('image_display_size', sz)}
-                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-colors ${
-                              isActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div
-                              className="rounded bg-gray-100 flex items-center justify-center overflow-hidden"
-                              style={{ width: px, height: px, flexShrink: 0 }}
-                            >
-                              {form.icon_media_id ? (
-                                <img
-                                  src={`/api/public/media/${form.icon_media_id}`}
-                                  alt=""
-                                  style={{ width: '100%', height: '100%', objectFit }}
-                                />
-                              ) : (
-                                <span className="text-gray-300 text-xs">图片</span>
-                              )}
+                    {/* Device Preview */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">设备预览</p>
+                      <div className="flex items-end gap-4 flex-wrap">
+                        {([
+                          { key: 'desktop' as const, label: 'Desktop', icon: '🖥' },
+                          { key: 'tablet'  as const, label: 'Tablet',  icon: '📱' },
+                          { key: 'mobile'  as const, label: 'Mobile',  icon: '📲' },
+                        ]).map(({ key, label, icon }) => {
+                          const px = devicePx(key);
+                          return (
+                            <div key={key} className="flex flex-col items-center gap-1.5">
+                              <div
+                                className="rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200"
+                                style={{ width: px, height: px, flexShrink: 0 }}
+                              >
+                                {form.icon_media_id ? (
+                                  <img
+                                    src={`/api/public/media/${form.icon_media_id}`}
+                                    alt=""
+                                    style={{ width: '100%', height: '100%', objectFit: objFit }}
+                                  />
+                                ) : (
+                                  <span className="text-gray-300 text-xs">图片</span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-500">{icon} {label}</span>
+                              <span className="text-xs text-gray-400 font-mono">{px}px</span>
                             </div>
-                            <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
-                              {sz.charAt(0).toUpperCase() + sz.slice(1)}
-                            </span>
-                            <span className="text-xs text-gray-400">{px}px</span>
-                          </button>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Icon section */}
               <div className="col-span-2 border-t pt-3">
@@ -460,19 +511,30 @@ export default function GameLobyCategoriesPage() {
                 )}
 
                 {(form.icon_type === 'image' || form.icon_type === 'gif') && (
-                  <div className="flex items-center gap-3">
-                    {form.icon_media_id && (
-                      <img src={`/api/public/media/${form.icon_media_id}`} alt=""
-                        className="w-10 h-10 object-contain rounded border" />
-                    )}
-                    <button type="button" onClick={() => setPickerOpen(true)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                      {form.icon_media_id ? '更换图片' : '选择图片'}
-                    </button>
-                    {form.icon_media_id && (
-                      <button type="button" onClick={() => setField('icon_media_id', null)}
-                        className="text-xs text-red-500 hover:underline">移除</button>
-                    )}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      {form.icon_media_id && (
+                        <img src={`/api/public/media/${form.icon_media_id}`} alt=""
+                          className="w-10 h-10 object-contain rounded border bg-gray-50" />
+                      )}
+                      <button type="button" onClick={() => setPickerOpen(true)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                        {form.icon_media_id ? '更换图片' : '选择图片'}
+                      </button>
+                      {form.icon_media_id && (
+                        <button type="button" onClick={() => setField('icon_media_id', null)}
+                          className="text-xs text-red-500 hover:underline">移除</button>
+                      )}
+                    </div>
+                    {/* Upload Guidelines */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-500 space-y-0.5">
+                      <p className="font-medium text-gray-600 mb-1">上传规范</p>
+                      <p>✅ 推荐格式：PNG · WEBP（支持透明背景）</p>
+                      <p>✅ 推荐尺寸：512 × 512 px（正方形 Logo）</p>
+                      <p>📐 最小：128 × 128 px · 最大：2048 × 2048 px</p>
+                      <p>📦 最大文件大小：5 MB</p>
+                      <p>🖼 支持：PNG · WEBP · GIF · JPG · SVG</p>
+                    </div>
                   </div>
                 )}
 
@@ -572,7 +634,9 @@ export default function GameLobyCategoriesPage() {
                 )}
                 {(c.icon_type === 'image' || c.icon_type === 'gif') && (
                   <span className="px-1.5 py-0.5 text-xs rounded-full bg-purple-50 text-purple-600 font-mono">
-                    {IMAGE_SIZE_PX[c.image_display_size as ImageDisplaySize] ?? 64}px
+                    {c.image_display_size === 'auto'   ? 'Auto'
+                     : c.image_display_size === 'custom' ? `${c.image_custom_width ?? 72}×${c.image_custom_height ?? 72}`
+                     : `${IMAGE_SIZE_PX[c.image_display_size as 'small' | 'medium' | 'large'] ?? 64}px`}
                   </span>
                 )}
                 <span className="text-xs text-gray-400 font-mono">#{c.display_order}</span>
