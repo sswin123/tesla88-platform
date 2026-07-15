@@ -20,6 +20,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY startup-hooks.js ./startup-hooks.js
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "--require", "./startup-hooks.js", "server.js"]

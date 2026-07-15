@@ -8,7 +8,22 @@ const COOKIE_NAME = 'erp_session';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const start = Date.now();
 
+  const response = await handle(request, pathname);
+
+  // 请求日志：method path status duration
+  // 跳过 _next 静态资源（日志噪音大且无诊断价值）
+  if (!pathname.startsWith('/_next')) {
+    const status = response.status;
+    const ms     = Date.now() - start;
+    console.log(`[req] ${request.method} ${pathname} ${status} ${ms}ms`);
+  }
+
+  return response;
+}
+
+async function handle(request: NextRequest, pathname: string): Promise<NextResponse> {
   // Public paths — no auth required
   if (
     pathname.startsWith('/login') ||
