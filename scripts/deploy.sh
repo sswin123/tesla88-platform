@@ -98,124 +98,78 @@ resolve_project_name() {
 wait_for_migrate() {
     local project="$1"
     local max_wait=300 elapsed=0
-    local migrate_name="${project}-migrate-1"
-    local migrate_cid="" state exit_code
+    local migrate_cid="" state exit_code inspect_raw
 
-    debug "PROJECT_NAME     = ${project}"
-    debug "容器名推导        = ${migrate_name}"
-    debug "Label 过滤条件    = com.docker.compose.service=migrate"
-    info  "等待 Migration 容器出现..."
+    info "等待 Migration 容器出现（按 service label，不依赖 project name 或容器名）..."
 
-    # ── Step 1：等待容器出现 ─────────────────────────────────────────
-    # 优先用 service label（不依赖 project name 是否正确）
+    # ── Step 1：等待容器出现（唯一正式方案：service label only）─────────
+    # docker ps -a 默认按 Created 降序，head -1 取最新容器
     while [ $elapsed -lt $max_wait ]; do
 
-        # ── Debug Block ──────────────────────────────────────────────
+        migrate_cid=$(docker ps -a \
+            --filter "label=com.docker.compose.service=migrate" \
+            --format "{{.ID}}" 2>/dev/null | head -1)
+
+        local cname="" cstatus="" cexit=""
+        if [ -n "$migrate_cid" ]; then
+            cname=$(docker inspect --format '{{.Name}}' "$migrate_cid" 2>/dev/null | tr -d '/' || echo "?")
+            inspect_raw=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "?|?")
+            cstatus="${inspect_raw%|*}"
+            cexit="${inspect_raw#*|}"
+        fi
+
         echo "--------------------------------"
         echo "[Migration Debug] elapsed=${elapsed}s"
-        echo "  Project Name    = ${project}"
-        echo "  容器名推导       = ${migrate_name}"
-
-        # Path A：按名称 inspect
-        local path_a_ok="NOT_FOUND"
-        local path_a_id=""
-        if docker inspect "$migrate_name" >/dev/null 2>&1; then
-            path_a_ok="FOUND"
-            path_a_id=$(docker inspect --format '{{.Id}}' "$migrate_name" 2>/dev/null || echo "")
-        fi
-        echo "  Path A (docker inspect ${migrate_name}) = ${path_a_ok}  id=${path_a_id:0:12}"
-
-        # Path B：service+project label
-        local path_b_id
-        path_b_id=$(docker ps -a \
-            --filter "label=com.docker.compose.service=migrate" \
-            --filter "label=com.docker.compose.project=${project}" \
-            --format "{{.ID}}" 2>/dev/null | head -1)
-        echo "  Path B (label service=migrate + project=${project}) = ${path_b_id:-EMPTY}"
-
-        # Path C：只按 service label（无视 project name）
-        local path_c_id
-        path_c_id=$(docker ps -a \
-            --filter "label=com.docker.compose.service=migrate" \
-            --format "{{.ID}}" 2>/dev/null | head -1)
-        local path_c_name=""
-        local path_c_proj=""
-        if [ -n "$path_c_id" ]; then
-            path_c_name=$(docker inspect --format '{{.Name}}' "$path_c_id" 2>/dev/null | tr -d '/' || echo "?")
-            path_c_proj=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$path_c_id" 2>/dev/null || echo "?")
-        fi
-        echo "  Path C (label service=migrate only)               = ${path_c_id:-EMPTY}  name=${path_c_name}  project_label=${path_c_proj}"
-
-        # docker ps -a 前 10 行（供全局排查）
+        echo "  filter: label=com.docker.compose.service=migrate"
+        echo "  Container ID: ${migrate_cid:-EMPTY}"
+        echo "  Container Name: ${cname:-N/A}"
+        echo "  Status:   ${cstatus:-N/A}"
+        echo "  ExitCode: ${cexit:-N/A}"
         echo "  docker ps -a (前10行):"
         docker ps -a --format "    {{.Names}}\t{{.Status}}" 2>/dev/null | head -10
         echo "--------------------------------"
-        # ── End Debug Block ──────────────────────────────────────────
 
-        # 路径 A：按推导名称找到
-        if [ "$path_a_ok" = "FOUND" ] && [ -n "$path_a_id" ]; then
-            migrate_cid="$path_a_id"
-            debug "路径A 找到容器（按名称）: ${migrate_cid:0:12}"
+        if [ -n "$migrate_cid" ]; then
             break
         fi
 
-        # 路径 B：service+project label
-        if [ -n "$path_b_id" ]; then
-            migrate_cid="$path_b_id"
-            debug "路径B 找到容器（service+project label）: ${migrate_cid:0:12}"
-            break
-        fi
-
-        # 路径 C：仅 service label（project name 推导错误时的终极兜底）
-        if [ -n "$path_c_id" ]; then
-            migrate_cid="$path_c_id"
-            debug "路径C 找到容器（service label only）: ${migrate_cid:0:12} name=${path_c_name} project=${path_c_proj}"
-            break
-        fi
-
-        debug "${elapsed}s — 容器未出现，继续等待..."
+        debug "${elapsed}s — Migration 容器未出现，继续等待..."
         sleep 2; elapsed=$((elapsed + 2))
     done
 
-    # 超时仍未找到
     if [ -z "$migrate_cid" ]; then
         fail "Migration 容器未出现（超时 ${max_wait}s）"
         echo ""
-        echo "  === 超时诊断：全部容器 ==="
+        echo "=== 超时诊断：docker ps -a ==="
         docker ps -a --format "  {{.Names}}\t{{.Status}}" 2>/dev/null
         return 1
     fi
 
-    local container_name
-    container_name=$(docker inspect --format '{{.Name}}' "$migrate_cid" 2>/dev/null | tr -d '/' || echo "?")
-    info "Migration 容器已发现: ${container_name} (${migrate_cid:0:12})，等待执行完毕..."
+    info "Migration 容器已发现: ${cname} (${migrate_cid:0:12})，等待执行完毕..."
 
-    # ── Step 2：轮询 State.Status + State.ExitCode ───────────────────
+    # ── Step 2：轮询 Status + ExitCode，exited/0 立即退出 ────────────
     while [ $elapsed -lt $max_wait ]; do
 
-        # ── Debug Block ──────────────────────────────────────────────
+        inspect_raw=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "inspect_failed|?")
+        state="${inspect_raw%|*}"
+        exit_code="${inspect_raw#*|}"
+
         echo "--------------------------------"
         echo "[Migration Debug] elapsed=${elapsed}s"
-        echo "  Container ID    = ${migrate_cid:0:12}  (${container_name})"
-        local inspect_out
-        inspect_out=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "inspect_failed|?")
-        echo "  docker inspect  = ${inspect_out}"
+        echo "  Container: ${cname} (${migrate_cid:0:12})"
+        echo "  Status:    ${state}"
+        echo "  ExitCode:  ${exit_code}"
         echo "--------------------------------"
-        # ── End Debug Block ──────────────────────────────────────────
-
-        state="${inspect_out%|*}"
-        exit_code="${inspect_out#*|}"
 
         case "$state" in
             exited)
-                debug "ExitCode=${exit_code}"
                 if [ "$exit_code" = "0" ]; then
-                    ok "Migration 完成（ExitCode=0）"
+                    ok "Migration 完成（Status=exited ExitCode=0 elapsed=${elapsed}s）"
                     return 0
                 else
                     fail "Migration 失败（ExitCode=${exit_code}）"
                     echo ""
-                    echo -e "${YELLOW}━━━ Migration 日志（最后 200 行）━━━${NC}"
+                    echo "=== Migration 日志（最后 200 行）==="
                     docker logs "$migrate_cid" 2>&1 | tail -200
                     return 1
                 fi
@@ -225,20 +179,27 @@ wait_for_migrate() {
                 sleep 3; elapsed=$((elapsed + 3))
                 ;;
             inspect_failed)
-                fail "  docker inspect 失败（容器 ${migrate_cid:0:12} 不存在？）"
+                fail "  docker inspect 失败（容器消失？）"
                 sleep 2; elapsed=$((elapsed + 2))
                 ;;
             *)
-                # created / restarting / removing / dead / unknown
-                debug "  未知状态 '${state}'，继续等待..."
+                debug "  状态='${state}'，继续等待..."
                 sleep 2; elapsed=$((elapsed + 2))
                 ;;
         esac
     done
 
     fail "Migration 超时（${max_wait}s）"
-    echo -e "${YELLOW}━━━ Migration 日志（最后 50 行）━━━${NC}"
-    docker logs "$migrate_cid" 2>&1 | tail -50
+    echo ""
+    echo "=== 超时诊断：docker ps -a ==="
+    docker ps -a --format "  {{.Names}}\t{{.Status}}" 2>/dev/null
+    echo ""
+    echo "=== 超时诊断：docker inspect ==="
+    docker inspect "$migrate_cid" 2>/dev/null \
+        | grep -E '"Status"|"ExitCode"|"StartedAt"|"FinishedAt"' || true
+    echo ""
+    echo "=== 超时诊断：docker logs migrate（最后 100 行）==="
+    docker logs "$migrate_cid" 2>&1 | tail -100
     return 1
 }
 
@@ -246,20 +207,47 @@ wait_for_migrate() {
 # wait_for_healthy — 长驻服务（postgres/redis/erp/website/nginx/bot）
 # ════════════════════════════════════════════════════════════════════════
 wait_for_healthy() {
-    local service="$1" max_wait="${2:-240}" elapsed=0 cid health
+    local service="$1" max_wait="${2:-240}" elapsed=0
+    local cid="" health="" status=""
     info "等待 ${service} healthy..."
     while [ $elapsed -lt $max_wait ]; do
         cid=$($DC ps -q "$service" 2>/dev/null | head -1)
         if [ -n "$cid" ]; then
-            health=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "")
-            case "$health" in
-                healthy)   ok "${service} ✓"; return 0 ;;
-                unhealthy) fail "${service} unhealthy"; return 1 ;;
-            esac
+            health=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "none")
+            status=$(docker inspect --format '{{.State.Status}}'        "$cid" 2>/dev/null || echo "unknown")
+        else
+            health="none"; status="not_found"
         fi
+
+        echo "--------------------------------"
+        echo "[Health Debug] service=${service} elapsed=${elapsed}s"
+        echo "  Container ID: ${cid:-EMPTY}"
+        echo "  Status:       ${status}"
+        echo "  Health:       ${health}"
+        echo "--------------------------------"
+
+        case "$health" in
+            healthy)   ok "${service} ✓ (${elapsed}s)"; return 0 ;;
+            unhealthy)
+                fail "${service} unhealthy"
+                if [ -n "$cid" ]; then
+                    echo "=== 诊断：${service} 最后 20 行日志 ==="
+                    $DC logs "$service" 2>/dev/null | tail -20
+                fi
+                return 1
+                ;;
+        esac
         sleep 5; elapsed=$((elapsed + 5))
     done
-    fail "${service} 超时（${max_wait}s）"; return 1
+    fail "${service} 超时（${max_wait}s）"
+    if [ -n "$cid" ]; then
+        echo "=== 超时诊断：docker inspect ${service} ==="
+        docker inspect "$cid" 2>/dev/null \
+            | grep -E '"Status"|"Health"|"ExitCode"' || true
+        echo "=== 超时诊断：${service} 最后 20 行日志 ==="
+        $DC logs "$service" 2>/dev/null | tail -20
+    fi
+    return 1
 }
 
 # ════════════════════════════════════════════════════════════════════════
@@ -293,6 +281,7 @@ check_http() {
         code=$(wget -q --spider --server-response --timeout=15 "$url" 2>&1 \
                | awk '/HTTP\// {print $2}' | tail -1 || echo "000")
     fi
+    echo "[HTTP Debug] ${label} → HTTP ${code}"
     echo "$code" | grep -qE "^(2|3)" && { ok "${label} → HTTP ${code}"; return 0; }
     fail "${label} → HTTP ${code}"; return 1
 }
