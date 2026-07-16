@@ -17,6 +17,8 @@ export interface CallbackLogEntry {
   processingTime?: number;
   errorMessage?:  string;
   stackTrace?:    string;
+  idempotent?:    boolean;
+  retryNeeded?:   boolean;
 }
 
 export async function insertCallbackLog(entry: CallbackLogEntry): Promise<void> {
@@ -25,8 +27,8 @@ export async function insertCallbackLog(entry: CallbackLogEntry): Promise<void> 
       `INSERT INTO provider_callback_logs
          (provider, action, request_method, headers, query, raw_body, json_body,
           ip, user_agent, signature, verify_result, response, status,
-          processing_time, error_message, stack_trace)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+          processing_time, error_message, stack_trace, idempotent, retry_needed)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
       [
         entry.provider,
         entry.action ?? null,
@@ -44,10 +46,12 @@ export async function insertCallbackLog(entry: CallbackLogEntry): Promise<void> 
         entry.processingTime ?? null,
         entry.errorMessage ?? null,
         entry.stackTrace ?? null,
+        entry.idempotent ?? false,
+        entry.retryNeeded ?? false,
       ]
     );
   } catch (e) {
-    // Never let logging failures propagate to the caller — always return 200 to providers
+    // Never let logging failures propagate — always return 200 to providers
     console.error('[ProviderCallbackRepository] log insert failed:', e);
   }
 }

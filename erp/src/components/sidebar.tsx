@@ -72,8 +72,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/finance',   label: 'Finance Reports',  icon: BarChart2,   permission: 'finance.view' },
       { href: '/analytics', label: 'Member Analytics', icon: TrendingUp,  permission: 'analytics.view' },
       { href: '/risk',      label: 'Risk Center',      icon: ShieldAlert, permission: 'risk.view' },
-      { href: '/providers', label: 'Providers',        icon: Gamepad2,    permission: 'game.manage' },
-      { href: '/accounts',  label: 'Game Accounts',    icon: Database,    permission: 'game.manage' },
+      { href: '/providers',         label: 'Providers',          icon: Gamepad2,    permission: 'game.manage' },
+      { href: '/accounts',          label: 'Game Accounts',      icon: Database,    permission: 'game.manage' },
+      { href: '/provider-settings', label: 'Provider Callbacks', icon: Activity,    permission: 'game.manage' },
     ],
   },
   {
