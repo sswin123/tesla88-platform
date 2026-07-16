@@ -5,7 +5,7 @@ import { MediaPicker } from '@/components/media/MediaPicker';
 import type { MediaRecord } from '@/lib/media/types';
 import {
   ChevronUp, ChevronDown, Trash2, Plus, Pencil, Eye, EyeOff,
-  GripVertical, X, Save, AlertTriangle,
+  GripVertical, X, Save, AlertTriangle, Copy, Search,
 } from 'lucide-react';
 import JackpotEditor from './JackpotEditor';
 import GameLobbyEditor from './GameLobbyEditor';
@@ -139,6 +139,48 @@ const SECTION_TYPE_COLORS: Record<SectionType, string> = {
   floating_button:  'bg-violet-100 text-violet-700',
 };
 
+// ─── Widget Library Catalog ───────────────────────────────────────────────────
+
+const WIDGET_CATEGORIES = {
+  hero:      { label: '横幅',  color: 'bg-blue-100 text-blue-700' },
+  promotion: { label: '优惠',  color: 'bg-green-100 text-green-700' },
+  member:    { label: '会员',  color: 'bg-indigo-100 text-indigo-700' },
+  game:      { label: '游戏',  color: 'bg-cyan-100 text-cyan-700' },
+  support:   { label: '客服',  color: 'bg-rose-100 text-rose-700' },
+  marketing: { label: '营销',  color: 'bg-amber-100 text-amber-700' },
+  media:     { label: '媒体',  color: 'bg-gray-100 text-gray-700' },
+  layout:    { label: '布局',  color: 'bg-purple-100 text-purple-700' },
+} as const;
+
+type WidgetCategory = keyof typeof WIDGET_CATEGORIES;
+
+interface WidgetDef {
+  type: SectionType;
+  category: WidgetCategory;
+  label: string;
+  description: string;
+  icon: string;
+  isNew?: boolean;
+}
+
+const WIDGET_CATALOG: WidgetDef[] = [
+  { type: 'hero',            category: 'hero',      icon: '🖼',  label: '横幅轮播',    description: '多 Slide 横幅，支持图片 / 视频、标题、CTA 按钮' },
+  { type: 'promotions',      category: 'promotion', icon: '🎁',  label: '精选优惠',    description: '展示首页优惠活动卡片列表，支持自定义数量' },
+  { type: 'member_zone',     category: 'member',    icon: '👤',  label: '会员钱包区',  description: '登录/注册按钮、会员余额、存款/提款快捷入口' },
+  { type: 'game_lobby',      category: 'game',      icon: '🎮',  label: '游戏大厅',    description: '全功能游戏大厅，支持分类标签、搜索、排序' },
+  { type: 'providers',       category: 'game',      icon: '🏢',  label: '游戏平台',    description: '展示合作游戏平台 Logo，支持横向/网格布局' },
+  { type: 'live_tx',         category: 'game',      icon: '⚡',  label: '实时交易',    description: '实时滚动展示最新存款 / 提款动态记录' },
+  { type: 'jackpot',         category: 'game',      icon: '💰',  label: '奖池计数器',  description: '动态滚动累积奖池数字，支持多种样式' },
+  { type: 'notice_popup',    category: 'support',   icon: '🔔',  label: '弹窗公告',    description: '网站加载时弹出的公告 Slider，支持图片 / 文字' },
+  { type: 'marquee',         category: 'marketing', icon: '📢',  label: '跑马灯',      description: '横向滚动的文字公告条，支持自定义颜色' },
+  { type: 'announcement',    category: 'marketing', icon: '📣',  label: '公告栏',      description: '固定在区块顶部的横幅式公告，支持链接' },
+  { type: 'floating_button', category: 'marketing', icon: '💬',  label: '悬浮按钮',    description: '屏幕固定位置的悬浮按钮，常用于客服 / 快捷入口' },
+  { type: 'custom_html',     category: 'media',     icon: '🔧',  label: '自定义内容',  description: '自由输入 HTML / CSS / SVG，通过 SafeHtmlBlock 安全渲染' },
+  { type: 'footer_banner',   category: 'media',     icon: '🖼',  label: '底部横幅',    description: '页面底部图片横幅，支持桌面端 / 移动端不同图片' },
+  { type: 'quick_menu',      category: 'layout',    icon: '⬛',  label: '快捷菜单',    description: '可自定义图标的快速导航按钮组，支持多列布局' },
+  { type: 'cta_card',        category: 'layout',    icon: '🃏',  label: 'CTA 卡片',   description: '含背景图、标题、描述、行动号召按钮的内容卡片' },
+];
+
 const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
   hero:        { slides: [], autoplay_interval: 5000, show_arrows: true, show_dots: true },
   marquee:     { messages: ['欢迎来到本平台！'], speed: 40, color: '#f59e0b', bg_color: '', icon: '📢' },
@@ -231,6 +273,7 @@ function SectionCard({
   onToggle,
   onEdit,
   onDelete,
+  onDuplicate,
   onMove,
   isDragging,
   isDragOver,
@@ -245,6 +288,7 @@ function SectionCard({
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onMove: (dir: 'up' | 'down') => void;
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -329,6 +373,13 @@ function SectionCard({
           title="编辑"
         >
           <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDuplicate}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+          title="复制"
+        >
+          <Copy className="w-4 h-4" />
         </button>
         <button
           onClick={onDelete}
@@ -2944,64 +2995,196 @@ function EditModal({
   );
 }
 
-// ─── Add Section Modal ────────────────────────────────────────────────────────
+// ─── Widget Library Modal ─────────────────────────────────────────────────────
 
-function AddSectionModal({
+const CAT_TABS: Array<{ key: WidgetCategory | 'all' | 'favorites' | 'recent'; label: string; icon: string }> = [
+  { key: 'all',       label: '全部',  icon: '⬛' },
+  { key: 'favorites', label: '收藏',  icon: '⭐' },
+  { key: 'recent',    label: '最近',  icon: '🕐' },
+  { key: 'hero',      label: '横幅',  icon: '🖼' },
+  { key: 'promotion', label: '优惠',  icon: '🎁' },
+  { key: 'member',    label: '会员',  icon: '👤' },
+  { key: 'game',      label: '游戏',  icon: '🎮' },
+  { key: 'support',   label: '客服',  icon: '🔔' },
+  { key: 'marketing', label: '营销',  icon: '📢' },
+  { key: 'media',     label: '媒体',  icon: '🔧' },
+  { key: 'layout',    label: '布局',  icon: '⬜' },
+];
+
+function readLocalJson<T>(key: string, fallback: T): T {
+  try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback; }
+  catch { return fallback; }
+}
+
+function WidgetLibraryModal({
   onAdd,
   onClose,
 }: {
   onAdd: (type: SectionType, name: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const [type, setType] = useState<SectionType>('hero');
-  const [name, setName] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [search,   setSearch]   = useState('');
+  const [cat,      setCat]      = useState<typeof CAT_TABS[number]['key']>('all');
+  const [adding,   setAdding]   = useState<SectionType | null>(null);
+  const [favs,     setFavs]     = useState<Set<string>>(() => new Set(readLocalJson<string[]>('wb_favorites', [])));
+  const [recent,   setRecent]   = useState<string[]>(() => readLocalJson<string[]>('wb_recent', []));
 
-  async function handle() {
-    setAdding(true);
+  function toggleFav(type: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = new Set(favs);
+    next.has(type) ? next.delete(type) : next.add(type);
+    setFavs(next);
+    localStorage.setItem('wb_favorites', JSON.stringify([...next]));
+  }
+
+  async function handleAdd(w: WidgetDef) {
+    if (adding) return;
+    setAdding(w.type);
     try {
-      await onAdd(type, name || SECTION_TYPE_LABELS[type]);
-    } catch {
-      // Error toast already shown by parent via showError
+      await onAdd(w.type, w.label);
+      const next = [w.type, ...recent.filter(t => t !== w.type)].slice(0, 8);
+      setRecent(next);
+      localStorage.setItem('wb_recent', JSON.stringify(next));
     } finally {
-      setAdding(false);
+      setAdding(null);
     }
   }
 
+  const visible = WIDGET_CATALOG.filter(w => {
+    if (search) {
+      const q = search.toLowerCase();
+      return w.label.includes(q) || w.description.includes(q) || w.type.includes(q);
+    }
+    if (cat === 'favorites') return favs.has(w.type);
+    if (cat === 'recent')    return recent.includes(w.type);
+    if (cat !== 'all')       return w.category === cat;
+    return true;
+  }).sort((a, b) =>
+    cat === 'recent' ? recent.indexOf(a.type) - recent.indexOf(b.type) : 0
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-base font-semibold">添加区块</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col" style={{ height: '82vh' }}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b shrink-0">
+          <h2 className="text-base font-bold text-gray-900 flex-1">Widget 库</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setCat('all'); }}
+              placeholder="搜索 Widget…"
+              className="border rounded-lg pl-8 pr-3 py-1.5 text-sm w-52 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+              autoFocus
+            />
+          </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">区块类型</span>
-            <select className="w-full border rounded-xl px-3 py-2 text-sm"
-              value={type} onChange={e => setType(e.target.value as SectionType)}>
-              {(Object.entries(SECTION_TYPE_LABELS) as [SectionType, string][]).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">区块名称（可选）</span>
-            <input className="w-full border rounded-xl px-3 py-2 text-sm"
-              placeholder={SECTION_TYPE_LABELS[type]}
-              value={name} onChange={e => setName(e.target.value)} />
-          </label>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0">
+
+          {/* Sidebar */}
+          <div className="w-28 border-r shrink-0 overflow-y-auto py-2">
+            {CAT_TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setCat(tab.key); setSearch(''); }}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left transition-colors ${
+                  cat === tab.key
+                    ? 'bg-blue-50 text-blue-700 font-semibold border-r-2 border-blue-500'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span className="text-sm">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Widget Grid */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {visible.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+                <span className="text-4xl">📭</span>
+                <p className="text-sm">
+                  {cat === 'favorites' ? '暂无收藏，鼠标悬停 Widget 可点击 ☆ 收藏' :
+                   cat === 'recent'    ? '暂无最近使用记录' :
+                   '未找到相关 Widget'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {visible.map(w => {
+                  const catDef = WIDGET_CATEGORIES[w.category];
+                  const isThis = adding === w.type;
+                  const isFav  = favs.has(w.type);
+                  return (
+                    <div
+                      key={w.type}
+                      onClick={() => { if (!adding) void handleAdd(w); }}
+                      className={`relative rounded-xl border p-4 cursor-pointer transition-all group select-none ${
+                        isThis
+                          ? 'border-blue-400 bg-blue-50 shadow-md'
+                          : adding
+                            ? 'opacity-50 cursor-not-allowed border-gray-200 bg-white'
+                            : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:bg-blue-50/20'
+                      }`}
+                    >
+                      {/* Favorite star — visible on hover */}
+                      <button
+                        onClick={e => toggleFav(w.type, e)}
+                        className={`absolute top-3 right-3 text-base transition-opacity ${
+                          isFav ? 'opacity-100' : 'opacity-0 group-hover:opacity-60 hover:!opacity-100'
+                        }`}
+                        title={isFav ? '取消收藏' : '收藏'}
+                      >
+                        {isFav ? '⭐' : '☆'}
+                      </button>
+
+                      {/* Icon thumbnail */}
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl mb-3 ${catDef.color}`}>
+                        {w.icon}
+                      </div>
+
+                      {/* Name */}
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="font-semibold text-sm text-gray-900">{w.label}</span>
+                        {w.isNew && (
+                          <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full leading-none">NEW</span>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{w.description}</p>
+
+                      {/* Category badge */}
+                      <div className={`mt-2.5 inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full ${catDef.color}`}>
+                        {catDef.label}
+                      </div>
+
+                      {/* Loading overlay */}
+                      {isThis && (
+                        <div className="absolute inset-0 rounded-xl flex items-center justify-center bg-white/60">
+                          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border rounded-xl hover:bg-gray-100">
-            取消
-          </button>
-          <button onClick={handle} disabled={adding}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50">
-            {adding ? '添加中…' : '添加'}
-          </button>
+
+        {/* Footer hint */}
+        <div className="px-5 py-3 border-t shrink-0 text-xs text-gray-400 bg-gray-50 rounded-b-2xl">
+          点击 Widget 即可添加 · 鼠标悬停可收藏 ⭐ · 已添加的 Widget 可在列表中 Drag 排序
         </div>
       </div>
     </div>
@@ -3203,6 +3386,30 @@ export default function WebsiteBuilderPage() {
     }
   }
 
+  async function duplicateSection(section: HomepageSection) {
+    const display_order = section.display_order + 1;
+    try {
+      const res = await fetch('/api/website/homepage-sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section_type: section.section_type,
+          name:         `${section.name} (副本)`,
+          config:       section.config,
+          display_order,
+        }),
+      });
+      if (!res.ok) { showError(await apiErrorMsg(res)); return; }
+      const created = await res.json() as HomepageSection;
+      const idx = sections.findIndex(s => s.id === section.id);
+      const next = [...sections.slice(0, idx + 1), created, ...sections.slice(idx + 1)];
+      setSectionsWithHistory(next, sections);
+      showToast('已复制');
+    } catch {
+      showError('网络错误，无法复制区块');
+    }
+  }
+
   async function addSection(type: SectionType, name: string) {
     const config = DEFAULT_CONFIGS[type] ?? {};
     const display_order = (sections.at(-1)?.display_order ?? 0) + 10;
@@ -3294,6 +3501,7 @@ export default function WebsiteBuilderPage() {
               onToggle={() => toggleSection(section)}
               onEdit={() => setEditing(section)}
               onDelete={() => setDeleteConfirm(section.id)}
+              onDuplicate={() => duplicateSection(section)}
               onMove={dir => moveSection(idx, dir)}
               isDragging={dragIdx === idx}
               isDragOver={dragOverIdx === idx}
@@ -3316,7 +3524,7 @@ export default function WebsiteBuilderPage() {
       )}
 
       {showAdd && (
-        <AddSectionModal
+        <WidgetLibraryModal
           onAdd={addSection}
           onClose={() => setShowAdd(false)}
         />
