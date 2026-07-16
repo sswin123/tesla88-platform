@@ -252,23 +252,40 @@ wait_for_healthy telegram-bot 120 "Telegram Bot" && R_BOT=PASS \
 wait_for_healthy nginx        60  "Nginx"        && R_NGINX=PASS \
     || die "Nginx unhealthy"
 
+# ── Nginx 重载（关键！）────────────────────────────────────────────────────
+# nginx 使用 bind-mount 的 nginx.conf，不会自动检测文件变化。
+# docker compose up -d 重建了 ERP/Website 容器（新 IP），但 nginx 容器
+# 未被重建，其内存中的 upstream DNS 缓存仍指向旧 IP → 113 Host unreachable。
+# 重载后，新 resolver 配置（127.0.0.11 valid=30s）生效，每次请求动态解析 DNS。
+info "重载 Nginx 配置（清除 upstream DNS 缓存）..."
+if $DC exec nginx nginx -s reload >/dev/null 2>&1; then
+    ok "Nginx 已重载 ✓  (upstream DNS 缓存已清除)"
+else
+    warn "nginx -s reload 失败，尝试重启容器..."
+    $DC restart nginx || warn "Nginx restart 也失败，继续（Step 8 公网测试将验证）"
+    sleep 3
+fi
+
 T_HEALTH=$(( $(date +%s) - _t ))
 
 # ════════════════════════════════════════════════════════════════════════════
-# Step 7  Nginx 内部连通测试
+# Step 7  容器网络连通测试
 # ════════════════════════════════════════════════════════════════════════════
-step "Step 7  Nginx 内部连通测试"
+# 注意：此测试通过 Docker DNS 直连 ERP/Website 容器（绕过 nginx upstream）。
+# 目的是验证容器网络连通性，确认 ERP/Website 进程在监听。
+# Nginx upstream 代理的正确性由 Step 8 公网 HTTP 检查验证。
+step "Step 7  容器网络连通测试"
 NGINX_CID=$($DC ps -q nginx 2>/dev/null | head -1)
 if [ -n "$NGINX_CID" ]; then
     docker exec "$NGINX_CID" \
-        wget -qO- --timeout=10 http://erp:3000/login >/dev/null 2>&1 \
-        && ok "Nginx  →  ERP ✓" \
-        || die "Nginx → ERP 连通失败"
+        wget -qO- --timeout=10 http://erp:3000/api/ping >/dev/null 2>&1 \
+        && ok "容器网络: ERP 3000 可达 ✓" \
+        || die "ERP 容器不可达（进程未监听 3000 端口）"
 
     docker exec "$NGINX_CID" \
-        wget -qO- --timeout=10 http://website:3000 >/dev/null 2>&1 \
-        && ok "Nginx  →  Website ✓" \
-        || die "Nginx → Website 连通失败"
+        wget -qO- --timeout=10 http://website:3000/api/ping >/dev/null 2>&1 \
+        && ok "容器网络: Website 3000 可达 ✓" \
+        || die "Website 容器不可达（进程未监听 3000 端口）"
 else
     die "Nginx 容器未找到，无法执行内部测试"
 fi
