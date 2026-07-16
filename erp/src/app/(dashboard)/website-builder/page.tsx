@@ -48,6 +48,28 @@ interface HeroSlide {
   display_order: number;
 }
 
+interface PopupSlide {
+  id: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  button_text?: string;
+  button_url?: string;
+  button_target?: '_self' | '_blank';
+  image_click_url?: string;
+  image_click_target?: '_self' | '_blank';
+  desktop_media_id: number | null;
+  desktop_media_url: string;
+  desktop_media_type: string;
+  mobile_media_id: number | null;
+  mobile_media_url: string;
+  mobile_media_type: string;
+  start_time?: string;
+  end_time?: string;
+  enabled: boolean;
+  display_order: number;
+}
+
 interface QuickMenuItem {
   id: string;
   label: string;
@@ -143,7 +165,19 @@ const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
   },
   cta_card:        { title: '', subtitle: '', button_text: '', link_url: '', desktop_media_id: null, desktop_media_url: '', desktop_media_type: '', mobile_media_id: null, mobile_media_url: '', mobile_media_type: '', bg_color: '', text_color: '', align: 'center' },
   announcement:    { text: '', bg_color: '#1e293b', text_color: '#f59e0b', icon: '📢', link_url: '', button_text: '' },
-  notice_popup:    { title: '', content: '', desktop_media_id: null, desktop_media_url: '', desktop_media_type: '', button_text: '我知道了', button_url: '', bg_color: '', text_color: '', frequency: 'session' },
+  notice_popup: {
+    slides: [],
+    autoplay: true,
+    autoplay_interval: 5000,
+    pause_on_hover: true,
+    loop: true,
+    show_indicators: true,
+    show_arrows: true,
+    animation: 'slide',
+    frequency: 'session',
+    bg_color: '',
+    text_color: '',
+  },
   jackpot: {
     mode: 'single',
     layout: 'vertical',
@@ -640,6 +674,369 @@ function HeroEditor({
         <MediaPicker
           mode="single"
           typeFilter={['IMAGE', 'GIF', 'VIDEO']}
+          onSelect={handleMediaSelect}
+          onClose={() => setPickerFor(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── PopupSlider Editor ───────────────────────────────────────────────────────
+
+function PopupSliderEditor({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (c: Record<string, unknown>) => void;
+}) {
+  const slides: PopupSlide[] = (config.slides as PopupSlide[]) ?? [];
+  const [pickerFor, setPickerFor] = useState<{ slideId: string; field: 'desktop' | 'mobile' } | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(slides[0]?.id ?? null);
+
+  function updateSlide(id: string, patch: Partial<PopupSlide>) {
+    onChange({ ...config, slides: slides.map(s => s.id === id ? { ...s, ...patch } : s) });
+  }
+
+  function clearMedia(slideId: string, field: 'desktop' | 'mobile') {
+    updateSlide(slideId, {
+      [`${field}_media_id`]:   null,
+      [`${field}_media_url`]:  '',
+      [`${field}_media_type`]: '',
+    } as Partial<PopupSlide>);
+  }
+
+  function addSlide() {
+    const newSlide: PopupSlide = {
+      id: Date.now().toString(),
+      title: '', subtitle: '', description: '',
+      button_text: '', button_url: '', button_target: '_self',
+      image_click_url: '', image_click_target: '_self',
+      desktop_media_id: null, desktop_media_url: '', desktop_media_type: '',
+      mobile_media_id:  null, mobile_media_url:  '', mobile_media_type:  '',
+      start_time: '', end_time: '',
+      enabled: true,
+      display_order: slides.length * 10,
+    };
+    const next = [...slides, newSlide];
+    onChange({ ...config, slides: next });
+    setExpanded(newSlide.id);
+  }
+
+  function duplicateSlide(slide: PopupSlide) {
+    const dup: PopupSlide = { ...slide, id: Date.now().toString(), display_order: slides.length * 10 };
+    onChange({ ...config, slides: [...slides, dup] });
+    setExpanded(dup.id);
+  }
+
+  function removeSlide(id: string) {
+    if (!confirm('确定要删除此 Slide 吗？')) return;
+    onChange({ ...config, slides: slides.filter(s => s.id !== id) });
+    if (expanded === id) setExpanded(null);
+  }
+
+  function moveSlide(idx: number, dir: 'up' | 'down') {
+    const next = [...slides];
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChange({ ...config, slides: next.map((s, i) => ({ ...s, display_order: i * 10 })) });
+  }
+
+  function handleMediaSelect(media: MediaRecord | MediaRecord[]) {
+    if (!pickerFor) return;
+    const single = Array.isArray(media) ? media[0] : media;
+    if (!single) return;
+    updateSlide(pickerFor.slideId, {
+      [`${pickerFor.field}_media_id`]:   single.id,
+      [`${pickerFor.field}_media_url`]:  `/api/public/media/${single.id}`,
+      [`${pickerFor.field}_media_type`]: single.mediaType ?? 'IMAGE',
+    } as Partial<PopupSlide>);
+    setPickerFor(null);
+  }
+
+  const iField = 'w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300';
+
+  return (
+    <div className="space-y-5">
+      {/* ── Global popup settings ─────────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">弹窗全局设置</p>
+
+        {/* Row 1: autoplay + interval */}
+        <div className="flex flex-wrap gap-4 items-end">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="rounded"
+              checked={(config.autoplay as boolean) ?? true}
+              onChange={e => onChange({ ...config, autoplay: e.target.checked })} />
+            自动播放
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-500 mb-1 block">间隔（毫秒）</span>
+            <NumericInput className="w-28 border rounded-lg px-3 py-1.5 text-sm"
+              value={(config.autoplay_interval as number) ?? 5000}
+              min={1000} step={500}
+              onChange={n => onChange({ ...config, autoplay_interval: n })} />
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer pt-4">
+            <input type="checkbox" className="rounded"
+              checked={(config.pause_on_hover as boolean) ?? true}
+              onChange={e => onChange({ ...config, pause_on_hover: e.target.checked })} />
+            Hover 暂停
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer pt-4">
+            <input type="checkbox" className="rounded"
+              checked={(config.loop as boolean) ?? true}
+              onChange={e => onChange({ ...config, loop: e.target.checked })} />
+            循环播放
+          </label>
+        </div>
+
+        {/* Row 2: display */}
+        <div className="flex flex-wrap gap-4 items-end">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="rounded"
+              checked={(config.show_indicators as boolean) ?? true}
+              onChange={e => onChange({ ...config, show_indicators: e.target.checked })} />
+            显示指示点
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="rounded"
+              checked={(config.show_arrows as boolean) ?? true}
+              onChange={e => onChange({ ...config, show_arrows: e.target.checked })} />
+            显示左右箭头
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-500 mb-1 block">动画效果</span>
+            <select className="border rounded-lg px-2 py-1.5 text-sm"
+              value={(config.animation as string) ?? 'slide'}
+              onChange={e => onChange({ ...config, animation: e.target.value })}>
+              <option value="slide">Slide 滑动</option>
+              <option value="fade">Fade 淡入淡出</option>
+              <option value="zoom">Zoom 缩放</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-500 mb-1 block">显示频率</span>
+            <select className="border rounded-lg px-2 py-1.5 text-sm"
+              value={(config.frequency as string) ?? 'session'}
+              onChange={e => onChange({ ...config, frequency: e.target.value })}>
+              <option value="always">每次访问</option>
+              <option value="session">每个会话</option>
+              <option value="daily">每天一次</option>
+              <option value="weekly">每周一次</option>
+              <option value="once">只显示一次</option>
+            </select>
+          </label>
+        </div>
+
+        {/* Row 3: colors */}
+        <div className="flex gap-4 flex-wrap">
+          {[['bg_color', '背景颜色', '#18181b'], ['text_color', '文字颜色', '#ffffff']].map(([key, label, def]) => (
+            <div key={key}>
+              <label className="block text-xs text-gray-500 mb-1">{label}</label>
+              <div className="flex items-center gap-2">
+                <input type="color"
+                  value={(config[key] as string) || def}
+                  onChange={e => onChange({ ...config, [key]: e.target.value })}
+                  className="w-7 h-7 rounded border cursor-pointer flex-shrink-0" />
+                <input type="text" placeholder="透明"
+                  className="w-24 border rounded-lg px-2 py-1.5 text-xs font-mono"
+                  value={(config[key] as string) ?? ''}
+                  onChange={e => onChange({ ...config, [key]: e.target.value })} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Slides list ───────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-gray-700">Slides（{slides.length} 张）</h4>
+          <button type="button" onClick={addSlide}
+            className="flex items-center gap-1 text-xs bg-rose-600 text-white px-3 py-1.5 rounded-lg hover:bg-rose-700 transition-colors">
+            <Plus className="w-3 h-3" /> 添加 Slide
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {slides.length === 0 && (
+            <div className="text-center py-8 border-2 border-dashed rounded-xl bg-gray-50">
+              <p className="text-sm text-gray-400 mb-2">暂无 Slide，点击「添加 Slide」开始</p>
+            </div>
+          )}
+
+          {slides.map((slide, idx) => {
+            const isOpen = expanded === slide.id;
+            return (
+              <div key={slide.id} className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                {/* Header bar */}
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+                  <button type="button" className="flex items-center gap-2 flex-1 text-left"
+                    onClick={() => setExpanded(isOpen ? null : slide.id)}>
+                    <GripVertical className="w-4 h-4 text-gray-300" />
+                    <span className="text-xs font-semibold text-gray-600">Slide {idx + 1}</span>
+                    {slide.title && <span className="text-xs text-gray-400 truncate max-w-32">{slide.title}</span>}
+                    {!slide.desktop_media_url && (
+                      <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">缺少图片</span>
+                    )}
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => moveSlide(idx, 'up')} disabled={idx === 0}
+                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30" title="上移">
+                      <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
+                    </button>
+                    <button type="button" onClick={() => moveSlide(idx, 'down')} disabled={idx === slides.length - 1}
+                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30" title="下移">
+                      <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                    </button>
+                    <button type="button"
+                      onClick={() => updateSlide(slide.id, { enabled: !slide.enabled })}
+                      className={`p-1 rounded ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                      title={slide.enabled ? '已启用' : '已停用'}>
+                      {slide.enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    </button>
+                    <button type="button" onClick={() => duplicateSlide(slide)}
+                      className="p-1 rounded hover:bg-blue-50 text-blue-400" title="复制">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => removeSlide(slide.id)}
+                      className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600" title="删除">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slide body (collapsible) */}
+                {isOpen && (
+                  <div className="p-3 space-y-3">
+                    {/* Text fields */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">标题（可选）</label>
+                        <input className={iField} placeholder="弹窗标题"
+                          value={slide.title ?? ''}
+                          onChange={e => updateSlide(slide.id, { title: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">副标题（可选）</label>
+                        <input className={iField} placeholder="副标题"
+                          value={slide.subtitle ?? ''}
+                          onChange={e => updateSlide(slide.id, { subtitle: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">说明文字（可选）</label>
+                        <textarea className={`${iField} resize-none`} rows={2} placeholder="弹窗内容"
+                          value={slide.description ?? ''}
+                          onChange={e => updateSlide(slide.id, { description: e.target.value })} />
+                      </div>
+                    </div>
+
+                    {/* CTA Button */}
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 space-y-2">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase">CTA 按钮（留空则不显示）</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-400 mb-0.5 block">按钮文字</label>
+                          <input className={iField} placeholder="例：立即参与"
+                            value={slide.button_text ?? ''}
+                            onChange={e => updateSlide(slide.id, { button_text: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 mb-0.5 block">打开方式</label>
+                          <select className={iField}
+                            value={slide.button_target ?? '_self'}
+                            onChange={e => updateSlide(slide.id, { button_target: e.target.value as '_self' | '_blank' })}>
+                            <option value="_self">当前窗口</option>
+                            <option value="_blank">新标签页</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-[10px] text-gray-400 mb-0.5 block">按钮链接</label>
+                          <input className={iField} placeholder="https://... 或 /页面路径"
+                            value={slide.button_url ?? ''}
+                            onChange={e => updateSlide(slide.id, { button_url: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Image Click Link */}
+                    <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 space-y-2">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase">图片点击链接（留空则图片不可点击）</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2">
+                          <label className="text-[10px] text-gray-400 mb-0.5 block">图片链接</label>
+                          <input className={iField} placeholder="https://... 或 /页面路径"
+                            value={slide.image_click_url ?? ''}
+                            onChange={e => updateSlide(slide.id, { image_click_url: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 mb-0.5 block">打开方式</label>
+                          <select className={iField}
+                            value={slide.image_click_target ?? '_self'}
+                            onChange={e => updateSlide(slide.id, { image_click_target: e.target.value as '_self' | '_blank' })}>
+                            <option value="_self">当前窗口</option>
+                            <option value="_blank">新标签页</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Schedule */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">上架时间（可选）</label>
+                        <input type="datetime-local" className={iField}
+                          value={slide.start_time ?? ''}
+                          onChange={e => updateSlide(slide.id, { start_time: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 mb-0.5 block">下架时间（可选）</label>
+                        <input type="datetime-local" className={iField}
+                          value={slide.end_time ?? ''}
+                          onChange={e => updateSlide(slide.id, { end_time: e.target.value })} />
+                      </div>
+                    </div>
+
+                    {/* Media pickers */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <SlideMediaCard
+                        label="桌面端图片"
+                        hint="JPG · PNG · WEBP · GIF"
+                        recTitle="600 × 400 px"
+                        recSize="宽高比 3:2"
+                        maxMB={5}
+                        mediaUrl={slide.desktop_media_url}
+                        mediaType={slide.desktop_media_type}
+                        onPickClick={() => setPickerFor({ slideId: slide.id, field: 'desktop' })}
+                        onDelete={() => clearMedia(slide.id, 'desktop')}
+                      />
+                      <SlideMediaCard
+                        label="移动端图片（可选）"
+                        hint="JPG · PNG · WEBP · GIF"
+                        recTitle="480 × 320 px"
+                        recSize="宽高比 3:2"
+                        maxMB={3}
+                        mediaUrl={slide.mobile_media_url}
+                        mediaType={slide.mobile_media_type}
+                        onPickClick={() => setPickerFor({ slideId: slide.id, field: 'mobile' })}
+                        onDelete={() => clearMedia(slide.id, 'mobile')}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {pickerFor && (
+        <MediaPicker
+          mode="single"
+          typeFilter={['IMAGE', 'GIF']}
           onSelect={handleMediaSelect}
           onClose={() => setPickerFor(null)}
         />
@@ -2443,6 +2840,7 @@ function ConfigEditor({
     case 'game_lobby':  return <GameLobbyEditor config={config} onChange={onChange} />;
     case 'member_zone': return <MemberZoneEditor config={config} onChange={onChange} />;
     case 'custom_html': return <CustomHtmlEditor config={config} onChange={onChange} />;
+    case 'notice_popup': return <PopupSliderEditor config={config} onChange={onChange} />;
     default:
       return <GenericEditor sectionType={sectionType} config={config} onChange={onChange} />;
   }
