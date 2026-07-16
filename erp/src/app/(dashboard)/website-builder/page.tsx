@@ -3458,6 +3458,7 @@ const CAT_TABS: Array<{ key: WidgetCategory | 'all' | 'favorites' | 'recent'; la
 ];
 
 function readLocalJson<T>(key: string, fallback: T): T {
+  if (typeof localStorage === 'undefined') return fallback;
   try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback; }
   catch { return fallback; }
 }
@@ -3480,7 +3481,7 @@ function WidgetLibraryModal({
     const next = new Set(favs);
     next.has(type) ? next.delete(type) : next.add(type);
     setFavs(next);
-    localStorage.setItem('wb_favorites', JSON.stringify([...next]));
+    if (typeof localStorage !== 'undefined') localStorage.setItem('wb_favorites', JSON.stringify([...next]));
   }
 
   async function handleAdd(w: WidgetDef) {
@@ -3490,7 +3491,7 @@ function WidgetLibraryModal({
       await onAdd(w.type, w.label);
       const next = [w.type, ...recent.filter(t => t !== w.type)].slice(0, 8);
       setRecent(next);
-      localStorage.setItem('wb_recent', JSON.stringify(next));
+      if (typeof localStorage !== 'undefined') localStorage.setItem('wb_recent', JSON.stringify(next));
     } finally {
       setAdding(null);
     }

@@ -82,6 +82,11 @@ export function processHtml(rawHtml: string): ProcessedHtml {
 // ── Core sanitizer ────────────────────────────────────────────────────────────
 
 function _process(rawHtml: string): ProcessedHtml {
+  // Guard: DOMParser is browser-only; if called on the server return raw html safely
+  if (typeof DOMParser === 'undefined') {
+    return { body: '', css: '' };
+  }
+
   // HTML size guard
   if (new TextEncoder().encode(rawHtml).length > MAX_HTML_BYTES) {
     return {
