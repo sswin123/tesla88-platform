@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import SafeHtmlBlock from '@/app/components/SafeHtmlBlock';
 
 interface GenericConfig {
   title?: string;
@@ -48,7 +49,7 @@ export default function GenericSection({ config }: { config: GenericConfig }) {
         style={bg_color ? { background: bg_color } : undefined}
         className="rounded-xl overflow-hidden"
       >
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <SafeHtmlBlock html={html} />
       </section>
     );
   }
