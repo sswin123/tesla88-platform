@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# stop — 停止所有容器（保留数据卷：postgres_data、redis_data、uploads、SSL）
+#
+# 用法: ./stop
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.production.yml"
+DC="docker compose -f $COMPOSE_FILE"
+
+GREEN='\033[0;32m'; BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+ok()   { echo -e "${GREEN}  ✓  ${NC}$*"; }
+info() { echo -e "${BLUE}  →  ${NC}$*"; }
+
+echo ""
+echo -e "${BOLD}${CYAN}━━━ Tesla88 / SSWIN88  Stop ━━━${NC}"
+echo ""
+
+info "停止并移除容器（保留数据卷）..."
+$DC down
+
+echo ""
+ok "所有容器已停止"
+echo ""
+echo -e "  保留的数据卷："
+echo -e "    • postgres_data  （数据库）"
+echo -e "    • redis_data     （Redis）"
+echo -e "    • erp_uploads    （ERP 上传文件）"
+echo -e "    • website_uploads（Website 上传文件）"
+echo -e "    • nginx_ssl      （SSL 证书）"
+echo -e "    • nginx_logs     （Nginx 日志）"
+echo ""
+echo -e "  重新启动：${BOLD}./demo${NC}"
+echo ""
