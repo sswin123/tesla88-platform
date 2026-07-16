@@ -1,18 +1,16 @@
 import type { NextConfig } from 'next';
 
-// ERP_ORIGIN: the domain of the ERP admin panel that is allowed to embed
-// this website in an iframe for the Website Builder Preview feature.
+// ERP_ORIGIN: the domain of the ERP admin panel allowed to embed the /preview route.
+// Only /preview relaxes framing. All other pages keep X-Frame-Options: DENY.
 // Example: https://erp.apidemo.club  (or http://localhost:3001 for dev)
-// If unset, frame-ancestors falls back to 'self' only (no external embedding).
-const erpOrigin = process.env.ERP_ORIGIN?.trim() ?? '';
-const frameAncestors = erpOrigin ? `'self' ${erpOrigin}` : "'self'";
+const erpOrigin = process.env.ERP_ORIGIN?.trim() ?? 'https://erp.apidemo.club';
 
+// ── All pages: deny iframe embedding entirely ──────────────────────────────────
 const SECURITY_HEADERS = [
-  // X-Frame-Options is superseded by CSP frame-ancestors in modern browsers.
-  // We omit it to avoid conflicting signals; frame-ancestors is the authoritative rule.
-  { key: 'X-Content-Type-Options',    value: 'nosniff' },
-  { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'X-Frame-Options',        value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy',        value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy',     value: 'camera=(), microphone=(), geolocation=()' },
   {
     key: 'Content-Security-Policy',
     value: [
@@ -23,7 +21,31 @@ const SECURITY_HEADERS = [
       "media-src 'self' blob:",
       "connect-src 'self' wss:",
       "font-src 'self'",
-      `frame-ancestors ${frameAncestors}`,
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '),
+  },
+];
+
+// ── /preview only: override CSP to allow ERP iframe ───────────────────────────
+// Per MDN spec, when frame-ancestors is present in CSP, X-Frame-Options is
+// ignored by the browser — so X-Frame-Options: DENY from the base rule above
+// is overridden for this route by the CSP frame-ancestors here, without needing
+// to remove it.  All other pages remain unaffected.
+const PREVIEW_CSP_OVERRIDE = [
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "media-src 'self' blob:",
+      "connect-src 'self' wss:",
+      "font-src 'self'",
+      `frame-ancestors 'self' ${erpOrigin}`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -40,8 +62,16 @@ const config: NextConfig = {
   async headers() {
     return [
       {
+        // Rule 1: strict headers applied to EVERY page (including /preview)
         source: '/:path*',
         headers: SECURITY_HEADERS,
+      },
+      {
+        // Rule 2: /preview only — override the CSP so ERP can embed this route.
+        // Next.js applies rules in order; for duplicate header keys the last match
+        // wins, so this CSP replaces the one set by Rule 1 for /preview.
+        source: '/preview',
+        headers: PREVIEW_CSP_OVERRIDE,
       },
     ];
   },

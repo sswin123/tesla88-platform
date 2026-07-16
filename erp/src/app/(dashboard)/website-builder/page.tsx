@@ -4118,7 +4118,7 @@ export default function WebsiteBuilderPage() {
                     Cache-busted per previewKey so each Refresh fetches the latest page. */}
                 <iframe
                   key={previewKey}
-                  src={`${websiteUrl}?_preview=${previewKey}`}
+                  src={`${websiteUrl}/preview?_preview=${previewKey}`}
                   sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
                   style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                   title="Website Preview"
