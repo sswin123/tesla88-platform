@@ -1,36 +1,66 @@
+export const SANITIZER_VERSION = 2;
+
 const MAX_HTML_BYTES = 100 * 1024;
+const MAX_CSS_BYTES  =  50 * 1024;
+const CACHE_MAX      = 200;
+
+// ── Tag blocklists ────────────────────────────────────────────────────────────
 
 const REMOVE_TAGS = [
   'script', 'iframe', 'object', 'embed', 'link', 'meta', 'base',
-  'frame', 'frameset', 'noscript', 'form',
+  'frame', 'frameset', 'noscript', 'form', 'handler',
 ];
 
-// Explicit allowlist — anything not in this set is stripped (subtree removed)
+// SVG-specific dangerous elements (checked with tagName.toLowerCase())
+const SVG_UNSAFE_LOWER = new Set([
+  'script', 'foreignobject', 'handler',
+  'animate', 'animatemotion', 'animatetransform', 'set', 'discard',
+]);
+
+// ── HTML element allowlist ────────────────────────────────────────────────────
+
 const ALLOWED_ELEMENTS = new Set([
-  // Layout
   'div', 'span', 'section', 'article', 'aside', 'header', 'footer', 'main', 'nav',
-  // Text
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'ul', 'ol', 'li', 'dl', 'dt', 'dd',
   'blockquote', 'pre', 'code', 'kbd', 'samp', 'var',
   'strong', 'em', 'b', 'i', 'u', 's', 'del', 'ins', 'mark',
   'small', 'sub', 'sup', 'abbr', 'cite', 'q', 'time', 'address',
   'hr', 'br', 'wbr',
-  // Interactive
   'a', 'button',
-  // Media
   'img', 'video', 'audio', 'picture', 'source', 'track',
   'figure', 'figcaption',
-  // Table
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'colgroup', 'col',
-  // SVG (top-level only; children handled separately via closest('svg'))
   'svg',
-  // Misc
   'details', 'summary',
   'canvas', 'ruby', 'rt', 'rp',
 ]);
 
-const UNSAFE_URL_RE = /^\s*(javascript|vbscript|data:text\/html)/i;
+// URL-bearing attributes whose values must pass the URL allowlist
+const URL_ATTRS = new Set(['href', 'src', 'action', 'data', 'poster']);
+
+// ── URL allowlist ─────────────────────────────────────────────────────────────
+
+function isSafeUrl(raw: string): boolean {
+  const u = raw.trim();
+  if (!u || u === '#') return true;
+  if (/^(https?:|mailto:|tel:)/i.test(u)) return true;
+  if (/^\.{0,2}\//.test(u)) return true;   // relative paths
+  return false;
+}
+
+// ── Inline style sanitizer ────────────────────────────────────────────────────
+
+function sanitizeStyle(style: string): string {
+  return style
+    .replace(/expression\s*\([^)]*\)/gi, '')
+    .replace(/\burl\s*\(\s*["']?\s*(?:javascript|vbscript|data\s*:)[^)]*\)/gi, 'none')
+    .replace(/\bbehavior\s*:[^;]*/gi, '');
+}
+
+// ── Module-level FIFO cache ───────────────────────────────────────────────────
+
+const _cache = new Map<string, ProcessedHtml>();
 
 export interface ProcessedHtml {
   body: string;
@@ -38,7 +68,21 @@ export interface ProcessedHtml {
 }
 
 export function processHtml(rawHtml: string): ProcessedHtml {
-  // Size guard — reject oversized widgets before parsing
+  const key = `v${SANITIZER_VERSION}:${rawHtml}`;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+
+  const result = _process(rawHtml);
+
+  if (_cache.size >= CACHE_MAX) _cache.delete(_cache.keys().next().value!);
+  _cache.set(key, result);
+  return result;
+}
+
+// ── Core sanitizer ────────────────────────────────────────────────────────────
+
+function _process(rawHtml: string): ProcessedHtml {
+  // HTML size guard
   if (new TextEncoder().encode(rawHtml).length > MAX_HTML_BYTES) {
     return {
       body: '<p style="color:#c00;font-size:13px;padding:8px">HTML 内容超过 100 KB 限制，已拒绝渲染。</p>',
@@ -49,7 +93,7 @@ export function processHtml(rawHtml: string): ProcessedHtml {
   const parser = new DOMParser();
   const doc    = parser.parseFromString(rawHtml, 'text/html');
 
-  // 1. Extract <style> tags → collect CSS, remove from DOM
+  // 1. Extract <style> content → will be scoped externally by css-scoper
   const cssChunks: string[] = [];
   doc.querySelectorAll('style').forEach(el => {
     const text = el.textContent ?? '';
@@ -57,41 +101,64 @@ export function processHtml(rawHtml: string): ProcessedHtml {
     el.remove();
   });
 
-  // 2. Remove explicitly dangerous tags and their subtrees
-  REMOVE_TAGS.forEach(tag => {
-    doc.querySelectorAll(tag).forEach(el => el.remove());
+  const rawCss      = cssChunks.join('\n');
+  const cssTooLarge = new TextEncoder().encode(rawCss).length > MAX_CSS_BYTES;
+  const finalCss    = cssTooLarge ? '' : rawCss;
+
+  // 2. Remove explicitly dangerous HTML tags (entire subtrees)
+  REMOVE_TAGS.forEach(tag => doc.querySelectorAll(tag).forEach(el => el.remove()));
+
+  // 3. SVG safety pass — remove dangerous SVG-specific elements
+  doc.body.querySelectorAll('svg *').forEach(el => {
+    if (SVG_UNSAFE_LOWER.has(el.tagName.toLowerCase())) el.remove();
   });
 
-  // 3. Enforce element whitelist — strip anything not explicitly allowed
-  //    Elements inside <svg> are passed through (except foreignObject which embeds HTML)
+  // 4. Restrict SVG <use> to local fragment references only (#id)
+  //    External <use href="https://...#symbol"> can load remote SVGs
+  doc.body.querySelectorAll('use').forEach(use => {
+    const href = use.getAttribute('href') ?? use.getAttribute('xlink:href') ?? '';
+    if (href && !href.startsWith('#')) use.remove();
+  });
+
+  // 5. Enforce HTML element allowlist (SVG children pass through, except foreignObject)
   doc.body.querySelectorAll('*').forEach(el => {
     const tag = el.tagName.toLowerCase();
     if (el.closest('svg') && tag !== 'foreignobject') return;
     if (!ALLOWED_ELEMENTS.has(tag)) el.remove();
   });
 
-  // 4. Sanitize attributes on surviving elements
+  // 6. Sanitize attributes on all surviving elements
   doc.body.querySelectorAll('*').forEach(el => sanitizeElement(el));
 
-  // 5. Auto-enhance: lazy-load images
+  // 7. Auto-enhance: images
   doc.body.querySelectorAll('img').forEach(img => {
-    if (!img.hasAttribute('loading'))  img.setAttribute('loading',  'lazy');
-    if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
+    if (!img.hasAttribute('loading'))        img.setAttribute('loading',        'lazy');
+    if (!img.hasAttribute('decoding'))       img.setAttribute('decoding',       'async');
+    if (!img.hasAttribute('referrerpolicy')) img.setAttribute('referrerpolicy', 'no-referrer');
   });
 
-  // 6. Auto-enhance: secure outbound links
+  // 8. Auto-enhance: video + audio — bandwidth-safe default
+  doc.body.querySelectorAll('video, audio').forEach(el => {
+    if (!el.hasAttribute('preload')) el.setAttribute('preload', 'metadata');
+  });
+
+  // 9. Auto-enhance: outbound links
   doc.body.querySelectorAll('a[target="_blank"]').forEach(a => {
     const parts = (a.getAttribute('rel') ?? '').split(/\s+/).filter(Boolean);
     if (!parts.includes('noopener'))   parts.push('noopener');
     if (!parts.includes('noreferrer')) parts.push('noreferrer');
     a.setAttribute('rel', parts.join(' '));
+    if (!a.hasAttribute('referrerpolicy')) a.setAttribute('referrerpolicy', 'strict-origin');
   });
 
-  return {
-    body: doc.body.innerHTML,
-    css:  cssChunks.join('\n'),
-  };
+  const notice = cssTooLarge
+    ? '<p style="color:#c00;font-size:13px;padding:8px">CSS 内容超过 50 KB 限制，样式已被移除。</p>'
+    : '';
+
+  return { body: doc.body.innerHTML + notice, css: finalCss };
 }
+
+// ── Attribute sanitizer ───────────────────────────────────────────────────────
 
 function sanitizeElement(el: Element): void {
   const toRemove: string[] = [];
@@ -99,23 +166,16 @@ function sanitizeElement(el: Element): void {
   for (const attr of Array.from(el.attributes)) {
     const name = attr.name.toLowerCase();
 
-    // Block all event handlers
-    if (name.startsWith('on')) {
-      toRemove.push(attr.name);
-      continue;
+    if (name.startsWith('on')) { toRemove.push(attr.name); continue; }
+    if (name === 'srcdoc')     { toRemove.push(attr.name); continue; }
+
+    if (URL_ATTRS.has(name)) {
+      if (!isSafeUrl(attr.value)) el.setAttribute(attr.name, '#');
     }
 
-    // Block srcdoc (HTML injection vector)
-    if (name === 'srcdoc') {
-      toRemove.push(attr.name);
-      continue;
-    }
-
-    // Sanitize URL-bearing attributes
-    if (name === 'href' || name === 'src' || name === 'action' || name === 'data') {
-      if (UNSAFE_URL_RE.test(attr.value.trim())) {
-        el.setAttribute(attr.name, '#');
-      }
+    if (name === 'style') {
+      const cleaned = sanitizeStyle(attr.value);
+      if (cleaned !== attr.value) el.setAttribute('style', cleaned);
     }
   }
 
