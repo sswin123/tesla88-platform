@@ -444,7 +444,7 @@ function ChangeAccountModal({ onConfirm, onCancel, loading }: {
 }
 
 // ── Transfer Instructions ─────────────────────────────────────────────────────
-function TransferInstructions({ amount, phone }: { amount: number; phone: string }) {
+function TransferInstructions({ amount, phone, currency = 'RM', decimals = 2 }: { amount: number; phone: string; currency?: string; decimals?: number }) {
   return (
     <div className="rounded-xl px-4 py-3.5 space-y-2"
       style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)' }}>
@@ -454,7 +454,7 @@ function TransferInstructions({ amount, phone }: { amount: number; phone: string
       <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.7 }}>
         <p>
           • 请转账 <strong style={{ color: 'var(--text-base)' }}>
-            {amount > 0 ? `RM ${amount.toFixed(2)}` : '您输入的存款金额'}
+            {amount > 0 ? `${currency} ${amount.toFixed(decimals)}` : '您输入的存款金额'}
           </strong>（必须与存款金额完全一致）
         </p>
         <p>
@@ -496,6 +496,8 @@ export default function DepositForm() {
   const [minAmount,          setMinAmount]          = useState(30);
   const [walletBalance,      setWalletBalance]      = useState<number | null>(null);
   const [maxBalanceDeposit,  setMaxBalanceDeposit]  = useState(0); // 0 = unlimited
+  const [currency,           setCurrency]           = useState('RM');
+  const [decimals,           setDecimals]           = useState(2);
 
   // ── Validation ────────────────────────────────────────────────────────────
   const [errorFields,   setErrorFields]   = useState<Set<string>>(new Set());
@@ -545,6 +547,8 @@ export default function DepositForm() {
       const s = settings as Record<string, string>;
       if (s.deposit_min_amount)        setMinAmount(parseFloat(s.deposit_min_amount) || 30);
       if (s.wallet_max_balance_deposit) setMaxBalanceDeposit(parseFloat(s.wallet_max_balance_deposit) || 0);
+      if (s.website_currency)          setCurrency(s.website_currency);
+      if (s.website_decimal_places)    setDecimals(parseInt(s.website_decimal_places, 10) || 2);
       if (profile) {
         const bal = parseFloat(profile.total_deposit || '0') - parseFloat(profile.total_withdraw || '0');
         setWalletBalance(bal);
@@ -675,7 +679,7 @@ export default function DepositForm() {
   // ── Smart submit button ───────────────────────────────────────────────────
   function getSubmitButton(): { text: string; disabled: boolean } {
     if (uploadingReceipt)                  return { text: '等待凭证上传…', disabled: true };
-    if (!amount || numAmount < minAmount)   return { text: `最低 RM ${minAmount}`, disabled: true };
+    if (!amount || numAmount < minAmount)   return { text: `最低 ${currency} ${minAmount}`, disabled: true };
     if (!allMaintenance && !selectedBankId) return { text: '请选择收款银行', disabled: true };
     if (!provider)                          return { text: '请先选择游戏', disabled: true };
     return { text: '下一步：确认详情 →', disabled: false };
@@ -778,7 +782,7 @@ export default function DepositForm() {
           </p>
           <div className="space-y-3">
             {[
-              { label: '存款金额', value: `RM ${successData.amount.toFixed(2)}`, brand: true },
+              { label: '存款金额', value: `${currency} ${successData.amount.toFixed(decimals)}`, brand: true },
               { label: '游戏平台', value: successData.provider },
               { label: '优惠活动', value: successData.promoName ?? '不使用优惠' },
               { label: '收款银行', value: successData.bankName || '—' },
@@ -824,6 +828,8 @@ export default function DepositForm() {
         onConfirm={handleConfirm}
         onBack={() => setStep('form')}
         submitting={submitting}
+        currency={currency}
+        decimals={decimals}
       />
     );
   }
@@ -843,7 +849,7 @@ export default function DepositForm() {
         <div className="text-3xl">⛔</div>
         <h3 className="text-base font-bold" style={{ color: '#ef4444' }}>存款已暂停</h3>
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          您的钱包余额已达到最高限额 <strong style={{ color: 'var(--text-base)' }}>RM {maxBalanceDeposit.toFixed(2)}</strong>，
+          您的钱包余额已达到最高限额 <strong style={{ color: 'var(--text-base)' }}>{currency} {maxBalanceDeposit.toFixed(decimals)}</strong>，
           暂时无法进行存款。
         </p>
         <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
@@ -890,7 +896,7 @@ export default function DepositForm() {
 
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-sm"
-              style={{ color: 'var(--text-faint)' }}>RM</span>
+              style={{ color: 'var(--text-faint)' }}>{currency}</span>
             <input
               type="number" value={amount}
               onChange={e => { setAmount(e.target.value); clearError('amount'); }}
@@ -919,16 +925,16 @@ export default function DepositForm() {
           {/* Min notice + real-time bonus preview */}
           <div className="mt-2 space-y-1.5">
             <p className="text-xs" style={{ color: numAmount > 0 && numAmount < minAmount ? '#ef4444' : 'var(--text-faint)' }}>
-              最低存款 RM {minAmount}
+              最低存款 {currency} {minAmount}
               {numAmount > 0 && numAmount < minAmount && (
-                <span className="ml-2 font-semibold">（当前 RM {numAmount} 不足）</span>
+                <span className="ml-2 font-semibold">（当前 {currency} {numAmount} 不足）</span>
               )}
             </p>
             {selectedPromo && numAmount >= parseFloat(selectedPromo.min_deposit) && bonusAmount > 0 && (
               <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
                 style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
                 <span style={{ color: '#16a34a' }}>🎁 预计奖金</span>
-                <span className="font-bold" style={{ color: '#16a34a' }}>+RM {bonusAmount.toFixed(2)}</span>
+                <span className="font-bold" style={{ color: '#16a34a' }}>+{currency} {bonusAmount.toFixed(decimals)}</span>
                 <span style={{ color: 'var(--text-faint)' }}>（{selectedPromo.name}）</span>
               </div>
             )}
@@ -1013,6 +1019,8 @@ export default function DepositForm() {
               selectedId={promoId}
               depositAmount={numAmount}
               onChange={setPromoId}
+              currency={currency}
+              decimals={decimals}
             />
           </div>
         )}
@@ -1029,7 +1037,7 @@ export default function DepositForm() {
                 转账说明 Transfer Instructions
               </p>
             </div>
-            <TransferInstructions amount={numAmount} phone={memberPhone} />
+            <TransferInstructions amount={numAmount} phone={memberPhone} currency={currency} decimals={decimals} />
           </div>
         )}
 

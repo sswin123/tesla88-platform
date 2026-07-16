@@ -12,6 +12,8 @@ const WEBSITE_KEYS = [
   'wallet_max_balance_deposit', 'website_currency', 'website_decimal_places',
   // Withdrawal limit
   'max_withdrawals_per_day',
+  // Registration control
+  'website_registration',
 ];
 
 export async function GET() {

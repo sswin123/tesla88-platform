@@ -1,14 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCurrency } from '@/lib/useCurrency';
 import type { MemberProfile } from '@/lib/types';
-
-function fmt(n: string | number) {
-  return `RM ${parseFloat(String(n)).toFixed(2)}`;
-}
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { fmt } = useCurrency();
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [deposits, setDeposits]     = useState<unknown[]>([]);
   const [withdrawals, setWithdrawals] = useState<unknown[]>([]);

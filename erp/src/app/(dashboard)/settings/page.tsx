@@ -12,28 +12,44 @@ type SectionDef = {
 };
 
 const SECTIONS: SectionDef[] = [
-  { id: 'general',       title: 'General',       keys: ['company_name', 'timezone', 'bot_name'] },
-  { id: 'livechat',      title: 'Live Chat',     keys: ['session_timeout_min', 'auto_reply_enabled', 'auto_reply_message'] },
-  { id: 'notifications', title: 'Notifications', keys: ['notif_sound'] },
-  { id: 'media',         title: 'Media',         keys: ['max_upload_mb', 'retention_days'] },
-  { id: 'integration',   title: 'Integration',   keys: ['bot_relay_url'] },
-  { id: 'system',        title: 'System',        keys: ['maintenance_mode'] },
+  { id: 'general',       title: 'General',                  keys: ['company_name', 'timezone', 'bot_name'] },
+  { id: 'livechat',      title: 'Live Chat',                keys: ['session_timeout_min', 'auto_reply_enabled', 'auto_reply_message'] },
+  { id: 'notifications', title: 'Notifications',            keys: ['notif_sound'] },
+  { id: 'media',         title: 'Media',                    keys: ['max_upload_mb', 'retention_days'] },
+  { id: 'integration',   title: 'Integration',              keys: ['bot_relay_url'] },
+  { id: 'registration',  title: 'Website Registration',     keys: ['website_registration', 'phone_unique', 'bank_unique', 'email_unique', 'telegram_unique'] },
+  { id: 'financial',     title: 'Website Financial',        keys: ['website_currency', 'deposit_min_amount', 'deposit_max_amount', 'withdraw_min_amount', 'withdraw_max_amount', 'website_decimal_places'] },
+  { id: 'system',        title: 'System',                   keys: ['maintenance_mode'] },
 ];
 
-const BOOL_KEYS = new Set(['notif_sound', 'auto_reply_enabled', 'maintenance_mode']);
+const BOOL_KEYS = new Set([
+  'notif_sound', 'auto_reply_enabled', 'maintenance_mode',
+  'website_registration', 'phone_unique', 'bank_unique', 'email_unique', 'telegram_unique',
+]);
 
 const LABELS: Record<string, string> = {
-  company_name:       'Company Name',
-  timezone:           'Timezone',
-  bot_name:           'Bot Name',
-  session_timeout_min:'Session Timeout (minutes)',
-  auto_reply_enabled: 'Auto-Reply Enabled',
-  auto_reply_message: 'Auto-Reply Message',
-  notif_sound:        'Notification Sound',
-  max_upload_mb:      'Max Upload Size (MB)',
-  retention_days:     'Message Retention (days)',
-  bot_relay_url:      'Bot Relay URL',
-  maintenance_mode:   'Maintenance Mode',
+  company_name:           'Company Name',
+  timezone:               'Timezone',
+  bot_name:               'Bot Name',
+  session_timeout_min:    'Session Timeout (minutes)',
+  auto_reply_enabled:     'Auto-Reply Enabled',
+  auto_reply_message:     'Auto-Reply Message',
+  notif_sound:            'Notification Sound',
+  max_upload_mb:          'Max Upload Size (MB)',
+  retention_days:         'Message Retention (days)',
+  bot_relay_url:          'Bot Relay URL',
+  maintenance_mode:       'Maintenance Mode',
+  website_registration:   '开放 Website 自助注册',
+  phone_unique:           '手机号唯一性检查（注册时不允许重复手机号）',
+  bank_unique:            '银行账号唯一性检查（注册时不允许重复银行账号）',
+  email_unique:           '邮箱唯一性检查（注册时不允许重复邮箱）',
+  telegram_unique:        'Telegram 唯一性检查（注册时不允许重复 Telegram 用户名）',
+  website_currency:       '货币符号（例如 RM、SGD、USD）',
+  deposit_min_amount:     '最低存款金额',
+  deposit_max_amount:     '最高存款金额',
+  withdraw_min_amount:    '最低提款金额',
+  withdraw_max_amount:    '最高提款金额',
+  website_decimal_places: '金额小数位数（0、2 或 3）',
 };
 
 function formatDate(iso: string): string {

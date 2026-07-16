@@ -57,7 +57,7 @@ export const BRAND_FALLBACK: PublicBrand = {
 
 let _cache: PublicBrand | null = null;
 let _cacheAt = 0;
-const TTL_MS = 10_000; // 10s — short enough to reflect brand changes quickly
+const TTL_MS = 2_000; // 2s — near-instant theme updates after ERP save
 
 export function invalidateBrandCache(): void {
   _cache = null;

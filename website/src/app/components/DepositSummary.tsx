@@ -10,6 +10,8 @@ interface Props {
   onConfirm: () => void;
   onBack: () => void;
   submitting: boolean;
+  currency?: string;
+  decimals?: number;
 }
 
 function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -36,8 +38,12 @@ export default function DepositSummary({
   onConfirm,
   onBack,
   submitting,
+  currency = 'RM',
+  decimals = 2,
 }: Props) {
   const creditAmount = amount + bonusAmount;
+  const c = currency;
+  const d = decimals;
 
   return (
     <div className="space-y-4">
@@ -49,7 +55,7 @@ export default function DepositSummary({
           确认存款详情
         </h3>
 
-        <Row label="存款金额" value={`RM ${amount.toFixed(2)}`} />
+        <Row label="存款金额" value={`${c} ${amount.toFixed(d)}`} />
         <Row label="游戏" value={provider} />
         <Row label="付款方式" value={paymentBank} />
 
@@ -58,14 +64,11 @@ export default function DepositSummary({
             <Row label="优惠活动" value={promotion.name} />
             <Row
               label="奖金"
-              value={bonusAmount > 0 ? `+RM ${bonusAmount.toFixed(2)}` : '不符合条件'}
+              value={bonusAmount > 0 ? `+${c} ${bonusAmount.toFixed(d)}` : '不符合条件'}
               highlight={bonusAmount > 0}
             />
             {bonusAmount > 0 && (
-              <Row
-                label="流水要求"
-                value={`RM ${turnoverRequired.toFixed(2)}`}
-              />
+              <Row label="流水要求" value={`${c} ${turnoverRequired.toFixed(d)}`} />
             )}
           </>
         )}
@@ -82,7 +85,7 @@ export default function DepositSummary({
               textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
             }}
           >
-            RM {creditAmount.toFixed(2)}
+            {c} {creditAmount.toFixed(d)}
           </span>
         </div>
       </div>

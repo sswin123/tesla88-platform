@@ -10,6 +10,8 @@ interface Props {
   onConfirm: () => void;
   onBack: () => void;
   submitting: boolean;
+  currency?: string;
+  decimals?: number;
 }
 
 function Row({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -26,7 +28,9 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
   );
 }
 
-export default function WithdrawSummary({ amount, bankName, bankAccount, onConfirm, onBack, submitting }: Props) {
+export default function WithdrawSummary({ amount, bankName, bankAccount, onConfirm, onBack, submitting, currency = 'RM', decimals = 2 }: Props) {
+  const c = currency;
+  const d = decimals;
   return (
     <div className="space-y-4">
       <div className="casino-card p-5">
@@ -37,7 +41,7 @@ export default function WithdrawSummary({ amount, bankName, bankAccount, onConfi
           确认提款详情
         </h3>
 
-        <Row label="提款金额" value={`RM ${amount.toFixed(2)}`} highlight />
+        <Row label="提款金额" value={`${c} ${amount.toFixed(d)}`} highlight />
         <Row label="银行" value={bankName} />
         <Row label="账号" value={maskAccount(bankAccount)} />
 
@@ -53,7 +57,7 @@ export default function WithdrawSummary({ amount, bankName, bankAccount, onConfi
               textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
             }}
           >
-            RM {amount.toFixed(2)}
+            {c} {amount.toFixed(d)}
           </span>
         </div>
       </div>

@@ -38,6 +38,8 @@ export default function WithdrawForm() {
 
   const [profile, setProfile]   = useState<MemberProfile | null>(null);
   const [minAmount, setMinAmount] = useState(30);
+  const [currency, setCurrency] = useState('RM');
+  const [decimals, setDecimals] = useState(2);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
@@ -46,7 +48,9 @@ export default function WithdrawForm() {
       fetch('/api/public/settings').then(r => r.ok ? r.json() as Promise<Partial<Record<string, string>>> : Promise.resolve({} as Partial<Record<string, string>>)),
     ]).then(([prof, settings]) => {
       setProfile(prof);
-      if (settings.withdraw_min_amount) setMinAmount(parseFloat(settings.withdraw_min_amount) || 30);
+      if (settings.withdraw_min_amount)    setMinAmount(parseFloat(settings.withdraw_min_amount) || 30);
+      if (settings.website_currency)       setCurrency(settings.website_currency);
+      if (settings.website_decimal_places) setDecimals(parseInt(settings.website_decimal_places, 10) || 2);
     }).catch(() => {/* silent */}).finally(() => setLoading(false));
   }, []);
 
@@ -57,7 +61,7 @@ export default function WithdrawForm() {
     e.preventDefault();
     setError('');
     if (!profile?.bank_account) { window.location.href = '/complete-bank-information'; return; }
-    if (numAmount < minAmount)  { setError(`最低提款金额为 RM ${minAmount}`); return; }
+    if (numAmount < minAmount)  { setError(`最低提款金额为 ${currency} ${minAmount}`); return; }
     if (numAmount > balance)    { setError('提款金额超过可用余额'); return; }
     setStep('confirm');
   }
@@ -160,6 +164,8 @@ export default function WithdrawForm() {
         onConfirm={handleConfirm}
         onBack={() => setStep('form')}
         submitting={submitting}
+        currency={currency}
+        decimals={decimals}
       />
     );
   }
@@ -188,7 +194,7 @@ export default function WithdrawForm() {
             textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
           }}
         >
-          RM {balance.toFixed(2)}
+          {currency} {balance.toFixed(decimals)}
         </p>
       </div>
 
@@ -210,13 +216,13 @@ export default function WithdrawForm() {
 
       {/* ── Amount ── */}
       <div>
-        <InputLabel>提款金额 (RM)</InputLabel>
+        <InputLabel>提款金额 ({currency})</InputLabel>
         <div className="relative">
           <span
             className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold"
             style={{ color: 'var(--text-faint)' }}
           >
-            RM
+            {currency}
           </span>
           <input
             type="number"
@@ -227,7 +233,7 @@ export default function WithdrawForm() {
             min={minAmount}
             max={balance}
             step="1"
-            placeholder={`最低 RM ${minAmount}`}
+            placeholder={`最低 ${currency} ${minAmount}`}
             required
             className="w-full pl-10 pr-4 py-2 rounded-xl text-sm"
             style={inputStyle(focusedField === 'amount')}
@@ -259,7 +265,7 @@ export default function WithdrawForm() {
             className="mt-2 w-full py-1.5 rounded-lg text-xs font-semibold transition-all"
             style={{ background: 'var(--bg-surface3)', color: 'var(--text-muted)' }}
           >
-            全部提款 (RM {Math.floor(balance)})
+            全部提款 ({currency} {Math.floor(balance)})
           </button>
         )}
       </div>

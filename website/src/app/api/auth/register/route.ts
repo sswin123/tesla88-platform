@@ -14,7 +14,31 @@ function setBankCookie(res: NextResponse) {
   });
 }
 
+async function getSettings(keys: string[]): Promise<Record<string, string>> {
+  try {
+    const { rows } = await pool.query<{ key: string; value: string }>(
+      `SELECT key, value FROM system_settings WHERE key = ANY($1)`,
+      [keys]
+    );
+    return Object.fromEntries(rows.map(r => [r.key, r.value]));
+  } catch {
+    return {};
+  }
+}
+
 export async function POST(req: NextRequest) {
+  // Check if website registration is enabled
+  const settings = await getSettings([
+    'website_registration', 'phone_unique', 'bank_unique', 'email_unique', 'telegram_unique',
+  ]);
+
+  if (settings['website_registration'] !== 'true') {
+    return NextResponse.json(
+      { error: '网站注册暂未开放，请联系在线客服或 Telegram 客服开通会员。' },
+      { status: 403 }
+    );
+  }
+
   const ip = getClientIp(req);
   const rl = rateLimit(`register:${ip}`, 3, 60 * 60_000);
   if (!rl.ok) {
@@ -30,6 +54,7 @@ export async function POST(req: NextRequest) {
     first_name?: string;
     telegram_username?: string;
     referral_code?: string;
+    email?: string;
   };
 
   const { password } = body;
@@ -37,6 +62,7 @@ export async function POST(req: NextRequest) {
   const firstName = (body.first_name ?? '').trim();
   const telegramUsername = (body.telegram_username ?? '').trim() || null;
   const referralCode = (body.referral_code ?? '').trim() || null;
+  const email = (body.email ?? '').trim() || null;
 
   if (!rawPhone || !password || !firstName)
     return NextResponse.json({ error: 'name, phone and password required' }, { status: 400 });
@@ -47,7 +73,38 @@ export async function POST(req: NextRequest) {
   if (!phone)
     return NextResponse.json({ error: '手机号格式无效' }, { status: 400 });
 
-  // Check if phone already exists
+  // Validation: phone uniqueness (skip if phone exists but has no web password yet — Telegram user upgrade flow handled below)
+  if (settings['phone_unique'] !== 'false') {
+    const phoneCheck = await pool.query<{ website_password_hash: string | null }>(
+      `SELECT website_password_hash FROM users WHERE phone = $1 AND status = 'ACTIVE' LIMIT 1`, [phone]
+    );
+    if (phoneCheck.rows[0]?.website_password_hash) {
+      return NextResponse.json({ error: 'Number is already registered.' }, { status: 409 });
+    }
+  }
+
+  // Validation: email uniqueness
+  if (email && settings['email_unique'] === 'true') {
+    const emailCheck = await pool.query<{ id: number }>(
+      `SELECT id FROM users WHERE email = $1 LIMIT 1`, [email]
+    );
+    if (emailCheck.rows.length > 0) {
+      return NextResponse.json({ error: 'Email is already registered.' }, { status: 409 });
+    }
+  }
+
+  // Validation: telegram uniqueness
+  if (telegramUsername && settings['telegram_unique'] === 'true') {
+    const tgCheck = await pool.query<{ id: number }>(
+      `SELECT id FROM users WHERE telegram_username = $1 AND telegram_username IS NOT NULL LIMIT 1`,
+      [telegramUsername]
+    );
+    if (tgCheck.rows.length > 0) {
+      return NextResponse.json({ error: 'Telegram username is already registered.' }, { status: 409 });
+    }
+  }
+
+  // Check if phone already exists (for upgrading Telegram-only accounts)
   const existing = await pool.query<{
     id: number;
     first_name: string;
@@ -107,8 +164,8 @@ export async function POST(req: NextRequest) {
     const newUser = await client.query<{ id: number }>(
       `INSERT INTO users
          (first_name, phone, telegram_username, website_password_hash, website_registered_at,
-          eligible_free_credit, referred_by)
-       VALUES ($1, $2, $3, $4, NOW(), FALSE, $5)
+          eligible_free_credit, referred_by, register_source)
+       VALUES ($1, $2, $3, $4, NOW(), FALSE, $5, 'WEBSITE')
        RETURNING id`,
       [firstName, phone, telegramUsername, hash, referredById]
     );

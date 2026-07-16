@@ -85,6 +85,7 @@ function RegisterForm() {
   const [loading,       setLoading]       = useState(false);
   const [duplicatePhone, setDuplicatePhone] = useState(false);
   const [telegramMember, setTelegramMember] = useState(false);
+  const [regEnabled,    setRegEnabled]    = useState<boolean | null>(null); // null = loading
 
   const nameRef     = useRef<HTMLDivElement>(null);
   const phoneRef    = useRef<HTMLDivElement>(null);
@@ -95,6 +96,15 @@ function RegisterForm() {
     const ref = searchParams.get('ref');
     if (ref) setReferralCode(ref);
   }, [searchParams]);
+
+  useEffect(() => {
+    fetch('/api/public/settings')
+      .then(r => r.json())
+      .then((d: Record<string, string>) => {
+        setRegEnabled(d['website_registration'] === 'true');
+      })
+      .catch(() => setRegEnabled(false));
+  }, []);
 
   function shakeField(field: string) {
     setShakingFields(prev => new Set(prev).add(field));
@@ -172,6 +182,34 @@ function RegisterForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Registration closed state
+  if (regEnabled === null) {
+    return (
+      <div className="max-w-sm mx-auto py-16 text-center" style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+        加载中…
+      </div>
+    );
+  }
+
+  if (!regEnabled) {
+    return (
+      <div className="max-w-sm mx-auto py-16 text-center space-y-4">
+        <div style={{ fontSize: 48 }}>🔒</div>
+        <h1 className="font-bold" style={{ fontSize: 'var(--sz-section)', color: 'var(--text-base)' }}>
+          注册暂未开放
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7 }}>
+          网站注册暂未开放，请联系在线客服或 Telegram 客服开通会员。
+        </p>
+        <a href="/login"
+          className="casino-btn-primary inline-block px-6 py-2.5 text-sm font-bold"
+          style={{ borderRadius: 'var(--radius-btn)', textDecoration: 'none' }}>
+          前往登录
+        </a>
+      </div>
+    );
   }
 
   return (

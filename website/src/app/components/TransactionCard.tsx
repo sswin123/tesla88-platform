@@ -46,9 +46,11 @@ function TypeBadge({ type }: { type: TxRecord['type'] }) {
   );
 }
 
-function fmt(n: string | number) {
-  const v = parseFloat(String(n));
-  return isNaN(v) ? 'RM 0.00' : `RM ${v.toFixed(2)}`;
+function mkFmt(currency: string, decimals: number) {
+  return (n: string | number) => {
+    const v = parseFloat(String(n));
+    return isNaN(v) ? `${currency} ${(0).toFixed(decimals)}` : `${currency} ${v.toFixed(decimals)}`;
+  };
 }
 
 function maskAccount(acc: string) {
@@ -64,8 +66,10 @@ function fmtDate(iso: string) {
   });
 }
 
+type CardProps = { tx: TxRecord; fmt: (n: string | number) => string };
+
 /* ── Mobile card ────────────────────────────────────────────────── */
-function MobileCard({ tx }: { tx: TxRecord }) {
+function MobileCard({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
 
@@ -80,10 +84,7 @@ function MobileCard({ tx }: { tx: TxRecord }) {
       </div>
       <div className="flex items-end justify-between">
         <div>
-          <p
-            className="text-xs mb-0.5"
-            style={{ color: 'var(--text-faint)' }}
-          >
+          <p className="text-xs mb-0.5" style={{ color: 'var(--text-faint)' }}>
             #{tx.id} · {methodLabel}{bankDetail ? ` · ${bankDetail}` : ''}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
@@ -91,10 +92,7 @@ function MobileCard({ tx }: { tx: TxRecord }) {
           </p>
         </div>
         <div className="text-right">
-          <p
-            className="text-base font-bold"
-            style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}
-          >
+          <p className="text-base font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
             {tx.type === 'TOP_UP' ? '+' : '-'}{fmt(tx.amount)}
           </p>
           {tx.bonus && parseFloat(tx.bonus) > 0 && (
@@ -109,51 +107,41 @@ function MobileCard({ tx }: { tx: TxRecord }) {
 }
 
 /* ── Desktop table row ──────────────────────────────────────────── */
-function DesktopRow({ tx }: { tx: TxRecord }) {
+function DesktopRow({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
 
   return (
     <div
       className="casino-row-hover hidden lg:grid items-center px-5 py-3 transition-colors"
-      style={{
-        gridTemplateColumns: '90px 80px 1fr 1fr 1fr 110px',
-        gap: '1rem',
-        borderBottom: '1px solid var(--border-dim)',
-      }}
+      style={{ gridTemplateColumns: '90px 80px 1fr 1fr 1fr 110px', gap: '1rem', borderBottom: '1px solid var(--border-dim)' }}
     >
       <TypeBadge type={tx.type} />
       <span className="text-xs font-mono" style={{ color: 'var(--text-faint)' }}>
         #{tx.id}
       </span>
-      <span
-        className="text-sm font-bold"
-        style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}
-      >
+      <span className="text-sm font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
         {tx.type === 'TOP_UP' ? '+' : '-'}{fmt(tx.amount)}
         {tx.bonus && parseFloat(tx.bonus) > 0 && (
-          <span className="ml-1 text-xs" style={{ color: 'var(--brand-primary)' }}>
-            +{fmt(tx.bonus)}
-          </span>
+          <span className="ml-1 text-xs" style={{ color: 'var(--brand-primary)' }}>+{fmt(tx.bonus)}</span>
         )}
       </span>
       <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
         {methodLabel}{bankDetail ? ` · ${bankDetail}` : ''}
       </span>
-      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {fmtDate(tx.created_at)}
-      </span>
+      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{fmtDate(tx.created_at)}</span>
       <StatusDot status={tx.status} />
     </div>
   );
 }
 
 /* ── Exported component ─────────────────────────────────────────── */
-export default function TransactionCard({ tx }: { tx: TxRecord }) {
+export default function TransactionCard({ tx, currency = 'RM', decimals = 2 }: { tx: TxRecord; currency?: string; decimals?: number }) {
+  const fmt = mkFmt(currency, decimals);
   return (
     <>
-      <MobileCard tx={tx} />
-      <DesktopRow tx={tx} />
+      <MobileCard tx={tx} fmt={fmt} />
+      <DesktopRow tx={tx} fmt={fmt} />
     </>
   );
 }

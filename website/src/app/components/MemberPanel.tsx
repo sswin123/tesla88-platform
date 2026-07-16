@@ -4,14 +4,32 @@ import type { MemberProfile } from '@/lib/types';
 
 type State = 'loading' | 'guest' | 'member';
 
-function fmt(n: string | number) {
-  const v = parseFloat(String(n));
-  return `RM ${isNaN(v) ? '0.00' : v.toFixed(2)}`;
+type PublicSettings = {
+  website_currency?: string;
+  deposit_min_amount?: string;
+  withdraw_min_amount?: string;
+  website_registration?: string;
+  website_decimal_places?: string;
+};
+
+function useFmt(currency: string, decimals: number) {
+  return (n: string | number) => {
+    const v = parseFloat(String(n));
+    return `${currency} ${isNaN(v) ? (0).toFixed(decimals) : v.toFixed(decimals)}`;
+  };
 }
 
 export default function MemberPanel() {
-  const [state, setState] = useState<State>('loading');
-  const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [state, setState]       = useState<State>('loading');
+  const [profile, setProfile]   = useState<MemberProfile | null>(null);
+  const [pub, setPub]           = useState<PublicSettings>({});
+
+  async function loadPub() {
+    try {
+      const r = await fetch('/api/public/settings');
+      if (r.ok) setPub(await r.json() as PublicSettings);
+    } catch { /* keep defaults */ }
+  }
 
   async function load() {
     try {
@@ -26,12 +44,22 @@ export default function MemberPanel() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadPub();
+    load();
+  }, []);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
   }
+
+  const currency  = pub.website_currency       ?? 'RM';
+  const decimals  = parseInt(pub.website_decimal_places ?? '2', 10);
+  const fmt       = useFmt(currency, decimals);
+  const depMin    = pub.deposit_min_amount  ?? '—';
+  const wdMin     = pub.withdraw_min_amount ?? '—';
+  const regOpen   = pub.website_registration === 'true';
 
   const balance = profile
     ? parseFloat(profile.total_deposit) - parseFloat(profile.total_withdraw)
@@ -56,22 +84,28 @@ export default function MemberPanel() {
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
           Member Portal
         </p>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-faint)' }}>
-          Login to access your account
-        </p>
+
+        {/* Financial info for unauthenticated visitors */}
+        <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg-surface3)' }}>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
+          <p className="text-xl font-bold glow-text" style={{ color: 'var(--brand-primary)' }}>
+            {currency} {(0).toFixed(decimals)}
+          </p>
+          <div className="mt-2 flex gap-4 text-xs" style={{ color: 'var(--text-faint)' }}>
+            <span>Min Deposit: <strong style={{ color: 'var(--text-muted)' }}>{currency} {depMin}</strong></span>
+            <span>Min Withdraw: <strong style={{ color: 'var(--text-muted)' }}>{currency} {wdMin}</strong></span>
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
-          <a
-            href="/login"
-            className="casino-btn-primary text-center py-2.5 text-sm font-semibold"
-          >
+          <a href="/login" className="casino-btn-primary text-center py-2.5 text-sm font-semibold">
             Login
           </a>
-          <a
-            href="/register"
-            className="casino-btn-outline text-center py-2.5 text-sm font-semibold"
-          >
-            Register
-          </a>
+          {regOpen && (
+            <a href="/register" className="casino-btn-outline text-center py-2.5 text-sm font-semibold">
+              Register
+            </a>
+          )}
         </div>
       </div>
     );
@@ -108,18 +142,12 @@ export default function MemberPanel() {
       </div>
 
       {/* Balance */}
-      <div
-        className="rounded-lg p-3 mb-4"
-        style={{ background: 'var(--bg-surface3)' }}
-      >
+      <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg-surface3)' }}>
         <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
           Available Balance
         </p>
         <div className="flex items-center justify-between">
-          <p
-            className="text-xl font-bold glow-text"
-            style={{ color: 'var(--brand-primary)' }}
-          >
+          <p className="text-xl font-bold glow-text" style={{ color: 'var(--brand-primary)' }}>
             {fmt(balance)}
           </p>
           <button
@@ -140,16 +168,10 @@ export default function MemberPanel() {
 
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-2">
-        <a
-          href="/dashboard#deposit"
-          className="casino-btn-primary text-center py-2 text-sm font-semibold"
-        >
+        <a href="/dashboard#deposit" className="casino-btn-primary text-center py-2 text-sm font-semibold">
           Deposit
         </a>
-        <a
-          href="/dashboard#withdraw"
-          className="casino-btn-outline text-center py-2 text-sm font-semibold"
-        >
+        <a href="/dashboard#withdraw" className="casino-btn-outline text-center py-2 text-sm font-semibold">
           Withdraw
         </a>
       </div>

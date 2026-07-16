@@ -29,6 +29,9 @@ export interface BrandSettings {
   seo_description: string | null;
   seo_keywords: string | null;
   member_id_prefix: string;
+  // Design System (Migration 051)
+  design_preset: string;
+  design_overrides: Record<string, string>;
   created_at: string;
   updated_at: string;
   updated_by: string | null;
@@ -36,7 +39,7 @@ export interface BrandSettings {
 
 export type BrandUpdate = Partial<Omit<BrandSettings, 'id' | 'created_at' | 'updated_at'>>;
 
-// Columns available after Migration 024+025+048
+// Columns available after Migration 024+025+048+051
 const ALL_COLS = `
   id, brand_name, company_name, tagline,
   logo_media_id, favicon_media_id,
@@ -51,6 +54,8 @@ const ALL_COLS = `
   instagram_url, tiktok_url, support_email,
   seo_title, seo_description, seo_keywords,
   member_id_prefix,
+  COALESCE(design_preset,    'classic_purple') AS design_preset,
+  COALESCE(design_overrides, '{}')             AS design_overrides,
   created_at::text, updated_at::text, updated_by
 `.trim();
 
@@ -77,10 +82,16 @@ const MIGRATION_048_COLS: (keyof BrandUpdate)[] = [
   'erp_domain', 'instagram_url', 'tiktok_url', 'support_email',
 ];
 
+// Columns added in Migration 051 that may not exist yet
+const MIGRATION_051_COLS: (keyof BrandUpdate)[] = [
+  'design_preset', 'design_overrides',
+];
+
 // Keywords that appear in PostgreSQL "column does not exist" errors
 const MIGRATION_COL_KEYWORDS = [
   'color_bg', 'color_card', 'color_text', 'logo_size', 'logo_align',
   'erp_domain', 'instagram_url', 'tiktok_url', 'support_email',
+  'design_preset', 'design_overrides',
 ];
 
 function isMigrationColumnError(msg: string): boolean {
@@ -98,10 +109,12 @@ function applyBrandDefaults(row: Record<string, unknown>): BrandSettings {
     color_text:    (row.color_text as string)    ?? '#e8e8f5',
     logo_size:     (row.logo_size as string)     ?? 'medium',
     logo_align:    (row.logo_align as string)    ?? 'left',
-    erp_domain:    (row.erp_domain as string)    ?? null,
-    instagram_url: (row.instagram_url as string) ?? null,
-    tiktok_url:    (row.tiktok_url as string)    ?? null,
-    support_email: (row.support_email as string) ?? null,
+    erp_domain:      (row.erp_domain as string)      ?? null,
+    instagram_url:   (row.instagram_url as string)   ?? null,
+    tiktok_url:      (row.tiktok_url as string)      ?? null,
+    support_email:   (row.support_email as string)   ?? null,
+    design_preset:   (row.design_preset as string)   ?? 'classic_purple',
+    design_overrides:(row.design_overrides as Record<string, string>) ?? {},
   } as BrandSettings;
 }
 
@@ -137,6 +150,7 @@ export async function updateBrandSettings(
     'instagram_url', 'tiktok_url', 'support_email',
     'seo_title', 'seo_description', 'seo_keywords',
     'member_id_prefix',
+    'design_preset', 'design_overrides',
   ];
 
   function buildQuery(keys: (keyof BrandUpdate)[], cols: string) {
@@ -172,7 +186,7 @@ export async function updateBrandSettings(
     if (isMigrationColumnError(msg)) {
       console.warn('[brand_repo] Migration columns missing — retrying with compat keys');
       const compatKeys = ALLOWED_KEYS.filter(
-        k => !MIGRATION_024_COLS.includes(k) && !MIGRATION_048_COLS.includes(k)
+        k => !MIGRATION_024_COLS.includes(k) && !MIGRATION_048_COLS.includes(k) && !MIGRATION_051_COLS.includes(k)
       );
       const { sql, params } = buildQuery(compatKeys, ALL_COLS_COMPAT);
       const r = await pool.query(sql, params);

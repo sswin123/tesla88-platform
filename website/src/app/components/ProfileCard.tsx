@@ -1,15 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useCurrency } from '@/lib/useCurrency';
 import type { MemberProfile } from '@/lib/types';
 
 interface BrandSettings {
   support_whatsapp?: string;
   support_telegram?: string;
-}
-
-function fmt(n: string | number) {
-  const v = parseFloat(String(n));
-  return isNaN(v) ? 'RM 0.00' : `RM ${v.toFixed(2)}`;
 }
 
 function maskAccount(acc: string) {
@@ -21,6 +17,7 @@ export default function ProfileCard() {
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [brand, setBrand]     = useState<BrandSettings>({});
   const [loading, setLoading] = useState(true);
+  const { fmt } = useCurrency();
 
   useEffect(() => {
     Promise.all([

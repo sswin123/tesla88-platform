@@ -2,12 +2,13 @@ import type { PublicPromotion } from '@/lib/types';
 
 interface Props {
   promotions: PublicPromotion[];
+  currency?: string;
 }
 
-function bonusDisplay(p: PublicPromotion) {
+function bonusDisplay(p: PublicPromotion, currency: string) {
   return p.bonus_type === 'PERCENTAGE'
     ? `${parseFloat(p.bonus_value).toFixed(0)}%`
-    : `RM ${parseFloat(p.bonus_value).toFixed(0)}`;
+    : `${currency} ${parseFloat(p.bonus_value).toFixed(0)}`;
 }
 
 function bonusUnit(p: PublicPromotion) {
@@ -19,7 +20,7 @@ function isExpired(p: PublicPromotion) {
   return new Date(p.expiry_date) < new Date();
 }
 
-export default function PromoBanner({ promotions }: Props) {
+export default function PromoBanner({ promotions, currency = 'RM' }: Props) {
   if (promotions.length === 0) return null;
 
   return (
@@ -52,7 +53,7 @@ export default function PromoBanner({ promotions }: Props) {
                     textShadow: expired ? 'none' : '0 0 20px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
                   }}
                 >
-                  {bonusDisplay(p)}
+                  {bonusDisplay(p, currency)}
                 </p>
                 {expired ? (
                   <span

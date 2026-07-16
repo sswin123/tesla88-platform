@@ -6,6 +6,8 @@ interface Props {
   selectedId: number | null;
   depositAmount: number;
   onChange: (id: number | null) => void;
+  currency?: string;
+  decimals?: number;
 }
 
 function calcBonus(p: PublicPromotion, amount: number): number {
@@ -17,9 +19,11 @@ function calcBonus(p: PublicPromotion, amount: number): number {
   return parseFloat(p.bonus_value);
 }
 
-export default function PromotionSelector({ promotions, selectedId, depositAmount, onChange }: Props) {
+export default function PromotionSelector({ promotions, selectedId, depositAmount, onChange, currency = 'RM', decimals = 2 }: Props) {
   const selectedPromo = promotions.find(p => p.id === selectedId) ?? null;
   const bonus = selectedPromo && depositAmount > 0 ? calcBonus(selectedPromo, depositAmount) : 0;
+  const c = currency;
+  const d = decimals;
 
   if (promotions.length === 0) {
     return (
@@ -48,7 +52,7 @@ export default function PromotionSelector({ promotions, selectedId, depositAmoun
           return (
             <option key={p.id} value={p.id} disabled={!eligible}>
               {p.name}
-              {!eligible ? ` (最低 RM${parseFloat(p.min_deposit).toFixed(0)})` : ''}
+              {!eligible ? ` (最低 ${c}${parseFloat(p.min_deposit).toFixed(0)})` : ''}
             </option>
           );
         })}
@@ -66,7 +70,7 @@ export default function PromotionSelector({ promotions, selectedId, depositAmoun
             <span className="text-base font-black" style={{ color: 'var(--brand-primary)' }}>
               {selectedPromo.bonus_type === 'PERCENTAGE'
                 ? `${parseFloat(selectedPromo.bonus_value).toFixed(0)}%`
-                : `RM ${parseFloat(selectedPromo.bonus_value).toFixed(0)}`}
+                : `${c} ${parseFloat(selectedPromo.bonus_value).toFixed(0)}`}
             </span>
             <span className="text-sm font-semibold" style={{ color: 'var(--text-base)' }}>
               {selectedPromo.name}
@@ -74,25 +78,25 @@ export default function PromotionSelector({ promotions, selectedId, depositAmoun
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-              最低存款 RM {parseFloat(selectedPromo.min_deposit).toFixed(0)}
+              最低存款 {c} {parseFloat(selectedPromo.min_deposit).toFixed(0)}
             </span>
             <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
               流水 ×{parseFloat(selectedPromo.turnover_multiplier).toFixed(1)}
             </span>
             {selectedPromo.max_bonus && (
               <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-                最高 RM {parseFloat(selectedPromo.max_bonus).toFixed(0)}
+                最高 {c} {parseFloat(selectedPromo.max_bonus).toFixed(0)}
               </span>
             )}
           </div>
           {bonus > 0 && (
             <p className="text-xs font-semibold" style={{ color: '#22c55e' }}>
-              预计奖金 +RM {bonus.toFixed(2)}
+              预计奖金 +{c} {bonus.toFixed(d)}
             </p>
           )}
           {depositAmount > 0 && depositAmount < parseFloat(selectedPromo.min_deposit) && (
             <p className="text-xs" style={{ color: '#f97316' }}>
-              存款需达 RM {parseFloat(selectedPromo.min_deposit).toFixed(0)} 才可使用此优惠
+              存款需达 {c} {parseFloat(selectedPromo.min_deposit).toFixed(0)} 才可使用此优惠
             </p>
           )}
         </div>

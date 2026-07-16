@@ -3,18 +3,24 @@ import type { PublicPromotion } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-function fmtBonus(p: PublicPromotion) {
-  return p.bonus_type === 'PERCENTAGE' ? `${p.bonus_value}%` : `RM ${p.bonus_value}`;
+function fmtBonus(p: PublicPromotion, currency: string) {
+  return p.bonus_type === 'PERCENTAGE' ? `${p.bonus_value}%` : `${currency} ${p.bonus_value}`;
 }
 
 export default async function PromotionsPage() {
-  const res = await pool.query<PublicPromotion>(
-    `SELECT id, name, description, promotion_type, bonus_type, bonus_value,
-            min_deposit, max_bonus, turnover_multiplier, expiry_date
-     FROM promotions WHERE is_active = TRUE AND deleted_at IS NULL
-     AND (expiry_date IS NULL OR expiry_date > NOW()) ORDER BY id DESC`
-  );
-  const promos = res.rows;
+  const [res, currencyRow] = await Promise.all([
+    pool.query<PublicPromotion>(
+      `SELECT id, name, description, promotion_type, bonus_type, bonus_value,
+              min_deposit, max_bonus, turnover_multiplier, expiry_date
+       FROM promotions WHERE is_active = TRUE AND deleted_at IS NULL
+       AND (expiry_date IS NULL OR expiry_date > NOW()) ORDER BY id DESC`
+    ),
+    pool.query<{ value: string }>(
+      `SELECT value FROM system_settings WHERE key = 'website_currency' LIMIT 1`
+    ),
+  ]);
+  const promos   = res.rows;
+  const currency = currencyRow.rows[0]?.value ?? 'RM';
 
   return (
     <div>
@@ -55,9 +61,9 @@ export default async function PromotionsPage() {
               {/* Stats grid */}
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {[
-                  { label: '奖金', value: fmtBonus(p) },
-                  { label: '最低存款', value: `RM ${p.min_deposit}` },
-                  ...(p.max_bonus ? [{ label: '最高奖金', value: `RM ${p.max_bonus}` }] : []),
+                  { label: '奖金', value: fmtBonus(p, currency) },
+                  { label: '最低存款', value: `${currency} ${p.min_deposit}` },
+                  ...(p.max_bonus ? [{ label: '最高奖金', value: `${currency} ${p.max_bonus}` }] : []),
                   { label: '流水要求', value: `${p.turnover_multiplier}×` },
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-lg px-2.5 py-2"
