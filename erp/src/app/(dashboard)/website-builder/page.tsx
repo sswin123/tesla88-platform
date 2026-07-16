@@ -5,7 +5,7 @@ import { MediaPicker } from '@/components/media/MediaPicker';
 import type { MediaRecord } from '@/lib/media/types';
 import {
   ChevronUp, ChevronDown, Trash2, Plus, Pencil, Eye, EyeOff,
-  GripVertical, X, Save, AlertTriangle, Copy, Search,
+  GripVertical, X, Save, AlertTriangle, Copy, Search, Monitor,
 } from 'lucide-react';
 import JackpotEditor from './JackpotEditor';
 import GameLobbyEditor from './GameLobbyEditor';
@@ -2642,6 +2642,7 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
 }
 
 function CustomHtmlEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const [showPreview, setShowPreview] = useState(false);
   return (
     <div className="space-y-3">
       <label className="block">
@@ -2650,12 +2651,29 @@ function CustomHtmlEditor({ config, onChange }: { config: Record<string, unknown
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
-      <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">HTML 内容</span>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-500">HTML 内容</span>
+          <button type="button" onClick={() => setShowPreview(p => !p)}
+            className="text-xs text-blue-600 hover:underline">
+            {showPreview ? '隐藏预览' : '显示预览'}
+          </button>
+        </div>
         <textarea rows={8} className="w-full border rounded-lg px-3 py-2 text-sm font-mono text-xs"
           value={(config.html as string) ?? ''}
           onChange={e => onChange({ ...config, html: e.target.value })} />
-      </label>
+      </div>
+      {showPreview && (
+        <div>
+          <p className="text-xs text-gray-500 mb-1">实时预览（沙盒渲染）</p>
+          <iframe
+            srcDoc={(config.html as string) ?? ''}
+            sandbox="allow-scripts"
+            style={{ width: '100%', height: 240, border: '1px solid #e5e7eb', borderRadius: 8 }}
+            title="HTML Preview"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -3633,6 +3651,10 @@ export default function WebsiteBuilderPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [dragIdx, setDragIdx]       = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  // Preview
+  const [previewOpen, setPreviewOpen]     = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [websiteUrl, setWebsiteUrl]       = useState('');
   // Undo/Redo history
   const historyRef  = useRef<HomepageSection[][]>([]);
   const futureRef   = useRef<HomepageSection[][]>([]);
@@ -3691,6 +3713,13 @@ export default function WebsiteBuilderPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    fetch('/api/erp/config')
+      .then(r => r.json())
+      .then((d: { website_url?: string }) => setWebsiteUrl(d.website_url ?? ''))
+      .catch(() => {});
+  }, []);
 
   // Keyboard shortcuts: Ctrl+Z / Ctrl+Y
   useEffect(() => {
@@ -3896,6 +3925,13 @@ export default function WebsiteBuilderPage() {
             </svg>
           </button>
           <button
+            onClick={() => setPreviewOpen(true)}
+            className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border hover:bg-gray-50 font-medium"
+            title="预览网站"
+          >
+            <Monitor className="w-4 h-4" /> 预览
+          </button>
+          <button
             onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700 font-medium"
           >
@@ -3963,6 +3999,63 @@ export default function WebsiteBuilderPage() {
           onAdd={addSection}
           onClose={() => setShowAdd(false)}
         />
+      )}
+
+      {/* Device Preview Modal */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 text-white flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold">网站预览</span>
+              <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
+                {(['desktop', 'tablet', 'mobile'] as const).map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setPreviewDevice(d)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    {d === 'desktop' ? '🖥 桌面' : d === 'tablet' ? '📋 平板' : '📱 手机'}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-gray-400">
+                {previewDevice === 'desktop' ? '全宽' : previewDevice === 'tablet' ? '768px' : '375px'}
+              </span>
+            </div>
+            <button onClick={() => setPreviewOpen(false)} className="p-1 text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center bg-gray-800 overflow-auto p-4">
+            {websiteUrl ? (
+              <div
+                style={{
+                  width: previewDevice === 'desktop' ? '100%' : previewDevice === 'tablet' ? '768px' : '375px',
+                  maxWidth: '100%',
+                  height: '100%',
+                  background: '#fff',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+                  transition: 'width 0.25s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <iframe
+                  src={websiteUrl}
+                  style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                  title="Website Preview"
+                />
+              </div>
+            ) : (
+              <div className="text-gray-400 text-sm text-center">
+                <Monitor className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>未配置 WEBSITE_URL，无法预览</p>
+                <p className="text-xs mt-1">请在服务器 .env 中设置 WEBSITE_URL</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Delete Confirm */}
