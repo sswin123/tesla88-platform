@@ -108,12 +108,18 @@ function CardBackground({ config }: { config: MemberZoneConfig }) {
 }
 
 // ─── Auth Buttons ─────────────────────────────────────────────────────────────
+// Guest state: always shows Wallet summary (Balance RM 0.00 + Min Deposit + Min Withdraw)
+// + Login / Register buttons. Same content on Desktop / Tablet / Mobile.
 
-function AuthButtons({ config }: { config: MemberZoneConfig }) {
+function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings: WebsiteSettings }) {
   const loginEnabled    = config.login_button?.enabled !== false;
   const registerEnabled = config.register_button?.enabled !== false;
   const hasMedia        = !!config.bg_media_url;
   const hasGradient     = !!config.bg_gradient;
+
+  const currency    = settings.website_currency    || 'RM';
+  const minDeposit  = settings.deposit_min_amount  ?? '—';
+  const minWithdraw = settings.withdraw_min_amount ?? '—';
 
   return (
     <div
@@ -129,8 +135,19 @@ function AuthButtons({ config }: { config: MemberZoneConfig }) {
       <CardBackground config={config} />
 
       <div className="relative z-20">
-        <p className="text-sm font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>Member Portal</p>
-        <p className="text-xs mb-3" style={{ color: 'var(--text-faint,var(--text-muted))' }}>Login to access your account</p>
+        <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Member Portal</p>
+
+        {/* Wallet summary — always visible, identical to logged-in MemberPanel */}
+        <div className="rounded-xl p-2.5 mb-3" style={{ background: 'rgba(0,0,0,0.25)' }}>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>
+            {currency} 0.00
+          </p>
+          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span>Min Deposit: <strong style={{ color: 'var(--text-base)' }}>{currency} {minDeposit}</strong></span>
+            <span>Min Withdraw: <strong style={{ color: 'var(--text-base)' }}>{currency} {minWithdraw}</strong></span>
+          </div>
+        </div>
 
         <div className="flex gap-3">
           {loginEnabled && (
@@ -388,7 +405,7 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
   }
 
   if (authState === 'guest') {
-    return <AuthButtons config={config} />;
+    return <AuthButtons config={config} settings={settings} />;
   }
 
   return (

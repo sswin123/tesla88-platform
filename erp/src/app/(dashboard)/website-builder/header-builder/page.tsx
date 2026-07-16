@@ -249,10 +249,13 @@ function ImageUploadField({ label, mediaId, previewUrl, onUpload, onRemove, hint
     fd.append('display_name', file.name);
     try {
       const res  = await fetch('/api/media/upload', { method: 'POST', body: fd });
-      const json = await res.json() as { record?: { id: number }; error?: string };
-      if (!res.ok || !json.record) { setErr(json.error ?? '上传失败'); return; }
-      onUpload(json.record.id, `/api/public/media/${json.record.id}`);
-    } catch { setErr('上传失败'); }
+      const json = await res.json() as { ok?: boolean; media?: { id: number }; error?: string };
+      if (!res.ok || !json.media?.id) {
+        setErr(json.error ? `${res.status} ${json.error}` : `${res.status} 上传失败`);
+        return;
+      }
+      onUpload(json.media.id, `/api/public/media/${json.media.id}`);
+    } catch (e) { setErr(String(e)); }
     finally { setUploading(false); }
   }
 
