@@ -285,6 +285,72 @@ if [ "$R_HTTP_W" != "PASS" ] || [ "$R_HTTP_E" != "PASS" ]; then
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
+# Step 9  上线后 60 秒实时监控（检测「部署成功但进程随后崩溃」）
+# ════════════════════════════════════════════════════════════════════════════
+step "Step 9  上线后 60 秒实时监控"
+ERP_CID=$($DC ps -q erp 2>/dev/null | head -1)
+
+dump_erp_diag() {
+    local when="$1"
+    warn "ERP 在上线后 ${when}s 出现故障！抓取全量诊断..."
+    echo ""
+    echo "─────────── docker logs erp (last 100 lines) ───────────"
+    $DC logs --tail=100 --no-log-prefix erp 2>&1 || true
+    echo ""
+    echo "─────────── docker inspect erp (State + Health) ───────────"
+    docker inspect --format '{{json .State}}' "$ERP_CID" 2>/dev/null \
+        | python3 -m json.tool 2>/dev/null \
+        || docker inspect "$ERP_CID" 2>/dev/null \
+        || echo "(无法 inspect)"
+    echo ""
+    echo "─────────── docker top erp ───────────"
+    docker top "$ERP_CID" 2>/dev/null || echo "(无法获取 top)"
+    echo ""
+    echo "─────────── docker stats erp --no-stream ───────────"
+    docker stats --no-stream "$ERP_CID" 2>/dev/null || echo "(无法获取 stats)"
+    echo ""
+    echo "─────────── docker inspect Health.Log ───────────"
+    docker inspect --format '{{json .State.Health.Log}}' "$ERP_CID" 2>/dev/null \
+        | python3 -m json.tool 2>/dev/null || true
+    echo ""
+}
+
+if [ -n "$ERP_CID" ]; then
+    FIRST_OK=false
+    CONSEC_FAIL=0
+    MONITOR_FAIL=false
+
+    for i in $(seq 1 60); do
+        if docker exec "$ERP_CID" \
+               wget -qO /dev/null --timeout=3 http://127.0.0.1:3000/api/ping >/dev/null 2>&1; then
+            if [ "$FIRST_OK" = "false" ]; then
+                ok "ERP 首次内部健康确认（${i}s）"
+                FIRST_OK=true
+            fi
+            CONSEC_FAIL=0
+        else
+            CONSEC_FAIL=$((CONSEC_FAIL + 1))
+            if [ "$FIRST_OK" = "true" ] && [ "$CONSEC_FAIL" -ge 2 ]; then
+                dump_erp_diag "$i"
+                MONITOR_FAIL=true
+                break
+            fi
+        fi
+        sleep 1
+    done
+
+    if [ "$MONITOR_FAIL" = "true" ]; then
+        die "ERP 在上线后发生故障（502 Root Cause 诊断已输出至上方日志）"
+    elif [ "$FIRST_OK" = "true" ]; then
+        ok "60 秒监控完成 — ERP 持续稳定 ✓"
+    else
+        warn "60 秒内 ERP 未通过内部 ping（容器可能仍在预热），跳过监控"
+    fi
+else
+    warn "无法取得 ERP 容器 ID，跳过 60 秒监控"
+fi
+
+# ════════════════════════════════════════════════════════════════════════════
 # 最终 Banner
 # ════════════════════════════════════════════════════════════════════════════
 TOTAL=$(( $(date +%s) - START ))
