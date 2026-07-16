@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# stop — 停止所有容器（保留数据卷：postgres_data、redis_data、uploads、SSL）
+# stop — 停止所有容器（保留数据卷）
 #
-# 用法: ./stop
+#   ./stop
 #
 set -euo pipefail
 
@@ -26,12 +26,12 @@ echo ""
 ok "所有容器已停止"
 echo ""
 echo -e "  保留的数据卷："
-echo -e "    • postgres_data  （数据库）"
-echo -e "    • redis_data     （Redis）"
-echo -e "    • erp_uploads    （ERP 上传文件）"
-echo -e "    • website_uploads（Website 上传文件）"
-echo -e "    • nginx_ssl      （SSL 证书）"
-echo -e "    • nginx_logs     （Nginx 日志）"
+echo -e "    • postgres_data    数据库"
+echo -e "    • redis_data       Redis"
+echo -e "    • erp_uploads      ERP 上传文件"
+echo -e "    • website_uploads  Website 上传文件"
+echo -e "    • nginx_ssl        SSL 证书"
+echo -e "    • nginx_logs       Nginx 日志"
 echo ""
 echo -e "  重新启动：${BOLD}./demo${NC}"
 echo ""
