@@ -3657,6 +3657,9 @@ export default function WebsiteBuilderPage() {
   const [previewOpen, setPreviewOpen]     = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [websiteUrl, setWebsiteUrl]       = useState('');
+  const [previewKey, setPreviewKey]       = useState(0);    // increment to force iframe reload
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewError, setPreviewError]   = useState(false);
   // Undo/Redo history
   const historyRef  = useRef<HomepageSection[][]>([]);
   const futureRef   = useRef<HomepageSection[][]>([]);
@@ -3827,6 +3830,12 @@ export default function WebsiteBuilderPage() {
       setSectionsWithHistory(next, sections);
       setEditing(null);
       showToast('保存成功');
+      // Auto-refresh preview if it is open
+      if (previewOpen) {
+        setPreviewKey(k => k + 1);
+        setPreviewLoading(true);
+        setPreviewError(false);
+      }
     } catch {
       showError('网络错误，无法保存区块');
     }
@@ -3927,7 +3936,7 @@ export default function WebsiteBuilderPage() {
             </svg>
           </button>
           <button
-            onClick={() => setPreviewOpen(true)}
+            onClick={() => { setPreviewOpen(true); setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
             className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border hover:bg-gray-50 font-medium"
             title="预览网站"
           >
@@ -4006,14 +4015,17 @@ export default function WebsiteBuilderPage() {
       {/* Device Preview Modal */}
       {previewOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 flex flex-col">
+          {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 text-white flex-shrink-0">
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold">网站预览</span>
+
+              {/* Device switcher */}
               <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
                 {(['desktop', 'tablet', 'mobile'] as const).map(d => (
                   <button
                     key={d}
-                    onClick={() => setPreviewDevice(d)}
+                    onClick={() => { setPreviewDevice(d); setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
                   >
                     {d === 'desktop' ? '🖥 桌面' : d === 'tablet' ? '📋 平板' : '📱 手机'}
@@ -4023,13 +4035,38 @@ export default function WebsiteBuilderPage() {
               <span className="text-xs text-gray-400">
                 {previewDevice === 'desktop' ? '全宽' : previewDevice === 'tablet' ? '768px' : '375px'}
               </span>
+
+              {/* Refresh button */}
+              {websiteUrl && (
+                <button
+                  onClick={() => { setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  title="刷新预览"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M1 4v6h6"/><path d="M23 20v-6h-6"/>
+                    <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/>
+                  </svg>
+                  刷新
+                </button>
+              )}
             </div>
+
             <button onClick={() => setPreviewOpen(false)} className="p-1 text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Preview area */}
           <div className="flex-1 flex items-center justify-center bg-gray-800 overflow-auto p-4">
-            {websiteUrl ? (
+            {!websiteUrl ? (
+              /* No URL configured */
+              <div className="text-gray-400 text-sm text-center">
+                <Monitor className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>未配置 WEBSITE_URL，无法预览</p>
+                <p className="text-xs mt-1 opacity-60">请在服务器 .env 中设置 WEBSITE_URL</p>
+              </div>
+            ) : (
               <div
                 style={{
                   width: previewDevice === 'desktop' ? '100%' : previewDevice === 'tablet' ? '768px' : '375px',
@@ -4041,22 +4078,53 @@ export default function WebsiteBuilderPage() {
                   boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
                   transition: 'width 0.25s ease',
                   flexShrink: 0,
+                  position: 'relative',
                 }}
               >
-                {/* sandbox: allow-scripts/forms/same-origin 但 *不包含* allow-top-navigation，
-                    防止 Website 内任何 frame-busting JS 通过 window.top.location 改变 ERP 的 URL */}
+                {/* Loading skeleton — shown while iframe is loading */}
+                {previewLoading && !previewError && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gray-900">
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-gray-400">正在加载预览…</p>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {previewError && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gray-900 p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">Website Preview Failed</p>
+                      <p className="text-xs text-gray-400 mb-0.5">Unable to load preview.</p>
+                      <p className="text-xs text-gray-500">
+                        可能原因：Website 未运行 / CSP frame-ancestors 未包含 ERP 域名 / WEBSITE_URL 配置错误
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
+                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {/* iframe: sandbox prevents frame-busting JS from hijacking ERP URL.
+                    allow-same-origin is required so Website can call its own APIs.
+                    Cache-busted per previewKey so each Refresh fetches the latest page. */}
                 <iframe
-                  src={websiteUrl}
-                  sandbox="allow-scripts allow-forms allow-same-origin"
+                  key={previewKey}
+                  src={`${websiteUrl}?_preview=${previewKey}`}
+                  sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
                   style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                   title="Website Preview"
+                  onLoad={() => setPreviewLoading(false)}
+                  onError={() => { setPreviewLoading(false); setPreviewError(true); }}
                 />
-              </div>
-            ) : (
-              <div className="text-gray-400 text-sm text-center">
-                <Monitor className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>未配置 WEBSITE_URL，无法预览</p>
-                <p className="text-xs mt-1">请在服务器 .env 中设置 WEBSITE_URL</p>
               </div>
             )}
           </div>

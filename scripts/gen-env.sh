@@ -54,6 +54,8 @@ DB_PASSWORD=${POSTGRES_PASSWORD}
 MEMBER_JWT_SECRET=${MEMBER_JWT_SECRET}
 BOT_RELAY_AUTH_TOKEN=${BOT_RELAY_AUTH_TOKEN}
 ERP_INTERNAL_URL=http://host.docker.internal:3001
+# ERP admin panel origin — allows Website Builder Preview iframe to embed this site
+ERP_ORIGIN=${_ERP_URL}
 APP_VERSION=${APP_VERSION:-1.0.0}
 UPLOAD_DIR=/data/uploads
 ERP_MEDIA_DIR=/uploads/media
