@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { isBrowser } from '@/lib/is-browser';
 import { NumericInput } from '@/components/ui/NumericInput';
 
 // ── ERP-local keyframe injection ───────────────────────────────────────────────
@@ -43,7 +44,7 @@ const EFFECT_TO_CLASS: Record<string, string> = {
 
 let erpKfInjected = false;
 function injectErpKeyframes() {
-  if (erpKfInjected || typeof document === 'undefined') return;
+  if (erpKfInjected || !isBrowser) return;
   const s = document.createElement('style');
   s.textContent = ERP_KEYFRAMES;
   document.head.appendChild(s);

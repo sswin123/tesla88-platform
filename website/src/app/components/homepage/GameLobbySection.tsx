@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { isBrowser } from '@/lib/is-browser';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ const GOOGLE_FONTS_GL =
 
 let glFontsInjected = false;
 function injectGLFonts() {
-  if (glFontsInjected || typeof document === 'undefined') return;
+  if (glFontsInjected || !isBrowser) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = GOOGLE_FONTS_GL;

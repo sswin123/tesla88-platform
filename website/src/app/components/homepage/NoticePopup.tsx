@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { isBrowser } from '@/lib/is-browser';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ const STORAGE_KEY = 'notice_popup_seen';
 // ── Frequency gate ────────────────────────────────────────────────────────────
 
 function shouldShow(sectionId: number, frequency: string): boolean {
-  if (typeof window === 'undefined') return false;
+  if (!isBrowser) return false;
   const key = `${STORAGE_KEY}_${sectionId}`;
   if (frequency === 'always') return true;
   if (frequency === 'once') return !localStorage.getItem(key);
@@ -72,7 +73,7 @@ function shouldShow(sectionId: number, frequency: string): boolean {
 }
 
 function markSeen(sectionId: number, frequency: string) {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser) return;
   const key = `${STORAGE_KEY}_${sectionId}`;
   const now = new Date().toISOString();
   if (frequency === 'once' || frequency === 'daily' || frequency === 'weekly') {

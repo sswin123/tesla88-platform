@@ -1,3 +1,5 @@
+import { isBrowser } from '@/lib/is-browser';
+
 export const SANITIZER_VERSION = 2;
 
 const MAX_HTML_BYTES = 100 * 1024;
@@ -83,7 +85,7 @@ export function processHtml(rawHtml: string): ProcessedHtml {
 
 function _process(rawHtml: string): ProcessedHtml {
   // Guard: DOMParser is browser-only; if called on the server return raw html safely
-  if (typeof DOMParser === 'undefined') {
+  if (!isBrowser) {
     return { body: '', css: '' };
   }
 

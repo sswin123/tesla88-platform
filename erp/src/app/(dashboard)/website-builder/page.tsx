@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { isBrowser } from '@/lib/is-browser';
 import { MediaPicker } from '@/components/media/MediaPicker';
 import type { MediaRecord } from '@/lib/media/types';
 import {
@@ -3458,7 +3459,7 @@ const CAT_TABS: Array<{ key: WidgetCategory | 'all' | 'favorites' | 'recent'; la
 ];
 
 function readLocalJson<T>(key: string, fallback: T): T {
-  if (typeof localStorage === 'undefined') return fallback;
+  if (!isBrowser) return fallback;
   try { return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback; }
   catch { return fallback; }
 }
@@ -3481,7 +3482,7 @@ function WidgetLibraryModal({
     const next = new Set(favs);
     next.has(type) ? next.delete(type) : next.add(type);
     setFavs(next);
-    if (typeof localStorage !== 'undefined') localStorage.setItem('wb_favorites', JSON.stringify([...next]));
+    if (isBrowser) localStorage.setItem('wb_favorites', JSON.stringify([...next]));
   }
 
   async function handleAdd(w: WidgetDef) {
@@ -3491,7 +3492,7 @@ function WidgetLibraryModal({
       await onAdd(w.type, w.label);
       const next = [w.type, ...recent.filter(t => t !== w.type)].slice(0, 8);
       setRecent(next);
-      if (typeof localStorage !== 'undefined') localStorage.setItem('wb_recent', JSON.stringify(next));
+      if (isBrowser) localStorage.setItem('wb_recent', JSON.stringify(next));
     } finally {
       setAdding(null);
     }

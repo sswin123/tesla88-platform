@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { isBrowser } from '@/lib/is-browser';
 
 export interface NotifSettings {
   sound: boolean;
@@ -13,7 +14,7 @@ export const NOTIF_STORAGE_KEY = 'livechat_notif';
 const DEFAULT_SETTINGS: NotifSettings = { sound: true, browser: true, titleFlash: true };
 
 export function loadNotifSettings(): NotifSettings {
-  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS };
+  if (!isBrowser) return { ...DEFAULT_SETTINGS };
   try {
     const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
@@ -29,7 +30,7 @@ export function loadNotifSettings(): NotifSettings {
 }
 
 export function saveNotifSettings(s: NotifSettings): void {
-  if (typeof window === 'undefined') return;
+  if (!isBrowser) return;
   try {
     localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(s));
   } catch {
@@ -74,7 +75,7 @@ export function useNotifications(settings: NotifSettings): void {
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!isBrowser) return;
 
     const es = new EventSource('/api/livechat/stream');
 

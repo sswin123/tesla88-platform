@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCurrency } from '@/lib/useCurrency';
+import { isBrowser } from '@/lib/is-browser';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -250,7 +251,7 @@ const GOOGLE_FONTS_URL =
 
 let googleFontsInjected = false;
 function injectGoogleFonts() {
-  if (googleFontsInjected || typeof document === 'undefined') return;
+  if (googleFontsInjected || !isBrowser) return;
   const link = document.createElement('link');
   link.rel  = 'stylesheet';
   link.href = GOOGLE_FONTS_URL;
@@ -324,7 +325,7 @@ const KEYFRAMES = `
 
 let keyframesInjected = false;
 function injectKeyframes() {
-  if (keyframesInjected || typeof document === 'undefined') return;
+  if (keyframesInjected || !isBrowser) return;
   const style = document.createElement('style');
   style.textContent = KEYFRAMES;
   document.head.appendChild(style);
