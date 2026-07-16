@@ -290,7 +290,24 @@ const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
   countdown:       { title: '距活动结束', target_date: '', text_color: '', bg_color: '' },
   vip_card:        { title: 'VIP 会员特权', levels: [{ name: 'VIP 1', min_deposit: '1,000', cashback: '0.5%', weekly_bonus: 'RM 50', monthly_bonus: 'RM 100' }] },
   telegram_join:   { title: '加入我们的 Telegram', subtitle: '获取最新优惠和活动资讯', telegram_url: 'https://t.me/', button_text: '立即加入', bg_color: '' },
-  referral_center: { title: '推荐好友', subtitle: '每成功推荐一位好友即可获得奖励', bonus_per_referral: 'RM 50', button_text: '立即推荐' },
+  referral_center: {
+    // ── Banner ─────────────────────────────────────────────────────────────────
+    banner_enabled: true,
+    banner_desktop_media_id: null, banner_desktop_media_url: '', banner_desktop_media_type: 'IMAGE', banner_desktop_alt: '',
+    banner_tablet_media_id:  null, banner_tablet_media_url:  '', banner_tablet_media_type:  'IMAGE',
+    banner_mobile_media_id:  null, banner_mobile_media_url:  '', banner_mobile_media_type:  'IMAGE',
+    banner_link_url: '', banner_link_target: 'self',
+    // ── Quick Actions ──────────────────────────────────────────────────────────
+    buttons: [
+      { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', bg_media_id: null, bg_media_url: '', action_type: 'share',             url: '',                open_target: 'self' },
+      { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', bg_media_id: null, bg_media_url: '', action_type: 'open_url',          url: '/profile/invite', open_target: 'self' },
+      { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', bg_media_id: null, bg_media_url: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
+      { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', bg_media_id: null, bg_media_url: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
+    ],
+    // ── Style ──────────────────────────────────────────────────────────────────
+    button_layout: '2x2', button_border_radius: '12', button_padding: '12',
+    button_shadow: false, button_glow: false,
+  },
 };
 
 // ─── Upload Hint ──────────────────────────────────────────────────────────────
@@ -3022,33 +3039,275 @@ function TelegramJoinEditor({ config, onChange }: { config: Record<string, unkno
 }
 
 // ─── Referral Center Editor ──────────────────────────────────────────────────
+
+type RcButton = {
+  id: string; enabled: boolean; sort_order: number;
+  text: string; icon: string;
+  bg_media_id: number | null; bg_media_url: string;
+  action_type: string; url: string; open_target: string;
+};
+
+type RcPickerTarget =
+  | { section: 'banner'; field: 'desktop' | 'tablet' | 'mobile' }
+  | { section: 'button'; buttonId: string };
+
 function ReferralCenterEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const [pickerTarget, setPickerTarget] = useState<RcPickerTarget | null>(null);
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  const buttons: RcButton[] = (config.buttons as RcButton[] | undefined) ?? [];
+
+  function updBtn(id: string, patch: Partial<RcButton>) {
+    onChange({ ...config, buttons: buttons.map(b => b.id === id ? { ...b, ...patch } : b) });
+  }
+
+  function handleMediaSelect(media: MediaRecord | MediaRecord[]) {
+    const m = Array.isArray(media) ? media[0] : media;
+    if (!m || !pickerTarget) return;
+
+    if (pickerTarget.section === 'banner') {
+      const f = pickerTarget.field;
+      onChange({
+        ...config,
+        [`banner_${f}_media_id`]:   m.id,
+        [`banner_${f}_media_url`]:  `/api/public/media/${m.id}`,
+        [`banner_${f}_media_type`]: m.mediaType ?? 'IMAGE',
+      });
+    } else {
+      updBtn(pickerTarget.buttonId, {
+        bg_media_id:  m.id,
+        bg_media_url: `/api/public/media/${m.id}`,
+      });
+    }
+    setPickerTarget(null);
+  }
+
+  function clearBannerField(field: 'desktop' | 'tablet' | 'mobile') {
+    onChange({ ...config, [`banner_${field}_media_id`]: null, [`banner_${field}_media_url`]: '', [`banner_${field}_media_type`]: '' });
+  }
+
+  // ── shared input style ──────────────────────────────────────────────────────
+  const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
+  const sel = `${inp} bg-white`;
+
+  // ── media thumbnail helper ─────────────────────────────────────────────────
+  function MediaThumb({ url, onClear, onPick }: { url: string; onClear: () => void; onPick: () => void }) {
+    return url ? (
+      <div className="relative group h-20 rounded-lg overflow-hidden border bg-gray-100">
+        {url.match(/\.(mp4|webm)/i)
+          ? <video src={url} className="w-full h-full object-cover" muted />
+          : <img src={url} alt="" className="w-full h-full object-cover" />}
+        <div className="absolute inset-0 hidden group-hover:flex items-center justify-center gap-2 bg-black/50">
+          <button type="button" onClick={onPick} className="text-xs px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-white">替换</button>
+          <button type="button" onClick={onClear} className="text-xs px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded text-white">删除</button>
+        </div>
+      </div>
+    ) : (
+      <button type="button" onClick={onPick}
+        className="w-full h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-blue-500 transition-colors text-xs">
+        <span className="text-xl">🖼</span>从 Media Library 选择
+      </button>
+    );
+  }
+
+  // ── section label helper ───────────────────────────────────────────────────
+  function SectionTitle({ children }: { children: React.ReactNode }) {
+    return <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-3 pb-1 border-t border-gray-100">{children}</p>;
+  }
+
   return (
-    <div className="space-y-3">
-      <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
-        <input className="w-full border rounded-lg px-3 py-2 text-sm"
-          value={(config.title as string) ?? '推荐好友'}
-          onChange={e => onChange({ ...config, title: e.target.value })} />
+    <div className="space-y-4">
+
+      {/* ── Section 1: Banner ─────────────────────────────────────────────── */}
+      <SectionTitle>Section 1 — Banner</SectionTitle>
+
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" className="rounded"
+          checked={(config.banner_enabled as boolean) !== false}
+          onChange={e => onChange({ ...config, banner_enabled: e.target.checked })} />
+        启用 Banner
       </label>
-      <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">副标题</span>
-        <input className="w-full border rounded-lg px-3 py-2 text-sm"
-          value={(config.subtitle as string) ?? ''}
-          onChange={e => onChange({ ...config, subtitle: e.target.value })} />
-      </label>
-      <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">每次推荐奖励（展示文字）</span>
-        <input placeholder="RM 50" className="w-full border rounded-lg px-3 py-2 text-sm"
-          value={(config.bonus_per_referral as string) ?? ''}
-          onChange={e => onChange({ ...config, bonus_per_referral: e.target.value })} />
-      </label>
-      <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>
-        <input className="w-full border rounded-lg px-3 py-2 text-sm"
-          value={(config.button_text as string) ?? '立即推荐'}
-          onChange={e => onChange({ ...config, button_text: e.target.value })} />
-      </label>
+
+      {(config.banner_enabled as boolean) !== false && (<>
+        {/* Desktop Banner */}
+        <div>
+          <span className="text-xs text-gray-500 mb-1 block">🖥 Desktop Banner</span>
+          <MediaThumb
+            url={(config.banner_desktop_media_url as string) ?? ''}
+            onPick={() => setPickerTarget({ section: 'banner', field: 'desktop' })}
+            onClear={() => clearBannerField('desktop')}
+          />
+          <UploadHint recSize="1200 × 400 px" ratio="3:1" maxMB={5} formats="PNG · WEBP · GIF · JPG · MP4" />
+        </div>
+
+        {/* Tablet Banner */}
+        <div>
+          <span className="text-xs text-gray-500 mb-1 block">📋 Tablet Banner <span className="text-gray-400">（不设置则用 Desktop 图片）</span></span>
+          <MediaThumb
+            url={(config.banner_tablet_media_url as string) ?? ''}
+            onPick={() => setPickerTarget({ section: 'banner', field: 'tablet' })}
+            onClear={() => clearBannerField('tablet')}
+          />
+        </div>
+
+        {/* Mobile Banner */}
+        <div>
+          <span className="text-xs text-gray-500 mb-1 block">📱 Mobile Banner <span className="text-gray-400">（不设置则用 Desktop 图片）</span></span>
+          <MediaThumb
+            url={(config.banner_mobile_media_url as string) ?? ''}
+            onPick={() => setPickerTarget({ section: 'banner', field: 'mobile' })}
+            onClear={() => clearBannerField('mobile')}
+          />
+          <UploadHint recSize="750 × 400 px" ratio="2:1" maxMB={3} formats="PNG · WEBP · GIF · JPG · MP4" />
+        </div>
+
+        {/* Alt text */}
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">Alt 文字（SEO）</span>
+          <input className={inp} value={(config.banner_desktop_alt as string) ?? ''}
+            onChange={e => onChange({ ...config, banner_desktop_alt: e.target.value })} />
+        </label>
+
+        {/* Link */}
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">点击 Banner 跳转 URL</span>
+          <input className={inp} placeholder="https:// 或 /路径" value={(config.banner_link_url as string) ?? ''}
+            onChange={e => onChange({ ...config, banner_link_url: e.target.value })} />
+        </label>
+
+        {/* Open target */}
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">打开方式</span>
+          <select className={sel} value={(config.banner_link_target as string) ?? 'self'}
+            onChange={e => onChange({ ...config, banner_link_target: e.target.value })}>
+            <option value="self">当前窗口</option>
+            <option value="blank">新标签页</option>
+          </select>
+        </label>
+      </>)}
+
+      {/* ── Section 2: Quick Actions ───────────────────────────────────────── */}
+      <SectionTitle>Section 2 — Quick Actions（功能按钮）</SectionTitle>
+
+      {buttons.map((btn, idx) => (
+        <div key={btn.id} className="border border-gray-200 rounded-xl p-3 space-y-2.5 bg-gray-50">
+          {/* Button header */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-600">Button {idx + 1}  <span className="text-gray-400">#{btn.id}</span></span>
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <input type="checkbox" checked={btn.enabled}
+                onChange={e => updBtn(btn.id, { enabled: e.target.checked })} />
+              显示
+            </label>
+          </div>
+
+          {/* Title + Icon */}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="text-xs text-gray-500 mb-1 block">标题</span>
+              <input className={inp} value={btn.text}
+                onChange={e => updBtn(btn.id, { text: e.target.value })} />
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-500 mb-1 block">图标（Emoji / SVG URL）</span>
+              <input className={inp} placeholder="📤" value={btn.icon}
+                onChange={e => updBtn(btn.id, { icon: e.target.value })} />
+            </label>
+          </div>
+
+          {/* Background Image */}
+          <div>
+            <span className="text-xs text-gray-500 mb-1 block">背景图片（可选，覆盖背景色）</span>
+            <MediaThumb
+              url={btn.bg_media_url ?? ''}
+              onPick={() => setPickerTarget({ section: 'button', buttonId: btn.id })}
+              onClear={() => updBtn(btn.id, { bg_media_id: null, bg_media_url: '' })}
+            />
+          </div>
+
+          {/* Action Type */}
+          <label className="block">
+            <span className="text-xs text-gray-500 mb-1 block">Action Type</span>
+            <select className={sel} value={btn.action_type}
+              onChange={e => updBtn(btn.id, { action_type: e.target.value })}>
+              <option value="share">Share（分享）</option>
+              <option value="copy_referral_link">Copy Referral Link（复制推荐链接）</option>
+              <option value="copy_link">Copy Link（复制自定义链接）</option>
+              <option value="open_url">Open URL（打开链接）</option>
+              <option value="register">Register（注册页）</option>
+              <option value="deposit">Deposit（存款页）</option>
+              <option value="telegram">Telegram</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </label>
+
+          {/* URL (shown for relevant action types) */}
+          {['open_url', 'copy_link', 'telegram', 'whatsapp'].includes(btn.action_type) && (
+            <label className="block">
+              <span className="text-xs text-gray-500 mb-1 block">URL</span>
+              <input className={inp} placeholder="/路径 或 https://" value={btn.url}
+                onChange={e => updBtn(btn.id, { url: e.target.value })} />
+            </label>
+          )}
+
+          {/* Open target */}
+          {['open_url', 'copy_link'].includes(btn.action_type) && (
+            <label className="block">
+              <span className="text-xs text-gray-500 mb-1 block">打开方式</span>
+              <select className={sel} value={btn.open_target}
+                onChange={e => updBtn(btn.id, { open_target: e.target.value })}>
+                <option value="self">当前窗口</option>
+                <option value="blank">新标签页</option>
+              </select>
+            </label>
+          )}
+        </div>
+      ))}
+
+      {/* ── Style ─────────────────────────────────────────────────────────── */}
+      <SectionTitle>Style（样式）</SectionTitle>
+
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">Layout</span>
+          <select className={sel} value={(config.button_layout as string) ?? '2x2'}
+            onChange={e => onChange({ ...config, button_layout: e.target.value })}>
+            <option value="2x2">2×2 Grid</option>
+            <option value="4x1">4×1 横排</option>
+            <option value="1x4">1×4 竖排</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">圆角 (px)</span>
+          <input type="number" min={0} max={32} className={inp}
+            value={(config.button_border_radius as string) ?? '12'}
+            onChange={e => onChange({ ...config, button_border_radius: e.target.value })} />
+        </label>
+      </div>
+
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={!!(config.button_shadow as boolean)}
+            onChange={e => onChange({ ...config, button_shadow: e.target.checked })} />
+          Shadow
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={!!(config.button_glow as boolean)}
+            onChange={e => onChange({ ...config, button_glow: e.target.checked })} />
+          Glow
+        </label>
+      </div>
+
+      {/* Media Picker modal */}
+      {pickerTarget && (
+        <MediaPicker
+          mode="single"
+          typeFilter={['IMAGE', 'GIF', 'VIDEO']}
+          onSelect={handleMediaSelect}
+          onClose={() => setPickerTarget(null)}
+        />
+      )}
     </div>
   );
 }

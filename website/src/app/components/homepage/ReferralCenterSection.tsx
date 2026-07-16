@@ -20,21 +20,27 @@ interface ReferralButton {
 }
 
 interface ReferralCenterConfig {
-  banner_enabled?:            boolean;
-  banner_desktop_media_url?:  string;
-  banner_desktop_media_type?: string;
-  banner_mobile_media_url?:   string;
-  banner_mobile_media_type?:  string;
-  banner_link_url?:           string;
-  banner_link_target?:        string;
-  reward_label?:              string;
-  reward_amount?:             string;
-  button_layout?:             string;
-  buttons?:                   ReferralButton[];
+  banner_enabled?:             boolean;
+  banner_desktop_media_url?:   string;
+  banner_desktop_media_type?:  string;
+  banner_desktop_alt?:         string;
+  banner_tablet_media_url?:    string;
+  banner_tablet_media_type?:   string;
+  banner_mobile_media_url?:    string;
+  banner_mobile_media_type?:   string;
+  banner_link_url?:            string;
+  banner_link_target?:         string;
+  reward_label?:               string;
+  reward_amount?:              string;
+  button_layout?:              string;
+  button_border_radius?:       string;
+  button_shadow?:              boolean;
+  button_glow?:                boolean;
+  buttons?:                    ReferralButton[];
   // Legacy fields (backward compat)
-  title?:                     string;
-  subtitle?:                  string;
-  bonus_per_referral?:        string;
+  title?:                      string;
+  subtitle?:                   string;
+  bonus_per_referral?:         string;
 }
 
 // ── Default buttons (used when config.buttons is absent / empty) ───────────────
@@ -48,7 +54,7 @@ const LEGACY_BUTTONS: ReferralButton[] = [
 
 // ── Banner ─────────────────────────────────────────────────────────────────────
 
-function BannerMedia({ url, type }: { url: string; type: string }) {
+function BannerMedia({ url, type, alt = '' }: { url: string; type: string; alt?: string }) {
   if (type === 'VIDEO') {
     return (
       <video
@@ -60,7 +66,7 @@ function BannerMedia({ url, type }: { url: string; type: string }) {
   }
   return (
     <img
-      src={url} alt=""
+      src={url} alt={alt}
       className="w-full h-auto block"
       style={{ maxHeight: 280, objectFit: 'cover' }}
     />
@@ -70,21 +76,30 @@ function BannerMedia({ url, type }: { url: string; type: string }) {
 function ReferralBanner({ config }: { config: ReferralCenterConfig }) {
   const enabled     = config.banner_enabled !== false;
   const desktopUrl  = config.banner_desktop_media_url  ?? '';
+  const tabletUrl   = config.banner_tablet_media_url   ?? desktopUrl;
   const mobileUrl   = config.banner_mobile_media_url   ?? desktopUrl;
   const desktopType = config.banner_desktop_media_type ?? 'IMAGE';
+  const tabletType  = config.banner_tablet_media_type  ?? desktopType;
   const mobileType  = config.banner_mobile_media_type  ?? desktopType;
-  const linkUrl     = config.banner_link_url   ?? '';
+  const altText     = config.banner_desktop_alt        ?? '';
+  const linkUrl     = config.banner_link_url           ?? '';
   const linkTarget  = config.banner_link_target === 'blank' ? '_blank' : '_self';
 
   if (!enabled || !desktopUrl) return null;
 
   const inner = (
     <div className="relative w-full overflow-hidden rounded-xl">
-      <div className="hidden sm:block">
-        <BannerMedia url={desktopUrl} type={desktopType} />
+      {/* Desktop ≥ 1024px */}
+      <div className="hidden lg:block">
+        <BannerMedia url={desktopUrl} type={desktopType} alt={altText} />
       </div>
-      <div className="block sm:hidden">
-        <BannerMedia url={mobileUrl || desktopUrl} type={mobileType} />
+      {/* Tablet 768–1023px */}
+      <div className="hidden md:block lg:hidden">
+        <BannerMedia url={tabletUrl || desktopUrl} type={tabletType} alt={altText} />
+      </div>
+      {/* Mobile < 768px */}
+      <div className="block md:hidden">
+        <BannerMedia url={mobileUrl || desktopUrl} type={mobileType} alt={altText} />
       </div>
     </div>
   );
@@ -131,22 +146,38 @@ function FallbackBanner({ config }: { config: ReferralCenterConfig }) {
 
 function ActionButton({
   btn,
+  config,
   onAction,
   isCopied,
 }: {
   btn:      ReferralButton;
+  config:   ReferralCenterConfig;
   onAction: (btn: ReferralButton) => void;
   isCopied: boolean;
 }) {
-  const bgStyle  = btn.bg_color     ? { background: btn.bg_color }                        : { background: 'var(--brand-primary)' };
-  const txtStyle = btn.text_color   ? { color: btn.text_color }                            : { color: '#fff' };
-  const bdrStyle = btn.border_color ? { border: `1px solid ${btn.border_color}` }         : {};
+  const radius = config.button_border_radius ? `${config.button_border_radius}px` : '12px';
+  const hasBgImg = !!(btn as ReferralButton & { bg_media_url?: string }).bg_media_url;
+  const bgImgUrl = hasBgImg ? (btn as ReferralButton & { bg_media_url: string }).bg_media_url : '';
+
+  const bgStyle: React.CSSProperties = hasBgImg
+    ? { backgroundImage: `url(${bgImgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : btn.bg_color
+      ? { background: btn.bg_color }
+      : { background: 'var(--brand-primary)' };
+
+  const txtStyle = btn.text_color ? { color: btn.text_color } : { color: '#fff' };
+  const bdrStyle = btn.border_color ? { border: `1px solid ${btn.border_color}` } : {};
+
+  const shadowStyle: React.CSSProperties = config.button_shadow
+    ? { boxShadow: '0 4px 12px rgba(0,0,0,0.25)' } : {};
+  const glowStyle: React.CSSProperties  = config.button_glow
+    ? { boxShadow: '0 0 12px var(--brand-primary)' } : {};
 
   return (
     <button
       onClick={() => onAction(btn)}
-      className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-3 px-2 text-xs font-semibold w-full transition-all hover:opacity-80 active:scale-95"
-      style={{ ...bgStyle, ...txtStyle, ...bdrStyle }}
+      className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 text-xs font-semibold w-full transition-all hover:opacity-80 active:scale-95 overflow-hidden"
+      style={{ ...bgStyle, ...txtStyle, ...bdrStyle, ...shadowStyle, ...glowStyle, borderRadius: radius }}
     >
       {btn.icon && <span className="text-xl leading-none">{btn.icon}</span>}
       <span>{isCopied ? '✓ Copied!' : btn.text}</span>
@@ -254,6 +285,7 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
             <ActionButton
               key={btn.id}
               btn={btn}
+              config={config}
               onAction={b => { void handleAction(b); }}
               isCopied={copiedId === btn.id}
             />
