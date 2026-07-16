@@ -61,9 +61,11 @@ interface PopupSlide {
   desktop_media_id: number | null;
   desktop_media_url: string;
   desktop_media_type: string;
+  desktop_mime_type: string;
   mobile_media_id: number | null;
   mobile_media_url: string;
   mobile_media_type: string;
+  mobile_mime_type: string;
   start_time?: string;
   end_time?: string;
   enabled: boolean;
@@ -704,6 +706,7 @@ function PopupSliderEditor({
       [`${field}_media_id`]:   null,
       [`${field}_media_url`]:  '',
       [`${field}_media_type`]: '',
+      [`${field}_mime_type`]:  '',
     } as Partial<PopupSlide>);
   }
 
@@ -713,8 +716,8 @@ function PopupSliderEditor({
       title: '', subtitle: '', description: '',
       button_text: '', button_url: '', button_target: '_self',
       image_click_url: '', image_click_target: '_self',
-      desktop_media_id: null, desktop_media_url: '', desktop_media_type: '',
-      mobile_media_id:  null, mobile_media_url:  '', mobile_media_type:  '',
+      desktop_media_id: null, desktop_media_url: '', desktop_media_type: '', desktop_mime_type: '',
+      mobile_media_id:  null, mobile_media_url:  '', mobile_media_type:  '', mobile_mime_type:  '',
       start_time: '', end_time: '',
       enabled: true,
       display_order: slides.length * 10,
@@ -752,6 +755,7 @@ function PopupSliderEditor({
       [`${pickerFor.field}_media_id`]:   single.id,
       [`${pickerFor.field}_media_url`]:  `/api/public/media/${single.id}`,
       [`${pickerFor.field}_media_type`]: single.mediaType ?? 'IMAGE',
+      [`${pickerFor.field}_mime_type`]:  single.mimeType  ?? 'image/jpeg',
     } as Partial<PopupSlide>);
     setPickerFor(null);
   }
@@ -1010,6 +1014,7 @@ function PopupSliderEditor({
                         maxMB={5}
                         mediaUrl={slide.desktop_media_url}
                         mediaType={slide.desktop_media_type}
+                        mimeType={slide.desktop_mime_type}
                         onPickClick={() => setPickerFor({ slideId: slide.id, field: 'desktop' })}
                         onDelete={() => clearMedia(slide.id, 'desktop')}
                       />
@@ -1021,6 +1026,7 @@ function PopupSliderEditor({
                         maxMB={3}
                         mediaUrl={slide.mobile_media_url}
                         mediaType={slide.mobile_media_type}
+                        mimeType={slide.mobile_mime_type}
                         onPickClick={() => setPickerFor({ slideId: slide.id, field: 'mobile' })}
                         onDelete={() => clearMedia(slide.id, 'mobile')}
                       />

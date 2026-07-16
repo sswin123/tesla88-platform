@@ -31,8 +31,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '50mb',
     },
   },
-  // Increase body size limit for route handlers (Next.js 15 default is 10MB)
-  middlewareClientMaxBodySize: 50 * 1024 * 1024,
   async headers() {
     return [
       {
