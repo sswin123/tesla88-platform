@@ -17,12 +17,13 @@ FRESH_INSTALL=false
 # ── 颜色 ─────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-ok()   { echo -e "${GREEN}  ✓  ${NC}$*"; }
-fail() { echo -e "${RED}  ✗  ${NC}$*" >&2; }
-info() { echo -e "${BLUE}  →  ${NC}$*"; }
-warn() { echo -e "${YELLOW}  ⚠  ${NC}$*"; }
-step() { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
-die()  { fail "$*"; exit 1; }
+ok()    { echo -e "${GREEN}  ✓  ${NC}$*"; }
+fail()  { echo -e "${RED}  ✗  ${NC}$*" >&2; }
+info()  { echo -e "${BLUE}  →  ${NC}$*"; }
+warn()  { echo -e "${YELLOW}  ⚠  ${NC}$*"; }
+step()  { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
+die()   { fail "$*"; exit 1; }
+debug() { echo -e "${CYAN}[DEBUG]${NC} $*"; }
 
 # 各项检查结果（用于最终 Banner）
 R_MIGRATION="✗ FAIL"; R_SEED="✗ FAIL"
@@ -42,50 +43,172 @@ echo -e "${BOLD}${CYAN}╚══════════════════
 echo ""
 
 # ════════════════════════════════════════════════════════════════════════
+# resolve_project_name
+#
+# 三重保障获取 Compose 项目名，不硬编码目录名：
+#   Method 1: docker compose config（读取 compose 文件的 name 字段）
+#   Method 2: 从已运行容器的 label 读取
+#   Method 3: 目录名小写（最终兜底）
+# ════════════════════════════════════════════════════════════════════════
+resolve_project_name() {
+    local name=""
+
+    # Method 1: docker compose config → name: xxx
+    name=$($DC config 2>/dev/null \
+           | grep '^name:' | head -1 \
+           | sed 's/^name:[[:space:]]*//' | tr -d '"' | tr -d "'")
+    if [ -n "$name" ]; then
+        debug "项目名来源: compose config → ${name}"
+        echo "$name"; return
+    fi
+
+    # Method 2: 从已运行容器 label 读取
+    local cid
+    cid=$(docker ps --filter "label=com.docker.compose.project" \
+          --format "{{.ID}}" 2>/dev/null | head -1)
+    if [ -n "$cid" ]; then
+        name=$(docker inspect --format \
+               '{{index .Config.Labels "com.docker.compose.project"}}' \
+               "$cid" 2>/dev/null || echo "")
+        if [ -n "$name" ]; then
+            debug "项目名来源: 运行容器 label → ${name}"
+            echo "$name"; return
+        fi
+    fi
+
+    # Method 3: 目录名兜底
+    name=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' \
+           | tr -cs 'a-z0-9_-' '-' | sed 's/-*$//')
+    debug "项目名来源: 目录名（兜底）→ ${name}"
+    echo "$name"
+}
+
+# ════════════════════════════════════════════════════════════════════════
 # wait_for_migrate
 #
-# One-shot Container 生命周期：Created → Running → Exited
-# 不使用 docker compose ps，不硬编码容器名。
+# One-shot Container 生命周期：Created → Running → Exited(0)
+# 不使用 docker compose ps / docker compose ps -q migrate。
 #
-# 流程：
-#   Step 1：通过 Label 查找 migrate 容器 ID（docker ps -a --filter）
-#   Step 2：docker inspect <id> 读取 State.Status + State.ExitCode
-#     exited + ExitCode=0  → 成功
-#     exited + ExitCode!=0 → 打印 200 行日志，exit 1
-#     running              → 继续等待
-#     其他                 → 继续等待
-#   超时 300s              → 打印日志，exit 1
+# 查找容器两路并行（都不硬编码名称）：
+#   路径 A：docker inspect ${PROJECT_NAME}-migrate-1  （名称推导，最快）
+#   路径 B：docker ps -a --filter label=...            （标签查找，兜底）
+#
+# 每次循环打印 DEBUG 状态，出现问题立即可见。
 # ════════════════════════════════════════════════════════════════════════
 wait_for_migrate() {
     local project="$1"
-    local max_wait=300 elapsed=0 migrate_cid="" state exit_code
+    local max_wait=300 elapsed=0
+    local migrate_name="${project}-migrate-1"
+    local migrate_cid="" state exit_code
 
-    info "等待 Migration 容器出现（project=${project}）..."
+    debug "PROJECT_NAME     = ${project}"
+    debug "容器名推导        = ${migrate_name}"
+    debug "Label 过滤条件    = com.docker.compose.service=migrate"
+    info  "等待 Migration 容器出现..."
 
-    # Step 1：等待容器出现
+    # ── Step 1：等待容器出现 ─────────────────────────────────────────
+    # 优先用 service label（不依赖 project name 是否正确）
     while [ $elapsed -lt $max_wait ]; do
-        migrate_cid=$(docker ps -a \
+
+        # ── Debug Block ──────────────────────────────────────────────
+        echo "--------------------------------"
+        echo "[Migration Debug] elapsed=${elapsed}s"
+        echo "  Project Name    = ${project}"
+        echo "  容器名推导       = ${migrate_name}"
+
+        # Path A：按名称 inspect
+        local path_a_ok="NOT_FOUND"
+        local path_a_id=""
+        if docker inspect "$migrate_name" >/dev/null 2>&1; then
+            path_a_ok="FOUND"
+            path_a_id=$(docker inspect --format '{{.Id}}' "$migrate_name" 2>/dev/null || echo "")
+        fi
+        echo "  Path A (docker inspect ${migrate_name}) = ${path_a_ok}  id=${path_a_id:0:12}"
+
+        # Path B：service+project label
+        local path_b_id
+        path_b_id=$(docker ps -a \
             --filter "label=com.docker.compose.service=migrate" \
             --filter "label=com.docker.compose.project=${project}" \
             --format "{{.ID}}" 2>/dev/null | head -1)
-        [ -n "$migrate_cid" ] && break
+        echo "  Path B (label service=migrate + project=${project}) = ${path_b_id:-EMPTY}"
+
+        # Path C：只按 service label（无视 project name）
+        local path_c_id
+        path_c_id=$(docker ps -a \
+            --filter "label=com.docker.compose.service=migrate" \
+            --format "{{.ID}}" 2>/dev/null | head -1)
+        local path_c_name=""
+        local path_c_proj=""
+        if [ -n "$path_c_id" ]; then
+            path_c_name=$(docker inspect --format '{{.Name}}' "$path_c_id" 2>/dev/null | tr -d '/' || echo "?")
+            path_c_proj=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$path_c_id" 2>/dev/null || echo "?")
+        fi
+        echo "  Path C (label service=migrate only)               = ${path_c_id:-EMPTY}  name=${path_c_name}  project_label=${path_c_proj}"
+
+        # docker ps -a 前 10 行（供全局排查）
+        echo "  docker ps -a (前10行):"
+        docker ps -a --format "    {{.Names}}\t{{.Status}}" 2>/dev/null | head -10
+        echo "--------------------------------"
+        # ── End Debug Block ──────────────────────────────────────────
+
+        # 路径 A：按推导名称找到
+        if [ "$path_a_ok" = "FOUND" ] && [ -n "$path_a_id" ]; then
+            migrate_cid="$path_a_id"
+            debug "路径A 找到容器（按名称）: ${migrate_cid:0:12}"
+            break
+        fi
+
+        # 路径 B：service+project label
+        if [ -n "$path_b_id" ]; then
+            migrate_cid="$path_b_id"
+            debug "路径B 找到容器（service+project label）: ${migrate_cid:0:12}"
+            break
+        fi
+
+        # 路径 C：仅 service label（project name 推导错误时的终极兜底）
+        if [ -n "$path_c_id" ]; then
+            migrate_cid="$path_c_id"
+            debug "路径C 找到容器（service label only）: ${migrate_cid:0:12} name=${path_c_name} project=${path_c_proj}"
+            break
+        fi
+
+        debug "${elapsed}s — 容器未出现，继续等待..."
         sleep 2; elapsed=$((elapsed + 2))
     done
 
+    # 超时仍未找到
     if [ -z "$migrate_cid" ]; then
         fail "Migration 容器未出现（超时 ${max_wait}s）"
+        echo ""
+        echo "  === 超时诊断：全部容器 ==="
+        docker ps -a --format "  {{.Names}}\t{{.Status}}" 2>/dev/null
         return 1
     fi
 
-    info "Migration 容器已发现（${migrate_cid:0:12}），等待执行完毕..."
+    local container_name
+    container_name=$(docker inspect --format '{{.Name}}' "$migrate_cid" 2>/dev/null | tr -d '/' || echo "?")
+    info "Migration 容器已发现: ${container_name} (${migrate_cid:0:12})，等待执行完毕..."
 
-    # Step 2：轮询 State.Status
+    # ── Step 2：轮询 State.Status + State.ExitCode ───────────────────
     while [ $elapsed -lt $max_wait ]; do
-        state=$(docker inspect --format '{{.State.Status}}' "$migrate_cid" 2>/dev/null || echo "")
+
+        # ── Debug Block ──────────────────────────────────────────────
+        echo "--------------------------------"
+        echo "[Migration Debug] elapsed=${elapsed}s"
+        echo "  Container ID    = ${migrate_cid:0:12}  (${container_name})"
+        local inspect_out
+        inspect_out=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "inspect_failed|?")
+        echo "  docker inspect  = ${inspect_out}"
+        echo "--------------------------------"
+        # ── End Debug Block ──────────────────────────────────────────
+
+        state="${inspect_out%|*}"
+        exit_code="${inspect_out#*|}"
 
         case "$state" in
             exited)
-                exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "1")
+                debug "ExitCode=${exit_code}"
                 if [ "$exit_code" = "0" ]; then
                     ok "Migration 完成（ExitCode=0）"
                     return 0
@@ -101,8 +224,13 @@ wait_for_migrate() {
                 info "  Migration 执行中... (${elapsed}s)"
                 sleep 3; elapsed=$((elapsed + 3))
                 ;;
+            inspect_failed)
+                fail "  docker inspect 失败（容器 ${migrate_cid:0:12} 不存在？）"
+                sleep 2; elapsed=$((elapsed + 2))
+                ;;
             *)
-                # created / restarting / removing / dead
+                # created / restarting / removing / dead / unknown
+                debug "  未知状态 '${state}'，继续等待..."
                 sleep 2; elapsed=$((elapsed + 2))
                 ;;
         esac
@@ -116,7 +244,6 @@ wait_for_migrate() {
 
 # ════════════════════════════════════════════════════════════════════════
 # wait_for_healthy — 长驻服务（postgres/redis/erp/website/nginx/bot）
-# 使用 docker compose ps -q <service> 获取 ID，不硬编码容器名。
 # ════════════════════════════════════════════════════════════════════════
 wait_for_healthy() {
     local service="$1" max_wait="${2:-240}" elapsed=0 cid health
@@ -137,8 +264,6 @@ wait_for_healthy() {
 
 # ════════════════════════════════════════════════════════════════════════
 # check_internal — 从 Nginx 容器内部测试后端连通性
-#   使用 docker compose ps -q nginx 获取容器 ID，不硬编码容器名。
-#   目的：提前发现 nginx → backend 502，不等客户打开浏览器。
 # ════════════════════════════════════════════════════════════════════════
 check_internal() {
     local target="$1" label="$2"
@@ -158,7 +283,7 @@ check_internal() {
 }
 
 # ════════════════════════════════════════════════════════════════════════
-# check_http — 公网 URL 返回 2xx/3xx 才算通过
+# check_http — 公网 URL HTTP 状态码检查
 # ════════════════════════════════════════════════════════════════════════
 check_http() {
     local url="$1" label="${2:-$url}" code
@@ -193,15 +318,8 @@ docker info >/dev/null 2>&1             || die "Docker daemon 未运行"
 docker compose version >/dev/null 2>&1  || die "Docker Compose V2 未安装"
 [ -f "$PROJECT_ROOT/.env" ]             || die ".env 文件不存在，请先创建"
 
-# 从 docker compose config 获取项目名（不依赖目录名）
-PROJECT_NAME=$($DC config 2>/dev/null | awk '/^name:/{print $2; exit}')
-if [ -z "$PROJECT_NAME" ]; then
-    # 极少数情况下 config 无 name 行，降级使用目录名
-    PROJECT_NAME=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' \
-                   | tr -cs 'a-z0-9_-' '-' | sed 's/-*$//')
-    warn "compose config 未返回 name，使用目录名: ${PROJECT_NAME}"
-fi
-
+PROJECT_NAME=$(resolve_project_name)
+[ -z "$PROJECT_NAME" ] && die "无法确定 Compose 项目名，请检查 docker-compose.production.yml"
 ok "Docker & Compose ✓  |  .env ✓  |  项目: ${PROJECT_NAME}"
 
 # ── 2/8  Git Pull ─────────────────────────────────────────────────────────────
@@ -248,7 +366,7 @@ fi
 step "6 / 8  服务健康检查"
 
 wait_for_healthy postgres 60 && R_POSTGRES="✓ PASS" || die "PostgreSQL unhealthy，停止部署"
-wait_for_healthy redis    60 && R_REDIS="✓ PASS"    || warn "Redis unhealthy（继续部署）"
+wait_for_healthy redis    60 && R_REDIS="✓ PASS"    || { warn "Redis unhealthy（继续部署）"; R_REDIS="⚠ WARN"; }
 wait_for_healthy erp     240 && R_ERP="✓ PASS"      || { $DC logs erp 2>/dev/null | tail -20; die "ERP unhealthy，停止部署"; }
 wait_for_healthy website 240 && R_WEBSITE="✓ PASS"  || { $DC logs website 2>/dev/null | tail -20; die "Website unhealthy，停止部署"; }
 wait_for_healthy telegram-bot 120 \
@@ -269,7 +387,6 @@ check_internal "http://website:3000" "Nginx → Website (http://website:3000)" \
 
 # ── 8/8  公网 HTTP 检查 ───────────────────────────────────────────────────────
 step "8 / 8  公网 HTTP 检查"
-
 HTTP_OK=true
 check_http "https://apidemo.club"           "https://apidemo.club"           || HTTP_OK=false
 check_http "https://erp.apidemo.club/login" "https://erp.apidemo.club/login" || HTTP_OK=false
