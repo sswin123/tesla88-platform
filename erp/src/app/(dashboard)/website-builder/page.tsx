@@ -4041,8 +4041,11 @@ export default function WebsiteBuilderPage() {
                   flexShrink: 0,
                 }}
               >
+                {/* sandbox: allow-scripts/forms/same-origin 但 *不包含* allow-top-navigation，
+                    防止 Website 内任何 frame-busting JS 通过 window.top.location 改变 ERP 的 URL */}
                 <iframe
                   src={websiteUrl}
+                  sandbox="allow-scripts allow-forms allow-same-origin"
                   style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
                   title="Website Preview"
                 />
