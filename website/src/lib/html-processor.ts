@@ -160,6 +160,14 @@ function _process(rawHtml: string): ProcessedHtml {
 
 // ── Attribute sanitizer ───────────────────────────────────────────────────────
 
+function sanitizeSrcset(raw: string): string {
+  // srcset format: "url1 1x, url2 2x" or "url1 100w, url2 200w"
+  return raw.split(',').map(part => {
+    const [url, ...desc] = part.trim().split(/\s+/);
+    return isSafeUrl(url ?? '') ? [url, ...desc].join(' ') : ['', ...desc].join(' ');
+  }).join(', ');
+}
+
 function sanitizeElement(el: Element): void {
   const toRemove: string[] = [];
 
@@ -171,6 +179,11 @@ function sanitizeElement(el: Element): void {
 
     if (URL_ATTRS.has(name)) {
       if (!isSafeUrl(attr.value)) el.setAttribute(attr.name, '#');
+    }
+
+    // srcset has comma-separated "url descriptor" entries, handle separately
+    if (name === 'srcset') {
+      el.setAttribute('srcset', sanitizeSrcset(attr.value));
     }
 
     if (name === 'style') {

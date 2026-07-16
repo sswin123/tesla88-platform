@@ -28,7 +28,9 @@ type SectionType =
   | 'hero' | 'marquee' | 'quick_menu' | 'promotions' | 'providers'
   | 'live_tx' | 'member_zone' | 'custom_html'
   | 'game_lobby' | 'cta_card' | 'announcement' | 'notice_popup'
-  | 'jackpot' | 'footer_banner' | 'floating_button';
+  | 'jackpot' | 'footer_banner' | 'floating_button'
+  | 'spacer' | 'divider' | 'button_group' | 'gallery' | 'video_block'
+  | 'faq' | 'countdown' | 'vip_card' | 'telegram_join' | 'referral_center';
 
 interface HeroSlide {
   id: string;
@@ -119,6 +121,16 @@ const SECTION_TYPE_LABELS: Record<SectionType, string> = {
   jackpot:          '奖池计数器',
   footer_banner:    '底部横幅',
   floating_button:  '悬浮按钮',
+  spacer:           '间距块',
+  divider:          '分割线',
+  button_group:     '按钮组',
+  gallery:          '图片画廊',
+  video_block:      '视频块',
+  faq:              'FAQ 常见问题',
+  countdown:        '倒计时',
+  vip_card:         'VIP 等级卡',
+  telegram_join:    'Telegram 入口',
+  referral_center:  '推荐中心',
 };
 
 const SECTION_TYPE_COLORS: Record<SectionType, string> = {
@@ -137,6 +149,16 @@ const SECTION_TYPE_COLORS: Record<SectionType, string> = {
   jackpot:          'bg-yellow-100 text-yellow-800',
   footer_banner:    'bg-slate-100 text-slate-700',
   floating_button:  'bg-violet-100 text-violet-700',
+  spacer:           'bg-gray-100 text-gray-500',
+  divider:          'bg-gray-100 text-gray-600',
+  button_group:     'bg-amber-100 text-amber-700',
+  gallery:          'bg-gray-100 text-gray-700',
+  video_block:      'bg-gray-100 text-gray-700',
+  faq:              'bg-purple-100 text-purple-700',
+  countdown:        'bg-amber-100 text-amber-800',
+  vip_card:         'bg-yellow-100 text-yellow-800',
+  telegram_join:    'bg-sky-100 text-sky-700',
+  referral_center:  'bg-green-100 text-green-700',
 };
 
 // ─── Widget Library Catalog ───────────────────────────────────────────────────
@@ -179,6 +201,16 @@ const WIDGET_CATALOG: WidgetDef[] = [
   { type: 'footer_banner',   category: 'media',     icon: '🖼',  label: '底部横幅',    description: '页面底部图片横幅，支持桌面端 / 移动端不同图片' },
   { type: 'quick_menu',      category: 'layout',    icon: '⬛',  label: '快捷菜单',    description: '可自定义图标的快速导航按钮组，支持多列布局' },
   { type: 'cta_card',        category: 'layout',    icon: '🃏',  label: 'CTA 卡片',   description: '含背景图、标题、描述、行动号召按钮的内容卡片' },
+  { type: 'spacer',          category: 'layout',    icon: '↕',  label: '间距块',     description: '添加可自定义高度的垂直空白间距' },
+  { type: 'divider',         category: 'layout',    icon: '─',  label: '分割线',     description: '横向分割线，可设置颜色、粗细、样式' },
+  { type: 'button_group',    category: 'marketing', icon: '🔘', label: '按钮组',     description: '多个 CTA 按钮组合，横向排列' },
+  { type: 'gallery',         category: 'media',     icon: '🖼', label: '图片画廊',   description: '多图网格展示，支持 2/3/4 列布局', isNew: true },
+  { type: 'video_block',     category: 'media',     icon: '▶',  label: '视频块',     description: '嵌入 YouTube / 本地视频，支持自动播放、循环', isNew: true },
+  { type: 'faq',             category: 'layout',    icon: '❓', label: 'FAQ 常见问题', description: '手风琴式 Q&A 展示，展开/收起', isNew: true },
+  { type: 'countdown',       category: 'marketing', icon: '⏱', label: '倒计时',     description: '活动倒计时组件，显示剩余天/时/分/秒', isNew: true },
+  { type: 'vip_card',        category: 'member',    icon: '👑', label: 'VIP 等级卡', description: '会员等级特权展示，支持多级层次', isNew: true },
+  { type: 'telegram_join',   category: 'support',   icon: '✈', label: 'Telegram 入口', description: '引导用户加入 Telegram 群组的召唤卡片', isNew: true },
+  { type: 'referral_center', category: 'marketing', icon: '🎁', label: '推荐中心',   description: '推荐好友奖励展示，含奖励说明和分享入口', isNew: true },
 ];
 
 const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
@@ -248,6 +280,16 @@ const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
   },
   footer_banner:   { desktop_media_id: null, desktop_media_url: '', desktop_media_type: '', mobile_media_id: null, mobile_media_url: '', mobile_media_type: '', link_url: '' },
   floating_button: { text: '客服', icon: '💬', link_url: '/chat', position: 'bottom-right', bg_color: '', text_color: '' },
+  spacer:          { height: '40', height_unit: 'px' },
+  divider:         { color: '', thickness: '1', style: 'solid', margin: '8' },
+  button_group:    { title: '', buttons: [{ text: '立即存款', url: '/deposit', color: '' }, { text: '联系客服', url: '/chat', color: '' }] },
+  gallery:         { title: '', images: [] as { media_id: number | null; media_url: string; media_type: string; alt: string }[], columns: 3 },
+  video_block:     { title: '', video_url: '', poster_url: '', autoplay: false, muted: true, loop: false },
+  faq:             { title: '常见问题', items: [{ q: '如何存款？', a: '进入存款页面，选择银行，填写金额后提交截图即可。' }] },
+  countdown:       { title: '距活动结束', target_date: '', text_color: '', bg_color: '' },
+  vip_card:        { title: 'VIP 会员特权', levels: [{ name: 'VIP 1', min_deposit: '1,000', cashback: '0.5%', weekly_bonus: 'RM 50', monthly_bonus: 'RM 100' }] },
+  telegram_join:   { title: '加入我们的 Telegram', subtitle: '获取最新优惠和活动资讯', telegram_url: 'https://t.me/', button_text: '立即加入', bg_color: '' },
+  referral_center: { title: '推荐好友', subtitle: '每成功推荐一位好友即可获得奖励', bonus_per_referral: 'RM 50', button_text: '立即推荐' },
 };
 
 // ─── Upload Hint ──────────────────────────────────────────────────────────────
@@ -2618,6 +2660,380 @@ function CustomHtmlEditor({ config, onChange }: { config: Record<string, unknown
   );
 }
 
+// ─── Spacer Editor ───────────────────────────────────────────────────────────
+function SpacerEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <label className="block flex-1">
+        <span className="text-xs text-gray-500 mb-1 block">高度</span>
+        <input type="number" min={0} max={400} className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.height as string) ?? '40'}
+          onChange={e => onChange({ ...config, height: e.target.value })} />
+      </label>
+      <label className="block w-24">
+        <span className="text-xs text-gray-500 mb-1 block">单位</span>
+        <select className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.height_unit as string) ?? 'px'}
+          onChange={e => onChange({ ...config, height_unit: e.target.value })}>
+          <option value="px">px</option>
+          <option value="rem">rem</option>
+          <option value="vh">vh</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
+// ─── Divider Editor ──────────────────────────────────────────────────────────
+function DividerEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">颜色</span>
+        <input type="text" placeholder="var(--border-mid)" className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.color as string) ?? ''}
+          onChange={e => onChange({ ...config, color: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">粗细 (px)</span>
+        <input type="number" min={1} max={20} className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.thickness as string) ?? '1'}
+          onChange={e => onChange({ ...config, thickness: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">样式</span>
+        <select className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.style as string) ?? 'solid'}
+          onChange={e => onChange({ ...config, style: e.target.value })}>
+          <option value="solid">实线</option>
+          <option value="dashed">虚线</option>
+          <option value="dotted">点线</option>
+        </select>
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">上下间距 (px)</span>
+        <input type="number" min={0} max={80} className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.margin as string) ?? '8'}
+          onChange={e => onChange({ ...config, margin: e.target.value })} />
+      </label>
+    </div>
+  );
+}
+
+// ─── Button Group Editor ─────────────────────────────────────────────────────
+interface BtnItem { text: string; url: string; color: string; }
+function ButtonGroupEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const buttons = (config.buttons as BtnItem[]) ?? [];
+  function updateBtn(i: number, patch: Partial<BtnItem>) {
+    const next = buttons.map((b, idx) => idx === i ? { ...b, ...patch } : b);
+    onChange({ ...config, buttons: next });
+  }
+  function addBtn() { onChange({ ...config, buttons: [...buttons, { text: '按钮', url: '/', color: '' }] }); }
+  function removeBtn(i: number) { onChange({ ...config, buttons: buttons.filter((_, idx) => idx !== i) }); }
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? ''}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      {buttons.map((btn, i) => (
+        <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-end">
+          <label className="block">
+            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>}
+            <input className="w-full border rounded-lg px-3 py-2 text-sm"
+              value={btn.text} onChange={e => updateBtn(i, { text: e.target.value })} />
+          </label>
+          <label className="block">
+            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">链接</span>}
+            <input className="w-full border rounded-lg px-3 py-2 text-sm"
+              value={btn.url} onChange={e => updateBtn(i, { url: e.target.value })} />
+          </label>
+          <label className="block">
+            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">颜色</span>}
+            <input type="color" className="h-9 w-10 border rounded-lg cursor-pointer"
+              value={btn.color || '#7c3aed'} onChange={e => updateBtn(i, { color: e.target.value })} />
+          </label>
+          <button onClick={() => removeBtn(i)} className="text-red-400 hover:text-red-600 pb-1 text-lg">×</button>
+        </div>
+      ))}
+      <button onClick={addBtn} className="text-xs text-blue-600 hover:underline">+ 添加按钮</button>
+    </div>
+  );
+}
+
+// ─── Gallery Editor ──────────────────────────────────────────────────────────
+interface GalleryImage { media_id: number | null; media_url: string; media_type: string; alt: string; }
+function GalleryEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const images = (config.images as GalleryImage[]) ?? [];
+  function removeImg(i: number) { onChange({ ...config, images: images.filter((_, idx) => idx !== i) }); }
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? ''}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">列数</span>
+        <select className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={String(config.columns ?? 3)}
+          onChange={e => onChange({ ...config, columns: Number(e.target.value) })}>
+          <option value="2">2 列</option>
+          <option value="3">3 列</option>
+          <option value="4">4 列</option>
+        </select>
+      </label>
+      <div className="grid grid-cols-3 gap-2">
+        {images.map((img, i) => (
+          <div key={i} className="relative rounded overflow-hidden border group">
+            <img src={img.media_url} alt={img.alt || ''} className="w-full h-20 object-cover" />
+            <button onClick={() => removeImg(i)}
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center">×</button>
+          </div>
+        ))}
+        <button onClick={() => setPickerOpen(true)}
+          className="border-2 border-dashed rounded flex items-center justify-center h-20 text-gray-400 hover:text-gray-600 text-2xl">+</button>
+      </div>
+      {pickerOpen && (
+        <MediaPicker
+          mode="multiple"
+          typeFilter={['IMAGE', 'GIF']}
+          onSelect={media => {
+            const picked = Array.isArray(media) ? media : [media];
+            const newImgs: GalleryImage[] = picked.map(m => ({
+              media_id: m.id, media_url: `/api/public/media/${m.id}`, media_type: m.mediaType ?? 'IMAGE', alt: '',
+            }));
+            onChange({ ...config, images: [...images, ...newImgs] });
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Video Block Editor ──────────────────────────────────────────────────────
+function VideoBlockEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? ''}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">视频 URL（YouTube embed 或直接链接）</span>
+        <input placeholder="https://www.youtube.com/embed/..." className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.video_url as string) ?? ''}
+          onChange={e => onChange({ ...config, video_url: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">封面图 URL（可选）</span>
+        <input placeholder="https://..." className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.poster_url as string) ?? ''}
+          onChange={e => onChange({ ...config, poster_url: e.target.value })} />
+      </label>
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={!!config.autoplay}
+            onChange={e => onChange({ ...config, autoplay: e.target.checked })} />
+          自动播放
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={config.muted !== false}
+            onChange={e => onChange({ ...config, muted: e.target.checked })} />
+          静音
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={!!config.loop}
+            onChange={e => onChange({ ...config, loop: e.target.checked })} />
+          循环
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ─── FAQ Editor ──────────────────────────────────────────────────────────────
+interface FaqItem { q: string; a: string; }
+function FaqEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const items = (config.items as FaqItem[]) ?? [];
+  function updateItem(i: number, patch: Partial<FaqItem>) {
+    onChange({ ...config, items: items.map((it, idx) => idx === i ? { ...it, ...patch } : it) });
+  }
+  function addItem() { onChange({ ...config, items: [...items, { q: '', a: '' }] }); }
+  function removeItem(i: number) { onChange({ ...config, items: items.filter((_, idx) => idx !== i) }); }
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? '常见问题'}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      {items.map((it, i) => (
+        <div key={i} className="border rounded-xl p-3 space-y-2 relative">
+          <button onClick={() => removeItem(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 text-sm">×</button>
+          <input placeholder={`问题 ${i + 1}`} className="w-full border rounded-lg px-3 py-1.5 text-sm"
+            value={it.q} onChange={e => updateItem(i, { q: e.target.value })} />
+          <textarea rows={2} placeholder="答案" className="w-full border rounded-lg px-3 py-1.5 text-sm"
+            value={it.a} onChange={e => updateItem(i, { a: e.target.value })} />
+        </div>
+      ))}
+      <button onClick={addItem} className="text-xs text-blue-600 hover:underline">+ 添加问答</button>
+    </div>
+  );
+}
+
+// ─── Countdown Editor ────────────────────────────────────────────────────────
+function CountdownEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? '距活动结束'}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">目标时间</span>
+        <input type="datetime-local" className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.target_date as string) ?? ''}
+          onChange={e => onChange({ ...config, target_date: e.target.value })} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">文字颜色</span>
+          <input type="text" placeholder="var(--text-base)" className="w-full border rounded-lg px-3 py-2 text-sm"
+            value={(config.text_color as string) ?? ''}
+            onChange={e => onChange({ ...config, text_color: e.target.value })} />
+        </label>
+        <label className="block">
+          <span className="text-xs text-gray-500 mb-1 block">背景颜色</span>
+          <input type="text" placeholder="var(--bg-card)" className="w-full border rounded-lg px-3 py-2 text-sm"
+            value={(config.bg_color as string) ?? ''}
+            onChange={e => onChange({ ...config, bg_color: e.target.value })} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ─── VIP Card Editor ─────────────────────────────────────────────────────────
+interface VipLevel { name: string; min_deposit: string; cashback: string; weekly_bonus: string; monthly_bonus: string; }
+function VipCardEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const levels = (config.levels as VipLevel[]) ?? [];
+  function updateLevel(i: number, patch: Partial<VipLevel>) {
+    onChange({ ...config, levels: levels.map((l, idx) => idx === i ? { ...l, ...patch } : l) });
+  }
+  function addLevel() { onChange({ ...config, levels: [...levels, { name: `VIP ${levels.length + 1}`, min_deposit: '', cashback: '', weekly_bonus: '', monthly_bonus: '' }] }); }
+  function removeLevel(i: number) { onChange({ ...config, levels: levels.filter((_, idx) => idx !== i) }); }
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? 'VIP 会员特权'}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      {levels.map((lv, i) => (
+        <div key={i} className="border rounded-xl p-3 space-y-2 relative">
+          <button onClick={() => removeLevel(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 text-sm">×</button>
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="等级名称" className="border rounded-lg px-3 py-1.5 text-sm"
+              value={lv.name} onChange={e => updateLevel(i, { name: e.target.value })} />
+            <input placeholder="最低存款 (如 RM 1,000)" className="border rounded-lg px-3 py-1.5 text-sm"
+              value={lv.min_deposit} onChange={e => updateLevel(i, { min_deposit: e.target.value })} />
+            <input placeholder="返水 (如 0.5%)" className="border rounded-lg px-3 py-1.5 text-sm"
+              value={lv.cashback} onChange={e => updateLevel(i, { cashback: e.target.value })} />
+            <input placeholder="每周奖金 (如 RM 50)" className="border rounded-lg px-3 py-1.5 text-sm"
+              value={lv.weekly_bonus} onChange={e => updateLevel(i, { weekly_bonus: e.target.value })} />
+            <input placeholder="每月奖金 (如 RM 100)" className="border rounded-lg px-3 py-1.5 text-sm col-span-2"
+              value={lv.monthly_bonus} onChange={e => updateLevel(i, { monthly_bonus: e.target.value })} />
+          </div>
+        </div>
+      ))}
+      <button onClick={addLevel} className="text-xs text-blue-600 hover:underline">+ 添加等级</button>
+    </div>
+  );
+}
+
+// ─── Telegram Join Editor ────────────────────────────────────────────────────
+function TelegramJoinEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? '加入我们的 Telegram'}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">副标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.subtitle as string) ?? ''}
+          onChange={e => onChange({ ...config, subtitle: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">Telegram 链接</span>
+        <input placeholder="https://t.me/..." className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.telegram_url as string) ?? ''}
+          onChange={e => onChange({ ...config, telegram_url: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.button_text as string) ?? '立即加入'}
+          onChange={e => onChange({ ...config, button_text: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">背景颜色</span>
+        <input type="text" placeholder="var(--bg-card)" className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.bg_color as string) ?? ''}
+          onChange={e => onChange({ ...config, bg_color: e.target.value })} />
+      </label>
+    </div>
+  );
+}
+
+// ─── Referral Center Editor ──────────────────────────────────────────────────
+function ReferralCenterEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.title as string) ?? '推荐好友'}
+          onChange={e => onChange({ ...config, title: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">副标题</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.subtitle as string) ?? ''}
+          onChange={e => onChange({ ...config, subtitle: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">每次推荐奖励（展示文字）</span>
+        <input placeholder="RM 50" className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.bonus_per_referral as string) ?? ''}
+          onChange={e => onChange({ ...config, bonus_per_referral: e.target.value })} />
+      </label>
+      <label className="block">
+        <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>
+        <input className="w-full border rounded-lg px-3 py-2 text-sm"
+          value={(config.button_text as string) ?? '立即推荐'}
+          onChange={e => onChange({ ...config, button_text: e.target.value })} />
+      </label>
+    </div>
+  );
+}
+
 // ─── Generic Editor (covers cta_card, announcement, jackpot, footer_banner, floating_button, notice_popup, game_lobby) ───
 
 function GenericEditor({
@@ -2645,7 +3061,7 @@ function GenericEditor({
 
   const showMedia      = ['cta_card', 'notice_popup', 'footer_banner'].includes(sectionType);
   const showText       = ['cta_card', 'announcement', 'notice_popup', 'game_lobby'].includes(sectionType);
-  const showButton     = ['cta_card', 'announcement', 'notice_popup', 'floating_button'].includes(sectionType);
+  const showButton     = ['cta_card', 'announcement', 'notice_popup'].includes(sectionType);
   const showColors     = ['cta_card', 'announcement', 'notice_popup', 'floating_button'].includes(sectionType);
   const showLink       = ['footer_banner', 'floating_button'].includes(sectionType);
 
@@ -2782,7 +3198,9 @@ function GenericEditor({
               value={(config.button_url as string) ?? (config.link_url as string) ?? ''}
               onChange={e => onChange({
                 ...config,
-                ...(sectionType === 'cta_card' ? { link_url: e.target.value } : { button_url: e.target.value }),
+                ...(['cta_card', 'announcement'] as SectionType[]).includes(sectionType)
+                  ? { link_url: e.target.value }
+                  : { button_url: e.target.value },
               })} />
           </div>
           {sectionType === 'notice_popup' && (
@@ -2896,8 +3314,18 @@ function ConfigEditor({
     case 'jackpot':     return <JackpotEditor config={config} onChange={onChange} />;
     case 'game_lobby':  return <GameLobbyEditor config={config} onChange={onChange} />;
     case 'member_zone': return <MemberZoneEditor config={config} onChange={onChange} />;
-    case 'custom_html': return <CustomHtmlEditor config={config} onChange={onChange} />;
-    case 'notice_popup': return <PopupSliderEditor config={config} onChange={onChange} />;
+    case 'custom_html':      return <CustomHtmlEditor config={config} onChange={onChange} />;
+    case 'notice_popup':     return <PopupSliderEditor config={config} onChange={onChange} />;
+    case 'spacer':           return <SpacerEditor config={config} onChange={onChange} />;
+    case 'divider':          return <DividerEditor config={config} onChange={onChange} />;
+    case 'button_group':     return <ButtonGroupEditor config={config} onChange={onChange} />;
+    case 'gallery':          return <GalleryEditor config={config} onChange={onChange} />;
+    case 'video_block':      return <VideoBlockEditor config={config} onChange={onChange} />;
+    case 'faq':              return <FaqEditor config={config} onChange={onChange} />;
+    case 'countdown':        return <CountdownEditor config={config} onChange={onChange} />;
+    case 'vip_card':         return <VipCardEditor config={config} onChange={onChange} />;
+    case 'telegram_join':    return <TelegramJoinEditor config={config} onChange={onChange} />;
+    case 'referral_center':  return <ReferralCenterEditor config={config} onChange={onChange} />;
     default:
       return <GenericEditor sectionType={sectionType} config={config} onChange={onChange} />;
   }
@@ -3231,7 +3659,7 @@ export default function WebsiteBuilderPage() {
     setSections(prev);
     setCanUndo(historyRef.current.length > 0);
     setCanRedo(true);
-    showToast('↩ 撤销');
+    showToast('↩ 界面已还原（可见性/排序/删除已存入数据库，刷新可查看实际状态）');
   }
 
   function redo() {
@@ -3403,7 +3831,14 @@ export default function WebsiteBuilderPage() {
       const created = await res.json() as HomepageSection;
       const idx = sections.findIndex(s => s.id === section.id);
       const next = [...sections.slice(0, idx + 1), created, ...sections.slice(idx + 1)];
-      setSectionsWithHistory(next, sections);
+      // Normalize display_order after insert to prevent gaps/conflicts
+      const ordered = next.map((s, i) => ({ ...s, display_order: i * 10 }));
+      await fetch('/api/website/homepage-sections/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ordered.map(s => s.id) }),
+      });
+      setSectionsWithHistory(ordered, sections);
       showToast('已复制');
     } catch {
       showError('网络错误，无法复制区块');

@@ -74,7 +74,8 @@ const TOKEN_LABELS: Record<string, string> = {
 
 // Whether a token is a color (shows color picker)
 function isColorToken(t: string) {
-  return t.startsWith('--brand') || t.startsWith('--bg-') || t.startsWith('--border') || t.startsWith('--text-') || t === '--shadow-glow';
+  // shadow-glow contains color-mix() functions, not a simple hex color — show text-only input
+  return t.startsWith('--brand') || t.startsWith('--bg-') || t.startsWith('--border') || t.startsWith('--text-');
 }
 
 // ─── Mini preview card ────────────────────────────────────────────────────────

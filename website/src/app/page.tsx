@@ -13,6 +13,16 @@ import AnnouncementSection from './components/homepage/AnnouncementSection';
 import JackpotSection from './components/homepage/JackpotSection';
 import FloatingButtonSection from './components/homepage/FloatingButtonSection';
 import NoticePopup from './components/homepage/NoticePopup';
+import SpacerSection from './components/homepage/SpacerSection';
+import DividerSection from './components/homepage/DividerSection';
+import ButtonGroupSection from './components/homepage/ButtonGroupSection';
+import GallerySection from './components/homepage/GallerySection';
+import VideoBlockSection from './components/homepage/VideoBlockSection';
+import FaqSection from './components/homepage/FaqSection';
+import CountdownSection from './components/homepage/CountdownSection';
+import VipCardSection from './components/homepage/VipCardSection';
+import TelegramJoinSection from './components/homepage/TelegramJoinSection';
+import ReferralCenterSection from './components/homepage/ReferralCenterSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +32,9 @@ type SectionType =
   | 'hero' | 'marquee' | 'quick_menu' | 'promotions' | 'providers'
   | 'live_tx' | 'member_zone' | 'custom_html' | 'game_lobby'
   | 'cta_card' | 'announcement' | 'notice_popup' | 'jackpot'
-  | 'footer_banner' | 'floating_button';
+  | 'footer_banner' | 'floating_button'
+  | 'spacer' | 'divider' | 'button_group' | 'gallery' | 'video_block'
+  | 'faq' | 'countdown' | 'vip_card' | 'telegram_join' | 'referral_center';
 
 interface HomepageSection {
   id: number;
@@ -128,6 +140,17 @@ function renderSection(section: HomepageSection): React.ReactNode {
     case 'cta_card':
     case 'footer_banner':
       return <GenericSection key={section.id} config={cfg} />;
+
+    case 'spacer':          return <SpacerSection          key={section.id} config={cfg} />;
+    case 'divider':         return <DividerSection         key={section.id} config={cfg} />;
+    case 'button_group':    return <ButtonGroupSection     key={section.id} config={cfg} />;
+    case 'gallery':         return <GallerySection         key={section.id} config={cfg} />;
+    case 'video_block':     return <VideoBlockSection      key={section.id} config={cfg} />;
+    case 'faq':             return <FaqSection             key={section.id} config={cfg} />;
+    case 'countdown':       return <CountdownSection       key={section.id} config={cfg} />;
+    case 'vip_card':        return <VipCardSection         key={section.id} config={cfg} />;
+    case 'telegram_join':   return <TelegramJoinSection    key={section.id} config={cfg} />;
+    case 'referral_center': return <ReferralCenterSection  key={section.id} config={cfg} />;
 
     // ── Rendered separately outside main flow (see below) ─────────────────────
     case 'notice_popup':

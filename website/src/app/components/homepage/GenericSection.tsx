@@ -112,10 +112,7 @@ export default function GenericSection({ config }: { config: GenericConfig }) {
     </div>
   );
 
-  if (link_url && !button_text) {
-    return <Link href={link_url} style={{ display: 'block', textDecoration: 'none' }}>{inner}</Link>;
-  }
-  if (href && !link_url) {
+  if (href) {
     return <Link href={href} style={{ display: 'block', textDecoration: 'none' }}>{inner}</Link>;
   }
   return <section>{inner}</section>;
