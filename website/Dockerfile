@@ -22,6 +22,8 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 # public/ must be copied explicitly for standalone builds (sw.js, manifest, icons, etc.)
 COPY --from=builder /app/public ./public
+# startup-hooks.js: 诊断钩子，与 ERP 同款，捕获崩溃原因 + 强制 HOSTNAME=0.0.0.0
+COPY startup-hooks.js ./startup-hooks.js
 
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "--require", "./startup-hooks.js", "server.js"]
