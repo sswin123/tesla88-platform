@@ -3,6 +3,18 @@ import pool from '@/lib/db';
 import PromoBanner from '../PromoBanner';
 import type { PublicPromotion } from '@/lib/types';
 
+async function getCurrencySymbol(): Promise<string> {
+  try {
+    const { rows } = await pool.query<{ key: string; value: string }>(
+      "SELECT key, value FROM system_settings WHERE key IN ('currency_symbol', 'website_currency')"
+    );
+    const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    return map['currency_symbol'] ?? map['website_currency'] ?? 'RM';
+  } catch {
+    return 'RM';
+  }
+}
+
 interface PromotionsConfig {
   title?: string;
   subtitle?: string;
@@ -29,7 +41,10 @@ async function getPromotions(limit: number): Promise<PublicPromotion[]> {
 
 export default async function PromotionsSection({ config }: { config: PromotionsConfig }) {
   const { title = '精选优惠', subtitle, show_all_link = '/promotions', max_items = 6 } = config;
-  const promotions = await getPromotions(max_items);
+  const [promotions, currency] = await Promise.all([
+    getPromotions(max_items),
+    getCurrencySymbol(),
+  ]);
   if (promotions.length === 0) return null;
 
   return (
@@ -47,7 +62,7 @@ export default async function PromotionsSection({ config }: { config: Promotions
           </Link>
         )}
       </div>
-      <PromoBanner promotions={promotions} />
+      <PromoBanner promotions={promotions} currency={currency} />
     </section>
   );
 }

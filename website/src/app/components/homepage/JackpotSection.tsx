@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCurrency } from '@/lib/useCurrency';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -470,7 +471,7 @@ function buildCustomSizeCss(spec: CustomSizeSpec): React.CSSProperties {
   return css;
 }
 
-function JackpotCounter({ def }: { def: JackpotCounterDef }) {
+function JackpotCounter({ def, fallbackCurrency }: { def: JackpotCounterDef; fallbackCurrency: string }) {
   const value   = useJackpotValue(def);
   const rolling = useRef(false);
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -607,7 +608,7 @@ function JackpotCounter({ def }: { def: JackpotCounterDef }) {
               className="font-black"
               style={{ fontSize: sizeMap.currency, color: curColor, textShadow: tShadow }}
             >
-              {def.prefix || 'RM'}
+              {def.prefix || fallbackCurrency}
             </span>
             <StyledNumber
               formatted={fmt}
@@ -625,11 +626,11 @@ function JackpotCounter({ def }: { def: JackpotCounterDef }) {
 
 // ── Default counter (for legacy / first-time config) ──────────────────────────
 
-function legacyToConfig(cfg: JackpotSectionConfig): JackpotCounterDef {
+function legacyToConfig(cfg: JackpotSectionConfig, fallbackCurrency: string): JackpotCounterDef {
   return {
     id:                   'legacy',
     title:                cfg.title ?? '今日奖池',
-    prefix:               cfg.prefix ?? 'RM',
+    prefix:               cfg.prefix ?? fallbackCurrency,
     data_source:          'local',
     initial_value:        cfg.value ?? 1_000_000,
     manual_value:         cfg.value ?? 1_000_000,
@@ -660,11 +661,13 @@ function legacyToConfig(cfg: JackpotSectionConfig): JackpotCounterDef {
 // ── Main JackpotSection component ─────────────────────────────────────────────
 
 export default function JackpotSection({ config }: { config: JackpotSectionConfig }) {
+  const { symbol } = useCurrency();
+
   // Normalise: if new multi-counter format not present, derive from legacy fields
   const counters: JackpotCounterDef[] =
     config.counters && config.counters.length > 0
       ? config.counters
-      : [legacyToConfig(config)];
+      : [legacyToConfig(config, symbol)];
 
   const layout = config.layout ?? 'vertical';
   const isSingle = counters.length === 1;
@@ -681,7 +684,7 @@ export default function JackpotSection({ config }: { config: JackpotSectionConfi
     <section className={gridClass}>
       {counters.map(c => (
         <div key={c.id} className={isSingle ? 'w-full' : layout === 'horizontal' ? 'flex-1 min-w-[200px]' : ''}>
-          <JackpotCounter def={c} />
+          <JackpotCounter def={c} fallbackCurrency={symbol} />
         </div>
       ))}
     </section>

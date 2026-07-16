@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useCurrency } from '@/lib/useCurrency';
 
 // ─── Theme System ─────────────────────────────────────────────────────────────
 
@@ -371,6 +372,7 @@ function TxRow({
   providerStyle,
   timestampStyle,
   isNew,
+  currencySymbol,
 }: {
   row: TxRow;
   isDeposit: boolean;
@@ -381,6 +383,7 @@ function TxRow({
   providerStyle: string;
   timestampStyle: string;
   isNew: boolean;
+  currencySymbol: string;
 }) {
   void tick; // used by parent to trigger re-render for relTime
   const accentColor  = isDeposit ? theme.depositColor  : theme.withdrawColor;
@@ -443,7 +446,7 @@ function TxRow({
           className="shrink-0"
           style={{ color: accentColor, fontSize: 10, fontWeight: 700, fontFamily: 'inherit' }}
         >
-          RM{formatAmount(row.amount, amountStyle)}
+          {currencySymbol}{formatAmount(row.amount, amountStyle)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -468,6 +471,7 @@ function TxColumn({
   providerStyle,
   timestampStyle,
   newIds,
+  currencySymbol,
 }: {
   label: string;
   rows: TxRow[];
@@ -480,6 +484,7 @@ function TxColumn({
   providerStyle: string;
   timestampStyle: string;
   newIds: Set<string>;
+  currencySymbol: string;
 }) {
   const accentColor = isDeposit ? theme.depositColor : theme.withdrawColor;
   const accentBg    = isDeposit ? theme.depositBg    : theme.withdrawBg;
@@ -508,6 +513,7 @@ function TxColumn({
             providerStyle={providerStyle}
             timestampStyle={timestampStyle}
             isNew={newIds.has(row.id)}
+            currencySymbol={currencySymbol}
           />
         ))}
 
@@ -623,6 +629,7 @@ export default function LiveTransaction({
   timestampStyle       = 'relative',
   indicatorStyle       = 'pulse_dot',
 }: Props) {
+  const { symbol: currencySymbol } = useCurrency();
   const theme      = resolveTheme(themeId, customTheme, fontStyle);
   const intervalMs = SPEED_MAP[activitySpeed] ?? 8000;
 
@@ -889,6 +896,7 @@ export default function LiveTransaction({
               providerStyle={providerStyle}
               timestampStyle={timestampStyle}
               newIds={newIds}
+              currencySymbol={currencySymbol}
             />
 
             <div className="w-px self-stretch" style={{ background: theme.divider }} />
@@ -905,6 +913,7 @@ export default function LiveTransaction({
               providerStyle={providerStyle}
               timestampStyle={timestampStyle}
               newIds={newIds}
+              currencySymbol={currencySymbol}
             />
           </div>
         </div>

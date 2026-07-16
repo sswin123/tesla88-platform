@@ -10,6 +10,8 @@ const WEBSITE_KEYS = [
   'deposit_min_amount', 'withdraw_min_amount', 'deposit_max_amount', 'withdraw_max_amount',
   // Wallet
   'wallet_max_balance_deposit', 'website_currency', 'website_decimal_places',
+  // Currency system (Single Source of Truth)
+  'currency_code', 'currency_symbol', 'thousands_separator', 'decimal_separator',
   // Withdrawal limit
   'max_withdrawals_per_day',
   // Registration control

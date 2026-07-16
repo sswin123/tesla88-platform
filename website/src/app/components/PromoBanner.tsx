@@ -95,7 +95,7 @@ export default function PromoBanner({ promotions, currency = 'RM' }: Props) {
               <div className="mt-auto">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-                    最低存款 RM {parseFloat(p.min_deposit).toFixed(0)}
+                    最低存款 {currency} {parseFloat(p.min_deposit).toFixed(0)}
                   </span>
                   {p.expiry_date && !expired && (
                     <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
