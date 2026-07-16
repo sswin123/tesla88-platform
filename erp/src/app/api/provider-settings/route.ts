@@ -13,10 +13,12 @@ async function requireSuperAdmin() {
 
 interface ProviderRow {
   id: number; provider: string; display_name: string; enabled: boolean;
+  environment: string; mock_enabled: boolean;
   agent_id: string | null; secret_key: string | null; callback_secret: string | null;
   signature_type: string; signature_version: string; wallet_type: string;
-  currency: string; api_url: string | null; whitelist_ips: string | null;
-  response_format: string; notes: string | null;
+  currency: string; api_url: string | null;
+  sandbox_api_url: string | null; sandbox_agent_id: string | null; sandbox_secret: string | null;
+  whitelist_ips: string | null; response_format: string; notes: string | null;
   created_at: string; updated_at: string;
 }
 
@@ -104,8 +106,9 @@ export async function PATCH(req: NextRequest) {
   let idx = 1;
 
   const allowed: (keyof ProviderRow)[] = [
-    'display_name', 'enabled', 'agent_id', 'signature_type', 'signature_version',
-    'wallet_type', 'currency', 'api_url', 'whitelist_ips', 'response_format', 'notes',
+    'display_name', 'enabled', 'environment', 'agent_id', 'signature_type', 'signature_version',
+    'wallet_type', 'currency', 'api_url', 'sandbox_api_url', 'sandbox_agent_id',
+    'mock_enabled', 'whitelist_ips', 'response_format', 'notes',
   ];
   for (const f of allowed) {
     if (body[f] !== undefined) {
@@ -121,6 +124,10 @@ export async function PATCH(req: NextRequest) {
   if (body.callback_secret && !body.callback_secret.startsWith('***')) {
     fields.push(`callback_secret = $${idx++}`);
     values.push(body.callback_secret);
+  }
+  if (body.sandbox_secret && !body.sandbox_secret.startsWith('***')) {
+    fields.push(`sandbox_secret = $${idx++}`);
+    values.push(body.sandbox_secret);
   }
 
   if (!fields.length) return NextResponse.json({ ok: true });

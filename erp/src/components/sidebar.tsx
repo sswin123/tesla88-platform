@@ -74,7 +74,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/risk',      label: 'Risk Center',      icon: ShieldAlert, permission: 'risk.view' },
       { href: '/providers',         label: 'Providers',          icon: Gamepad2,    permission: 'game.manage' },
       { href: '/accounts',          label: 'Game Accounts',      icon: Database,    permission: 'game.manage' },
-      { href: '/provider-settings', label: 'Provider Callbacks', icon: Activity,    permission: 'game.manage' },
+      { href: '/provider-settings',   label: 'Provider Callbacks', icon: Activity,    permission: 'game.manage' },
+      { href: '/provider-playground', label: 'API Playground',     icon: Zap,         permission: 'game.manage' },
     ],
   },
   {

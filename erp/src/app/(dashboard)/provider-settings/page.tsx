@@ -9,6 +9,7 @@ interface ProviderSetting {
   provider:         string;
   display_name:     string;
   enabled:          boolean;
+  environment:      string;
   agent_id:         string | null;
   secret_key:       string | null;
   callback_secret:  string | null;
@@ -17,6 +18,10 @@ interface ProviderSetting {
   wallet_type:      string;
   currency:         string;
   api_url:          string | null;
+  sandbox_api_url:  string | null;
+  sandbox_agent_id: string | null;
+  sandbox_secret:   string | null;
+  mock_enabled:     boolean;
   whitelist_ips:    string | null;
   response_format:  string;
   notes:            string | null;
@@ -44,12 +49,15 @@ const RESPONSE_FORMATS = ['JSON_SUCCESS', 'JILI', 'PG', 'EVOLUTION', 'PLAYTECH',
 const CURRENCIES      = ['MYR', 'SGD', 'USD', 'THB', 'IDR', 'VND', 'PHP'];
 const SIG_VERSIONS    = ['v1', 'v2', 'v3'];
 
+const ENVIRONMENTS = ['PRODUCTION', 'SANDBOX', 'MOCK'];
+
 const BLANK_FORM: Partial<ProviderSetting> = {
-  provider: '', display_name: '', enabled: false,
+  provider: '', display_name: '', enabled: false, environment: 'PRODUCTION',
   agent_id: '', secret_key: '', callback_secret: '',
   signature_type: 'MD5', signature_version: 'v1',
   wallet_type: 'SEAMLESS', currency: 'MYR',
-  api_url: '', whitelist_ips: '', response_format: 'JSON_SUCCESS', notes: '',
+  api_url: '', sandbox_api_url: '', sandbox_agent_id: '', sandbox_secret: '',
+  mock_enabled: false, whitelist_ips: '', response_format: 'JSON_SUCCESS', notes: '',
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -179,17 +187,17 @@ function EditModal({ ps, onClose, onSaved }: {
             <Label>Display Name</Label>
             <Input value={form.display_name ?? ''} onChange={f('display_name')} placeholder="JILI Games" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
-            <input
-              type="checkbox"
-              id="enabled"
-              checked={form.enabled ?? false}
-              onChange={e => f('enabled')(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: '#22c55e' }}
-            />
-            <label htmlFor="enabled" style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>
-              Enabled (accept callbacks)
-            </label>
+          <div>
+            <Label>Environment</Label>
+            <Select value={form.environment ?? 'PRODUCTION'} onChange={f('environment')} options={ENVIRONMENTS} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+            <input type="checkbox" id="enabled" checked={form.enabled ?? false} onChange={e => f('enabled')(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#22c55e' }} />
+            <label htmlFor="enabled" style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>Enabled (accept callbacks)</label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+            <input type="checkbox" id="mock_enabled" checked={form.mock_enabled ?? false} onChange={e => f('mock_enabled')(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#f59e0b' }} />
+            <label htmlFor="mock_enabled" style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>Mock Mode (test without real API)</label>
           </div>
 
           <div>
@@ -229,8 +237,23 @@ function EditModal({ ps, onClose, onSaved }: {
           </div>
 
           <div style={{ gridColumn: '1/-1' }}>
-            <Label>API URL (optional)</Label>
+            <Label>Production API URL</Label>
             <Input value={form.api_url ?? ''} onChange={f('api_url')} placeholder="https://api.jili.com/v1" mono />
+          </div>
+          <div style={{ gridColumn: '1/-1', borderTop: '1px solid #1e293b', paddingTop: 12, marginTop: 4 }}>
+            <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Sandbox / UAT</p>
+          </div>
+          <div style={{ gridColumn: '1/-1' }}>
+            <Label>Sandbox API URL</Label>
+            <Input value={form.sandbox_api_url ?? ''} onChange={f('sandbox_api_url')} placeholder="https://sandbox.api.jili.com/v1" mono />
+          </div>
+          <div>
+            <Label>Sandbox Agent ID</Label>
+            <Input value={form.sandbox_agent_id ?? ''} onChange={f('sandbox_agent_id')} placeholder="sandbox-agent-001" mono />
+          </div>
+          <div>
+            <Label>Sandbox Secret</Label>
+            <Input value={form.sandbox_secret ?? ''} onChange={f('sandbox_secret')} type="password" placeholder="sandbox-secret" mono />
           </div>
 
           <div style={{ gridColumn: '1/-1' }}>
