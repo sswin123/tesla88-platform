@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# deploy.sh — Tesla88 / SSWIN88 Production 一键部署
+# deploy.sh — Tesla88 / SSWIN88 Production 一键部署 (v1.0)
 #
 # 用法：
 #   ./scripts/deploy.sh            # 普通更新
 #   ./scripts/deploy.sh --fresh    # 首次部署（生成 SSL 证书）
+#   ./scripts/deploy.sh --verbose  # 显示更多过程信息
+#   ./scripts/deploy.sh --debug    # 完整 Debug 输出（排查专用）
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,20 +14,30 @@ COMPOSE_FILE="$PROJECT_ROOT/docker-compose.production.yml"
 DC="docker compose -f $COMPOSE_FILE"
 
 FRESH_INSTALL=false
-[[ "${1:-}" == "--fresh" ]] && FRESH_INSTALL=true
+VERBOSE=false
+DEBUG=false
+
+for _arg in "$@"; do
+    case "$_arg" in
+        --fresh)   FRESH_INSTALL=true ;;
+        --verbose) VERBOSE=true ;;
+        --debug)   DEBUG=true; VERBOSE=true ;;
+    esac
+done
 
 # ── 颜色 ─────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
-ok()    { echo -e "${GREEN}  ✓  ${NC}$*"; }
-fail()  { echo -e "${RED}  ✗  ${NC}$*" >&2; }
-info()  { echo -e "${BLUE}  →  ${NC}$*"; }
-warn()  { echo -e "${YELLOW}  ⚠  ${NC}$*"; }
-step()  { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
-die()   { fail "$*"; exit 1; }
-debug() { echo -e "${CYAN}[DEBUG]${NC} $*"; }
+ok()      { echo -e "${GREEN}  ✓  ${NC}$*"; }
+fail()    { echo -e "${RED}  ✗  ${NC}$*" >&2; }
+info()    { echo -e "${BLUE}  →  ${NC}$*"; }
+warn()    { echo -e "${YELLOW}  ⚠  ${NC}$*"; }
+step()    { echo -e "\n${BOLD}${CYAN}━━━ $* ━━━${NC}"; }
+die()     { fail "$*"; exit 1; }
+debug()   { [ "$DEBUG"   = "true" ] && echo -e "${CYAN}[DEBUG]${NC} $*"  || true; }
+verbose() { [ "$VERBOSE" = "true" ] && echo -e "${BLUE}  ·  ${NC}$*"     || true; }
 
-# 各项检查结果（用于最终 Banner）
+# ── 各项检查结果（用于最终 Banner）─────────────────────────────────────────
 R_MIGRATION="✗ FAIL"; R_SEED="✗ FAIL"
 R_POSTGRES="✗ FAIL";  R_REDIS="⚠ SKIP"
 R_ERP="✗ FAIL";       R_WEBSITE="✗ FAIL"
@@ -33,12 +45,24 @@ R_BOT="⚠ SKIP";      R_NGINX="✗ FAIL"
 R_ERP_REACH="✗ FAIL"; R_WEB_REACH="✗ FAIL"
 R_HTTP="✗ FAIL"
 
+# ── 各步骤耗时（秒）────────────────────────────────────────────────────────
+T_BUILD=0; T_MIGRATE=0; T_HEALTH=0; T_CONN=0; T_HTTP_DUR=0
+
+# ── 版本信息（git pull 后更新）──────────────────────────────────────────────
+GIT_COMMIT="unknown"; GIT_BRANCH="unknown"
+
 DEPLOY_START=$(date +%s)
+DEPLOY_DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
 echo ""
 echo -e "${BOLD}${CYAN}╔════════════════════════════════════════╗${NC}"
 echo -e "${BOLD}${CYAN}║     Tesla88 / SSWIN88 Production       ║${NC}"
 echo -e "${BOLD}${CYAN}║     Deploy — $(date '+%Y-%m-%d %H:%M:%S')       ║${NC}"
+if [ "$DEBUG" = "true" ]; then
+    echo -e "${BOLD}${CYAN}║     Mode: --debug                      ║${NC}"
+elif [ "$VERBOSE" = "true" ]; then
+    echo -e "${BOLD}${CYAN}║     Mode: --verbose                    ║${NC}"
+fi
 echo -e "${BOLD}${CYAN}╚════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -98,48 +122,49 @@ resolve_project_name() {
 wait_for_migrate() {
     local project="$1"
     local max_wait=300 elapsed=0
-    local migrate_cid="" state exit_code inspect_raw
+    local migrate_cid="" cname="" state="" exit_code="" inspect_raw
 
-    info "等待 Migration 容器出现（按 service label，不依赖 project name 或容器名）..."
+    info "等待 Migration 容器（service label: com.docker.compose.service=migrate）..."
 
-    # ── Step 1：等待容器出现（唯一正式方案：service label only）─────────
-    # docker ps -a 默认按 Created 降序，head -1 取最新容器
+    # ── Step 1：等待容器出现（正式方案：service label only，不依赖 project name）
+    # docker ps -a 默认 Created 降序，head -1 取最新容器
     while [ $elapsed -lt $max_wait ]; do
 
         migrate_cid=$(docker ps -a \
             --filter "label=com.docker.compose.service=migrate" \
             --format "{{.ID}}" 2>/dev/null | head -1)
 
-        local cname="" cstatus="" cexit=""
         if [ -n "$migrate_cid" ]; then
             cname=$(docker inspect --format '{{.Name}}' "$migrate_cid" 2>/dev/null | tr -d '/' || echo "?")
             inspect_raw=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "?|?")
-            cstatus="${inspect_raw%|*}"
-            cexit="${inspect_raw#*|}"
+            state="${inspect_raw%|*}"
+            exit_code="${inspect_raw#*|}"
         fi
 
-        echo "--------------------------------"
-        echo "[Migration Debug] elapsed=${elapsed}s"
-        echo "  filter: label=com.docker.compose.service=migrate"
-        echo "  Container ID: ${migrate_cid:-EMPTY}"
-        echo "  Container Name: ${cname:-N/A}"
-        echo "  Status:   ${cstatus:-N/A}"
-        echo "  ExitCode: ${cexit:-N/A}"
-        echo "  docker ps -a (前10行):"
-        docker ps -a --format "    {{.Names}}\t{{.Status}}" 2>/dev/null | head -10
-        echo "--------------------------------"
+        if [ "$DEBUG" = "true" ]; then
+            echo "--------------------------------"
+            echo "[Migration Debug] elapsed=${elapsed}s"
+            echo "  filter: label=com.docker.compose.service=migrate"
+            echo "  Container ID:   ${migrate_cid:-EMPTY}"
+            echo "  Container Name: ${cname:-N/A}"
+            echo "  Status:         ${state:-N/A}"
+            echo "  ExitCode:       ${exit_code:-N/A}"
+            echo "  docker ps -a (前10行):"
+            docker ps -a --format "    {{.Names}}\t{{.Status}}" 2>/dev/null | head -10
+            echo "--------------------------------"
+        fi
 
         if [ -n "$migrate_cid" ]; then
+            verbose "  发现容器: ${cname} (${migrate_cid:0:12}) Status=${state}"
             break
         fi
 
-        debug "${elapsed}s — Migration 容器未出现，继续等待..."
+        verbose "  ${elapsed}s — Migration 容器未出现，继续等待..."
         sleep 2; elapsed=$((elapsed + 2))
     done
 
     if [ -z "$migrate_cid" ]; then
         fail "Migration 容器未出现（超时 ${max_wait}s）"
-        echo ""
         echo "=== 超时诊断：docker ps -a ==="
         docker ps -a --format "  {{.Names}}\t{{.Status}}" 2>/dev/null
         return 1
@@ -147,19 +172,21 @@ wait_for_migrate() {
 
     info "Migration 容器已发现: ${cname} (${migrate_cid:0:12})，等待执行完毕..."
 
-    # ── Step 2：轮询 Status + ExitCode，exited/0 立即退出 ────────────
+    # ── Step 2：轮询 Status + ExitCode，exited/0 立即退出（不再 sleep）────
     while [ $elapsed -lt $max_wait ]; do
 
         inspect_raw=$(docker inspect --format '{{.State.Status}}|{{.State.ExitCode}}' "$migrate_cid" 2>/dev/null || echo "inspect_failed|?")
         state="${inspect_raw%|*}"
         exit_code="${inspect_raw#*|}"
 
-        echo "--------------------------------"
-        echo "[Migration Debug] elapsed=${elapsed}s"
-        echo "  Container: ${cname} (${migrate_cid:0:12})"
-        echo "  Status:    ${state}"
-        echo "  ExitCode:  ${exit_code}"
-        echo "--------------------------------"
+        if [ "$DEBUG" = "true" ]; then
+            echo "--------------------------------"
+            echo "[Migration Debug] elapsed=${elapsed}s"
+            echo "  Container: ${cname} (${migrate_cid:0:12})"
+            echo "  Status:    ${state}"
+            echo "  ExitCode:  ${exit_code}"
+            echo "--------------------------------"
+        fi
 
         case "$state" in
             exited)
@@ -168,14 +195,13 @@ wait_for_migrate() {
                     return 0
                 else
                     fail "Migration 失败（ExitCode=${exit_code}）"
-                    echo ""
                     echo "=== Migration 日志（最后 200 行）==="
                     docker logs "$migrate_cid" 2>&1 | tail -200
                     return 1
                 fi
                 ;;
             running)
-                info "  Migration 执行中... (${elapsed}s)"
+                verbose "  Migration 执行中... (${elapsed}s)"
                 sleep 3; elapsed=$((elapsed + 3))
                 ;;
             inspect_failed)
@@ -219,12 +245,14 @@ wait_for_healthy() {
             health="none"; status="not_found"
         fi
 
-        echo "--------------------------------"
-        echo "[Health Debug] service=${service} elapsed=${elapsed}s"
-        echo "  Container ID: ${cid:-EMPTY}"
-        echo "  Status:       ${status}"
-        echo "  Health:       ${health}"
-        echo "--------------------------------"
+        if [ "$DEBUG" = "true" ]; then
+            echo "--------------------------------"
+            echo "[Health Debug] service=${service} elapsed=${elapsed}s"
+            echo "  Container ID: ${cid:-EMPTY}"
+            echo "  Status:       ${status}"
+            echo "  Health:       ${health}"
+            echo "--------------------------------"
+        fi
 
         case "$health" in
             healthy)   ok "${service} ✓ (${elapsed}s)"; return 0 ;;
@@ -237,6 +265,7 @@ wait_for_healthy() {
                 return 1
                 ;;
         esac
+        verbose "  ${service}: ${health:-starting}... (${elapsed}s)"
         sleep 5; elapsed=$((elapsed + 5))
     done
     fail "${service} 超时（${max_wait}s）"
@@ -281,7 +310,7 @@ check_http() {
         code=$(wget -q --spider --server-response --timeout=15 "$url" 2>&1 \
                | awk '/HTTP\// {print $2}' | tail -1 || echo "000")
     fi
-    echo "[HTTP Debug] ${label} → HTTP ${code}"
+    verbose "[HTTP Debug] ${label} → HTTP ${code}"
     echo "$code" | grep -qE "^(2|3)" && { ok "${label} → HTTP ${code}"; return 0; }
     fail "${label} → HTTP ${code}"; return 1
 }
@@ -309,19 +338,23 @@ docker compose version >/dev/null 2>&1  || die "Docker Compose V2 未安装"
 
 PROJECT_NAME=$(resolve_project_name)
 [ -z "$PROJECT_NAME" ] && die "无法确定 Compose 项目名，请检查 docker-compose.production.yml"
-ok "Docker & Compose ✓  |  .env ✓  |  项目: ${PROJECT_NAME}"
+DC_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+ok "Docker & Compose ${DC_VERSION} ✓  |  .env ✓  |  项目: ${PROJECT_NAME}"
 
 # ── 2/8  Git Pull ─────────────────────────────────────────────────────────────
 step "2 / 8  Git Pull"
 BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 git pull origin main
 AFTER=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 if [ "$BEFORE" = "$AFTER" ]; then
     ok "已是最新版本（${AFTER:0:7}）"
 else
     ok "${BEFORE:0:7} → ${AFTER:0:7}"
     git diff --name-only "$BEFORE" HEAD 2>/dev/null | head -15 | while read -r f; do info "  $f"; done
 fi
+verbose "  Branch: ${GIT_BRANCH}  |  Commit: ${GIT_COMMIT}"
 
 # ── 3/8  SSL 证书 ─────────────────────────────────────────────────────────────
 step "3 / 8  SSL 证书"
@@ -336,15 +369,19 @@ fi
 
 # ── 4/8  Build & 启动 ─────────────────────────────────────────────────────────
 step "4 / 8  Build & 启动"
+_t=$(date +%s)
 info "Build 镜像（仅重建有变更的）..."
 $DC build --parallel
 info "启动全部服务..."
 $DC up -d
-ok "Docker Compose Up 完成"
+T_BUILD=$(( $(date +%s) - _t ))
+ok "Docker Compose Up 完成（${T_BUILD}s）"
 
 # ── 5/8  Migration ────────────────────────────────────────────────────────────
 step "5 / 8  Database Migration"
+_t=$(date +%s)
 if wait_for_migrate "$PROJECT_NAME"; then
+    T_MIGRATE=$(( $(date +%s) - _t ))
     R_MIGRATION="✓ PASS"
     R_SEED="✓ PASS"
 else
@@ -353,32 +390,35 @@ fi
 
 # ── 6/8  服务健康检查 ─────────────────────────────────────────────────────────
 step "6 / 8  服务健康检查"
-
-wait_for_healthy postgres 60 && R_POSTGRES="✓ PASS" || die "PostgreSQL unhealthy，停止部署"
-wait_for_healthy redis    60 && R_REDIS="✓ PASS"    || { warn "Redis unhealthy（继续部署）"; R_REDIS="⚠ WARN"; }
-wait_for_healthy erp     240 && R_ERP="✓ PASS"      || { $DC logs erp 2>/dev/null | tail -20; die "ERP unhealthy，停止部署"; }
-wait_for_healthy website 240 && R_WEBSITE="✓ PASS"  || { $DC logs website 2>/dev/null | tail -20; die "Website unhealthy，停止部署"; }
+_t=$(date +%s)
+wait_for_healthy postgres 60  && R_POSTGRES="✓ PASS" || die "PostgreSQL unhealthy，停止部署"
+wait_for_healthy redis    60  && R_REDIS="✓ PASS"    || { warn "Redis unhealthy（继续部署）"; R_REDIS="⚠ WARN"; }
+wait_for_healthy erp     240  && R_ERP="✓ PASS"      || { $DC logs erp 2>/dev/null | tail -20; die "ERP unhealthy，停止部署"; }
+wait_for_healthy website 240  && R_WEBSITE="✓ PASS"  || { $DC logs website 2>/dev/null | tail -20; die "Website unhealthy，停止部署"; }
 wait_for_healthy telegram-bot 120 \
     && R_BOT="✓ PASS" \
     || { warn "Telegram Bot unhealthy（请检查 BOT_TOKEN）"; R_BOT="⚠ WARN"; }
-wait_for_healthy nginx    60 && R_NGINX="✓ PASS"    || { warn "Nginx unhealthy"; R_NGINX="⚠ WARN"; }
+wait_for_healthy nginx    60  && R_NGINX="✓ PASS"    || { warn "Nginx unhealthy"; R_NGINX="⚠ WARN"; }
+T_HEALTH=$(( $(date +%s) - _t ))
 
 # ── 7/8  Nginx → 后端内部连通测试 ────────────────────────────────────────────
 step "7 / 8  Nginx → 后端连通测试"
-
+_t=$(date +%s)
 check_internal "http://erp:3000/login" "Nginx → ERP (http://erp:3000/login)" \
     && R_ERP_REACH="✓ PASS" \
     || die "ERP 无法从 Nginx 访问，停止部署"
-
 check_internal "http://website:3000" "Nginx → Website (http://website:3000)" \
     && R_WEB_REACH="✓ PASS" \
     || die "Website 无法从 Nginx 访问，停止部署"
+T_CONN=$(( $(date +%s) - _t ))
 
 # ── 8/8  公网 HTTP 检查 ───────────────────────────────────────────────────────
 step "8 / 8  公网 HTTP 检查"
+_t=$(date +%s)
 HTTP_OK=true
 check_http "https://apidemo.club"           "https://apidemo.club"           || HTTP_OK=false
 check_http "https://erp.apidemo.club/login" "https://erp.apidemo.club/login" || HTTP_OK=false
+T_HTTP_DUR=$(( $(date +%s) - _t ))
 
 if [ "$HTTP_OK" = "true" ]; then
     R_HTTP="✓ PASS"
@@ -389,7 +429,7 @@ fi
 
 # ── 最终汇总 Banner ───────────────────────────────────────────────────────────
 DEPLOY_END=$(date +%s)
-ELAPSED=$((DEPLOY_END - DEPLOY_START))
+T_TOTAL=$((DEPLOY_END - DEPLOY_START))
 
 echo ""
 echo -e "${BOLD}${GREEN}=======================================${NC}"
@@ -414,7 +454,20 @@ echo ""
 echo -e "${BOLD}${GREEN}=======================================${NC}"
 echo -e "  Website  →  https://apidemo.club"
 echo -e "  ERP      →  https://erp.apidemo.club"
-echo -e "  部署耗时:   ${ELAPSED}s"
+echo ""
+echo -e "${BOLD}  各步骤耗时：${NC}"
+printf "    %-14s %ss\n" "Build & Up"  "$T_BUILD"
+printf "    %-14s %ss\n" "Migration"   "$T_MIGRATE"
+printf "    %-14s %ss\n" "Health"      "$T_HEALTH"
+printf "    %-14s %ss\n" "Nginx Conn"  "$T_CONN"
+printf "    %-14s %ss\n" "HTTP Check"  "$T_HTTP_DUR"
+printf "    %-14s %ss\n" "Total"       "$T_TOTAL"
+echo ""
+echo -e "${BOLD}  版本信息：${NC}"
+printf "    %-14s %s\n" "Git Commit"  "$GIT_COMMIT"
+printf "    %-14s %s\n" "Git Branch"  "$GIT_BRANCH"
+printf "    %-14s %s\n" "Deploy Time" "$DEPLOY_DATE"
+printf "    %-14s %s\n" "Compose Ver" "$DC_VERSION"
 echo ""
 echo -e "${BOLD}${GREEN}  Deployment Finished Successfully${NC}"
 echo -e "${BOLD}${GREEN}=======================================${NC}"
