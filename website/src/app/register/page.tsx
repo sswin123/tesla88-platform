@@ -86,6 +86,7 @@ function RegisterForm() {
   const [duplicatePhone, setDuplicatePhone] = useState(false);
   const [telegramMember, setTelegramMember] = useState(false);
   const [regEnabled,    setRegEnabled]    = useState<boolean | null>(null); // null = loading
+  const [regFetchError, setRegFetchError] = useState(false);
 
   const nameRef     = useRef<HTMLDivElement>(null);
   const phoneRef    = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ function RegisterForm() {
       .then((d: Record<string, string>) => {
         setRegEnabled(d['website_registration'] === 'true');
       })
-      .catch(() => setRegEnabled(false));
+      .catch(() => setRegFetchError(true));
   }, []);
 
   function shakeField(field: string) {
@@ -185,10 +186,31 @@ function RegisterForm() {
   }
 
   // Registration closed state
-  if (regEnabled === null) {
+  if (regEnabled === null && !regFetchError) {
     return (
       <div className="max-w-sm mx-auto py-16 text-center" style={{ color: 'var(--text-muted)', fontSize: 14 }}>
         加载中…
+      </div>
+    );
+  }
+
+  if (regFetchError) {
+    return (
+      <div className="max-w-sm mx-auto py-16 text-center space-y-4">
+        <div style={{ fontSize: 48 }}>⚠️</div>
+        <h1 className="font-bold" style={{ fontSize: 'var(--sz-section)', color: 'var(--text-base)' }}>
+          连接失败
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7 }}>
+          无法加载注册页面，请检查网络连接后重试。
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="casino-btn-primary inline-block px-6 py-2.5 text-sm font-bold"
+          style={{ borderRadius: 'var(--radius-sm)' }}
+        >
+          重新加载
+        </button>
       </div>
     );
   }

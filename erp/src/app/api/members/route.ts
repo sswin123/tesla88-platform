@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
 import bcrypt from 'bcryptjs';
+import { normalizePhone } from '@/lib/phone';
 
 function maskPhone(phone: string): string {
   if (!phone) return phone;
@@ -82,12 +83,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'first_name, phone and password required' }, { status: 400 });
   if (password.length < 6)
     return NextResponse.json({ error: '密码至少需要6个字符' }, { status: 400 });
-  if (!/^\+?[\d\s\-()]{7,20}$/.test(phone))
-    return NextResponse.json({ error: '手机号格式无效' }, { status: 400 });
 
-  // Check phone uniqueness
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone)
+    return NextResponse.json({ error: '手机号格式无效，请输入马来西亚手机号（如 011-12345678）' }, { status: 400 });
+
+  // Check phone uniqueness with normalized format
   const existing = await pool.query<{ id: number }>(
-    'SELECT id FROM users WHERE phone = $1 LIMIT 1', [phone]
+    'SELECT id FROM users WHERE phone = $1 LIMIT 1', [normalizedPhone]
   );
   if (existing.rows.length > 0)
     return NextResponse.json({ error: '该手机号已存在' }, { status: 409 });
@@ -113,7 +116,7 @@ export async function POST(req: NextRequest) {
           eligible_free_credit, referred_by, status, vip_level, register_source)
        VALUES ($1, $2, $3, $4, NOW(), FALSE, $5, $6, $7, 'ERP')
        RETURNING id`,
-      [firstName, phone, telegramUsername, hash, referredById, status, vipLevel]
+      [firstName, normalizedPhone, telegramUsername, hash, referredById, status, vipLevel]
     );
     const userId = memberRow.rows[0].id;
 
@@ -140,10 +143,18 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     await client.query('ROLLBACK');
     const pgErr = err as Record<string, unknown>;
-    if (pgErr.code === '23505')
-      return NextResponse.json({ error: '该手机号已存在' }, { status: 409 });
+    if (pgErr.code === '23505') {
+      const detail = String(pgErr.detail ?? '');
+      if (detail.includes('phone')) return NextResponse.json({ error: '该手机号已存在' }, { status: 409 });
+      if (detail.includes('telegram')) return NextResponse.json({ error: '该 Telegram 账号已绑定其他会员' }, { status: 409 });
+      return NextResponse.json({ error: `唯一键冲突：${detail || '请检查重复数据'}` }, { status: 409 });
+    }
+    if (pgErr.code === '42703')
+      return NextResponse.json({ error: `数据库字段不存在，请检查 Migration 是否已全部执行（列：${pgErr.message}）` }, { status: 500 });
+    if (pgErr.code === '23502')
+      return NextResponse.json({ error: `必填字段为空：${pgErr.message}` }, { status: 500 });
     console.error('[members POST]', err);
-    return NextResponse.json({ error: '创建失败，请稍后重试' }, { status: 500 });
+    return NextResponse.json({ error: String(pgErr.message ?? '创建失败，请稍后重试') }, { status: 500 });
   } finally {
     client.release();
   }
