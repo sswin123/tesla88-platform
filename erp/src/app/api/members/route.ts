@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
-import bcrypt from 'bcryptjs';
-import { normalizePhone } from '@/lib/phone';
+import { registerUser } from '@/lib/services/RegistrationService';
+import pool from '@/lib/db';
 
 function maskPhone(phone: string): string {
   if (!phone) return phone;
@@ -61,6 +60,8 @@ export async function POST(req: NextRequest) {
   const payload = await requirePermission('members.view');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const isSuperAdmin = payload.role === 'SUPER_ADMIN';
+
   const body = await req.json() as {
     first_name?: string;
     phone?: string;
@@ -69,93 +70,30 @@ export async function POST(req: NextRequest) {
     referral_code?: string;
     vip_level?: number;
     status?: string;
+    ignore_duplicate?: boolean;
   };
 
-  const firstName = (body.first_name ?? '').trim();
-  const phone = (body.phone ?? '').trim();
-  const password = (body.password ?? '').trim();
-  const telegramUsername = (body.telegram_username ?? '').trim() || null;
-  const referralCode = (body.referral_code ?? '').trim() || null;
-  const vipLevel = Number(body.vip_level ?? 0);
-  const status = ['ACTIVE', 'FROZEN'].includes(body.status ?? '') ? body.status! : 'ACTIVE';
+  // Only Super Admin can bypass duplicate check
+  const ignoreDuplicate = isSuperAdmin && body.ignore_duplicate === true;
 
-  if (!firstName || !phone || !password)
-    return NextResponse.json({ error: 'first_name, phone and password required' }, { status: 400 });
-  if (password.length < 6)
-    return NextResponse.json({ error: '密码至少需要6个字符' }, { status: 400 });
+  const result = await registerUser({
+    first_name:         body.first_name        ?? '',
+    raw_phone:          body.phone             ?? '',
+    raw_password:       body.password          ?? '',
+    min_password_length: 6,
+    telegram_username:  body.telegram_username,
+    referral_code:      body.referral_code,
+    vip_level:          Number(body.vip_level  ?? 0),
+    status:             (['ACTIVE','FROZEN'].includes(body.status ?? '') ? body.status : 'ACTIVE') as 'ACTIVE' | 'FROZEN',
+    register_source:    'ERP',
+    allow_upgrade:      false,      // ERP creates new members only
+    ignore_duplicate:   ignoreDuplicate,
+    admin_id:           payload.sub,
+  });
 
-  const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone)
-    return NextResponse.json({ error: '手机号格式无效，请输入马来西亚手机号（如 011-12345678）' }, { status: 400 });
-
-  // Check phone uniqueness with normalized format
-  const existing = await pool.query<{ id: number }>(
-    'SELECT id FROM users WHERE phone = $1 LIMIT 1', [normalizedPhone]
-  );
-  if (existing.rows.length > 0)
-    return NextResponse.json({ error: '该手机号已存在' }, { status: 409 });
-
-  const hash = await bcrypt.hash(password, 10);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Resolve referral code
-    let referredById: number | null = null;
-    if (referralCode) {
-      const refRow = await client.query<{ id: number }>(
-        `SELECT id FROM users WHERE referral_code = $1 LIMIT 1`, [referralCode]
-      );
-      referredById = refRow.rows[0]?.id ?? null;
-    }
-
-    const memberRow = await client.query<{ id: number }>(
-      `INSERT INTO users
-         (first_name, phone, telegram_username, website_password_hash, website_registered_at,
-          eligible_free_credit, referred_by, status, vip_level, register_source)
-       VALUES ($1, $2, $3, $4, NOW(), FALSE, $5, $6, $7, 'ERP')
-       RETURNING id`,
-      [firstName, normalizedPhone, telegramUsername, hash, referredById, status, vipLevel]
-    );
-    const userId = memberRow.rows[0].id;
-
-    // Fetch brand prefix
-    const brandRow = await client.query<{ value: string }>(
-      `SELECT value FROM system_settings WHERE key = 'member_id_prefix' LIMIT 1`
-    );
-    const prefix = brandRow.rows[0]?.value ?? 'SS';
-    const publicId = `${prefix}${1000000 + userId}`;
-
-    await client.query(
-      `UPDATE users SET public_id = $1, referral_code = $1 WHERE id = $2`,
-      [publicId, userId]
-    );
-
-    if (referredById) {
-      await client.query(
-        `UPDATE users SET referral_count = referral_count + 1 WHERE id = $1`, [referredById]
-      );
-    }
-
-    await client.query('COMMIT');
-    return NextResponse.json({ ok: true, id: userId, public_id: publicId }, { status: 201 });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    const pgErr = err as Record<string, unknown>;
-    if (pgErr.code === '23505') {
-      const detail = String(pgErr.detail ?? '');
-      if (detail.includes('phone')) return NextResponse.json({ error: '该手机号已存在' }, { status: 409 });
-      if (detail.includes('telegram')) return NextResponse.json({ error: '该 Telegram 账号已绑定其他会员' }, { status: 409 });
-      return NextResponse.json({ error: `唯一键冲突：${detail || '请检查重复数据'}` }, { status: 409 });
-    }
-    if (pgErr.code === '42703')
-      return NextResponse.json({ error: `数据库字段不存在，请检查 Migration 是否已全部执行（列：${pgErr.message}）` }, { status: 500 });
-    if (pgErr.code === '23502')
-      return NextResponse.json({ error: `必填字段为空：${pgErr.message}` }, { status: 500 });
-    console.error('[members POST]', err);
-    return NextResponse.json({ error: String(pgErr.message ?? '创建失败，请稍后重试') }, { status: 500 });
-  } finally {
-    client.release();
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.http_status });
   }
+
+  return NextResponse.json({ ok: true, id: result.user_id, public_id: result.public_id }, { status: 201 });
 }

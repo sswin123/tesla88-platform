@@ -22,6 +22,7 @@ from bot.keyboards.registration import (
 )
 from bot.services import BotMessageService
 from bot.utils.phone import normalize_phone
+from bot.utils.bank_account import normalize_bank_account
 from db.repositories.free_list_repo import check_phone_in_free_list
 from db.repositories.user_repo import (
     create_user,
@@ -281,12 +282,13 @@ async def process_bank_account(
     messages: BotMessageService,
 ) -> None:
     lang = message.from_user.language_code or "zh"
-    bank_account = (message.text or "").strip()
-    if not bank_account:
+    raw_account = (message.text or "").strip()
+    if not raw_account:
         text = await messages.get_message("register_account_empty", language=lang)
         await message.answer(text)
         return
 
+    bank_account = normalize_bank_account(raw_account)
     existing = await get_user_by_bank_account(pool, bank_account)
     if existing:
         text = await messages.get_message("register_account_exists", language=lang)

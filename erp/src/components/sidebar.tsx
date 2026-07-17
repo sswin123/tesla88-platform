@@ -106,8 +106,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'System',
     items: [
-      { href: '/system/health',  label: '健康监控', icon: Activity,  permission: 'maintenance.view' },
-      { href: '/system/backups', label: '备份管理', icon: HardDrive, permission: 'maintenance.view' },
+      { href: '/system/health',          label: '健康监控',            icon: Activity,    permission: 'maintenance.view' },
+      { href: '/system/backups',         label: '备份管理',            icon: HardDrive,   permission: 'maintenance.view' },
+      { href: '/registration-security',  label: 'Registration Security', icon: ShieldCheck, permission: 'settings.manage' },
     ],
   },
   {

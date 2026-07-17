@@ -4,6 +4,8 @@ from typing import Optional
 
 import asyncpg
 
+from bot.utils.bank_account import normalize_bank_account
+
 
 async def get_user_by_telegram_id(
     pool: asyncpg.Pool, telegram_id: int
@@ -25,7 +27,7 @@ async def get_user_by_bank_account(
     pool: asyncpg.Pool, bank_account: str
 ) -> Optional[asyncpg.Record]:
     return await pool.fetchrow(
-        "SELECT * FROM users WHERE bank_account = $1", bank_account
+        "SELECT * FROM users WHERE bank_account = $1", normalize_bank_account(bank_account)
     )
 
 
@@ -68,7 +70,7 @@ async def create_user(
                 RETURNING *
                 """,
                 telegram_id, telegram_username, first_name,
-                phone, bank_name, bank_account, bank_holder_name,
+                phone, bank_name, normalize_bank_account(bank_account), bank_holder_name,
                 eligible_free_credit, website_password_hash, referred_by,
             )
             updated = await conn.fetchrow(

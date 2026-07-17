@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getMember } from '@/lib/member-auth';
 import { BANK_COOKIE_NAME, COOKIE_MAXAGE } from '@/lib/auth';
+import { normalizeBankAccount } from '@/lib/bank';
 
 // Called by /complete-bank-information page to verify bank status and hydrate cookie
 export async function GET() {
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
     bank_holder_name?: string;
   };
   const bank_name        = (body.bank_name ?? '').trim();
-  const bank_account     = (body.bank_account ?? '').replace(/\s/g, '');
+  const bank_account     = normalizeBankAccount(body.bank_account ?? '');
   const bank_holder_name = (body.bank_holder_name ?? '').trim();
 
   // Validate all required fields
