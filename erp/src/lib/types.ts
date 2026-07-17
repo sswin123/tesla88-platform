@@ -124,7 +124,7 @@ export interface JWTPayload {
 export interface Member {
   id: number;
   public_id: string | null;
-  telegram_id: string;
+  telegram_id: string | null;
   telegram_username: string | null;
   first_name: string;
   phone: string;
@@ -137,9 +137,9 @@ export interface Member {
 }
 
 export interface MemberDetail extends Member {
-  bank_name: string;
-  bank_account: string;
-  bank_holder_name: string;
+  bank_name: string | null;
+  bank_account: string | null;
+  bank_holder_name: string | null;
   deposit_count: number;
   withdrawal_count: number;
   remarks: string | null;
@@ -339,8 +339,8 @@ export interface SupportSession {
   // joined from users table
   first_name?: string;
   phone?: string;
-  telegram_id?: string;
-  telegram_username?: string;           // NEW: joined from users.telegram_username
+  telegram_id?: string | null;
+  telegram_username?: string | null;    // joined from users.telegram_username
   public_id?: string | null;
   // computed / aggregated
   last_message_content?: string;        // NEW: last message preview text
@@ -387,7 +387,7 @@ export interface LiveChatSSEEvent {
 export interface MemberCardData {
   id: number;
   first_name: string;
-  telegram_id: string;
+  telegram_id: string | null;
   telegram_username: string | null;
   phone: string;
   status: 'ACTIVE' | 'FROZEN';
@@ -403,10 +403,10 @@ export interface MemberCardData {
   last_deposit_amount: string | null;
   last_withdrawal_at: string | null;
   last_withdrawal_amount: string | null;
-  // Bank
-  bank_name: string;
-  bank_account: string;
-  bank_holder_name: string;
+  // Bank — nullable: ERP/Website members may not have bank info at registration
+  bank_name: string | null;
+  bank_account: string | null;
+  bank_holder_name: string | null;
   // Game accounts
   game_accounts: { provider: string; username: string; display_name?: string | null; logo_media_id?: number | null }[];
   // Current promotion (null if none active)

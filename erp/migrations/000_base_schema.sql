@@ -30,13 +30,16 @@ $$ LANGUAGE plpgsql;
 -- （无对应编号迁移文件）
 CREATE TABLE IF NOT EXISTS users (
     id                   SERIAL PRIMARY KEY,
-    telegram_id          BIGINT        UNIQUE NOT NULL,
+    -- telegram_id is nullable: ERP/Website members have no Telegram until they bind
+    -- Bot-registered members always have telegram_id (migration 058)
+    telegram_id          BIGINT        UNIQUE,
     telegram_username    VARCHAR(255),
     first_name           VARCHAR(255)  NOT NULL,
     phone                VARCHAR(20)   UNIQUE NOT NULL,
-    bank_name            VARCHAR(100)  NOT NULL,
-    bank_account         VARCHAR(100)  UNIQUE NOT NULL,
-    bank_holder_name     VARCHAR(255)  NOT NULL,
+    -- bank fields nullable: filled via member profile after initial registration
+    bank_name            VARCHAR(100),
+    bank_account         VARCHAR(100)  UNIQUE,
+    bank_holder_name     VARCHAR(255),
     eligible_free_credit BOOLEAN       DEFAULT FALSE,
     status               VARCHAR(10)   DEFAULT 'ACTIVE'
                          CHECK (status IN ('ACTIVE', 'FROZEN')),

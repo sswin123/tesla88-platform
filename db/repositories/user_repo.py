@@ -65,13 +65,15 @@ async def create_user(
                 INSERT INTO users (
                     telegram_id, telegram_username, first_name,
                     phone, bank_name, bank_account, bank_holder_name,
-                    eligible_free_credit, website_password_hash, referred_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    eligible_free_credit, website_password_hash, referred_by,
+                    register_source
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 RETURNING *
                 """,
                 telegram_id, telegram_username, first_name,
                 phone, bank_name, normalize_bank_account(bank_account), bank_holder_name,
                 eligible_free_credit, website_password_hash, referred_by,
+                'TELEGRAM',
             )
             updated = await conn.fetchrow(
                 "UPDATE users SET public_id = $1, referral_code = $1 WHERE id = $2 RETURNING *",
