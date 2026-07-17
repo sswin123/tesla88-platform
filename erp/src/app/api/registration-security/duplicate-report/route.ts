@@ -6,7 +6,7 @@ export async function GET() {
   const payload = await requirePermission('settings.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [phones, banks, telegrams, emails] = await Promise.all([
+  const [phones, banks, telegrams] = await Promise.all([
     // Duplicate phones
     pool.query<{ phone: string; count: number; user_ids: number[]; names: string[] }>(
       `SELECT phone,
@@ -49,9 +49,12 @@ export async function GET() {
        ORDER BY COUNT(*) DESC
        LIMIT 200`
     ),
+  ]);
 
-    // Duplicate emails
-    pool.query<{ email: string; count: number; user_ids: number[]; names: string[] }>(
+  // Email column does not exist in current schema — query only if column is present
+  let emailRows: { email: string; count: number; user_ids: number[]; names: string[] }[] = [];
+  try {
+    const emailRes = await pool.query<{ email: string; count: number; user_ids: number[]; names: string[] }>(
       `SELECT LOWER(email) AS email,
               COUNT(*)::int                         AS count,
               ARRAY_AGG(id ORDER BY id)             AS user_ids,
@@ -62,19 +65,22 @@ export async function GET() {
        HAVING COUNT(*) > 1
        ORDER BY COUNT(*) DESC
        LIMIT 200`
-    ),
-  ]);
+    );
+    emailRows = emailRes.rows;
+  } catch {
+    // Column 'email' not in schema yet — skip gracefully
+  }
 
   return NextResponse.json({
     phones:    phones.rows,
     banks:     banks.rows,
     telegrams: telegrams.rows,
-    emails:    emails.rows,
+    emails:    emailRows,
     totals: {
       phones:    phones.rows.length,
       banks:     banks.rows.length,
       telegrams: telegrams.rows.length,
-      emails:    emails.rows.length,
+      emails:    emailRows.length,
     },
   });
 }
