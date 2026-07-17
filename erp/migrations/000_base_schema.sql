@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS users (
     public_id            VARCHAR(20)   UNIQUE,
     bank_status          VARCHAR(10)   NOT NULL DEFAULT 'ACTIVE'
                          CHECK (bank_status IN ('ACTIVE', 'DELETED')),
+    -- set atomically when member first binds bank info; cannot be reset by member (migration 059)
+    bank_locked_at       TIMESTAMPTZ,
     created_at           TIMESTAMPTZ   DEFAULT NOW(),
     updated_at           TIMESTAMPTZ   DEFAULT NOW()
 );
