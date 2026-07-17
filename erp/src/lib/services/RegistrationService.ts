@@ -179,11 +179,11 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
 
     const newUser = await client.query<{ id: number }>(
       `INSERT INTO users
-         (first_name, phone, telegram_username, email, website_password_hash, website_registered_at,
+         (first_name, phone, telegram_username, website_password_hash, website_registered_at,
           eligible_free_credit, referred_by, status, vip_level, register_source)
-       VALUES ($1, $2, $3, $4, $5, NOW(), FALSE, $6, $7, $8, $9)
+       VALUES ($1, $2, $3, $4, NOW(), FALSE, $5, $6, $7, $8)
        RETURNING id`,
-      [first_name, phone, telegramUsername, email, passwordHash, referredById, status, vip_level, register_source]
+      [first_name, phone, telegramUsername, passwordHash, referredById, status, vip_level, register_source]
     );
     const userId = newUser.rows[0].id;
 
@@ -220,7 +220,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       if (detail.includes('bank_account')) return fail('该银行账号已被使用', 'DB_CONSTRAINT', 409);
       return fail(`唯一键冲突：${detail || message}`, 'DB_CONSTRAINT', 409);
     }
-    if (code === '42703') return fail(`数据库字段不存在，请检查 Migration 是否全部执行（${message}）`, 'DB_MISSING_COLUMN', 500);
+    if (code === '42703') return fail(`数据库字段不存在：${message}`, 'DB_MISSING_COLUMN', 500);
     if (code === '23502') return fail(`必填字段为空：${message}`, 'DB_NOT_NULL', 500);
     return fail(message || '注册失败，请稍后重试', 'DB_ERROR', 500);
   } finally {

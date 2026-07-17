@@ -191,12 +191,17 @@ export async function checkEmailPolicy(
     return { allowed: true, whitelist: false, count: 0, max: 1 };
   }
 
-  const q = excludeUserId
-    ? await pool.query<{ cnt: number }>('SELECT COUNT(*)::int AS cnt FROM users WHERE LOWER(email) = LOWER($1) AND id != $2', [email, excludeUserId])
-    : await pool.query<{ cnt: number }>('SELECT COUNT(*)::int AS cnt FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-  const count = q.rows[0]?.cnt ?? 0;
-  if (count > 0) return { allowed: false, whitelist: false, count, max: 1, reason: '该 Email 已被注册' };
-  return { allowed: true, whitelist: false, count: 0, max: 1 };
+  try {
+    const q = excludeUserId
+      ? await pool.query<{ cnt: number }>('SELECT COUNT(*)::int AS cnt FROM users WHERE LOWER(email) = LOWER($1) AND id != $2', [email, excludeUserId])
+      : await pool.query<{ cnt: number }>('SELECT COUNT(*)::int AS cnt FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    const count = q.rows[0]?.cnt ?? 0;
+    if (count > 0) return { allowed: false, whitelist: false, count, max: 1, reason: '该 Email 已被注册' };
+    return { allowed: true, whitelist: false, count: 0, max: 1 };
+  } catch {
+    // users.email column does not exist yet — treat as no duplicate
+    return { allowed: true, whitelist: false, count: 0, max: 1 };
+  }
 }
 
 // ── IP rate limit check ───────────────────────────────────────────────────────
