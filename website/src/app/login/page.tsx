@@ -19,7 +19,7 @@ export default function LoginPage() {
       headers: { 'Content-Type': 'application/json' },
     });
     setLoading(false);
-    if (res.ok) { router.push('/dashboard'); return; }
+    if (res.ok) { router.push('/'); return; }
     const data = await res.json() as { error: string };
     setError(data.error ?? '登录失败，请重试');
   }
