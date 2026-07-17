@@ -94,7 +94,6 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
   const referral_code    = (rawRef ?? '').trim() || null;
 
   // ── Input validation ───────────────────────────────────────────────────────
-  if (!first_name) return fail('姓名不能为空', 'VALIDATION_ERROR', 400);
   if (!raw_password || raw_password.length < min_password_length)
     return fail(`密码至少需要 ${min_password_length} 个字符`, 'VALIDATION_ERROR', 400);
 

@@ -66,49 +66,92 @@ function FieldInput({
   );
 }
 
+// Three-step registration wizard indicator
+function SetupWizard({ step }: { step: 1 | 2 | 3 }) {
+  const steps = [
+    { num: 1, label: '创建账号',  icon: '👤' },
+    { num: 2, label: '银行信息',  icon: '🏦' },
+    { num: 3, label: '注册完成',  icon: '🎉' },
+  ];
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginBottom: 20 }}>
+      {steps.map((s, i) => (
+        <div key={s.num} style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: s.num < step ? 14 : 15,
+              fontWeight: 700,
+              background: s.num < step
+                ? 'var(--brand-primary)'
+                : s.num === step
+                  ? 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))'
+                  : 'var(--bg-surface3)',
+              color: s.num <= step ? '#fff' : 'var(--text-faint)',
+              border: s.num > step ? '1.5px solid var(--border-mid)' : 'none',
+              boxShadow: s.num === step ? '0 0 14px color-mix(in srgb, var(--brand-primary) 45%, transparent)' : 'none',
+              flexShrink: 0,
+            }}>
+              {s.num < step ? '✓' : s.icon}
+            </div>
+            <span style={{
+              fontSize: 9, fontWeight: s.num === step ? 700 : 400,
+              color: s.num === step ? 'var(--text-base)' : 'var(--text-faint)',
+              letterSpacing: '0.03em', whiteSpace: 'nowrap',
+            }}>
+              {s.label}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <div style={{
+              width: 32, height: 1.5, marginTop: 17, marginLeft: 4, marginRight: 4, flexShrink: 0,
+              background: s.num < step ? 'var(--brand-primary)' : 'var(--border-dim)',
+            }} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [firstName,        setFirstName]        = useState('');
   const [phone,            setPhone]            = useState('');
   const [password,         setPassword]         = useState('');
   const [confirm,          setConfirm]          = useState('');
   const [referralCode,     setReferralCode]     = useState('');
   const [referralLocked,   setReferralLocked]   = useState(false);
-  const [telegramUsername, setTelegramUsername] = useState('');
   const [focused,          setFocused]          = useState('');
 
-  const [errorFields,   setErrorFields]   = useState<Set<string>>(new Set());
-  const [shakingFields, setShakingFields] = useState<Set<string>>(new Set());
-  const [toast,         setToast]         = useState('');
-  const [successMsg,    setSuccessMsg]    = useState('');
-  const [loading,       setLoading]       = useState(false);
+  const [errorFields,    setErrorFields]    = useState<Set<string>>(new Set());
+  const [shakingFields,  setShakingFields]  = useState<Set<string>>(new Set());
+  const [toast,          setToast]          = useState('');
+  const [successMsg,     setSuccessMsg]     = useState('');
+  const [loading,        setLoading]        = useState(false);
   const [duplicatePhone, setDuplicatePhone] = useState(false);
   const [telegramMember, setTelegramMember] = useState(false);
-  const [regEnabled,    setRegEnabled]    = useState<boolean | null>(null); // null = loading
-  const [regFetchError, setRegFetchError] = useState(false);
+  const [regEnabled,     setRegEnabled]     = useState<boolean | null>(null);
+  const [regFetchError,  setRegFetchError]  = useState(false);
 
-  const nameRef     = useRef<HTMLDivElement>(null);
   const phoneRef    = useRef<HTMLDivElement>(null);
   const passwordRef = useRef<HTMLDivElement>(null);
   const confirmRef  = useRef<HTMLDivElement>(null);
 
-  // Referral session: detect ?ref= URL param, persist in sessionStorage,
-  // restore on refresh so the locked invitation is never lost mid-flow.
+  // Referral session: detect ?ref= URL param, persist across refreshes
   useEffect(() => {
-    const urlRef = searchParams.get('ref')?.trim();
+    const urlRef    = searchParams.get('ref')?.trim();
     const storedRef    = sessionStorage.getItem('referral_ref');
     const storedLocked = sessionStorage.getItem('referral_locked');
 
     if (urlRef) {
-      // URL param wins — lock the referral immediately and persist
       setReferralCode(urlRef);
       setReferralLocked(true);
       sessionStorage.setItem('referral_ref',    urlRef);
       sessionStorage.setItem('referral_locked', 'true');
     } else if (storedRef && storedLocked === 'true') {
-      // Restored after page refresh — keep the lock alive
       setReferralCode(storedRef);
       setReferralLocked(true);
     }
@@ -139,7 +182,6 @@ function RegisterForm() {
     setSuccessMsg(''); setDuplicatePhone(false); setTelegramMember(false);
 
     const errors = new Set<string>();
-    if (!firstName.trim()) errors.add('firstName');
     if (!phone.trim())     errors.add('phone');
     if (password.length < 8) errors.add('password');
     if (password !== confirm || confirm.length < 8) errors.add('confirm');
@@ -148,15 +190,13 @@ function RegisterForm() {
       setErrorFields(errors);
       errors.forEach(shakeField);
       const labels: string[] = [];
-      if (errors.has('firstName')) labels.push('姓名');
-      if (errors.has('phone'))     labels.push('手机号');
-      if (errors.has('password'))  labels.push(password.length < 8 ? '密码（至少8位）' : '密码');
-      if (errors.has('confirm'))   labels.push('确认密码不一致');
+      if (errors.has('phone'))    labels.push('手机号');
+      if (errors.has('password')) labels.push(password.length < 8 ? '密码（至少8位）' : '密码');
+      if (errors.has('confirm'))  labels.push('确认密码不一致');
       showToast('请填写：' + labels.join('、'));
-      if (errors.has('firstName'))      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      else if (errors.has('phone'))     phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      else if (errors.has('password'))  passwordRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      else if (errors.has('confirm'))   confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (errors.has('phone'))       phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else if (errors.has('password')) passwordRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else if (errors.has('confirm'))  confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -165,12 +205,10 @@ function RegisterForm() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({
-          first_name:        firstName.trim(),
-          phone:             phone.trim(),
+          phone:           phone.trim(),
           password,
-          referral_code:     referralCode.trim() || undefined,
-          referral_source:   referralLocked ? 'URL_REF' : 'MANUAL',
-          telegram_username: telegramUsername.trim().replace(/^@/, '') || undefined,
+          referral_code:   referralCode.trim() || undefined,
+          referral_source: referralLocked ? 'URL_REF' : 'MANUAL',
         }),
         headers: { 'Content-Type': 'application/json' },
       });
@@ -182,11 +220,8 @@ function RegisterForm() {
         // Clear referral session only after successful registration
         sessionStorage.removeItem('referral_ref');
         sessionStorage.removeItem('referral_locked');
-        setSuccessMsg(data.new_user
-          ? `欢迎，${data.first_name ?? firstName}！注册成功，正在跳转…`
-          : '密码设置成功，正在跳转…'
-        );
-        setTimeout(() => router.push('/dashboard'), 1000);
+        setSuccessMsg('账号创建成功！正在跳转至下一步…');
+        setTimeout(() => router.push('/complete-bank-information'), 1000);
         return;
       }
       if (res.status === 409) {
@@ -205,7 +240,6 @@ function RegisterForm() {
     }
   }
 
-  // Registration closed state
   if (regEnabled === null && !regFetchError) {
     return (
       <div className="max-w-sm mx-auto py-16 text-center" style={{ color: 'var(--text-muted)', fontSize: 14 }}>
@@ -224,11 +258,9 @@ function RegisterForm() {
         <p style={{ color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.7 }}>
           无法加载注册页面，请检查网络连接后重试。
         </p>
-        <button
-          onClick={() => window.location.reload()}
+        <button onClick={() => window.location.reload()}
           className="casino-btn-primary inline-block px-6 py-2.5 text-sm font-bold"
-          style={{ borderRadius: 'var(--radius-sm)' }}
-        >
+          style={{ borderRadius: 'var(--radius-sm)' }}>
           重新加载
         </button>
       </div>
@@ -260,26 +292,21 @@ function RegisterForm() {
       {toast && <Toast msg={toast} onDismiss={() => setToast('')} />}
 
       <div className="max-w-sm mx-auto">
-        <h1 className="font-bold mb-1" style={{ fontSize: 'var(--sz-page-title)', color: 'var(--text-base)' }}>
-          会员注册
+        {/* Setup wizard — step 1 of 3 */}
+        <SetupWizard step={1} />
+
+        <h1 className="font-bold mb-1 text-center" style={{ fontSize: 'var(--sz-page-title)', color: 'var(--text-base)' }}>
+          创建账号
         </h1>
-        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-          已有 Telegram 账号？输入手机号和新密码即可开通网页登录。
+        <p className="text-xs mb-5 text-center" style={{ color: 'var(--text-muted)' }}>
+          注册后将引导您完善银行信息，方便日后存取款。
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-3">
 
           {/* Required fields */}
           <div className="casino-card space-y-3" style={{ padding: 'var(--card-padding)' }}>
-            <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>必填信息</p>
-
-            <div ref={nameRef} className={shakingFields.has('firstName') ? 'reg-shake' : ''}>
-              <FieldInput label="姓名" required value={firstName}
-                onChange={v => { setFirstName(v); clearError('firstName'); }}
-                placeholder="您的姓名" autoComplete="name"
-                focused={focused === 'firstName'} hasError={errorFields.has('firstName')}
-                onFocus={() => setFocused('firstName')} onBlur={() => setFocused('')} />
-            </div>
+            <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>账号信息</p>
 
             <div ref={phoneRef} className={shakingFields.has('phone') ? 'reg-shake' : ''}>
               <FieldInput label="手机号" required value={phone}
@@ -321,18 +348,15 @@ function RegisterForm() {
             </div>
           </div>
 
-          {/* Referral / Invitation — differs based on how the user arrived */}
+          {/* Referral — invitation mode when locked, editable when direct */}
           {referralLocked ? (
             <div className="casino-card" style={{ padding: 'var(--card-padding)' }}>
-              {/* Invitation header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 18 }}>🎟️</span>
+                <span style={{ fontSize: 16 }}>🎟️</span>
                 <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
                   邀请注册
                 </p>
               </div>
-
-              {/* Invitation card body */}
               <div style={{
                 background: 'var(--bg-surface3)',
                 border: '1px solid var(--border-mid)',
@@ -363,31 +387,18 @@ function RegisterForm() {
                 <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.6 }}>
                   您正在通过邀请链接注册。推荐码已自动填入且无法修改。
                 </p>
-                {/* ReadOnly input keeps the value in the DOM but renders as invisible */}
-                <input type="hidden" readOnly value={referralCode} />
               </div>
             </div>
           ) : (
-            /* Optional fields — direct registration */
-            <div className="casino-card space-y-3" style={{ padding: 'var(--card-padding)' }}>
-              <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>选填信息</p>
-
-              <FieldInput label="推荐码" value={referralCode}
+            <div className="casino-card" style={{ padding: 'var(--card-padding)' }}>
+              <FieldInput label="推荐码（选填）" value={referralCode}
                 onChange={setReferralCode} placeholder="例如：SS1000001"
                 focused={focused === 'referral'} onFocus={() => setFocused('referral')} onBlur={() => setFocused('')} />
+              <p className="text-xs mt-1.5" style={{ color: 'var(--text-faint)' }}>
+                没有推荐码可留空
+              </p>
             </div>
           )}
-
-          {/* Telegram username — always optional */}
-          <div className="casino-card" style={{ padding: 'var(--card-padding)' }}>
-            <p className="text-xs font-bold tracking-wider uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Telegram</p>
-            <FieldInput label="Telegram 用户名" value={telegramUsername}
-              onChange={setTelegramUsername} placeholder="@username"
-              focused={focused === 'telegram'} onFocus={() => setFocused('telegram')} onBlur={() => setFocused('')} />
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
-              没有 Telegram 用户名请留空
-            </p>
-          </div>
 
           {successMsg && (
             <div className="text-sm px-3 py-2.5 rounded-lg"
@@ -399,7 +410,7 @@ function RegisterForm() {
           <button type="submit" disabled={loading}
             className="casino-btn-primary w-full text-sm font-bold disabled:opacity-50"
             style={{ borderRadius: 'var(--radius-btn)' }}>
-            {loading ? '注册中…' : (telegramMember ? '设置网页密码' : '立即注册')}
+            {loading ? '注册中…' : (telegramMember ? '设置网页密码' : '下一步：完善银行信息 →')}
           </button>
 
           <p className="text-center text-xs pb-2" style={{ color: 'var(--text-muted)' }}>

@@ -94,10 +94,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '该银行账号已被其他会员使用，请核实后重新填写' }, { status: 409 });
   }
 
-  // Atomic write: only update if bank_account is still NULL (prevents race condition)
+  // Atomic write: only update if bank_account is still NULL (prevents race condition).
+  // Also sync first_name = bank_holder_name so ERP member list shows real name.
   const { rows } = await pool.query(
     `UPDATE users
-     SET bank_name = $1, bank_account = $2, bank_holder_name = $3, bank_locked_at = NOW()
+     SET bank_name = $1, bank_account = $2, bank_holder_name = $3,
+         bank_locked_at = NOW(), first_name = $3
      WHERE id = $4 AND bank_account IS NULL
      RETURNING id`,
     [bank_name, bank_account, bank_holder_name, member.sub]
