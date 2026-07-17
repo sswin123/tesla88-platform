@@ -205,10 +205,10 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     );
     const userId = newUser.rows[0].id;
 
-    const brandRow = await client.query<{ value: string }>(
-      `SELECT value FROM system_settings WHERE key = 'member_id_prefix' LIMIT 1`
+    const brandRow = await client.query<{ member_id_prefix: string }>(
+      `SELECT member_id_prefix FROM brand_settings WHERE id = 1 LIMIT 1`
     );
-    const prefix  = brandRow.rows[0]?.value ?? 'SS';
+    const prefix  = brandRow.rows[0]?.member_id_prefix ?? 'SS';
     const publicId = `${prefix}${1000000 + userId}`;
 
     await client.query('UPDATE users SET public_id = $1, referral_code = $1 WHERE id = $2', [publicId, userId]);
