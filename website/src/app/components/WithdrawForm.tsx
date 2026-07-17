@@ -37,7 +37,8 @@ export default function WithdrawForm() {
   const [successId, setSuccessId]   = useState<number | null>(null);
 
   const [profile, setProfile]   = useState<MemberProfile | null>(null);
-  const [minAmount, setMinAmount] = useState(30);
+  const [minAmount, setMinAmount] = useState(50);
+  const [maxAmount, setMaxAmount] = useState(50000);
   const [currency, setCurrency] = useState('RM');
   const [decimals, setDecimals] = useState(2);
   const [loading, setLoading]   = useState(true);
@@ -48,7 +49,8 @@ export default function WithdrawForm() {
       fetch('/api/public/settings').then(r => r.ok ? r.json() as Promise<Partial<Record<string, string>>> : Promise.resolve({} as Partial<Record<string, string>>)),
     ]).then(([prof, settings]) => {
       setProfile(prof);
-      if (settings.withdraw_min_amount)    setMinAmount(parseFloat(settings.withdraw_min_amount) || 30);
+      if (settings.withdraw_min_amount)    setMinAmount(parseFloat(settings.withdraw_min_amount) || 50);
+      if (settings.withdraw_max_amount)    setMaxAmount(parseFloat(settings.withdraw_max_amount) || 50000);
       if (settings.website_currency)       setCurrency(settings.website_currency);
       if (settings.website_decimal_places) setDecimals(parseInt(settings.website_decimal_places, 10) || 2);
     }).catch(() => {/* silent */}).finally(() => setLoading(false));
@@ -61,8 +63,9 @@ export default function WithdrawForm() {
     e.preventDefault();
     setError('');
     if (!profile?.bank_account) { window.location.href = '/complete-bank-information'; return; }
-    if (numAmount < minAmount)  { setError(`最低提款金额为 ${currency} ${minAmount}`); return; }
-    if (numAmount > balance)    { setError('提款金额超过可用余额'); return; }
+    if (numAmount < minAmount)  { setError(`最低提款金额为 ${currency} ${minAmount.toFixed(decimals)}`); return; }
+    if (numAmount > maxAmount)  { setError(`单笔提款上限为 ${currency} ${maxAmount.toFixed(decimals)}`); return; }
+    if (numAmount > balance)    { setError(`余额不足，可用余额为 ${currency} ${balance.toFixed(decimals)}`); return; }
     setStep('confirm');
   }
 
@@ -231,7 +234,7 @@ export default function WithdrawForm() {
             onFocus={() => setFocusedField('amount')}
             onBlur={() => setFocusedField('')}
             min={minAmount}
-            max={balance}
+            max={maxAmount}
             step="1"
             placeholder={`最低 ${currency} ${minAmount}`}
             required
@@ -245,7 +248,7 @@ export default function WithdrawForm() {
             <button
               key={v}
               type="button"
-              onClick={() => setAmount(String(Math.min(v, balance)))}
+              onClick={() => setAmount(String(v))}
               className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={
                 numAmount === v
