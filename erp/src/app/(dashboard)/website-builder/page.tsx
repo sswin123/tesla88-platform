@@ -1364,6 +1364,8 @@ function QuickMenuEditor({
   const customSt = (config.custom_style as Record<string, unknown>) ?? {};
   const [pickerForItem, setPickerForItem] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(Object.keys(customSt).length > 0);
+  const [imgWarnings, setImgWarnings] = useState<Record<string, string>>({});
+  const [imgErrors,   setImgErrors]   = useState<Record<string, string>>({});
 
   function set(key: string, val: unknown) {
     onChange({ ...config, [key]: val });
@@ -1694,7 +1696,11 @@ function QuickMenuEditor({
                       className="w-12 h-8 rounded-lg object-cover border" />
                     <button onClick={() => setPickerForItem(item.id)}
                       className="text-xs text-blue-500 hover:underline">更换</button>
-                    <button onClick={() => updateItem(item.id, { media_id: null, image_mode: undefined })}
+                    <button onClick={() => {
+                      updateItem(item.id, { media_id: null, image_mode: undefined });
+                      setImgWarnings(p => { const n = { ...p }; delete n[item.id]; return n; });
+                      setImgErrors(p => { const n = { ...p }; delete n[item.id]; return n; });
+                    }}
                       className="text-xs text-red-400 hover:underline">删除</button>
                   </div>
                 ) : (
@@ -1702,6 +1708,18 @@ function QuickMenuEditor({
                     className="text-xs text-blue-500 border border-dashed border-blue-300 rounded-lg px-3 py-1.5 hover:bg-blue-50 w-full">
                     + 选择图片 / 上传 Banner
                   </button>
+                )}
+
+                {/* Validation feedback */}
+                {imgErrors[item.id] && (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                    {imgErrors[item.id]}
+                  </p>
+                )}
+                {!imgErrors[item.id] && imgWarnings[item.id] && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                    ⚠ {imgWarnings[item.id]}
+                  </p>
                 )}
 
                 {/* ── Image settings (only when image is set) ── */}
@@ -1882,7 +1900,7 @@ function QuickMenuEditor({
                           </div>
                         </div>
 
-                        <UploadHint recSize="1200×400 / 1000×300 / 800×250" ratio="横幅 3:1 或 4:1" maxMB={5} formats="PNG · WEBP · GIF · SVG" note="GIF 动图可正常播放" />
+                        <UploadHint recSize="800 × 400 px" ratio="2:1 推荐" maxMB={2} formats="PNG · WEBP · GIF" note="GIF 可无限循环播放 · Retina 建议 1600×800" />
                       </div>
                     )}
 
@@ -1891,7 +1909,7 @@ function QuickMenuEditor({
                     )}
                   </div>
                 ) : (
-                  <UploadHint recSize="1200×400 / 800×250" ratio="横幅 3:1 或 4:1" maxMB={5} formats="PNG · WEBP · GIF · SVG" note="上传图片后自动填满按钮" />
+                  <UploadHint recSize="800 × 400 px" ratio="2:1 推荐" maxMB={2} formats="PNG · WEBP · GIF" note="上传图片后自动填满按钮" />
                 )}
               </div>
             </div>
@@ -1905,15 +1923,39 @@ function QuickMenuEditor({
           typeFilter={['IMAGE', 'GIF']}
           onSelect={(media) => {
             const single = Array.isArray(media) ? media[0] : media;
-            if (single) {
-              // Default to fill_container so the image fills the button area immediately
-              const cur = items.find(it => it.id === pickerForItem);
-              updateItem(pickerForItem, {
-                media_id:   single.id,
-                image_mode: cur?.image_mode ?? 'fill_container',
-              });
-            }
+            const itemId = pickerForItem;
             setPickerForItem(null);
+            if (!single) return;
+
+            // Format check — only PNG / WEBP / GIF allowed
+            const ALLOWED = ['image/png', 'image/webp', 'image/gif'];
+            if (!ALLOWED.includes(single.mimeType)) {
+              setImgErrors(p => ({ ...p, [itemId]: `不支持的格式 ${single.extension.toUpperCase()}，Quick Action 仅允许 PNG · WEBP · GIF` }));
+              return;
+            }
+
+            // File size check — max 2 MB
+            if (single.fileSize > 2 * 1024 * 1024) {
+              setImgErrors(p => ({ ...p, [itemId]: `图片大小 ${(single.fileSize / 1024 / 1024).toFixed(1)} MB，超过 2 MB 上限，请压缩后重新上传` }));
+              return;
+            }
+
+            // Clear any previous error
+            setImgErrors(p => { const n = { ...p }; delete n[itemId]; return n; });
+
+            // Aspect ratio check — warn if not 2:1 (±15% tolerance)
+            const w = single.width, h = single.height;
+            if (w && h && Math.abs(w / h - 2) > 0.3) {
+              setImgWarnings(p => ({ ...p, [itemId]: `当前图片比例 ${w}×${h}（${(w / h).toFixed(1)}:1），建议 2:1（800×400），可能显示变形` }));
+            } else {
+              setImgWarnings(p => { const n = { ...p }; delete n[itemId]; return n; });
+            }
+
+            const cur = items.find(it => it.id === itemId);
+            updateItem(itemId, {
+              media_id:   single.id,
+              image_mode: cur?.image_mode ?? 'fill_container',
+            });
           }}
           onClose={() => setPickerForItem(null)}
         />
