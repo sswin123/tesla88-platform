@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as {
     phone?: string; password?: string; first_name?: string;
     telegram_username?: string; referral_code?: string;
+    referral_source?: string;
   };
 
   const result = await registerUser({
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
     min_password_length: 8,
     telegram_username: body.telegram_username,
     referral_code:     body.referral_code,
+    referral_source:   body.referral_source === 'URL_REF' ? 'URL_REF' : 'MANUAL',
     register_source:   'WEBSITE',
     allow_upgrade:     true,   // Telegram members can set web password via website
     ip_address:        ip,

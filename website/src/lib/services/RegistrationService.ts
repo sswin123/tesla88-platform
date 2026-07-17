@@ -25,6 +25,8 @@ export type RegisterErrorCode =
   | 'DB_CONSTRAINT'
   | 'DB_ERROR';
 
+export type ReferralSource = 'URL_REF' | 'MANUAL' | 'ERP' | 'BOT';
+
 export interface RegisterInput {
   first_name: string;
   raw_phone: string;
@@ -34,6 +36,7 @@ export interface RegisterInput {
   telegram_id?: number | null;
   email?: string | null;
   referral_code?: string | null;
+  referral_source?: ReferralSource | null;
   vip_level?: number;
   status?: 'ACTIVE' | 'FROZEN';
   register_source: RegisterSource;
@@ -74,6 +77,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     telegram_id,
     email: rawEmail,
     referral_code: rawRef,
+    referral_source = null,
     vip_level = 0,
     status = 'ACTIVE',
     register_source,
@@ -164,18 +168,32 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     return fail('该手机号已注册', 'PHONE_DUPLICATE', 409);
   }
 
+  // ── Referral code validation (before transaction) ─────────────────────────
+  // If registration came from a referral link, reject if code is missing.
+  if (referral_source === 'URL_REF' && !referral_code) {
+    return fail('推荐链接无效，推荐码不存在', 'VALIDATION_ERROR', 400);
+  }
+
+  let referredById: number | null = null;
+  if (referral_code) {
+    const refRow = await pool.query<{ id: number; status: string }>(
+      'SELECT id, status FROM users WHERE referral_code = $1 LIMIT 1',
+      [referral_code],
+    );
+    const referrer = refRow.rows[0];
+    if (!referrer) {
+      return fail('推荐码无效，请检查后重试', 'VALIDATION_ERROR', 400);
+    }
+    if (referrer.status !== 'ACTIVE') {
+      return fail('推荐码对应的会员账号已被冻结，无法使用此推荐码', 'VALIDATION_ERROR', 400);
+    }
+    referredById = referrer.id;
+  }
+
   // ── Create new user ────────────────────────────────────────────────────────
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    let referredById: number | null = null;
-    if (referral_code) {
-      const refRow = await client.query<{ id: number }>(
-        'SELECT id FROM users WHERE referral_code = $1 LIMIT 1', [referral_code]
-      );
-      referredById = refRow.rows[0]?.id ?? null;
-    }
 
     const newUser = await client.query<{ id: number }>(
       `INSERT INTO users
@@ -183,7 +201,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
           eligible_free_credit, referred_by, status, vip_level, register_source)
        VALUES ($1, $2, $3, $4, NOW(), FALSE, $5, $6, $7, $8)
        RETURNING id`,
-      [first_name, phone, telegramUsername, passwordHash, referredById, status, vip_level, register_source]
+      [first_name, phone, telegramUsername, passwordHash, referredById, status, vip_level, register_source],
     );
     const userId = newUser.rows[0].id;
 

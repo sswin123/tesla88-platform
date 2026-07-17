@@ -70,13 +70,14 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [firstName,       setFirstName]       = useState('');
-  const [phone,           setPhone]           = useState('');
-  const [password,        setPassword]        = useState('');
-  const [confirm,         setConfirm]         = useState('');
-  const [referralCode,    setReferralCode]    = useState('');
+  const [firstName,        setFirstName]        = useState('');
+  const [phone,            setPhone]            = useState('');
+  const [password,         setPassword]         = useState('');
+  const [confirm,          setConfirm]          = useState('');
+  const [referralCode,     setReferralCode]     = useState('');
+  const [referralLocked,   setReferralLocked]   = useState(false);
   const [telegramUsername, setTelegramUsername] = useState('');
-  const [focused,         setFocused]         = useState('');
+  const [focused,          setFocused]          = useState('');
 
   const [errorFields,   setErrorFields]   = useState<Set<string>>(new Set());
   const [shakingFields, setShakingFields] = useState<Set<string>>(new Set());
@@ -93,9 +94,24 @@ function RegisterForm() {
   const passwordRef = useRef<HTMLDivElement>(null);
   const confirmRef  = useRef<HTMLDivElement>(null);
 
+  // Referral session: detect ?ref= URL param, persist in sessionStorage,
+  // restore on refresh so the locked invitation is never lost mid-flow.
   useEffect(() => {
-    const ref = searchParams.get('ref');
-    if (ref) setReferralCode(ref);
+    const urlRef = searchParams.get('ref')?.trim();
+    const storedRef    = sessionStorage.getItem('referral_ref');
+    const storedLocked = sessionStorage.getItem('referral_locked');
+
+    if (urlRef) {
+      // URL param wins — lock the referral immediately and persist
+      setReferralCode(urlRef);
+      setReferralLocked(true);
+      sessionStorage.setItem('referral_ref',    urlRef);
+      sessionStorage.setItem('referral_locked', 'true');
+    } else if (storedRef && storedLocked === 'true') {
+      // Restored after page refresh — keep the lock alive
+      setReferralCode(storedRef);
+      setReferralLocked(true);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -153,6 +169,7 @@ function RegisterForm() {
           phone:             phone.trim(),
           password,
           referral_code:     referralCode.trim() || undefined,
+          referral_source:   referralLocked ? 'URL_REF' : 'MANUAL',
           telegram_username: telegramUsername.trim().replace(/^@/, '') || undefined,
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -162,6 +179,9 @@ function RegisterForm() {
         first_name?: string; existing_telegram?: boolean;
       };
       if (res.ok && data.ok) {
+        // Clear referral session only after successful registration
+        sessionStorage.removeItem('referral_ref');
+        sessionStorage.removeItem('referral_locked');
         setSuccessMsg(data.new_user
           ? `欢迎，${data.first_name ?? firstName}！注册成功，正在跳转…`
           : '密码设置成功，正在跳转…'
@@ -301,22 +321,72 @@ function RegisterForm() {
             </div>
           </div>
 
-          {/* Optional fields */}
-          <div className="casino-card space-y-3" style={{ padding: 'var(--card-padding)' }}>
-            <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>选填信息</p>
+          {/* Referral / Invitation — differs based on how the user arrived */}
+          {referralLocked ? (
+            <div className="casino-card" style={{ padding: 'var(--card-padding)' }}>
+              {/* Invitation header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 18 }}>🎟️</span>
+                <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
+                  邀请注册
+                </p>
+              </div>
 
-            <FieldInput label="推荐码" value={referralCode}
-              onChange={setReferralCode} placeholder="例如：SS1000001"
-              focused={focused === 'referral'} onFocus={() => setFocused('referral')} onBlur={() => setFocused('')} />
-
-            <div>
-              <FieldInput label="Telegram 用户名" value={telegramUsername}
-                onChange={setTelegramUsername} placeholder="@username"
-                focused={focused === 'telegram'} onFocus={() => setFocused('telegram')} onBlur={() => setFocused('')} />
-              <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
-                没有 Telegram 用户名请留空
-              </p>
+              {/* Invitation card body */}
+              <div style={{
+                background: 'var(--bg-surface3)',
+                border: '1px solid var(--border-mid)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 14px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-faint)', marginBottom: 3 }}>
+                      推荐人
+                    </p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-base)', fontFamily: 'monospace', letterSpacing: '0.08em' }}>
+                      {referralCode}
+                    </p>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                    background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent)',
+                    borderRadius: 6, padding: '3px 8px',
+                  }}>
+                    <span style={{ fontSize: 11 }}>🔒</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brand-primary)', letterSpacing: '0.03em' }}>
+                      已锁定
+                    </span>
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.6 }}>
+                  您正在通过邀请链接注册。推荐码已自动填入且无法修改。
+                </p>
+                {/* ReadOnly input keeps the value in the DOM but renders as invisible */}
+                <input type="hidden" readOnly value={referralCode} />
+              </div>
             </div>
+          ) : (
+            /* Optional fields — direct registration */
+            <div className="casino-card space-y-3" style={{ padding: 'var(--card-padding)' }}>
+              <p className="text-xs font-bold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>选填信息</p>
+
+              <FieldInput label="推荐码" value={referralCode}
+                onChange={setReferralCode} placeholder="例如：SS1000001"
+                focused={focused === 'referral'} onFocus={() => setFocused('referral')} onBlur={() => setFocused('')} />
+            </div>
+          )}
+
+          {/* Telegram username — always optional */}
+          <div className="casino-card" style={{ padding: 'var(--card-padding)' }}>
+            <p className="text-xs font-bold tracking-wider uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Telegram</p>
+            <FieldInput label="Telegram 用户名" value={telegramUsername}
+              onChange={setTelegramUsername} placeholder="@username"
+              focused={focused === 'telegram'} onFocus={() => setFocused('telegram')} onBlur={() => setFocused('')} />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+              没有 Telegram 用户名请留空
+            </p>
           </div>
 
           {successMsg && (
