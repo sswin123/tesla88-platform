@@ -99,6 +99,15 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    module: 'Wallet Center',
+    permissions: [
+      { key: 'member.wallet.view',    label: 'View Wallet Summary' },
+      { key: 'member.wallet.adjust',  label: 'Wallet Adjustment (Credit / Debit)' },
+      { key: 'member.wallet.history', label: 'View Wallet History' },
+      { key: 'member.wallet.audit',   label: 'View Wallet Audit Details' },
+    ],
+  },
+  {
     module: 'Others',
     permissions: [
       { key: 'risk.view',   label: 'Risk Center' },

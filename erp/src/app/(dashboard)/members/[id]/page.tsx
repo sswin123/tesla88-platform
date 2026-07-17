@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MALAYSIA_BANKS, validateBankAccount, stripNonDigits } from '@/lib/bank';
-import type { MemberDetail } from '@/lib/types';
+import WalletAdjustmentDialog from '@/components/WalletAdjustmentDialog';
+import WalletHistory from '@/components/WalletHistory';
+import type { MemberDetail, WalletSummary } from '@/lib/types';
 
 interface GameAccount { provider: string; username: string; created_at: string }
 interface DepositRow  { id: number; provider: string; deposit_amount: string; bonus_amount: string; status: string; created_at: string; promo_name?: string }
@@ -70,12 +72,29 @@ export default function MemberDetailPage() {
   const [savingGame, setSavingGame]       = useState(false);
   const [removingGame, setRemovingGame]   = useState<string | null>(null);
 
+  // Wallet Center state
+  const [walletSummary,     setWalletSummary]     = useState<WalletSummary | null>(null);
+  const [walletLoading,     setWalletLoading]     = useState(true);
+  const [showWalletAdjust,  setShowWalletAdjust]  = useState(false);
+  const [walletRefreshKey,  setWalletRefreshKey]  = useState(0);
+
+  const loadWallet = useCallback(async (uid: number) => {
+    setWalletLoading(true);
+    try {
+      const r = await fetch(`/api/members/${uid}/wallet`);
+      if (r.ok) setWalletSummary(await r.json() as WalletSummary);
+    } catch { /* silent */ } finally {
+      setWalletLoading(false);
+    }
+  }, []);
+
   async function load() {
     const r = await fetch(`/api/members/${params.id}`);
     if (r.ok) {
       const d = await r.json() as MemberPayload;
       setData(d);
       setRemarks(((d.member as unknown) as Record<string, unknown>).remarks as string ?? '');
+      void loadWallet(d.member.id);
     } else {
       const d = await r.json().catch(() => ({})) as { error?: string };
       console.error('[member detail]', r.status, d.error);
@@ -313,6 +332,20 @@ export default function MemberDetailPage() {
         </Modal>
       )}
 
+      {/* Wallet Adjustment Dialog */}
+      {showWalletAdjust && (
+        <WalletAdjustmentDialog
+          memberId={member.id}
+          memberName={member.first_name}
+          currentBalance={walletSummary?.balance ?? member.net_deposit}
+          onClose={() => setShowWalletAdjust(false)}
+          onSuccess={() => {
+            setWalletRefreshKey(k => k + 1);
+            void loadWallet(member.id);
+          }}
+        />
+      )}
+
       {/* Game Account Edit Modal */}
       {editingGame && (
         <Modal title={`编辑游戏账号 — ${editingGame.provider}`} onClose={() => setEditingGame(null)}>
@@ -411,7 +444,62 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 4. BANK */}
+        {/* 4. WALLET CENTER */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Wallet Center</CardTitle>
+              <Button size="sm" onClick={() => setShowWalletAdjust(true)}>
+                + Wallet Adjustment
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {walletLoading ? (
+              <div className="text-sm text-gray-400">Loading wallet summary…</div>
+            ) : walletSummary ? (
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <div className="col-span-2 sm:col-span-1 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Main Balance</p>
+                  <p className="text-xl font-bold text-blue-700 mt-0.5">
+                    RM {parseFloat(walletSummary.balance).toFixed(2)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending Dep</p>
+                  <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_deposits > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {walletSummary.pending_deposits}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending WD</p>
+                  <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_withdrawals > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {walletSummary.pending_withdrawals}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Bonus</p>
+                  <p className="text-lg font-bold text-gray-700 mt-0.5">
+                    RM {parseFloat(walletSummary.total_bonus).toFixed(2)}
+                  </p>
+                </div>
+                <Row label="Total Deposits"    value={`RM ${parseFloat(walletSummary.total_deposit).toFixed(2)}`} />
+                <Row label="Total Withdrawals" value={`RM ${parseFloat(walletSummary.total_withdraw).toFixed(2)}`} />
+                <Row label="Locked Balance"    value="RM 0.00" />
+                <Row
+                  label="Last Wallet Update"
+                  value={walletSummary.last_wallet_update
+                    ? new Date(walletSummary.last_wallet_update).toLocaleString()
+                    : '—'}
+                />
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">Wallet summary unavailable (requires member.wallet.view permission)</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 5. BANK */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -431,7 +519,7 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 5. GAME ACCOUNTS */}
+        {/* 6. GAME ACCOUNTS */}
         {accounts.length > 0 && (
           <Card>
             <CardHeader><CardTitle className="text-base">Game Accounts</CardTitle></CardHeader>
@@ -463,7 +551,7 @@ export default function MemberDetailPage() {
           </Card>
         )}
 
-        {/* 6. REFERRAL INFO — always visible */}
+        {/* 7. REFERRAL INFO — always visible */}
         <Card>
           <CardHeader><CardTitle className="text-base">Referral Info</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -498,7 +586,7 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 7. REMARKS */}
+        {/* 8. REMARKS */}
         <Card className={accounts.length > 0 ? '' : 'lg:col-span-2'}>
           <CardHeader><CardTitle className="text-base">Manual Remarks</CardTitle></CardHeader>
           <CardContent>
@@ -588,6 +676,21 @@ export default function MemberDetailPage() {
               {bonuses.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-gray-400">No bonus claims.</td></tr>}
             </tbody>
           </table>
+        </CardContent>
+      </Card>
+
+      {/* Wallet Transaction History */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Wallet Transaction History</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setShowWalletAdjust(true)}>
+              + Adjustment
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <WalletHistory memberId={member.id} refreshKey={walletRefreshKey} />
         </CardContent>
       </Card>
     </div>

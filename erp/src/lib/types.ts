@@ -716,3 +716,18 @@ export interface WebsiteSettings {
   site_terms_url: string;
   website_enabled: string;
 }
+
+export interface WalletSummary {
+  balance:              string;
+  total_deposit:        string;
+  total_withdraw:       string;
+  total_bonus:          string;
+  pending_deposits:     number;
+  pending_withdrawals:  number;
+  last_wallet_update:   string | null;
+}
+
+export interface PaymentGateway {
+  name:         string;
+  display_name: string;
+}

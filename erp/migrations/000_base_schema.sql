@@ -13,7 +13,8 @@
 --   brand_settings (034)、website_banners (036)、website_announcements (037)、
 --   website_game_providers (038)、error_logs/system_backups (040)、
 --   website_games (043)、website_lobby_category_icons (044)、
---   website_game_categories (045)
+--   website_game_categories (045)、
+--   wallet_transactions (061)、payment_gateways (061)
 -- =============================================================================
 
 -- ── 通用 updated_at 触发器函数 ─────────────────────────────────────────────────
