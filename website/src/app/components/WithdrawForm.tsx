@@ -57,7 +57,9 @@ export default function WithdrawForm() {
   }, []);
 
   const numAmount = parseFloat(amount) || 0;
-  const balance   = parseFloat(profile?.net_deposit ?? '0');
+  // Use available_balance (net_deposit - pending_withdrawal) as single source of truth
+  const balance   = parseFloat(profile?.available_balance ?? profile?.net_deposit ?? '0');
+  const pendingWd = parseFloat(profile?.pending_withdrawal ?? '0');
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +67,7 @@ export default function WithdrawForm() {
     if (!profile?.bank_account) { window.location.href = '/complete-bank-information'; return; }
     if (numAmount < minAmount)  { setError(`最低提款金额为 ${currency} ${minAmount.toFixed(decimals)}`); return; }
     if (numAmount > maxAmount)  { setError(`单笔提款上限为 ${currency} ${maxAmount.toFixed(decimals)}`); return; }
-    if (numAmount > balance)    { setError(`余额不足，可用余额为 ${currency} ${balance.toFixed(decimals)}`); return; }
+    if (numAmount > balance)    { setError(`可用余额不足，当前可提款 ${currency} ${balance.toFixed(decimals)}`); return; }
     setStep('confirm');
   }
 
@@ -186,19 +188,34 @@ export default function WithdrawForm() {
       )}
 
       {/* ── Balance card ── */}
-      <div className="casino-card p-4">
-        <p className="text-xs font-bold tracking-wider uppercase mb-0.5" style={{ color: 'var(--text-muted)' }}>
-          可用余额
-        </p>
-        <p
-          className="text-2xl font-black"
-          style={{
-            color: 'var(--brand-primary)',
-            textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
-          }}
-        >
-          {currency} {balance.toFixed(decimals)}
-        </p>
+      <div className="casino-card p-4 space-y-2">
+        <div>
+          <p className="text-xs font-bold tracking-wider uppercase mb-0.5" style={{ color: 'var(--text-muted)' }}>
+            可用余额
+          </p>
+          <p
+            className="text-2xl font-black"
+            style={{
+              color: 'var(--brand-primary)',
+              textShadow: '0 0 16px color-mix(in srgb, var(--brand-primary) 50%, transparent)',
+            }}
+          >
+            {currency} {balance.toFixed(decimals)}
+          </p>
+        </div>
+        {pendingWd > 0 && (
+          <div
+            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs"
+            style={{ background: 'rgba(234,179,8,0.1)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.2)' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>
+              提款中 {currency} {pendingWd.toFixed(decimals)} 已锁定，待审核完成后自动释放
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Bank info ── */}

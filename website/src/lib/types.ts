@@ -31,6 +31,8 @@ export interface MemberProfile {
   total_withdraw: string;
   total_bonus: string;
   net_deposit: string;
+  available_balance: string;
+  pending_withdrawal: string;
   referral_code: string | null;
   referral_count: number;
   referred_by: number | null;

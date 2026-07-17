@@ -60,7 +60,8 @@ export default function ProfileCard() {
     );
   }
 
-  const balance = parseFloat(profile.total_deposit) - parseFloat(profile.total_withdraw);
+  const balance   = parseFloat(profile.available_balance ?? profile.net_deposit ?? '0');
+  const pendingWd = parseFloat(profile.pending_withdrawal ?? '0');
   const displayName = profile.bank_holder_name || profile.first_name;
   const initial = displayName.charAt(0).toUpperCase();
 
@@ -130,16 +131,21 @@ export default function ProfileCard() {
           >
             {fmt(balance)}
           </p>
+          {pendingWd > 0 && (
+            <p className="text-xs mt-0.5" style={{ color: '#ca8a04' }}>
+              提款中 {fmt(pendingWd)} 锁定中
+            </p>
+          )}
           <div className="flex gap-2 mt-3">
             <a
-              href="/dashboard#deposit"
+              href="/deposit"
               className="casino-btn-primary flex-1 text-center text-sm font-semibold"
               style={{ minHeight: '36px', lineHeight: '36px', padding: '0 12px' }}
             >
               存款
             </a>
             <a
-              href="/dashboard#withdraw"
+              href="/withdraw"
               className="casino-btn-outline flex-1 text-center text-sm font-semibold"
               style={{ minHeight: '36px', lineHeight: '36px', padding: '0 12px' }}
             >

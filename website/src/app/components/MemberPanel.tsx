@@ -61,9 +61,9 @@ export default function MemberPanel() {
   const wdMin     = pub.withdraw_min_amount ?? '—';
   const regOpen   = pub.website_registration === 'true';
 
-  const balance = profile
-    ? parseFloat(profile.total_deposit) - parseFloat(profile.total_withdraw)
-    : 0;
+  // available_balance = net_deposit - pending_withdrawal (GENERATED column, single source of truth)
+  const balance   = profile ? parseFloat(profile.available_balance ?? profile.net_deposit ?? '0') : 0;
+  const pendingWd = profile ? parseFloat(profile.pending_withdrawal ?? '0') : 0;
 
   /* ── Loading skeleton ───────────────────────────────────── */
   if (state === 'loading') {
@@ -164,14 +164,19 @@ export default function MemberPanel() {
             </svg>
           </button>
         </div>
+        {pendingWd > 0 && (
+          <p className="text-xs mt-1" style={{ color: '#ca8a04' }}>
+            + {fmt(pendingWd)} pending withdrawal
+          </p>
+        )}
       </div>
 
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-2">
-        <a href="/dashboard#deposit" className="casino-btn-primary text-center py-2 text-sm font-semibold">
+        <a href="/deposit" className="casino-btn-primary text-center py-2 text-sm font-semibold">
           Deposit
         </a>
-        <a href="/dashboard#withdraw" className="casino-btn-outline text-center py-2 text-sm font-semibold">
+        <a href="/withdraw" className="casino-btn-outline text-center py-2 text-sm font-semibold">
           Withdraw
         </a>
       </div>
