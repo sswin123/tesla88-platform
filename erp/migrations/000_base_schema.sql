@@ -186,8 +186,9 @@ CREATE INDEX IF NOT EXISTS idx_promotions_active
 CREATE TABLE IF NOT EXISTS deposit_requests (
     id                   SERIAL PRIMARY KEY,
     user_id              INTEGER       NOT NULL REFERENCES users(id),
-    provider             VARCHAR(20)   NOT NULL,
-    game_username        VARCHAR(100)  NOT NULL,
+    -- provider/game_username nullable: API wallet deposits don't require a provider (migration 060)
+    provider             VARCHAR(20),
+    game_username        VARCHAR(100),
     deposit_amount       NUMERIC(10,2) NOT NULL,
     bonus_type_id        INTEGER REFERENCES bonus_types(id),
     promotion_id         INTEGER REFERENCES promotions(id),

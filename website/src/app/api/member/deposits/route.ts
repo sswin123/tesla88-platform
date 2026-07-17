@@ -44,15 +44,6 @@ export async function POST(req: NextRequest) {
 
   if (!body.amount || body.amount <= 0)
     return NextResponse.json({ error: '请输入有效的存款金额' }, { status: 400 });
-  if (!body.provider)
-    return NextResponse.json({ error: '请选择游戏' }, { status: 400 });
-  // Validate provider against DB (active providers only)
-  const providerCheck = await pool.query<{ cnt: string }>(
-    `SELECT COUNT(*) AS cnt FROM website_game_providers WHERE provider_name = $1 AND is_active = TRUE`,
-    [body.provider]
-  );
-  if (parseInt(providerCheck.rows[0]?.cnt ?? '0', 10) === 0)
-    return NextResponse.json({ error: '请选择游戏' }, { status: 400 });
   if (!body.receiving_bank_id && !body.payment_bank)
     return NextResponse.json({ error: '请选择收款银行' }, { status: 400 });
 
@@ -79,21 +70,7 @@ export async function POST(req: NextRequest) {
     paymentBankText = bankRow.bank_name;
   }
 
-  // Auto-lookup game_username from assigned game accounts if not provided
-  let gameUsername = body.game_username ?? '';
-  if (!gameUsername && body.provider) {
-    try {
-      const ugaRow = await pool.query<{ username: string }>(
-        `SELECT ap.username FROM user_game_accounts uga
-         JOIN account_pool ap ON ap.id = uga.account_pool_id
-         WHERE uga.user_id = $1 AND uga.provider = $2`,
-        [member.sub, body.provider]
-      );
-      gameUsername = ugaRow.rows[0]?.username ?? '';
-    } catch {
-      // user_game_accounts.status may not exist yet; skip auto-lookup
-    }
-  }
+  const gameUsername = body.game_username ?? '';
 
   /* Minimum deposit check */
   const minRow = await pool.query<{ value: string }>(
@@ -150,7 +127,7 @@ export async function POST(req: NextRequest) {
 
   // INSERT — try new schema first (migration 027), fall back to legacy schema
   const baseParams = [
-    member.sub, body.provider, gameUsername,
+    member.sub, body.provider ?? '', gameUsername,
     body.amount, bonusAmount, creditAmount,
     paymentBankText, body.receipt_file_id ?? '',
     promotionId,

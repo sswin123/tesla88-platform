@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MALAYSIA_BANKS, validateBankAccount, stripNonDigits } from '@/lib/bank';
 import type { MemberDetail } from '@/lib/types';
 
 interface GameAccount { provider: string; username: string; created_at: string }
@@ -249,19 +250,31 @@ export default function MemberDetailPage() {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">银行名称</label>
-              <input
-                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              <select
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
                 value={bankForm.bank_name}
                 onChange={(e) => setBankForm((p) => ({ ...p, bank_name: e.target.value }))}
-              />
+              >
+                <option value="">请选择银行</option>
+                {MALAYSIA_BANKS.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">账号</label>
+              <label className="block text-sm text-gray-600 mb-1">账号（仅限数字）</label>
               <input
-                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="w-full rounded border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
+                inputMode="numeric"
                 value={bankForm.bank_account}
-                onChange={(e) => setBankForm((p) => ({ ...p, bank_account: e.target.value }))}
+                onChange={(e) => setBankForm((p) => ({ ...p, bank_account: stripNonDigits(e.target.value) }))}
+                placeholder="仅输入数字"
+                maxLength={20}
               />
+              {bankForm.bank_account && (() => {
+                const err = validateBankAccount(bankForm.bank_account);
+                return err ? <p className="mt-1 text-xs text-red-500">{err}</p> : null;
+              })()}
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">持卡人姓名</label>

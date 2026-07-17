@@ -132,7 +132,7 @@ export default function DepositsPage() {
                 </td>
 
                 {/* Provider */}
-                <td className="px-3 py-3 whitespace-nowrap">{d.provider}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{d.provider || <span className="text-gray-300">—</span>}</td>
 
                 {/* Deposit Amount */}
                 <td className="px-3 py-3 whitespace-nowrap">RM {parseFloat(d.deposit_amount).toFixed(2)}</td>

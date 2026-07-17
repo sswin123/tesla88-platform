@@ -2,7 +2,6 @@ import type { PublicPromotion } from '@/lib/types';
 
 interface Props {
   amount: number;
-  provider: string;
   paymentBank: string;
   promotion: PublicPromotion | null;
   bonusAmount: number;
@@ -30,7 +29,6 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
 
 export default function DepositSummary({
   amount,
-  provider,
   paymentBank,
   promotion,
   bonusAmount,
@@ -56,7 +54,6 @@ export default function DepositSummary({
         </h3>
 
         <Row label="存款金额" value={`${c} ${amount.toFixed(d)}`} />
-        <Row label="游戏" value={provider} />
         <Row label="付款方式" value={paymentBank} />
 
         {promotion && (

@@ -1,14 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-const MALAYSIA_BANKS = [
-  'Maybank', 'CIMB Bank', 'Public Bank', 'RHB Bank', 'Hong Leong Bank',
-  'AmBank', 'Bank Islam', 'Bank Rakyat', 'BSN', 'OCBC Bank', 'UOB Bank',
-  'HSBC Bank', 'Standard Chartered', 'Alliance Bank', 'Affin Bank', 'Agrobank',
-  'MBSB Bank', 'Bank Muamalat', 'Al Rajhi Bank', 'Citibank', 'GXBank',
-  'Boost Bank', 'AEON Bank', "Touch 'n Go eWallet", 'ShopeePay', 'BigPay', 'Other',
-];
+import { MALAYSIA_BANKS, validateBankAccount, stripNonDigits } from '@/lib/bank';
 
 export default function CompleteBankInformationPage() {
   const router = useRouter();
@@ -41,13 +34,7 @@ export default function CompleteBankInformationPage() {
       .catch(() => setChecking(false));
   }, [router]);
 
-  function validateAccount(v: string): string {
-    if (!v) return '银行账号为必填项';
-    if (!/^\d+$/.test(v)) return '银行账号只能包含数字';
-    if (v.length < 6)  return '银行账号最少 6 位数字';
-    if (v.length > 20) return '银行账号最多 20 位数字';
-    return '';
-  }
+  const validateAccount = validateBankAccount;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -179,7 +166,7 @@ export default function CompleteBankInformationPage() {
                   inputMode="numeric"
                   value={accountNumber}
                   onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '');
+                    const v = stripNonDigits(e.target.value);
                     setAccountNumber(v);
                     setFieldErrors(p => ({ ...p, accountNumber: '' }));
                   }}
