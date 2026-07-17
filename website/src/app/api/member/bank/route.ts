@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { getMember } from '@/lib/member-auth';
 import { BANK_COOKIE_NAME, COOKIE_MAXAGE } from '@/lib/auth';
 import { normalizeBankAccount } from '@/lib/bank';
+import { ActivityLogService } from '@/lib/services/activity-log';
 
 // Called by /complete-bank-information page to verify bank status and hydrate cookie
 export async function GET() {
@@ -108,6 +109,19 @@ export async function POST(req: NextRequest) {
   if (!rows[0]) {
     return NextResponse.json({ error: '银行信息已绑定，不可自行修改，请联系客服' }, { status: 409 });
   }
+
+  // Write activity log (fire-and-forget)
+  void ActivityLogService.log({
+    member_id:     member.sub,
+    category:      'PROFILE',
+    action:        'Bank Information Completed',
+    title:         '银行信息绑定成功',
+    description:   `${bank_name} · ****${bank_account.slice(-4)}`,
+    operator_type: 'MEMBER',
+    source:        'WEBSITE',
+    level:         'INFO',
+    metadata:      { bank_name, last4: bank_account.slice(-4) },
+  });
 
   // Set bank_ok cookie so middleware allows access
   const response = NextResponse.json({ ok: true });

@@ -108,6 +108,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    module: 'Activity Log',
+    permissions: [
+      { key: 'member.activity.view', label: 'View Member Activity Log (Audit Center)' },
+    ],
+  },
+  {
     module: 'Others',
     permissions: [
       { key: 'risk.view',   label: 'Risk Center' },

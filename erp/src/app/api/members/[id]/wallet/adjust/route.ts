@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { adjustWallet, ADJUSTMENT_TYPES, TYPE_DIRECTION, type AdjustmentType, type Direction } from '@/lib/services/wallet';
+import { ActivityLogService } from '@/lib/services/activity-log';
 
 export async function POST(
   req: NextRequest,
@@ -93,14 +94,40 @@ export async function POST(
 
     await client.query('COMMIT');
 
-    await logAudit({
-      admin_id:    payload.sub,
-      action:      `wallet.${direction === 'C' ? 'credit' : 'debit'}`,
-      target_type: 'user',
-      target_id:   uid,
-      old_value:   { balance: tx.balance_before },
-      new_value:   { balance: tx.balance_after, type: adjType, amount, remark: body.remark.trim() },
-    });
+    await Promise.all([
+      logAudit({
+        admin_id:    payload.sub,
+        action:      `wallet.${direction === 'C' ? 'credit' : 'debit'}`,
+        target_type: 'user',
+        target_id:   uid,
+        old_value:   { balance: tx.balance_before },
+        new_value:   { balance: tx.balance_after, type: adjType, amount, remark: body.remark.trim() },
+      }),
+      ActivityLogService.log({
+        member_id:      uid,
+        category:       'WALLET',
+        action:         adjType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+        title:          `${direction === 'C' ? '+' : '-'}RM ${amount.toFixed(2)} — ${adjType}`,
+        amount:         direction === 'C' ? amount : -amount,
+        balance_before: parseFloat(String(tx.balance_before)),
+        balance_after:  parseFloat(String(tx.balance_after)),
+        reference_type: 'wallet',
+        reference_id:   parseInt(tx.id, 10),
+        operator_type:  'STAFF',
+        operator_id:    payload.sub,
+        operator_name:  typeof payload.username === 'string' ? payload.username : null,
+        source:         'ERP',
+        level:          amount >= 500 ? 'WARNING' : 'INFO',
+        ip_address:     ip,
+        remark:         body.remark?.trim() ?? null,
+        metadata: {
+          adj_type:  adjType,
+          direction,
+          gateway:   body.gateway ?? null,
+          reference: body.reference_number ?? null,
+        },
+      }),
+    ]);
 
     return NextResponse.json({ ok: true, tx });
   } catch (err) {

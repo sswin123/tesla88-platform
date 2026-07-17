@@ -8,6 +8,7 @@ import {
   checkIpPolicy,
   logRegistrationEvent,
 } from './RegistrationPolicyService';
+import { ActivityLogService } from './activity-log';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -218,7 +219,23 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
 
     await client.query('COMMIT');
     console.log(`[RegistrationService] Created user_id=${userId} phone=${phone} source=${register_source}`);
-    await logRegistrationEvent({ event_type: 'REGISTRATION_SUCCESS', phone, ip_address, brand_name, admin_id, data: { user_id: userId, source: register_source } });
+
+    await Promise.all([
+      logRegistrationEvent({ event_type: 'REGISTRATION_SUCCESS', phone, ip_address, brand_name, admin_id, data: { user_id: userId, source: register_source } }),
+      ActivityLogService.log({
+        member_id:     userId,
+        category:      'ACCOUNT',
+        action:        'Registration Completed',
+        title:         '会员注册成功',
+        description:   `注册来源: ${register_source}`,
+        operator_type: 'MEMBER',
+        source:        register_source === 'WEBSITE' ? 'WEBSITE' : register_source === 'BOT' ? 'TELEGRAM' : 'SYSTEM',
+        level:         'INFO',
+        ip_address:    ip_address ?? null,
+        metadata:      { register_source, public_id: publicId },
+      }),
+    ]);
+
     return { ok: true, user_id: userId, public_id: publicId, phone, first_name, is_upgrade: false, bank_account: null };
 
   } catch (e) {
