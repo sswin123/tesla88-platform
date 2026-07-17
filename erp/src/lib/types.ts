@@ -719,6 +719,8 @@ export interface WebsiteSettings {
 
 export interface WalletSummary {
   balance:              string;
+  available_balance:    string;
+  pending_withdrawal:   string;
   total_deposit:        string;
   total_withdraw:       string;
   total_bonus:          string;

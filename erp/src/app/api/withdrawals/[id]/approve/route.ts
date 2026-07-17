@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { getSetting } from '@/lib/repositories/settings_repo';
 import { requirePermission } from '@/lib/require_permission';
+import { ActivityLogService } from '@/lib/services/activity-log';
 
 const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 const BOT_RELAY_AUTH_TOKEN = process.env.BOT_RELAY_AUTH_TOKEN ?? 'change_me_relay_token';
@@ -22,23 +23,31 @@ export async function POST(
   try {
     await client.query('BEGIN');
 
-    // Check exists and is PENDING (matches bot's SELECT before mark_withdrawal_paid)
-    const { rows } = await client.query(
-      "SELECT * FROM withdrawal_requests WHERE id = $1 AND status = 'PENDING'",
+    /* Load withdrawal + member balance snapshot */
+    const { rows } = await client.query<{
+      user_id: number; withdraw_amount: string; bank_name: string; bank_account: string;
+      available_balance: string;
+    }>(
+      `SELECT wr.user_id, wr.withdraw_amount, wr.bank_name, wr.bank_account,
+              u.available_balance
+       FROM withdrawal_requests wr
+       JOIN users u ON u.id = wr.user_id
+       WHERE wr.id = $1 AND wr.status = 'PENDING'`,
       [requestId]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
-      return NextResponse.json(
-        { error: 'Not found or already processed' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 });
     }
 
-    const req = rows[0];
+    const wr = rows[0];
+    const amount       = parseFloat(wr.withdraw_amount);
+    // available_balance already excludes pending_withdrawal; after approval both sides
+    // move: pending_withdrawal decreases (trigger) AND total_withdraw increases.
+    // The net effect on net_deposit is a decrease; available_balance will reflect this.
+    const balanceBefore = parseFloat(wr.available_balance);
 
-    // Identical to bot's withdrawal_repo.py::mark_withdrawal_paid UPDATE
-    // NOTE: status is 'PAID' not 'APPROVED'
+    /* Mark as PAID — DB trigger automatically decrements users.pending_withdrawal */
     await client.query(
       `UPDATE withdrawal_requests
        SET status = 'PAID', reviewed_by = $2, admin_note = $3, reviewed_at = NOW()
@@ -46,22 +55,52 @@ export async function POST(
       [requestId, adminId, null]
     );
 
-    // Identical to bot's user balance update
+    /* Debit the actual balance (net_deposit) */
     await client.query(
-      'UPDATE users SET total_withdraw = total_withdraw + $2 WHERE id = $1',
-      [req.user_id, req.withdraw_amount]
+      'UPDATE users SET total_withdraw = total_withdraw + $1 WHERE id = $2',
+      [amount, wr.user_id]
+    );
+
+    /* Audit trail in wallet_transactions (H-3) */
+    await client.query(
+      `INSERT INTO wallet_transactions
+         (user_id, type, direction, amount, balance_before, balance_after,
+          remark, operator_admin_id, reference_type, reference_id)
+       VALUES ($1, 'WITHDRAWAL', 'D', $2, $3, $4, 'Withdrawal approved', $5, 'withdrawal', $6)`,
+      [wr.user_id, amount, balanceBefore, balanceBefore - amount, adminId, requestId]
     );
 
     await client.query('COMMIT');
-    await logAudit({
-      admin_id: adminId,
-      action: 'WITHDRAWAL_APPROVE',
-      target_type: 'withdrawal',
-      target_id: requestId,
-      new_value: { status: 'PAID', amount: req.withdraw_amount },
-    });
 
-    // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
+    await Promise.all([
+      logAudit({
+        admin_id:    adminId,
+        action:      'WITHDRAWAL_APPROVE',
+        target_type: 'withdrawal',
+        target_id:   requestId,
+        new_value:   { status: 'PAID', amount },
+      }),
+      ActivityLogService.log({
+        member_id:      wr.user_id,
+        category:       'WITHDRAWAL',
+        action:         'Withdrawal Approved',
+        title:          `出款批准 RM ${amount.toFixed(2)}`,
+        description:    `${wr.bank_name} · ****${String(wr.bank_account).slice(-4)}`,
+        amount:         -amount,
+        balance_before: balanceBefore,
+        balance_after:  balanceBefore - amount,
+        reference_type: 'withdrawal',
+        reference_id:   requestId,
+        operator_type:  'STAFF',
+        operator_id:    adminId,
+        operator_name:  typeof payload.username === 'string' ? payload.username : null,
+        source:         'ERP',
+        level:          'INFO',
+        metadata:       { bank_name: wr.bank_name },
+      }),
+    ]);
+
+    /* Notify customer via bot relay (fire-and-forget) */
     const notifyWithdrawal = await getSetting('notify_withdrawal').catch(() => null);
     if (notifyWithdrawal !== 'false') fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
       method: 'POST',

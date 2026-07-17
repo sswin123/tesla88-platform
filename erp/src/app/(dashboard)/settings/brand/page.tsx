@@ -365,7 +365,7 @@ export default function BrandCenterPage() {
     { name: 'telegram',      value: form.support_telegram },
     { name: 'whatsapp',      value: form.support_whatsapp },
     { name: 'tg_channel',    value: form.telegram_channel },
-    { name: 'member_prefix', value: form.member_id_prefix },
+    { name: 'member_id_prefix', value: form.member_id_prefix },
     { name: 'referral_prefix', value: form.referral_prefix },
     { name: 'support_email', value: form.support_email },
   ];

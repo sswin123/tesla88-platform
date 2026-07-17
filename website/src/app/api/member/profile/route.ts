@@ -10,6 +10,7 @@ export async function GET() {
   const res = await pool.query(
     `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
             status, total_deposit, total_withdraw, total_bonus, net_deposit,
+            available_balance, pending_withdrawal,
             referral_code, referred_by, created_at, last_seen_at,
             (SELECT COUNT(*)::int FROM users r WHERE r.referred_by = u.id) AS referral_count
      FROM users u WHERE u.id = $1`,

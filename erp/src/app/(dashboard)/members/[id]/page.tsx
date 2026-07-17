@@ -87,6 +87,9 @@ export default function MemberDetailPage() {
   const [savingGame,   setSavingGame]   = useState(false);
   const [removingGame, setRemovingGame] = useState<string | null>(null);
 
+  // Bot username (for referral link)
+  const [botUsername, setBotUsername] = useState('YourBot');
+
   // Wallet Center
   const [walletSummary,    setWalletSummary]    = useState<WalletSummary | null>(null);
   const [walletLoading,    setWalletLoading]    = useState(true);
@@ -104,7 +107,10 @@ export default function MemberDetailPage() {
   }, []);
 
   async function load() {
-    const r = await fetch(`/api/members/${params.id}`);
+    const [r, botR] = await Promise.all([
+      fetch(`/api/members/${params.id}`),
+      fetch('/api/settings/bot'),
+    ]);
     if (r.ok) {
       const d = await r.json() as MemberPayload;
       setData(d);
@@ -115,6 +121,10 @@ export default function MemberDetailPage() {
       if (r.status === 401) setLoadError('权限不足，请重新登录');
       else if (r.status === 404) setLoadError('找不到该会员');
       else setLoadError(d.error ?? `加载失败 (${r.status})`);
+    }
+    if (botR.ok) {
+      const bd = await botR.json() as Record<string, string>;
+      if (bd.bot_username) setBotUsername(bd.bot_username);
     }
     setLoading(false);
   }
@@ -467,8 +477,18 @@ export default function MemberDetailPage() {
               ) : walletSummary ? (
                 <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   <div className="col-span-2 sm:col-span-1 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
-                    <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Main Balance</p>
+                    <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Net Balance</p>
                     <p className="text-xl font-bold text-blue-700 mt-0.5">RM {parseFloat(walletSummary.balance).toFixed(2)}</p>
+                  </div>
+                  <div className={`rounded-lg border px-3 py-2 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Locked (WD)</p>
+                    <p className={`text-lg font-bold mt-0.5 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                      RM {parseFloat(walletSummary.pending_withdrawal ?? '0').toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="col-span-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+                    <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Available Balance</p>
+                    <p className="text-xl font-bold text-green-700 mt-0.5">RM {parseFloat(walletSummary.available_balance ?? walletSummary.balance).toFixed(2)}</p>
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending Dep</p>
@@ -608,7 +628,7 @@ export default function MemberDetailPage() {
               <div className="pt-2 border-t">
                 <p className="text-xs text-gray-400 mb-1">Telegram 邀请链接</p>
                 <span className="text-xs font-mono text-gray-600 break-all select-all">
-                  https://t.me/YourBot?start={referralCode}
+                  https://t.me/{botUsername}?start={referralCode}
                 </span>
               </div>
             )}

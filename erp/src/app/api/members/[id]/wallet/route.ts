@@ -15,7 +15,9 @@ export async function GET(
 
   const { rows } = await pool.query(
     `SELECT
-       u.net_deposit       AS balance,
+       u.net_deposit          AS balance,
+       u.available_balance,
+       u.pending_withdrawal,
        u.total_deposit,
        u.total_withdraw,
        u.total_bonus,
