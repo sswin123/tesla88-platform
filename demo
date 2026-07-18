@@ -454,15 +454,12 @@ if [ "$NEED_BUILD" = "true" ]; then
     $DC build --parallel $BUILD_SVC_LIST || die "Docker Build 失败"
     ok "Build 完成"
     BUILD_SUMMARY="$BUILD_SVC_LIST"
-
-    # 重启变更的服务（--no-deps 不重启 postgres/redis）
-    # shellcheck disable=SC2086
-    $DC up -d --no-deps $BUILD_SVC_LIST || die "应用服务启动失败"
-    $DC up -d nginx || die "Nginx 启动失败"
-else
-    info "无需重建，确保所有服务正在运行..."
-    $DC up -d erp website telegram-bot nginx || die "服务启动失败"
 fi
+
+# 始终确保所有应用服务都在运行（无论是否有重建）
+# docker compose up -d 会自动为已重建的服务使用新镜像，未变更的服务不会重启
+info "确保所有应用服务正在运行..."
+$DC up -d erp website telegram-bot nginx || die "服务启动失败"
 
 T_BUILD=$(( $(date +%s) - _t ))
 ok "服务启动完成（${T_BUILD}s）"
@@ -475,8 +472,14 @@ _t=$(date +%s)
 
 wait_for_healthy erp          240 "ERP"           && R_ERP=PASS     || die "ERP unhealthy"
 wait_for_healthy website      240 "Website"       && R_WEBSITE=PASS || die "Website unhealthy"
-wait_for_healthy telegram-bot 120 "Telegram Bot"  && R_BOT=PASS    \
-    || { warn "Telegram Bot 异常（请检查 BOT_TOKEN）"; R_BOT=WARN; }
+TG_CID=$($DC ps -q telegram-bot 2>/dev/null | head -1)
+if [ -n "$TG_CID" ]; then
+    wait_for_healthy telegram-bot 120 "Telegram Bot" && R_BOT=PASS \
+        || { warn "Telegram Bot 异常（请检查 BOT_TOKEN）"; R_BOT=WARN; }
+else
+    warn "Telegram Bot 容器未运行，跳过健康检查"
+    R_BOT=WARN
+fi
 wait_for_healthy nginx         60 "Nginx"         && R_NGINX=PASS   || die "Nginx unhealthy"
 
 # Nginx 重载（清除 upstream DNS 缓存，确保新容器 IP 生效）
