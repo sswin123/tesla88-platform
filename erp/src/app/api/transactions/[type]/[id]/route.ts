@@ -50,7 +50,10 @@ async function handleDeposit(id: number) {
      FROM deposit_requests dr
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
-     LEFT JOIN payment_banks pb ON pb.id = dr.receiving_bank_id
+     LEFT JOIN payment_banks pb ON pb.id = COALESCE(
+       dr.receiving_bank_id,
+       (SELECT id FROM payment_banks WHERE bank_name = dr.payment_bank ORDER BY id LIMIT 1)
+     )
      LEFT JOIN admins a ON a.id = dr.processing_by
      WHERE dr.id = $1`,
     // Fallback (no processing columns / no receiving bank columns)

@@ -93,7 +93,7 @@ export default function HandlePage() {
     fetchDetail();
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
-      .then((d: { id: number } | null) => { if (d) setMeId(d.id); })
+      .then((d: { sub: number } | null) => { if (d) setMeId(d.sub); })
       .catch(() => {});
   }, [fetchDetail]);
 
