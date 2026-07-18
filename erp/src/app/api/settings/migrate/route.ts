@@ -223,5 +223,85 @@ export async function POST() {
     ok('064_withdrawal_receipt');
   } catch (e) { err('064_withdrawal_receipt', e); }
 
+  // ── Migration 065: Multi-CS Transaction Workflow ────────────────────────────
+  try {
+    // Drop old status CHECK constraints and add PROCESSING
+    await pool.query(`
+      DO $$
+      DECLARE r RECORD;
+      BEGIN
+        FOR r IN SELECT conname FROM pg_constraint
+          WHERE conrelid = 'deposit_requests'::regclass AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%PENDING%'
+        LOOP EXECUTE format('ALTER TABLE deposit_requests DROP CONSTRAINT %I', r.conname); END LOOP;
+      END $$`);
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE deposit_requests ADD CONSTRAINT deposit_requests_status_check
+          CHECK (status IN ('PENDING','PROCESSING','APPROVED','REJECTED'));
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$`);
+    await pool.query(`
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS processing_by INT,
+        ADD COLUMN IF NOT EXISTS processing_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS approved_by   INT,
+        ADD COLUMN IF NOT EXISTS approved_at   TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS rejected_by   INT,
+        ADD COLUMN IF NOT EXISTS rejected_at   TIMESTAMPTZ`);
+    ok('065a_deposit_processing_cols');
+  } catch (e) { err('065a_deposit_processing_cols', e); }
+
+  try {
+    await pool.query(`
+      DO $$
+      DECLARE r RECORD;
+      BEGIN
+        FOR r IN SELECT conname FROM pg_constraint
+          WHERE conrelid = 'withdrawal_requests'::regclass AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%PENDING%'
+        LOOP EXECUTE format('ALTER TABLE withdrawal_requests DROP CONSTRAINT %I', r.conname); END LOOP;
+      END $$`);
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE withdrawal_requests ADD CONSTRAINT withdrawal_requests_status_check
+          CHECK (status IN ('PENDING','PROCESSING','PAID','REJECTED'));
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$`);
+    await pool.query(`
+      ALTER TABLE withdrawal_requests
+        ADD COLUMN IF NOT EXISTS processing_by INT,
+        ADD COLUMN IF NOT EXISTS processing_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS approved_by   INT,
+        ADD COLUMN IF NOT EXISTS approved_at   TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS rejected_by   INT,
+        ADD COLUMN IF NOT EXISTS rejected_at   TIMESTAMPTZ`);
+    ok('065b_withdrawal_processing_cols');
+  } catch (e) { err('065b_withdrawal_processing_cols', e); }
+
+  // ── Migration 066: Fix pending_withdrawal trigger for PROCESSING status ─────
+  try {
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION trg_fn_withdrawal_pending()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF TG_OP = 'INSERT' AND NEW.status = 'PENDING' THEN
+          UPDATE users SET pending_withdrawal = pending_withdrawal + NEW.withdraw_amount WHERE id = NEW.user_id;
+          RETURN NEW;
+        END IF;
+        IF TG_OP = 'UPDATE'
+           AND OLD.status IN ('PENDING', 'PROCESSING')
+           AND NEW.status IN ('PAID', 'REJECTED') THEN
+          UPDATE users SET pending_withdrawal = GREATEST(0, pending_withdrawal - OLD.withdraw_amount) WHERE id = NEW.user_id;
+          RETURN NEW;
+        END IF;
+        RETURN NEW;
+      END;
+      $$`);
+    ok('066_fix_withdrawal_trigger');
+  } catch (e) { err('066_fix_withdrawal_trigger', e); }
+
   return NextResponse.json({ ok: true, results });
 }

@@ -20,41 +20,51 @@ export async function POST(
   const reason: string = body.reason ?? '';
 
   const rejId = parseInt(id, 10);
-  const { rows } = await pool.query(
-    `UPDATE deposit_requests
-     SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
-         rejected_by = $2, rejected_at = NOW()
-     WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
-     RETURNING id`,
-    [rejId, adminId, reason || null]
-  );
-  if (!rows[0]) {
-    return NextResponse.json(
-      { error: 'Not found or already processed' },
-      { status: 404 }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE deposit_requests
+       SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
+           rejected_by = $2::int, rejected_at = NOW()
+       WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
+       RETURNING id`,
+      [rejId, adminId, reason || null]
     );
-  }
-  await logAudit({
-    admin_id: adminId,
-    action: 'DEPOSIT_REJECT',
-    target_type: 'deposit',
-    target_id: rejId,
-    new_value: { status: 'REJECTED', reason: reason || null },
-  });
-
-  // Notify customer via bot relay (fire-and-forget; failures are audit-logged)
-  const notifyDeposit = await getSetting('notify_deposit').catch(() => null);
-  if (notifyDeposit !== 'false') fetch(`${BOT_RELAY_URL}/notify/deposit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
-    body: JSON.stringify({ request_id: rejId, status: 'REJECTED', reason }),
-  }).then(async (r) => {
-    if (!r.ok) {
-      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { relay_status: r.status } }).catch(() => {});
+    if (!rows[0]) {
+      return NextResponse.json(
+        { error: 'Not found or already processed' },
+        { status: 404 }
+      );
     }
-  }).catch(() => {
-    logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
-  });
 
-  return NextResponse.json({ ok: true });
+    await logAudit({
+      admin_id: adminId,
+      action: 'DEPOSIT_REJECT',
+      target_type: 'deposit',
+      target_id: rejId,
+      new_value: { status: 'REJECTED', reason: reason || null },
+    });
+
+    const notifyDeposit = await getSetting('notify_deposit').catch(() => null);
+    if (notifyDeposit !== 'false') fetch(`${BOT_RELAY_URL}/notify/deposit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
+      body: JSON.stringify({ request_id: rejId, status: 'REJECTED', reason }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { relay_status: r.status } }).catch(() => {});
+      }
+    }).catch(() => {
+      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'deposit', target_id: rejId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : undefined;
+    if (code === '42703') return NextResponse.json({ error: 'Database migration required. Run migrations first.' }, { status: 500 });
+    if (code === '23514') return NextResponse.json({ error: 'Invalid status transition.' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[deposits/reject]', err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

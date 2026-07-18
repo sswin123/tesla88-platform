@@ -21,66 +21,74 @@ export async function POST(
   const reason: string = body.reason ?? '';
   const rejId = parseInt(id, 10);
 
-  /* Reject the withdrawal — DB trigger automatically decrements users.pending_withdrawal,
-     returning the locked funds to available_balance with no extra UPDATE needed. */
-  const { rows } = await pool.query<{
-    id: number; user_id: number; withdraw_amount: string; bank_name: string; bank_account: string;
-  }>(
-    `UPDATE withdrawal_requests
-     SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
-         rejected_by = $2, rejected_at = NOW()
-     WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
-     RETURNING id, user_id, withdraw_amount, bank_name, bank_account`,
-    [rejId, adminId, reason || null]
-  );
+  try {
+    /* Reject the withdrawal — DB trigger automatically decrements users.pending_withdrawal,
+       returning the locked funds to available_balance with no extra UPDATE needed. */
+    const { rows } = await pool.query<{
+      id: number; user_id: number; withdraw_amount: string; bank_name: string; bank_account: string;
+    }>(
+      `UPDATE withdrawal_requests
+       SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
+           rejected_by = $2::int, rejected_at = NOW()
+       WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
+       RETURNING id, user_id, withdraw_amount, bank_name, bank_account`,
+      [rejId, adminId, reason || null]
+    );
 
-  if (!rows[0]) {
-    return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 });
-  }
-
-  const wr = rows[0];
-  const amount = parseFloat(wr.withdraw_amount);
-
-  await Promise.all([
-    logAudit({
-      admin_id:    adminId,
-      action:      'WITHDRAWAL_REJECT',
-      target_type: 'withdrawal',
-      target_id:   rejId,
-      new_value:   { status: 'REJECTED', reason: reason || null },
-    }),
-    ActivityLogService.log({
-      member_id:     wr.user_id,
-      category:      'WITHDRAWAL',
-      action:        'Withdrawal Rejected',
-      title:         `出款拒绝 RM ${amount.toFixed(2)}（余额已归还）`,
-      description:   reason ? `原因: ${reason}` : undefined,
-      amount:        amount,
-      reference_type: 'withdrawal',
-      reference_id:   rejId,
-      operator_type:  'STAFF',
-      operator_id:    adminId,
-      operator_name:  typeof payload.username === 'string' ? payload.username : null,
-      source:         'ERP',
-      level:          'WARNING',
-      remark:         reason || null,
-      metadata:       { bank_name: wr.bank_name, last4: String(wr.bank_account).slice(-4) },
-    }),
-  ]);
-
-  /* Notify customer via bot relay (fire-and-forget) */
-  const notifyWithdrawal = await getSetting('notify_withdrawal').catch(() => null);
-  if (notifyWithdrawal !== 'false') fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
-    body: JSON.stringify({ request_id: rejId, status: 'REJECTED', reason }),
-  }).then(async (r) => {
-    if (!r.ok) {
-      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: rejId, new_value: { relay_status: r.status } }).catch(() => {});
+    if (!rows[0]) {
+      return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 });
     }
-  }).catch(() => {
-    logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: rejId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
-  });
 
-  return NextResponse.json({ ok: true });
+    const wr = rows[0];
+    const amount = parseFloat(wr.withdraw_amount);
+
+    await Promise.all([
+      logAudit({
+        admin_id:    adminId,
+        action:      'WITHDRAWAL_REJECT',
+        target_type: 'withdrawal',
+        target_id:   rejId,
+        new_value:   { status: 'REJECTED', reason: reason || null },
+      }),
+      ActivityLogService.log({
+        member_id:     wr.user_id,
+        category:      'WITHDRAWAL',
+        action:        'Withdrawal Rejected',
+        title:         `出款拒绝 RM ${amount.toFixed(2)}（余额已归还）`,
+        description:   reason ? `原因: ${reason}` : undefined,
+        amount:        amount,
+        reference_type: 'withdrawal',
+        reference_id:   rejId,
+        operator_type:  'STAFF',
+        operator_id:    adminId,
+        operator_name:  typeof payload.username === 'string' ? payload.username : null,
+        source:         'ERP',
+        level:          'WARNING',
+        remark:         reason || null,
+        metadata:       { bank_name: wr.bank_name, last4: String(wr.bank_account).slice(-4) },
+      }),
+    ]);
+
+    const notifyWithdrawal = await getSetting('notify_withdrawal').catch(() => null);
+    if (notifyWithdrawal !== 'false') fetch(`${BOT_RELAY_URL}/notify/withdrawal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${BOT_RELAY_AUTH_TOKEN}` },
+      body: JSON.stringify({ request_id: rejId, status: 'REJECTED', reason }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: rejId, new_value: { relay_status: r.status } }).catch(() => {});
+      }
+    }).catch(() => {
+      logAudit({ admin_id: adminId, action: 'NOTIFICATION_FAILED', target_type: 'withdrawal', target_id: rejId, new_value: { error: 'relay_unreachable' } }).catch(() => {});
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : undefined;
+    if (code === '42703') return NextResponse.json({ error: 'Database migration required. Run migrations first.' }, { status: 500 });
+    if (code === '23514') return NextResponse.json({ error: 'Invalid status transition.' }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[withdrawals/reject]', err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
