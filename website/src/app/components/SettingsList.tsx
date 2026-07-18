@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMember } from '@/lib/contexts/MemberContext';
 
 /* ── Individual setting row ───────────────────────────────────── */
 function SettingRow({
@@ -190,12 +191,15 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
 /* ── Main settings list ───────────────────────────────────────── */
 export default function SettingsList() {
   const router = useRouter();
+  const { refreshProfile } = useMember();
   const [showPassword, setShowPassword] = useState(false);
   const [loggingOut, setLoggingOut]     = useState(false);
 
   async function handleLogout() {
     setLoggingOut(true);
     await fetch('/api/auth/logout', { method: 'POST' });
+    // Sync global auth state (401 → profile = null) before soft navigation
+    await refreshProfile();
     router.push('/');
   }
 

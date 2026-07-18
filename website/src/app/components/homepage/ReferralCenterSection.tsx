@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { isBrowser } from '@/lib/is-browser';
+import { useMember } from '@/lib/contexts/MemberContext';
+import type { MemberProfile } from '@/lib/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -46,31 +48,20 @@ interface ReferralCenterConfig {
   bonus_per_referral?:         string;
 }
 
-// ── Default buttons (used when config.buttons is absent / empty) ───────────────
+// ── Default buttons ────────────────────────────────────────────────────────────
 
 const LEGACY_BUTTONS: ReferralButton[] = [
-  { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'share',             url: '',                open_target: 'self' },
-  { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_downline',     url: '',                open_target: 'self' },
-  { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
-  { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
+  { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'share',             url: '',            open_target: 'self' },
+  { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_downline',     url: '',            open_target: 'self' },
+  { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'copy_referral_link', url: '',            open_target: 'self' },
+  { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/promotions', open_target: 'self' },
 ];
 
-// ── Fetch referral link ────────────────────────────────────────────────────────
-// Returns the full referral URL, 'guest' if not logged in, or null on other error.
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-async function fetchReferralLink(): Promise<string | 'guest' | null> {
-  try {
-    const res = await fetch('/api/member/profile', { cache: 'no-store' });
-    if (res.status === 401 || res.status === 403) return 'guest';
-    if (!res.ok) return null;
-    const p = await res.json() as { referral_code?: string };
-    if (p.referral_code && isBrowser) {
-      return `${window.location.origin}/register?ref=${p.referral_code}`;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+function buildReferralUrl(profile: MemberProfile | null): string | null {
+  if (!profile?.referral_code || !isBrowser) return null;
+  return `${window.location.origin}/register?ref=${profile.referral_code}`;
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -287,7 +278,7 @@ function ActionButton({
     ? { animation: 'rc_btnFlash 0.28s ease' }
     : {};
 
-  // Image / GIF mode: render image directly, no styled wrapper
+  // Image / GIF mode
   if ((mode === 'image' || mode === 'gif') && btn.image_media_url) {
     return (
       <button
@@ -306,18 +297,12 @@ function ActionButton({
     );
   }
 
-  // Text mode (default)
-  const radius = config.button_border_radius ? `${config.button_border_radius}px` : '12px';
-  const hasBgImg = !!(btn as ReferralButton & { bg_media_url?: string }).bg_media_url;
-  const bgImgUrl = hasBgImg ? (btn as ReferralButton & { bg_media_url: string }).bg_media_url : '';
-
-  const bgStyle: React.CSSProperties = hasBgImg
-    ? { backgroundImage: `url(${bgImgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : btn.bg_color
-      ? { background: btn.bg_color }
-      : { background: 'var(--brand-primary)' };
-
-  const txtStyle = btn.text_color ? { color: btn.text_color } : { color: '#fff' };
+  // Text mode
+  const radius   = config.button_border_radius ? `${config.button_border_radius}px` : '12px';
+  const bgStyle: React.CSSProperties = btn.bg_color
+    ? { background: btn.bg_color }
+    : { background: 'var(--brand-primary)' };
+  const txtStyle = btn.text_color  ? { color: btn.text_color }              : { color: '#fff' };
   const bdrStyle = btn.border_color ? { border: `1px solid ${btn.border_color}` } : {};
 
   const shadowStyle: React.CSSProperties = config.button_shadow
@@ -345,6 +330,13 @@ function ActionButton({
 // ── Main ───────────────────────────────────────────────────────────────────────
 
 export default function ReferralCenterSection({ config }: { config: ReferralCenterConfig }) {
+  // Use global MemberContext — stays in sync with login/logout events automatically
+  const { profile } = useMember();
+
+  // Keep a ref so handleAction (stable callback) always has the latest profile
+  const profileRef = useRef<MemberProfile | null>(profile);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
   const [copiedId,     setCopiedId]     = useState('');
   const [clickedId,    setClickedId]    = useState('');
   const [toast,        setToast]        = useState<ToastState | null>(null);
@@ -379,25 +371,25 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
     flashBtn(btn.id);
     const target = btn.open_target === 'blank' ? '_blank' : '_self';
 
+    // Build referral URL from context (no network round-trip)
+    const currentProfile = profileRef.current;
+    const referralUrl    = buildReferralUrl(currentProfile);
+
     switch (btn.action_type) {
 
       // ── Share ──────────────────────────────────────────────────────────────
       case 'share': {
-        const result = await fetchReferralLink();
-        if (result === 'guest') {
+        if (!currentProfile) {
           setShowLoginDlg(true);
           return;
         }
-        // Use referral link when available, fall back to current URL
-        const shareUrl = result ?? (isBrowser ? window.location.href : '');
+        const shareUrl = referralUrl ?? (isBrowser ? window.location.href : '');
         if (!shareUrl) return;
 
         if (isBrowser && navigator.share) {
           try {
             await navigator.share({ url: shareUrl, title: document.title });
-            // Native share handled — no extra feedback needed
           } catch (err) {
-            // AbortError = user cancelled = silent; other errors = copy fallback
             if (err instanceof Error && err.name !== 'AbortError') {
               const ok = await copyToClipboard(shareUrl);
               if (ok) {
@@ -407,7 +399,6 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
             }
           }
         } else if (isBrowser) {
-          // navigator.share not supported — copy automatically
           const ok = await copyToClipboard(shareUrl);
           if (ok) {
             showToast('Referral link copied successfully.');
@@ -419,12 +410,11 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
 
       // ── Copy referral link ─────────────────────────────────────────────────
       case 'copy_referral_link': {
-        const result = await fetchReferralLink();
-        if (result === 'guest') {
+        if (!currentProfile) {
           setShowLoginDlg(true);
           return;
         }
-        const copyUrl = result ?? (isBrowser ? window.location.href : '');
+        const copyUrl = referralUrl ?? (isBrowser ? window.location.href : '');
         if (!copyUrl) return;
         const ok = await copyToClipboard(copyUrl);
         if (ok) {
@@ -434,7 +424,7 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
         break;
       }
 
-      // ── Copy custom link (no auth check) ──────────────────────────────────
+      // ── Copy custom link ───────────────────────────────────────────────────
       case 'copy_link': {
         const copyUrl = btn.url || (isBrowser ? window.location.href : '');
         const ok = await copyToClipboard(copyUrl);
@@ -484,7 +474,7 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
 
   return (
     <>
-      {/* Keyframe animations — injected once per section mount */}
+      {/* Keyframe animations */}
       <style>{`
         @keyframes rc_toastIn {
           from { opacity: 0; transform: translateX(-50%) translateY(10px); }

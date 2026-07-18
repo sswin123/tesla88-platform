@@ -1,9 +1,11 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMember } from '@/lib/contexts/MemberContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshProfile } = useMember();
   const [phone, setPhone]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
@@ -19,7 +21,13 @@ export default function LoginPage() {
       headers: { 'Content-Type': 'application/json' },
     });
     setLoading(false);
-    if (res.ok) { router.push('/'); return; }
+    if (res.ok) {
+      // Sync global auth state before soft navigation — ensures MemberZoneSection,
+      // MemberPanel, and ReferralCenter all show the logged-in view immediately.
+      await refreshProfile();
+      router.push('/');
+      return;
+    }
     const data = await res.json() as { error: string };
     setError(data.error ?? '登录失败，请重试');
   }
