@@ -252,19 +252,6 @@ export default function HandlePage() {
                 <span className="text-sm font-medium text-gray-500">Total Credit</span>
                 <span className="font-semibold text-emerald-600">RM {parseFloat(detail.credit_amount ?? '0').toFixed(2)}</span>
               </div>
-              {detail.receiving_bank_name ? (
-                <div className="border-t pt-2 space-y-1">
-                  <span className="text-xs text-gray-400 uppercase">Receiving Bank</span>
-                  <div className="text-sm font-medium">{detail.receiving_bank_name}</div>
-                  <div className="text-xs text-gray-500">{detail.receiving_bank_account_name}</div>
-                  <div className="font-mono text-sm">{detail.receiving_bank_account_number ?? '—'}</div>
-                </div>
-              ) : detail.payment_bank ? (
-                <div className="border-t pt-2">
-                  <span className="text-xs text-gray-400 uppercase">Bank</span>
-                  <div className="text-sm">{detail.payment_bank}</div>
-                </div>
-              ) : null}
             </div>
           ) : (
             <div className="space-y-2">
@@ -295,10 +282,29 @@ export default function HandlePage() {
         </div>
       </div>
 
-      {/* Receipt — deposit QR or withdrawal receipt */}
+      {/* Deposit Bank — company receiving account from Bank Manager */}
+      {isDeposit && (detail.receiving_bank_name || detail.payment_bank) && (
+        <div className="rounded-lg border bg-white p-4 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Deposit Bank</h2>
+          <div className="space-y-2">
+            {[
+              { label: 'Bank Name',       value: detail.receiving_bank_name   ?? detail.payment_bank ?? '—' },
+              { label: 'Account Name',    value: detail.receiving_bank_account_name   ?? '—' },
+              { label: 'Account Number',  value: detail.receiving_bank_account_number ?? '—' },
+            ].map(row => (
+              <div key={row.label} className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">{row.label}</span>
+                <span className="font-mono text-sm font-medium text-gray-900">{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Deposit QR code */}
       {isDeposit && detail.receiving_bank_qr_media_id && (
         <div className="rounded-lg border bg-white p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Bank QR Code</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Deposit QR Code</h2>
           <img
             src={`/api/public/media/${detail.receiving_bank_qr_media_id}`}
             alt="QR"
