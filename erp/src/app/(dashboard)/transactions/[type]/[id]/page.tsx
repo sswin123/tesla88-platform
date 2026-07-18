@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -50,11 +50,12 @@ interface HandleDetail {
 }
 
 const STATUS_CLASS: Record<string, string> = {
-  PENDING:    'bg-yellow-100 text-yellow-800 border-yellow-200',
-  PROCESSING: 'bg-blue-100 text-blue-800 border-blue-200',
-  APPROVED:   'bg-green-100 text-green-800 border-green-200',
-  PAID:       'bg-green-100 text-green-800 border-green-200',
-  REJECTED:   'bg-red-100 text-red-800 border-red-200',
+  PENDING:          'bg-yellow-100 text-yellow-800 border-yellow-200',
+  PROCESSING:       'bg-blue-100 text-blue-800 border-blue-200',
+  AWAITING_RECEIPT: 'bg-amber-100 text-amber-800 border-amber-200',
+  APPROVED:         'bg-green-100 text-green-800 border-green-200',
+  PAID:             'bg-green-100 text-green-800 border-green-200',
+  REJECTED:         'bg-red-100 text-red-800 border-red-200',
 };
 
 function timeAgo(iso: string) {
@@ -72,14 +73,14 @@ export default function HandlePage() {
   const { type, id } = params;
   const router = useRouter();
 
-  const [detail,      setDetail]      = useState<HandleDetail | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [meId,        setMeId]        = useState<number | null>(null);
-  const [acting,      setActing]      = useState(false);
-  const [rejectOpen,  setRejectOpen]  = useState(false);
-  const [error,       setError]       = useState('');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [uploading,   setUploading]   = useState(false);
+  const [detail,    setDetail]    = useState<HandleDetail | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [meId,      setMeId]      = useState<number | null>(null);
+  const [acting,    setActing]    = useState(false);
+  const [rejectOpen,setRejectOpen]= useState(false);
+  const [error,     setError]     = useState('');
+  const [uploading, setUploading] = useState(false);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDetail = useCallback(() => {
     setLoading(true);
@@ -128,19 +129,19 @@ export default function HandlePage() {
   }
 
   async function handleReceiptUpload(file: File) {
-    if (!detail) return;
     setUploading(true);
+    setError('');
     const form = new FormData();
     form.append('file', file);
     const res = await fetch(`/api/withdrawals/${id}/receipt`, { method: 'POST', body: form });
     const data = await res.json().catch(() => ({})) as { receipt_media_id?: number; error?: string };
-    if (res.ok && data.receipt_media_id) {
-      setDetail(prev => prev ? { ...prev, receipt_media_id: data.receipt_media_id } : prev);
+    if (res.ok) {
+      // Re-fetch full detail so status (AWAITING_RECEIPT → PAID) and balance are current
+      fetchDetail();
     } else {
       setError(data.error ?? 'Upload failed');
     }
     setUploading(false);
-    setReceiptFile(null);
   }
 
   if (loading) {
@@ -158,25 +159,26 @@ export default function HandlePage() {
     );
   }
 
-  const isDeposit    = detail.type === 'deposit';
-  const amount       = isDeposit ? detail.deposit_amount : detail.withdraw_amount;
-  const isFinal      = ['APPROVED', 'PAID', 'REJECTED'].includes(detail.status);
-  const isProcessing = detail.status === 'PROCESSING';
-  const isPending    = detail.status === 'PENDING';
-  const myLock       = detail.processing_by !== null && detail.processing_by === meId;
-  const otherLock    = detail.processing_by !== null && detail.processing_by !== meId;
+  const isDeposit         = detail.type === 'deposit';
+  const amount            = isDeposit ? detail.deposit_amount : detail.withdraw_amount;
+  const isAwaitingReceipt = detail.status === 'AWAITING_RECEIPT';
+  const isFinal           = ['APPROVED', 'PAID', 'REJECTED', 'AWAITING_RECEIPT'].includes(detail.status);
+  const isProcessing      = detail.status === 'PROCESSING';
+  const isPending         = detail.status === 'PENDING';
+  const myLock            = detail.processing_by !== null && detail.processing_by === meId;
+  const otherLock         = detail.processing_by !== null && detail.processing_by !== meId;
 
-  // Who can take action: either PENDING (no lock yet) or PROCESSING by me
-  const canAct = (isPending && !detail.processing_by) || (isProcessing && myLock);
-  // Process button shows when PENDING with no lock
-  const showProcess = isPending && !detail.processing_by;
-  // Approve/Reject buttons show when I have the lock (PROCESSING)
+  const showProcess      = isPending && !detail.processing_by;
   const showApproveReject = isProcessing && myLock;
 
-  // Turnover progress bar
   const turnoverRequired  = parseFloat(detail.active_turnover_required ?? '0');
   const turnoverCompleted = parseFloat(detail.active_turnover_completed ?? '0');
   const turnoverPct = turnoverRequired > 0 ? Math.min(100, (turnoverCompleted / turnoverRequired) * 100) : 0;
+
+  /* Receipt section helpers */
+  const showReceiptUpload = !isDeposit && (isAwaitingReceipt || detail.status === 'PAID');
+
+  void router; // suppress unused warning
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -194,7 +196,7 @@ export default function HandlePage() {
           <p className="text-sm text-gray-400 mt-0.5">{new Date(detail.created_at).toLocaleString()}</p>
         </div>
         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${STATUS_CLASS[detail.status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-          {detail.status}
+          {detail.status === 'AWAITING_RECEIPT' ? 'AWAITING RECEIPT' : detail.status}
         </span>
       </div>
 
@@ -313,39 +315,79 @@ export default function HandlePage() {
         </div>
       )}
 
-      {!isDeposit && (
-        <div className="rounded-lg border bg-white p-4">
+      {/* Payment Receipt (withdrawal only) */}
+      {showReceiptUpload && (
+        <div className={`rounded-lg border p-4 ${isAwaitingReceipt && !detail.receipt_media_id ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Payment Receipt</h2>
+
+          {/* Hidden file input — shared for upload and replace */}
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) { e.target.value = ''; void handleReceiptUpload(f); }
+            }}
+          />
+
           {detail.receipt_media_id ? (
-            <a
-              href={`/api/public/media/${detail.receipt_media_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline text-sm"
-            >
-              View Receipt ↗
-            </a>
-          ) : detail.status === 'PAID' ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-400">No receipt uploaded</span>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) { e.target.value = ''; void handleReceiptUpload(f); }
-                  }}
-                />
-                <Button size="sm" variant="outline" disabled={uploading}>
-                  {uploading ? 'Uploading…' : 'Upload Receipt'}
-                </Button>
-              </label>
+            /* Receipt uploaded — show view link + replace option */
+            <div className="flex items-center gap-3 flex-wrap">
+              <a
+                href={`/api/public/media/${detail.receipt_media_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-medium"
+              >
+                View Receipt ↗
+              </a>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={uploading}
+                onClick={() => receiptInputRef.current?.click()}
+              >
+                {uploading ? 'Uploading…' : 'Replace Receipt'}
+              </Button>
+            </div>
+          ) : isAwaitingReceipt ? (
+            /* Required — must upload to complete payment */
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-amber-700">
+                Upload receipt to complete payment
+              </span>
+              <Button
+                size="sm"
+                disabled={uploading}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={() => receiptInputRef.current?.click()}
+              >
+                {uploading ? 'Uploading…' : 'Upload Receipt'}
+              </Button>
             </div>
           ) : (
-            <span className="text-sm text-gray-400">Receipt will be available after approval</span>
+            /* PAID but no receipt — optional replacement */
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400">No receipt uploaded</span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={uploading}
+                onClick={() => receiptInputRef.current?.click()}
+              >
+                {uploading ? 'Uploading…' : 'Upload Receipt'}
+              </Button>
+            </div>
           )}
+        </div>
+      )}
+
+      {!isDeposit && !showReceiptUpload && (
+        <div className="rounded-lg border bg-white p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Payment Receipt</h2>
+          <span className="text-sm text-gray-400">Receipt will be available after approval</span>
         </div>
       )}
 
@@ -404,7 +446,7 @@ export default function HandlePage() {
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Action buttons — hidden once AWAITING_RECEIPT/PAID/APPROVED/REJECTED */}
       {!isFinal && (
         <div className="flex items-center gap-3">
           {showProcess && (

@@ -303,5 +303,54 @@ export async function POST() {
     ok('066_fix_withdrawal_trigger');
   } catch (e) { err('066_fix_withdrawal_trigger', e); }
 
+  // ── Migration 067: Withdrawal AWAITING_RECEIPT status + paid_at column ──────
+  try {
+    await pool.query(`ALTER TABLE withdrawal_requests ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ`);
+    ok('067a_withdrawal_paid_at_col');
+  } catch (e) { err('067a_withdrawal_paid_at_col', e); }
+
+  try {
+    // Drop old status CHECK constraints and add AWAITING_RECEIPT
+    await pool.query(`
+      DO $$
+      DECLARE r RECORD;
+      BEGIN
+        FOR r IN SELECT conname FROM pg_constraint
+          WHERE conrelid = 'withdrawal_requests'::regclass AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%PENDING%'
+        LOOP EXECUTE format('ALTER TABLE withdrawal_requests DROP CONSTRAINT %I', r.conname); END LOOP;
+      END $$`);
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE withdrawal_requests ADD CONSTRAINT withdrawal_requests_status_check
+          CHECK (status IN ('PENDING','PROCESSING','AWAITING_RECEIPT','PAID','REJECTED'));
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$`);
+    ok('067b_withdrawal_awaiting_receipt_status');
+  } catch (e) { err('067b_withdrawal_awaiting_receipt_status', e); }
+
+  try {
+    // Update trigger to handle AWAITING_RECEIPT → PAID (release pending_withdrawal lock)
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION trg_fn_withdrawal_pending()
+      RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF TG_OP = 'INSERT' AND NEW.status = 'PENDING' THEN
+          UPDATE users SET pending_withdrawal = pending_withdrawal + NEW.withdraw_amount WHERE id = NEW.user_id;
+          RETURN NEW;
+        END IF;
+        IF TG_OP = 'UPDATE'
+           AND OLD.status IN ('PENDING', 'PROCESSING', 'AWAITING_RECEIPT')
+           AND NEW.status IN ('PAID', 'REJECTED') THEN
+          UPDATE users SET pending_withdrawal = GREATEST(0, pending_withdrawal - OLD.withdraw_amount) WHERE id = NEW.user_id;
+          RETURN NEW;
+        END IF;
+        RETURN NEW;
+      END;
+      $$`);
+    ok('067c_withdrawal_trigger_awaiting_receipt');
+  } catch (e) { err('067c_withdrawal_trigger_awaiting_receipt', e); }
+
   return NextResponse.json({ ok: true, results });
 }

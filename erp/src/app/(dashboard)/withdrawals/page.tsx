@@ -14,9 +14,10 @@ import RejectModal from '@/components/RejectModal';
 import type { WithdrawalRow, PaginatedResponse } from '@/lib/types';
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
-  PAID:     'default',
-  PENDING:  'secondary',
-  REJECTED: 'destructive',
+  PAID:             'default',
+  AWAITING_RECEIPT: 'secondary',
+  PENDING:          'secondary',
+  REJECTED:         'destructive',
 };
 
 // ── Receipt Upload Cell ────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ function ReceiptCell({ row, onUploaded }: { row: WithdrawalRow; onUploaded: (id:
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (row.status !== 'PAID') return <span className="text-xs text-gray-300">—</span>;
+  if (row.status !== 'PAID' && row.status !== 'AWAITING_RECEIPT') return <span className="text-xs text-gray-300">—</span>;
 
   if (row.receipt_media_id) {
     return (
@@ -111,14 +112,16 @@ export default function WithdrawalsPage() {
     load();
   }
 
-  // Optimistic receipt update — avoids full reload after upload
+  // Optimistic receipt update — also flips AWAITING_RECEIPT → PAID
   function handleReceiptUploaded(withdrawalId: number, mediaId: number) {
     setData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         data: prev.data.map(w =>
-          w.id === withdrawalId ? { ...w, receipt_media_id: mediaId } : w
+          w.id === withdrawalId
+            ? { ...w, receipt_media_id: mediaId, status: w.status === 'AWAITING_RECEIPT' ? 'PAID' : w.status }
+            : w
         ),
       };
     });
@@ -141,6 +144,7 @@ export default function WithdrawalsPage() {
         <SelectContent>
           <SelectItem value="ALL">All Status</SelectItem>
           <SelectItem value="PENDING">Pending</SelectItem>
+          <SelectItem value="AWAITING_RECEIPT">Awaiting Receipt</SelectItem>
           <SelectItem value="PAID">Paid</SelectItem>
           <SelectItem value="REJECTED">Rejected</SelectItem>
         </SelectContent>
