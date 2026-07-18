@@ -165,8 +165,8 @@ export default function HandlePage() {
   const isFinal           = ['APPROVED', 'PAID', 'REJECTED', 'AWAITING_RECEIPT'].includes(detail.status);
   const isProcessing      = detail.status === 'PROCESSING';
   const isPending         = detail.status === 'PENDING';
-  const myLock            = detail.processing_by !== null && detail.processing_by === meId;
-  const otherLock         = detail.processing_by !== null && detail.processing_by !== meId;
+  const myLock            = detail.processing_by !== null && meId !== null && Number(detail.processing_by) === Number(meId);
+  const otherLock         = detail.processing_by !== null && (meId === null || Number(detail.processing_by) !== Number(meId));
 
   const showProcess      = isPending && !detail.processing_by;
   const showApproveReject = isProcessing && myLock;

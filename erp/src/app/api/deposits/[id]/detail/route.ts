@@ -37,7 +37,7 @@ export async function GET(
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
      LEFT JOIN payment_banks pb ON pb.id = COALESCE(
-       dr.receiving_bank_id,
+       (SELECT id FROM payment_banks WHERE id = dr.receiving_bank_id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name = dr.payment_bank ORDER BY id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name ILIKE dr.payment_bank ORDER BY id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name ILIKE '%' || dr.payment_bank || '%' ORDER BY id LIMIT 1)

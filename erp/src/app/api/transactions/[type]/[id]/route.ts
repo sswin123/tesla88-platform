@@ -33,7 +33,9 @@ export async function GET(
 
 async function handleDeposit(id: number) {
   const queries = [
-    // With processing columns (migration 065)
+    // Level 1: Full query — processing columns (migration 065) + bank lookup
+    // COALESCE: verify receiving_bank_id actually exists in payment_banks before using it,
+    // so stale IDs don't block the text-based fallback subqueries.
     `SELECT
        dr.id, 'deposit'::text AS type, dr.user_id,
        dr.deposit_amount, dr.bonus_amount, dr.credit_amount, dr.payment_bank,
@@ -51,14 +53,36 @@ async function handleDeposit(id: number) {
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
      LEFT JOIN payment_banks pb ON pb.id = COALESCE(
-       dr.receiving_bank_id,
+       (SELECT id FROM payment_banks WHERE id = dr.receiving_bank_id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name = dr.payment_bank ORDER BY id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name ILIKE dr.payment_bank ORDER BY id LIMIT 1),
        (SELECT id FROM payment_banks WHERE bank_name ILIKE '%' || dr.payment_bank || '%' ORDER BY id LIMIT 1)
      )
      LEFT JOIN admins a ON a.id = dr.processing_by
      WHERE dr.id = $1`,
-    // Fallback (no processing columns / no receiving bank columns)
+
+    // Level 2: Processing columns present (migration 065) but bank columns missing
+    // Ensures processing_by is always returned even when receiving_bank_id column doesn't exist.
+    `SELECT
+       dr.id, 'deposit'::text AS type, dr.user_id,
+       dr.deposit_amount, dr.bonus_amount, dr.credit_amount, dr.payment_bank,
+       dr.status, dr.reject_reason, dr.created_at, dr.reviewed_at,
+       dr.processing_by, dr.processing_at, dr.approved_by, dr.approved_at, dr.rejected_by, dr.rejected_at,
+       u.first_name, u.phone, u.public_id, u.available_balance,
+       p.name AS promo_name,
+       NULL::int  AS receiving_bank_id,
+       NULL::text AS receiving_bank_name,
+       NULL::text AS receiving_bank_account_name,
+       NULL::text AS receiving_bank_account_number,
+       NULL::int  AS receiving_bank_qr_media_id,
+       a.erp_username AS processing_by_name
+     FROM deposit_requests dr
+     JOIN users u ON u.id = dr.user_id
+     LEFT JOIN promotions p ON p.id = dr.promotion_id
+     LEFT JOIN admins a ON a.id = dr.processing_by
+     WHERE dr.id = $1`,
+
+    // Level 3: Minimal fallback — no processing columns (pre-migration 065)
     `SELECT
        dr.id, 'deposit'::text AS type, dr.user_id,
        dr.deposit_amount, dr.bonus_amount, dr.credit_amount, dr.payment_bank,
@@ -97,7 +121,7 @@ async function handleDeposit(id: number) {
 
 async function handleWithdrawal(id: number) {
   const queries = [
-    // With processing columns + turnover (migration 065)
+    // Level 1: Full query — processing columns + turnover (migration 065)
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
@@ -119,7 +143,25 @@ async function handleWithdrawal(id: number) {
        LIMIT 1
      ) bc ON true
      WHERE wr.id = $1`,
-    // Fallback (no processing columns)
+
+    // Level 2: Processing columns present but no available_balance (pre-migration 063)
+    `SELECT
+       wr.id, 'withdrawal'::text AS type, wr.user_id,
+       wr.withdraw_amount, wr.provider, wr.game_username,
+       wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
+       wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
+       wr.processing_by, wr.processing_at, wr.approved_by, wr.approved_at, wr.rejected_by, wr.rejected_at,
+       u.first_name, u.phone, u.public_id,
+       (u.total_deposit - u.total_withdraw) AS available_balance,
+       a.erp_username AS processing_by_name,
+       NULL::numeric AS active_turnover_required,
+       NULL::numeric AS active_turnover_completed
+     FROM withdrawal_requests wr
+     JOIN users u ON u.id = wr.user_id
+     LEFT JOIN admins a ON a.id = wr.processing_by
+     WHERE wr.id = $1`,
+
+    // Level 3: Minimal fallback — no processing columns (pre-migration 065)
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
@@ -128,7 +170,8 @@ async function handleWithdrawal(id: number) {
        NULL::int AS processing_by, NULL::timestamptz AS processing_at,
        NULL::int AS approved_by, NULL::timestamptz AS approved_at,
        NULL::int AS rejected_by, NULL::timestamptz AS rejected_at,
-       u.first_name, u.phone, u.public_id, u.available_balance,
+       u.first_name, u.phone, u.public_id,
+       (u.total_deposit - u.total_withdraw) AS available_balance,
        NULL::text AS processing_by_name,
        NULL::numeric AS active_turnover_required,
        NULL::numeric AS active_turnover_completed
