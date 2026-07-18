@@ -110,69 +110,6 @@ function Toast({ msg, type }: ToastState) {
   );
 }
 
-// ── Login Dialog ──────────────────────────────────────────────────────────────
-
-function LoginDialog({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        zIndex: 9998,
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        padding: '0 16px 20px',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 20,
-          width: '100%',
-          maxWidth: 360,
-          padding: '24px 20px',
-          animation: 'rc_slideUp 0.2s ease',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 38, marginBottom: 10 }}>🔐</div>
-          <p style={{ fontWeight: 700, fontSize: 16, color: '#111827', margin: '0 0 6px' }}>
-            Login Required
-          </p>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
-            Please login to copy your referral link.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onClose}
-            style={{
-              flex: 1, padding: '11px 0', borderRadius: 12,
-              border: '1px solid #e5e7eb', fontSize: 14,
-              color: '#6b7280', background: '#fff',
-              cursor: 'pointer', fontWeight: 500,
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => { if (isBrowser) window.location.href = '/login'; }}
-            style={{
-              flex: 1, padding: '11px 0', borderRadius: 12,
-              border: 'none', fontSize: 14,
-              color: '#fff', background: 'var(--brand-primary)',
-              cursor: 'pointer', fontWeight: 700,
-            }}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Banner ─────────────────────────────────────────────────────────────────────
 
 function BannerMedia({ url, type, alt = '' }: { url: string; type: string; alt?: string }) {
@@ -337,10 +274,9 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
   const profileRef = useRef<MemberProfile | null>(profile);
   useEffect(() => { profileRef.current = profile; }, [profile]);
 
-  const [copiedId,     setCopiedId]     = useState('');
-  const [clickedId,    setClickedId]    = useState('');
-  const [toast,        setToast]        = useState<ToastState | null>(null);
-  const [showLoginDlg, setShowLoginDlg] = useState(false);
+  const [copiedId,  setCopiedId]  = useState('');
+  const [clickedId, setClickedId] = useState('');
+  const [toast,     setToast]     = useState<ToastState | null>(null);
 
   const hasImage = !!(config.banner_desktop_media_url);
 
@@ -380,7 +316,7 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
       // ── Share ──────────────────────────────────────────────────────────────
       case 'share': {
         if (!currentProfile) {
-          setShowLoginDlg(true);
+          if (isBrowser) window.location.href = '/login';
           return;
         }
         const shareUrl = referralUrl ?? (isBrowser ? window.location.href : '');
@@ -411,7 +347,7 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
       // ── Copy referral link ─────────────────────────────────────────────────
       case 'copy_referral_link': {
         if (!currentProfile) {
-          setShowLoginDlg(true);
+          if (isBrowser) window.location.href = '/login';
           return;
         }
         const copyUrl = referralUrl ?? (isBrowser ? window.location.href : '');
@@ -480,10 +416,6 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
           from { opacity: 0; transform: translateX(-50%) translateY(10px); }
           to   { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
-        @keyframes rc_slideUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
         @keyframes rc_btnFlash {
           0%   { filter: brightness(1.5); }
           100% { filter: brightness(1); }
@@ -524,9 +456,6 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
 
       {/* Toast notification */}
       {toast && <Toast msg={toast.msg} type={toast.type} />}
-
-      {/* Login required dialog */}
-      {showLoginDlg && <LoginDialog onClose={() => setShowLoginDlg(false)} />}
     </>
   );
 }
