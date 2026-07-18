@@ -26,7 +26,7 @@ export async function POST(
        FROM withdrawal_requests wr
        LEFT JOIN admins a ON a.id = wr.processing_by
        WHERE wr.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF wr`,
       [requestId]
     );
 

@@ -27,7 +27,7 @@ export async function POST(
        FROM deposit_requests dr
        LEFT JOIN admins a ON a.id = dr.processing_by
        WHERE dr.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF dr`,
       [requestId]
     );
 
