@@ -69,14 +69,14 @@ export async function GET(
     ),
     // Last approved deposit
     pool.query<{ deposit_amount: string; created_at: string }>(
-      `SELECT deposit_amount, created_at FROM deposits
+      `SELECT deposit_amount, created_at FROM deposit_requests
        WHERE user_id = $1 AND status = 'APPROVED'
        ORDER BY created_at DESC LIMIT 1`,
       [uid],
     ),
     // Last paid withdrawal
     pool.query<{ withdraw_amount: string; created_at: string }>(
-      `SELECT withdraw_amount, created_at FROM withdrawals
+      `SELECT withdraw_amount, created_at FROM withdrawal_requests
        WHERE user_id = $1 AND status IN ('PAID','APPROVED')
        ORDER BY created_at DESC LIMIT 1`,
       [uid],
