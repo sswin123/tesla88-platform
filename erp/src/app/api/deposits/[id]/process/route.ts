@@ -71,7 +71,16 @@ export async function POST(
     return NextResponse.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    throw err;
+    const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : undefined;
+    if (code === '42703') {
+      return NextResponse.json({ error: 'Database migration 065 not applied. Run migrations first.' }, { status: 500 });
+    }
+    if (code === '23514') {
+      return NextResponse.json({ error: 'PROCESSING status not allowed by database constraint. Run migrations first.' }, { status: 500 });
+    }
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    console.error('[deposits/process]', err);
+    return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     client.release();
   }
