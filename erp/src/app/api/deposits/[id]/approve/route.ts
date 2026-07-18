@@ -23,9 +23,9 @@ export async function POST(
   try {
     await client.query('BEGIN');
 
-    // Check exists and is PENDING (matches bot's SELECT before approve)
+    // Accept both PENDING and PROCESSING (multi-CS workflow)
     const { rows } = await client.query(
-      "SELECT * FROM deposit_requests WHERE id = $1 AND status = 'PENDING'",
+      "SELECT * FROM deposit_requests WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')",
       [requestId]
     );
     if (!rows[0]) {
@@ -38,10 +38,10 @@ export async function POST(
 
     const req = rows[0];
 
-    // Identical to bot's deposit_repo.py::approve_deposit UPDATE
     await client.query(
       `UPDATE deposit_requests
-       SET status = 'APPROVED', reviewed_by = $2, admin_note = $3, reviewed_at = NOW()
+       SET status = 'APPROVED', reviewed_by = $2, admin_note = $3, reviewed_at = NOW(),
+           approved_by = $2, approved_at = NOW()
        WHERE id = $1`,
       [requestId, adminId, null]
     );

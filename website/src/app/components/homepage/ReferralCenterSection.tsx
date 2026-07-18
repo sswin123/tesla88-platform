@@ -6,17 +6,20 @@ import { isBrowser } from '@/lib/is-browser';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ReferralButton {
-  id:           string;
-  enabled:      boolean;
-  sort_order:   number;
-  text:         string;
-  icon:         string;
-  bg_color:     string;
-  text_color:   string;
-  border_color: string;
-  action_type:  string;
-  url:          string;
-  open_target:  string;
+  id:              string;
+  enabled:         boolean;
+  sort_order:      number;
+  text:            string;
+  icon:            string;
+  button_mode?:    'text' | 'image' | 'gif';
+  image_media_id?: number | null;
+  image_media_url?: string;
+  bg_color:        string;
+  text_color:      string;
+  border_color:    string;
+  action_type:     string;
+  url:             string;
+  open_target:     string;
 }
 
 interface ReferralCenterConfig {
@@ -46,10 +49,10 @@ interface ReferralCenterConfig {
 // ── Default buttons (used when config.buttons is absent / empty) ───────────────
 
 const LEGACY_BUTTONS: ReferralButton[] = [
-  { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', bg_color: '', text_color: '', border_color: '', action_type: 'share',             url: '',                open_target: 'self' },
-  { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/profile/invite', open_target: 'self' },
-  { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', bg_color: '', text_color: '', border_color: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
-  { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
+  { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'share',             url: '',                open_target: 'self' },
+  { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_downline',     url: '',                open_target: 'self' },
+  { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
+  { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', button_mode: 'text', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
 ];
 
 // ── Banner ─────────────────────────────────────────────────────────────────────
@@ -155,6 +158,28 @@ function ActionButton({
   onAction: (btn: ReferralButton) => void;
   isCopied: boolean;
 }) {
+  const mode = btn.button_mode ?? 'text';
+
+  // Image / GIF mode: render image directly, no styled wrapper
+  if ((mode === 'image' || mode === 'gif') && btn.image_media_url) {
+    return (
+      <button
+        onClick={() => onAction(btn)}
+        className="w-full block transition-all hover:opacity-80 active:scale-95"
+        style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+        aria-label={btn.text}
+      >
+        <img
+          src={btn.image_media_url}
+          alt={btn.text}
+          className="w-full h-auto block max-w-full"
+          style={{ display: 'block', borderRadius: config.button_border_radius ? `${config.button_border_radius}px` : 0 }}
+        />
+      </button>
+    );
+  }
+
+  // Text mode (default)
   const radius = config.button_border_radius ? `${config.button_border_radius}px` : '12px';
   const hasBgImg = !!(btn as ReferralButton & { bg_media_url?: string }).bg_media_url;
   const bgImgUrl = hasBgImg ? (btn as ReferralButton & { bg_media_url: string }).bg_media_url : '';
@@ -250,9 +275,24 @@ export default function ReferralCenterSection({ config }: { config: ReferralCent
         if (isBrowser) window.open('/deposit', target);
         break;
 
+      case 'open_downline':
+        if (isBrowser) window.open('/profile/invite', target);
+        break;
+
+      case 'open_external_url':
+        if (btn.url && isBrowser) window.open(btn.url, '_blank', 'noopener,noreferrer');
+        break;
+
       case 'telegram':
       case 'whatsapp':
         if (btn.url && isBrowser) window.open(btn.url, '_blank', 'noopener,noreferrer');
+        break;
+
+      case 'open_popup':
+        if (btn.url && isBrowser) window.open(btn.url, '_blank', 'noopener,noreferrer,width=480,height=640');
+        break;
+
+      case 'none':
         break;
 
       case 'open_url':

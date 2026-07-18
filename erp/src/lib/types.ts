@@ -153,7 +153,7 @@ export interface DepositRow {
   bonus_amount: string;
   credit_amount: string;
   payment_bank: string;            // legacy text field (kept for backward compat)
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED';
   reject_reason: string | null;
   created_at: string;
   reviewed_at: string | null;
@@ -166,6 +166,13 @@ export interface DepositRow {
   receiving_bank_name: string | null;
   receiving_bank_account_name: string | null;
   receiving_bank_account_number: string | null;
+  // Multi-CS workflow (migration 065)
+  processing_by: number | null;
+  processing_at: string | null;
+  approved_by: number | null;
+  approved_at: string | null;
+  rejected_by: number | null;
+  rejected_at: string | null;
 }
 
 export interface DepositDetail {
@@ -198,13 +205,37 @@ export interface WithdrawalRow {
   bank_name: string;
   bank_account: string;
   bank_holder_name: string;
-  status: 'PENDING' | 'PAID' | 'REJECTED';
+  status: 'PENDING' | 'PROCESSING' | 'PAID' | 'REJECTED';
   reject_reason: string | null;
   receipt_media_id: number | null;
   created_at: string;
   reviewed_at: string | null;
   first_name: string;
   phone: string;
+  public_id: string | null;
+  // Multi-CS workflow (migration 065)
+  processing_by: number | null;
+  processing_at: string | null;
+  approved_by: number | null;
+  approved_at: string | null;
+  rejected_by: number | null;
+  rejected_at: string | null;
+}
+
+export interface TransactionRow {
+  id: number;
+  type: 'deposit' | 'withdrawal';
+  user_id: number;
+  first_name: string;
+  phone: string;
+  public_id: string | null;
+  amount: string;
+  status: string;
+  reject_reason: string | null;
+  processing_by: number | null;
+  processing_by_name: string | null;
+  processing_at: string | null;
+  created_at: string;
 }
 
 export interface DashboardStats {

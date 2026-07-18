@@ -22,8 +22,9 @@ export async function POST(
   const rejId = parseInt(id, 10);
   const { rows } = await pool.query(
     `UPDATE deposit_requests
-     SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW()
-     WHERE id = $1 AND status = 'PENDING'
+     SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
+         rejected_by = $2, rejected_at = NOW()
+     WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
      RETURNING id`,
     [rejId, adminId, reason || null]
   );

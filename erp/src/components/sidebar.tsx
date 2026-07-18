@@ -52,8 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/',            label: 'Dashboard',   icon: LayoutDashboard, exact: true, permission: 'dashboard.view' },
       { href: '/members',     label: 'Members',     icon: Users,           permission: 'members.view' },
-      { href: '/deposits',    label: 'Deposits',    icon: ArrowDownToLine, permission: 'deposit.view' },
-      { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, permission: 'withdraw.view' },
+      { href: '/transactions', label: 'Transactions', icon: CreditCard, permission: 'deposit.view' },
       { href: '/livechat',    label: 'Live Chat',   icon: MessageSquare,   permission: 'livechat.view' },
       { href: '/livechat/quick-replies', label: 'Quick Replies', icon: Zap, permission: 'livechat.view' },
     ],
@@ -186,9 +185,9 @@ export function Sidebar() {
     if (pathname.startsWith('/livechat')) setLivechatUnread(0);
   }, [pathname]);
 
-  // Auto-reset deposit badge when user navigates to /deposits
+  // Auto-reset deposit badge when user navigates to /transactions
   useEffect(() => {
-    if (pathname.startsWith('/deposits')) {
+    if (pathname.startsWith('/transactions')) {
       setDepositsUnread(0);
       fetch('/api/deposits/unread', { method: 'POST' }).catch(() => {});
     }
@@ -305,7 +304,7 @@ export function Sidebar() {
                     {livechatUnread > 99 ? '99+' : livechatUnread}
                   </span>
                 )}
-                {href === '/deposits' && depositsUnread > 0 && (
+                {href === '/transactions' && depositsUnread > 0 && (
                   <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {depositsUnread > 99 ? '99+' : depositsUnread}
                   </span>

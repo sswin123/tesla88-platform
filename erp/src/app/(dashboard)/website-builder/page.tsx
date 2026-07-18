@@ -299,10 +299,10 @@ const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
     banner_link_url: '', banner_link_target: 'self',
     // ── Quick Actions ──────────────────────────────────────────────────────────
     buttons: [
-      { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', bg_media_id: null, bg_media_url: '', action_type: 'share',             url: '',                open_target: 'self' },
-      { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', bg_media_id: null, bg_media_url: '', action_type: 'open_url',          url: '/profile/invite', open_target: 'self' },
-      { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', bg_media_id: null, bg_media_url: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
-      { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', bg_media_id: null, bg_media_url: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
+      { id: 'share',    enabled: true, sort_order: 0, text: 'Share',      icon: '📤', button_mode: 'text', image_media_id: null, image_media_url: '', bg_media_id: null, bg_media_url: '', bg_color: '', text_color: '', border_color: '', action_type: 'share',             url: '',                open_target: 'self' },
+      { id: 'downline', enabled: true, sort_order: 1, text: 'Downline',   icon: '👥', button_mode: 'text', image_media_id: null, image_media_url: '', bg_media_id: null, bg_media_url: '', bg_color: '', text_color: '', border_color: '', action_type: 'open_downline',     url: '',                open_target: 'self' },
+      { id: 'copy',     enabled: true, sort_order: 2, text: 'Copy Link',  icon: '🔗', button_mode: 'text', image_media_id: null, image_media_url: '', bg_media_id: null, bg_media_url: '', bg_color: '', text_color: '', border_color: '', action_type: 'copy_referral_link', url: '',               open_target: 'self' },
+      { id: 'info',     enabled: true, sort_order: 3, text: 'More Info',  icon: 'ℹ️', button_mode: 'text', image_media_id: null, image_media_url: '', bg_media_id: null, bg_media_url: '', bg_color: '', text_color: '', border_color: '', action_type: 'open_url',          url: '/promotions',     open_target: 'self' },
     ],
     // ── Style ──────────────────────────────────────────────────────────────────
     button_layout: '2x2', button_border_radius: '12', button_padding: '12',
@@ -3085,12 +3085,16 @@ function TelegramJoinEditor({ config, onChange }: { config: Record<string, unkno
 type RcButton = {
   id: string; enabled: boolean; sort_order: number;
   text: string; icon: string;
+  button_mode: 'text' | 'image' | 'gif';
+  image_media_id: number | null; image_media_url: string;
   bg_media_id: number | null; bg_media_url: string;
+  bg_color: string; text_color: string; border_color: string;
   action_type: string; url: string; open_target: string;
 };
 
 type RcPickerTarget =
   | { section: 'banner'; field: 'desktop' | 'tablet' | 'mobile' }
+  | { section: 'button-image'; buttonId: string }
   | { section: 'button'; buttonId: string };
 
 function ReferralCenterEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
@@ -3115,6 +3119,12 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
         [`banner_${f}_media_id`]:   m.id,
         [`banner_${f}_media_url`]:  `/api/public/media/${m.id}`,
         [`banner_${f}_media_type`]: m.mediaType ?? 'IMAGE',
+      });
+    } else if (pickerTarget.section === 'button-image') {
+      updBtn(pickerTarget.buttonId, {
+        image_media_id:  m.id,
+        image_media_url: `/api/public/media/${m.id}`,
+        button_mode: m.mediaType === 'GIF' ? 'gif' : 'image',
       });
     } else {
       updBtn(pickerTarget.buttonId, {
@@ -3244,50 +3254,122 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
             </label>
           </div>
 
-          {/* Title + Icon */}
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">标题</span>
-              <input className={inp} value={btn.text}
-                onChange={e => updBtn(btn.id, { text: e.target.value })} />
-            </label>
-            <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">图标（Emoji / SVG URL）</span>
-              <input className={inp} placeholder="📤" value={btn.icon}
-                onChange={e => updBtn(btn.id, { icon: e.target.value })} />
-            </label>
+              {/* Button Mode */}
+          <div>
+            <span className="text-xs text-gray-500 mb-1 block">Button Mode</span>
+            <div className="flex gap-2">
+              {(['text', 'image', 'gif'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => updBtn(btn.id, { button_mode: m })}
+                  className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
+                    (btn.button_mode ?? 'text') === m
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {m === 'text' ? '📝 Text' : m === 'image' ? '🖼 Image' : '🎞 GIF'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Background Image */}
-          <div>
-            <span className="text-xs text-gray-500 mb-1 block">背景图片（可选，覆盖背景色）</span>
-            <MediaThumb
-              url={btn.bg_media_url ?? ''}
-              onPick={() => setPickerTarget({ section: 'button', buttonId: btn.id })}
-              onClear={() => updBtn(btn.id, { bg_media_id: null, bg_media_url: '' })}
-            />
-          </div>
+          {/* Image / GIF mode: button IS the image */}
+          {(btn.button_mode === 'image' || btn.button_mode === 'gif') && (
+            <div>
+              <span className="text-xs text-gray-500 mb-1 block">
+                {btn.button_mode === 'gif' ? 'GIF Button Image' : 'Button Image (PNG/JPG/WEBP)'}
+              </span>
+              <MediaThumb
+                url={btn.image_media_url ?? ''}
+                onPick={() => setPickerTarget({ section: 'button-image', buttonId: btn.id })}
+                onClear={() => updBtn(btn.id, { image_media_id: null, image_media_url: '', button_mode: 'text' })}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">图片将完整显示为按钮，不添加任何样式包装</p>
+            </div>
+          )}
+
+          {/* Text mode fields */}
+          {(btn.button_mode ?? 'text') === 'text' && (<>
+            {/* Title + Icon */}
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-xs text-gray-500 mb-1 block">标题</span>
+                <input className={inp} value={btn.text}
+                  onChange={e => updBtn(btn.id, { text: e.target.value })} />
+              </label>
+              <label className="block">
+                <span className="text-xs text-gray-500 mb-1 block">图标（Emoji）</span>
+                <input className={inp} placeholder="📤" value={btn.icon}
+                  onChange={e => updBtn(btn.id, { icon: e.target.value })} />
+              </label>
+            </div>
+
+            {/* Colors */}
+            <div className="grid grid-cols-3 gap-2">
+              <label className="block">
+                <span className="text-xs text-gray-500 mb-1 block">背景色</span>
+                <div className="flex gap-1">
+                  <input type="color" className="h-9 w-9 rounded border border-gray-200 cursor-pointer p-0.5"
+                    value={btn.bg_color || '#4F46E5'}
+                    onChange={e => updBtn(btn.id, { bg_color: e.target.value })} />
+                  <input className={`${inp} flex-1`} placeholder="留空用品牌色" value={btn.bg_color}
+                    onChange={e => updBtn(btn.id, { bg_color: e.target.value })} />
+                </div>
+              </label>
+              <label className="block">
+                <span className="text-xs text-gray-500 mb-1 block">文字色</span>
+                <div className="flex gap-1">
+                  <input type="color" className="h-9 w-9 rounded border border-gray-200 cursor-pointer p-0.5"
+                    value={btn.text_color || '#ffffff'}
+                    onChange={e => updBtn(btn.id, { text_color: e.target.value })} />
+                  <input className={`${inp} flex-1`} placeholder="#ffffff" value={btn.text_color}
+                    onChange={e => updBtn(btn.id, { text_color: e.target.value })} />
+                </div>
+              </label>
+              <label className="block">
+                <span className="text-xs text-gray-500 mb-1 block">边框色</span>
+                <input className={inp} placeholder="留空无边框" value={btn.border_color ?? ''}
+                  onChange={e => updBtn(btn.id, { border_color: e.target.value })} />
+              </label>
+            </div>
+
+            {/* Background Image (behind text) */}
+            <div>
+              <span className="text-xs text-gray-500 mb-1 block">背景图片（可选，覆盖背景色）</span>
+              <MediaThumb
+                url={btn.bg_media_url ?? ''}
+                onPick={() => setPickerTarget({ section: 'button', buttonId: btn.id })}
+                onClear={() => updBtn(btn.id, { bg_media_id: null, bg_media_url: '' })}
+              />
+            </div>
+          </>)}
 
           {/* Action Type */}
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">Action Type</span>
+            <span className="text-xs text-gray-500 mb-1 block">Action</span>
             <select className={sel} value={btn.action_type}
               onChange={e => updBtn(btn.id, { action_type: e.target.value })}>
               <option value="share">Share（分享）</option>
               <option value="copy_referral_link">Copy Referral Link（复制推荐链接）</option>
               <option value="copy_link">Copy Link（复制自定义链接）</option>
+              <option value="open_downline">Open Downline（下线列表）</option>
               <option value="open_url">Open URL（打开链接）</option>
+              <option value="open_external_url">Open External URL（新标签外链）</option>
               <option value="register">Register（注册页）</option>
               <option value="deposit">Deposit（存款页）</option>
-              <option value="telegram">Telegram</option>
-              <option value="whatsapp">WhatsApp</option>
+              <option value="telegram">Open Telegram</option>
+              <option value="whatsapp">Open WhatsApp</option>
+              <option value="open_popup">Open Popup</option>
+              <option value="none">None（无操作）</option>
             </select>
           </label>
 
           {/* URL (shown for relevant action types) */}
-          {['open_url', 'copy_link', 'telegram', 'whatsapp'].includes(btn.action_type) && (
+          {['open_url', 'open_external_url', 'copy_link', 'telegram', 'whatsapp', 'open_popup'].includes(btn.action_type) && (
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">URL</span>
+              <span className="text-xs text-gray-500 mb-1 block">URL / 内容</span>
               <input className={inp} placeholder="/路径 或 https://" value={btn.url}
                 onChange={e => updBtn(btn.id, { url: e.target.value })} />
             </label>

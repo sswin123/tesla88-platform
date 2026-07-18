@@ -32,7 +32,7 @@ export async function POST(
               u.available_balance
        FROM withdrawal_requests wr
        JOIN users u ON u.id = wr.user_id
-       WHERE wr.id = $1 AND wr.status = 'PENDING'`,
+       WHERE wr.id = $1 AND wr.status IN ('PENDING', 'PROCESSING')`,
       [requestId]
     );
     if (!rows[0]) {
@@ -50,7 +50,8 @@ export async function POST(
     /* Mark as PAID — DB trigger automatically decrements users.pending_withdrawal */
     await client.query(
       `UPDATE withdrawal_requests
-       SET status = 'PAID', reviewed_by = $2, admin_note = $3, reviewed_at = NOW()
+       SET status = 'PAID', reviewed_by = $2, admin_note = $3, reviewed_at = NOW(),
+           approved_by = $2, approved_at = NOW()
        WHERE id = $1`,
       [requestId, adminId, null]
     );
