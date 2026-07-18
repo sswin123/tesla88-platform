@@ -200,6 +200,7 @@ export interface WithdrawalRow {
   bank_holder_name: string;
   status: 'PENDING' | 'PAID' | 'REJECTED';
   reject_reason: string | null;
+  receipt_media_id: number | null;
   created_at: string;
   reviewed_at: string | null;
   first_name: string;

@@ -215,5 +215,13 @@ export async function POST() {
     ok('063e_backfill_pending');
   } catch (e) { err('063e_backfill_pending', e); }
 
+  // ── Migration 064: Withdrawal receipt + reject_reason ─────────────────────
+  try {
+    await pool.query(`
+      ALTER TABLE withdrawal_requests
+        ADD COLUMN IF NOT EXISTS receipt_media_id INTEGER REFERENCES media_library(id) ON DELETE SET NULL`);
+    ok('064_withdrawal_receipt');
+  } catch (e) { err('064_withdrawal_receipt', e); }
+
   return NextResponse.json({ ok: true, results });
 }

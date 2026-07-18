@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import type { MemberProfile } from '@/lib/types';
+import { useMember } from '@/lib/contexts/MemberContext';
 import WithdrawSummary from './WithdrawSummary';
 
 type Step = 'form' | 'confirm' | 'success';
@@ -29,6 +29,7 @@ function maskAccount(s: string): string {
 }
 
 export default function WithdrawForm() {
+  const { profile, loading, updateProfile } = useMember();
   const [step, setStep]         = useState<Step>('form');
   const [amount, setAmount]     = useState('');
   const [focusedField, setFocusedField] = useState('');
@@ -36,24 +37,21 @@ export default function WithdrawForm() {
   const [submitting, setSubmitting] = useState(false);
   const [successId, setSuccessId]   = useState<number | null>(null);
 
-  const [profile, setProfile]   = useState<MemberProfile | null>(null);
   const [minAmount, setMinAmount] = useState(50);
   const [maxAmount, setMaxAmount] = useState(50000);
   const [currency, setCurrency] = useState('RM');
   const [decimals, setDecimals] = useState(2);
-  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/member/profile').then(r => r.ok ? r.json() as Promise<MemberProfile> : Promise.reject()),
-      fetch('/api/public/settings').then(r => r.ok ? r.json() as Promise<Partial<Record<string, string>>> : Promise.resolve({} as Partial<Record<string, string>>)),
-    ]).then(([prof, settings]) => {
-      setProfile(prof);
-      if (settings.withdraw_min_amount)    setMinAmount(parseFloat(settings.withdraw_min_amount) || 50);
-      if (settings.withdraw_max_amount)    setMaxAmount(parseFloat(settings.withdraw_max_amount) || 50000);
-      if (settings.website_currency)       setCurrency(settings.website_currency);
-      if (settings.website_decimal_places) setDecimals(parseInt(settings.website_decimal_places, 10) || 2);
-    }).catch(() => {/* silent */}).finally(() => setLoading(false));
+    fetch('/api/public/settings')
+      .then(r => r.ok ? r.json() as Promise<Partial<Record<string, string>>> : Promise.resolve({} as Partial<Record<string, string>>))
+      .then(settings => {
+        if (settings.withdraw_min_amount)    setMinAmount(parseFloat(settings.withdraw_min_amount) || 50);
+        if (settings.withdraw_max_amount)    setMaxAmount(parseFloat(settings.withdraw_max_amount) || 50000);
+        if (settings.website_currency)       setCurrency(settings.website_currency);
+        if (settings.website_decimal_places) setDecimals(parseInt(settings.website_decimal_places, 10) || 2);
+      })
+      .catch(() => {});
   }, []);
 
   const numAmount = parseFloat(amount) || 0;
@@ -85,14 +83,13 @@ export default function WithdrawForm() {
         available_balance?: string; pending_withdrawal?: string; net_deposit?: string;
       };
       if (res.ok && data.id) {
-        /* API returns the post-trigger balance — update profile state immediately
-           so balance card reflects the lock without waiting for a page reload.  */
-        if (data.available_balance !== undefined && profile) {
-          setProfile({
-            ...profile,
+        /* API returns the post-trigger balance — optimistic-update the shared context
+           so MemberPanel / MemberZoneSection / ProfileCard all reflect the lock immediately. */
+        if (data.available_balance !== undefined) {
+          updateProfile({
             available_balance:  data.available_balance,
-            pending_withdrawal: data.pending_withdrawal ?? profile.pending_withdrawal,
-            net_deposit:        data.net_deposit        ?? profile.net_deposit,
+            pending_withdrawal: data.pending_withdrawal ?? profile?.pending_withdrawal,
+            net_deposit:        data.net_deposit        ?? profile?.net_deposit,
           });
         }
         setSuccessId(data.id);

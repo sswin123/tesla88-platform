@@ -38,6 +38,12 @@ export interface MemberProfile {
   referred_by: number | null;
   created_at: string;
   last_seen_at: string | null;
+  // Active bonus (from bonus_claims — optional, present only when member has an active promo)
+  active_bonus_id?:           number | null;
+  active_promo_name?:         string | null;
+  active_bonus_amount?:       string | null;
+  active_turnover_required?:  string | null;
+  active_turnover_completed?: string | null;
 }
 
 export interface PublicPromotion {

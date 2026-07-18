@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +19,71 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = 
   REJECTED: 'destructive',
 };
 
+// ── Receipt Upload Cell ────────────────────────────────────────────────────────
+function ReceiptCell({ row, onUploaded }: { row: WithdrawalRow; onUploaded: (id: number, mediaId: number) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  if (row.status !== 'PAID') return <span className="text-xs text-gray-300">—</span>;
+
+  if (row.receipt_media_id) {
+    return (
+      <a
+        href={`/api/public/media/${row.receipt_media_id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-blue-600 hover:underline font-medium"
+      >
+        View Receipt
+      </a>
+    );
+  }
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/withdrawals/${row.id}/receipt`, { method: 'POST', body: form });
+      const data = await res.json() as { ok?: boolean; receipt_media_id?: number; error?: string };
+      if (res.ok && data.receipt_media_id) {
+        onUploaded(row.id, data.receipt_media_id);
+      } else {
+        alert(data.error ?? 'Upload failed');
+      }
+    } catch {
+      alert('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) { e.target.value = ''; void handleFile(file); }
+        }}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="text-xs h-7 px-2"
+      >
+        {uploading ? 'Uploading…' : 'Upload Receipt'}
+      </Button>
+    </>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function WithdrawalsPage() {
   const [data,         setData]         = useState<PaginatedResponse<WithdrawalRow> | null>(null);
   const [status,       setStatus]       = useState('');
@@ -46,6 +111,19 @@ export default function WithdrawalsPage() {
     load();
   }
 
+  // Optimistic receipt update — avoids full reload after upload
+  function handleReceiptUploaded(withdrawalId: number, mediaId: number) {
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        data: prev.data.map(w =>
+          w.id === withdrawalId ? { ...w, receipt_media_id: mediaId } : w
+        ),
+      };
+    });
+  }
+
   const rows  = data?.data ?? [];
   const total = data?.total ?? 0;
 
@@ -68,20 +146,20 @@ export default function WithdrawalsPage() {
         </SelectContent>
       </Select>
 
-      <div className="rounded-md border bg-white">
+      <div className="rounded-md border bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
-              {['ID', 'User', 'Provider', 'Amount', 'Bank', 'Status', 'Reason', 'Created At', 'Actions'].map((h) => (
-                <th key={h} className="px-3 py-3 text-left font-medium text-gray-500">{h}</th>
+              {['ID', 'User', 'Provider', 'Amount', 'Bank', 'Status', 'Reason', 'Receipt', 'Created At', 'Actions'].map((h) => (
+                <th key={h} className="px-3 py-3 text-left font-medium text-gray-500 whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No withdrawals found</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No withdrawals found</td></tr>
             ) : rows.map((w) => (
               <tr key={w.id} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="px-3 py-3 font-mono text-xs">{w.id}</td>
@@ -98,14 +176,17 @@ export default function WithdrawalsPage() {
                 <td className="px-3 py-3">
                   <Badge variant={STATUS_VARIANT[w.status]}>{w.status}</Badge>
                 </td>
-                <td className="px-3 py-3 max-w-[160px]">
+                <td className="px-3 py-3 max-w-[150px]">
                   {w.reject_reason ? (
                     <span className="text-xs text-gray-600 break-words">{w.reject_reason}</span>
                   ) : (
                     <span className="text-xs text-gray-300">—</span>
                   )}
                 </td>
-                <td className="px-3 py-3 text-gray-500 text-xs">
+                <td className="px-3 py-3">
+                  <ReceiptCell row={w} onUploaded={handleReceiptUploaded} />
+                </td>
+                <td className="px-3 py-3 text-gray-500 text-xs whitespace-nowrap">
                   {new Date(w.created_at).toLocaleString()}
                 </td>
                 <td className="px-3 py-3">

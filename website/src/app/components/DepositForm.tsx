@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { PublicPromotion } from '@/lib/types';
+import { useMember } from '@/lib/contexts/MemberContext';
 import PromotionSelector from './PromotionSelector';
 import DepositSummary from './DepositSummary';
 
@@ -341,6 +342,7 @@ function TransferInstructions({ amount, phone, currency = 'RM', decimals = 2 }: 
 
 // ── Main DepositForm ──────────────────────────────────────────────────────────
 export default function DepositForm() {
+  const { profile: memberProfile } = useMember();
   const [step,           setStep]          = useState<Step>('form');
   const [amount,         setAmount]        = useState('');
   const [selectedBankId, setSelectedBankId] = useState<number | null>(null);
@@ -361,11 +363,10 @@ export default function DepositForm() {
   const [promotions,     setPromotions]    = useState<PublicPromotion[]>([]);
   const [platformBanks,  setPlatformBanks] = useState<PaymentBank[]>([]);
   const [banksLoaded,    setBanksLoaded]   = useState(false);
-  const [minAmount,           setMinAmount]          = useState(30);
-  const [walletBalance,       setWalletBalance]      = useState<number | null>(null);
-  const [maxBalanceDeposit,   setMaxBalanceDeposit]  = useState(0);
-  const [currency,            setCurrency]           = useState('RM');
-  const [decimals,            setDecimals]           = useState(2);
+  const [minAmount,         setMinAmount]         = useState(30);
+  const [maxBalanceDeposit, setMaxBalanceDeposit] = useState(0);
+  const [currency,          setCurrency]          = useState('RM');
+  const [decimals,          setDecimals]          = useState(2);
 
   // ── Validation ────────────────────────────────────────────────────────────
   const [errorFields,    setErrorFields]   = useState<Set<string>>(new Set());
@@ -388,23 +389,18 @@ export default function DepositForm() {
       .catch(() => {});
   }, []);
 
-  // ── Load promotions + settings + balance ─────────────────────────────────
+  // ── Load promotions + settings ────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       fetch('/api/member/promotions/eligible').then(r => r.ok ? r.json() as Promise<PublicPromotion[]> : []),
       fetch('/api/public/settings').then(r => r.ok ? r.json() as Promise<Record<string, string>> : {}),
-      fetch('/api/member/profile').then(r => r.ok ? r.json() as Promise<{ total_deposit: string; total_withdraw: string }> : null),
-    ]).then(([promos, settings, profile]) => {
+    ]).then(([promos, settings]) => {
       setPromotions(promos as PublicPromotion[]);
       const s = settings as Record<string, string>;
-      if (s.deposit_min_amount)        setMinAmount(parseFloat(s.deposit_min_amount) || 30);
+      if (s.deposit_min_amount)         setMinAmount(parseFloat(s.deposit_min_amount) || 30);
       if (s.wallet_max_balance_deposit) setMaxBalanceDeposit(parseFloat(s.wallet_max_balance_deposit) || 0);
-      if (s.website_currency)          setCurrency(s.website_currency);
-      if (s.website_decimal_places)    setDecimals(parseInt(s.website_decimal_places, 10) || 2);
-      if (profile) {
-        const bal = parseFloat(profile.total_deposit || '0') - parseFloat(profile.total_withdraw || '0');
-        setWalletBalance(bal);
-      }
+      if (s.website_currency)           setCurrency(s.website_currency);
+      if (s.website_decimal_places)     setDecimals(parseInt(s.website_decimal_places, 10) || 2);
     }).catch(() => {});
   }, []);
 
@@ -632,7 +628,8 @@ export default function DepositForm() {
 
   // ── Form screen ───────────────────────────────────────────────────────────
 
-  // Balance limit check
+  // Balance limit check — use available_balance from shared MemberContext
+  const walletBalance = memberProfile ? parseFloat(memberProfile.available_balance ?? '0') : null;
   const balanceLimitActive =
     maxBalanceDeposit > 0 &&
     walletBalance !== null &&

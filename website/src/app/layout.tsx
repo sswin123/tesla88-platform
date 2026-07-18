@@ -8,6 +8,7 @@ import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
 import PwaRegister from './components/PwaRegister';
+import Providers from './providers';
 import type { PublicAnnouncement } from './api/public/announcements/route';
 
 export const dynamic = 'force-dynamic';
@@ -149,6 +150,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {/* Responsive container with optional sidebar on desktop */}
           <div className="max-w-7xl mx-auto px-3 py-2">
+            <Providers>
             <div className="flex gap-3 items-start">
 
               {/* Member panel: sidebar on desktop, hidden on mobile */}
@@ -162,6 +164,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </main>
 
             </div>
+          </Providers>
           </div>
         </div>
 

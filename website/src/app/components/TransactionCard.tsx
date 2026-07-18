@@ -7,6 +7,8 @@ export interface TxRecord {
   method?: string | null;
   bank_name?: string | null;
   bank_account?: string | null;
+  reject_reason?: string | null;
+  receipt_media_id?: number | null;
   created_at: string;
 }
 
@@ -72,6 +74,8 @@ type CardProps = { tx: TxRecord; fmt: (n: string | number) => string };
 function MobileCard({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
+  const isRejected  = tx.status === 'REJECTED';
+  const hasReceipt  = !!tx.receipt_media_id;
 
   return (
     <div
@@ -90,6 +94,24 @@ function MobileCard({ tx, fmt }: CardProps) {
           <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
             {fmtDate(tx.created_at)}
           </p>
+          {/* Reject reason */}
+          {isRejected && tx.reject_reason && (
+            <p className="text-xs mt-1 px-2 py-1 rounded" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+              原因：{tx.reject_reason}
+            </p>
+          )}
+          {/* Receipt link */}
+          {hasReceipt && (
+            <a
+              href={`/api/public/media/${tx.receipt_media_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs mt-1 inline-flex items-center gap-1"
+              style={{ color: 'var(--brand-primary)' }}
+            >
+              📄 查看收款凭证
+            </a>
+          )}
         </div>
         <div className="text-right">
           <p className="text-base font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
@@ -110,22 +132,44 @@ function MobileCard({ tx, fmt }: CardProps) {
 function DesktopRow({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
+  const isRejected  = tx.status === 'REJECTED';
+  const hasReceipt  = !!tx.receipt_media_id;
 
   return (
     <div
-      className="casino-row-hover hidden lg:grid items-center px-5 py-3 transition-colors"
+      className="casino-row-hover hidden lg:grid items-start px-5 py-3 transition-colors"
       style={{ gridTemplateColumns: '90px 80px 1fr 1fr 1fr 110px', gap: '1rem', borderBottom: '1px solid var(--border-dim)' }}
     >
       <TypeBadge type={tx.type} />
       <span className="text-xs font-mono" style={{ color: 'var(--text-faint)' }}>
         #{tx.id}
       </span>
-      <span className="text-sm font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
-        {tx.type === 'TOP_UP' ? '+' : '-'}{fmt(tx.amount)}
-        {tx.bonus && parseFloat(tx.bonus) > 0 && (
-          <span className="ml-1 text-xs" style={{ color: 'var(--brand-primary)' }}>+{fmt(tx.bonus)}</span>
+      <div>
+        <span className="text-sm font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
+          {tx.type === 'TOP_UP' ? '+' : '-'}{fmt(tx.amount)}
+          {tx.bonus && parseFloat(tx.bonus) > 0 && (
+            <span className="ml-1 text-xs" style={{ color: 'var(--brand-primary)' }}>+{fmt(tx.bonus)}</span>
+          )}
+        </span>
+        {/* Reject reason inline */}
+        {isRejected && tx.reject_reason && (
+          <p className="text-xs mt-1 px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', display: 'inline-block' }}>
+            {tx.reject_reason}
+          </p>
         )}
-      </span>
+        {/* Receipt */}
+        {hasReceipt && (
+          <a
+            href={`/api/public/media/${tx.receipt_media_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-xs mt-1"
+            style={{ color: 'var(--brand-primary)' }}
+          >
+            📄 查看凭证
+          </a>
+        )}
+      </div>
       <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
         {methodLabel}{bankDetail ? ` · ${bankDetail}` : ''}
       </span>

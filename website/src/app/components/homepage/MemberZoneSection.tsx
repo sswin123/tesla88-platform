@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useMember } from '@/lib/contexts/MemberContext';
+import type { MemberProfile } from '@/lib/types';
 
 interface ButtonConfig {
   media_id: number | null;
@@ -35,27 +37,12 @@ interface WebsiteSettings {
   max_withdrawals_per_day?: string;
 }
 
-interface MemberProfile {
-  first_name: string;
-  phone: string;
-  total_deposit: string;
-  total_withdraw: string;
-  balance?: string | number;
-  // Active bonus (from bonus_claims)
-  active_bonus_id?:           number;
-  active_promo_name?:         string;
-  active_bonus_amount?:       string;
-  active_turnover_required?:  string;
-  active_turnover_completed?: string;
-}
-
 function fmt(n: string | number, currency = 'RM') {
   const v = parseFloat(String(n));
   return `${currency} ${isNaN(v) ? '0.00' : v.toFixed(2)}`;
 }
 
 // ─── Card Background ─────────────────────────────────────────────────────────
-// Priority: image/gif/video → gradient overlay → fallback gradient
 
 function CardBackground({ config }: { config: MemberZoneConfig }) {
   const hasMedia    = !!config.bg_media_url;
@@ -64,52 +51,26 @@ function CardBackground({ config }: { config: MemberZoneConfig }) {
 
   return (
     <>
-      {/* 1. Primary: image / gif / video — fills entire card, full opacity */}
       {hasMedia && (
         <div className="absolute inset-0 z-0">
           {isVideo ? (
-            <video
-              src={config.bg_media_url}
-              autoPlay muted loop playsInline
-              className="w-full h-full object-cover"
-              style={{ display: 'block' }}
-            />
+            <video src={config.bg_media_url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ display: 'block' }} />
           ) : (
-            <img
-              src={config.bg_media_url}
-              alt=""
-              className="w-full h-full object-cover object-center"
-              style={{ display: 'block' }}
-            />
+            <img src={config.bg_media_url} alt="" className="w-full h-full object-cover object-center" style={{ display: 'block' }} />
           )}
         </div>
       )}
-
-      {/* 2. Gradient overlay (optional) — when image exists use it as overlay for readability */}
       {hasGradient && (
-        <div
-          className="absolute inset-0 z-10"
-          style={{
-            background: config.bg_gradient,
-            opacity: hasMedia ? 0.55 : 1,
-          }}
-        />
+        <div className="absolute inset-0 z-10" style={{ background: config.bg_gradient, opacity: hasMedia ? 0.55 : 1 }} />
       )}
-
-      {/* 3. Dark overlay when image exists but no gradient — ensures text readability */}
       {hasMedia && !hasGradient && (
-        <div
-          className="absolute inset-0 z-10"
-          style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 100%)' }}
-        />
+        <div className="absolute inset-0 z-10" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 100%)' }} />
       )}
     </>
   );
 }
 
 // ─── Auth Buttons ─────────────────────────────────────────────────────────────
-// Guest state: always shows Wallet summary (Balance RM 0.00 + Min Deposit + Min Withdraw)
-// + Login / Register buttons. Same content on Desktop / Tablet / Mobile.
 
 function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings: WebsiteSettings }) {
   const loginEnabled    = config.login_button?.enabled !== false;
@@ -122,33 +83,24 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
   const minWithdraw = settings.withdraw_min_amount ?? '—';
 
   return (
-    <div
-      className="rounded-2xl p-3.5"
-      style={{
-        background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
-        border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
-        borderRadius: config.border_radius || '16px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="rounded-2xl p-3.5" style={{
+      background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
+      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
+      borderRadius: config.border_radius || '16px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
       <CardBackground config={config} />
-
       <div className="relative z-20">
         <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Member Portal</p>
-
-        {/* Wallet summary — always visible, identical to logged-in MemberPanel */}
         <div className="rounded-xl p-2.5 mb-3" style={{ background: 'rgba(0,0,0,0.25)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
-          <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>
-            {currency} 0.00
-          </p>
+          <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>{currency} 0.00</p>
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
             <span>Min Deposit: <strong style={{ color: 'var(--text-base)' }}>{currency} {minDeposit}</strong></span>
             <span>Min Withdraw: <strong style={{ color: 'var(--text-base)' }}>{currency} {minWithdraw}</strong></span>
           </div>
         </div>
-
         <div className="flex gap-3">
           {loginEnabled && (
             config.login_button?.media_url ? (
@@ -156,19 +108,18 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
                 <img src={config.login_button.media_url} alt={config.login_button.text || 'Login'} className="w-full h-10 object-cover rounded-xl" />
               </Link>
             ) : (
-              <Link href={config.login_button?.url || '/login'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl transition-colors" style={{ background: 'var(--brand-primary)', color: '#fff' }}>
+              <Link href={config.login_button?.url || '/login'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl" style={{ background: 'var(--brand-primary)', color: '#fff' }}>
                 {config.login_button?.text || 'Login'}
               </Link>
             )
           )}
-
           {registerEnabled && (
             config.register_button?.media_url ? (
               <Link href={config.register_button.url || '/register'} className="flex-1">
                 <img src={config.register_button.media_url} alt={config.register_button.text || 'Register'} className="w-full h-10 object-cover rounded-xl" />
               </Link>
             ) : (
-              <Link href={config.register_button?.url || '/register'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl border transition-colors" style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}>
+              <Link href={config.register_button?.url || '/register'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl border" style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}>
                 {config.register_button?.text || 'Register'}
               </Link>
             )
@@ -182,12 +133,7 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
 // ─── Wallet Card ──────────────────────────────────────────────────────────────
 
 function WalletCard({
-  profile,
-  config,
-  settings,
-  onRefresh,
-  refreshing,
-  toast,
+  profile, config, settings, onRefresh, refreshing, toast,
 }: {
   profile: MemberProfile;
   config: MemberZoneConfig;
@@ -200,9 +146,9 @@ function WalletCard({
   const minDeposit  = parseFloat(settings.deposit_min_amount  || '30');
   const minWithdraw = parseFloat(settings.withdraw_min_amount || '50');
 
-  const balance = profile.balance != null
-    ? parseFloat(String(profile.balance))
-    : parseFloat(profile.total_deposit || '0') - parseFloat(profile.total_withdraw || '0');
+  // Single source of truth: always use available_balance from context
+  const balance   = parseFloat(profile.available_balance ?? '0');
+  const pendingWd = parseFloat(profile.pending_withdrawal ?? '0');
 
   const depositEnabled  = config.deposit_button?.enabled  !== false;
   const withdrawEnabled = config.withdraw_button?.enabled !== false;
@@ -210,18 +156,14 @@ function WalletCard({
   const hasGradient     = !!config.bg_gradient;
 
   return (
-    <div
-      className="rounded-2xl p-3.5"
-      style={{
-        background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
-        border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
-        borderRadius: config.border_radius || '16px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="rounded-2xl p-3.5" style={{
+      background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
+      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
+      borderRadius: config.border_radius || '16px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
       <CardBackground config={config} />
-
       <div className="relative z-20">
         {/* User row */}
         <div className="flex items-center justify-between mb-2">
@@ -236,7 +178,7 @@ function WalletCard({
           </div>
         </div>
 
-        {/* Balance */}
+        {/* Balance — single source of truth: available_balance from MemberContext */}
         <div className="rounded-xl p-2.5 mb-2" style={{ background: 'rgba(0,0,0,0.25)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
           <div className="flex items-center justify-between">
@@ -252,7 +194,7 @@ function WalletCard({
             >
               <svg
                 width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                style={{ transition: 'transform 0.3s', transform: refreshing ? 'rotate(360deg)' : 'rotate(0deg)', animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
+                style={{ transition: 'transform 0.3s', animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
               >
                 <path d="M1 4v6h6" />
                 <path d="M23 20v-6h-6" />
@@ -261,9 +203,12 @@ function WalletCard({
             </button>
           </div>
 
-          {/* Error / success toast */}
-          {toast && (
-            <p className="text-xs mt-1" style={{ color: '#f87171' }}>{toast}</p>
+          {toast && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{toast}</p>}
+
+          {pendingWd > 0 && (
+            <p className="text-xs mt-1" style={{ color: '#ca8a04' }}>
+              + {fmt(pendingWd, currency)} pending withdrawal
+            </p>
           )}
 
           {/* Active promotion OR default config limits */}
@@ -308,7 +253,6 @@ function WalletCard({
               </Link>
             )
           )}
-
           {withdrawEnabled && (
             config.withdraw_button?.media_url ? (
               <Link href="/withdraw">
@@ -329,69 +273,47 @@ function WalletCard({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function MemberZoneSection({ config }: { config: MemberZoneConfig }) {
-  const [authState, setAuthState] = useState<'loading' | 'guest' | 'member'>('loading');
-  const [profile,   setProfile]   = useState<MemberProfile | null>(null);
+  const { profile, loading, refreshProfile } = useMember();
   const [settings,  setSettings]  = useState<WebsiteSettings>({});
   const [refreshing, setRefreshing] = useState(false);
   const [toast,      setToast]      = useState('');
   const autoRefreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadProfile = useCallback(async (showToastOnError = false) => {
-    try {
-      const res = await fetch(`/api/member/profile?_=${Date.now()}`, { cache: 'no-store' });
-      if (!res.ok) {
-        setAuthState('guest');
-        if (showToastOnError) {
-          setToast('Unable to refresh balance. Please try again.');
-          setTimeout(() => setToast(''), 3000);
-        }
-        return;
-      }
-      const data = await res.json() as MemberProfile;
-      setProfile(data);
-      setAuthState('member');
-    } catch {
-      setAuthState('guest');
-      if (showToastOnError) {
-        setToast('Unable to refresh balance. Please try again.');
-        setTimeout(() => setToast(''), 3000);
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    void loadProfile();
     fetch('/api/public/settings')
       .then(r => r.ok ? r.json() as Promise<WebsiteSettings> : {})
       .then(data => setSettings(data as WebsiteSettings))
       .catch(() => {});
-  }, [loadProfile]);
+  }, []);
 
-  // Auto-refresh timer
+  // Auto-refresh timer — calls context refreshProfile so all components update together
   useEffect(() => {
     const intervalSec = config.auto_refresh ?? 0;
     if (autoRefreshInterval.current) clearInterval(autoRefreshInterval.current);
     if (intervalSec > 0) {
       autoRefreshInterval.current = setInterval(() => {
-        void loadProfile();
+        void refreshProfile();
       }, intervalSec * 1000);
     }
     return () => {
       if (autoRefreshInterval.current) clearInterval(autoRefreshInterval.current);
     };
-  }, [config.auto_refresh, loadProfile]);
+  }, [config.auto_refresh, refreshProfile]);
 
   async function handleRefresh() {
     if (refreshing) return;
     setRefreshing(true);
     setToast('');
-    await loadProfile(true);
+    try {
+      await refreshProfile();
+    } catch {
+      setToast('Unable to refresh balance. Please try again.');
+      setTimeout(() => setToast(''), 3000);
+    }
     setRefreshing(false);
   }
 
-  const currency = settings.website_currency || 'RM';
-
-  if (authState === 'loading') {
+  if (loading) {
     return (
       <div className="rounded-2xl p-5 animate-pulse" style={{ background: 'var(--bg-card)' }}>
         <div className="h-3 rounded w-1/2 mb-4" style={{ background: 'rgba(255,255,255,0.06)' }} />
@@ -404,16 +326,15 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
     );
   }
 
-  if (authState === 'guest') {
+  if (!profile) {
     return <AuthButtons config={config} settings={settings} />;
   }
 
   return (
     <>
-      {/* Keyframe for refresh spin */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       <WalletCard
-        profile={profile!}
+        profile={profile}
         config={config}
         settings={settings}
         onRefresh={handleRefresh}

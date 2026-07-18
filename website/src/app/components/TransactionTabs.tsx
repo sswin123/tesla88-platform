@@ -17,6 +17,8 @@ interface WithdrawRow {
   status: string;
   bank_name: string | null;
   bank_account: string | null;
+  reject_reason: string | null;
+  receipt_media_id: number | null;
   created_at: string;
 }
 
@@ -42,6 +44,8 @@ function toWithdraw(w: WithdrawRow): TxRecord {
     status: w.status,
     bank_name: w.bank_name,
     bank_account: w.bank_account,
+    reject_reason: w.reject_reason,
+    receipt_media_id: w.receipt_media_id,
     created_at: w.created_at,
   };
 }

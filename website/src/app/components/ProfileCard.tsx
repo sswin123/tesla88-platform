@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useCurrency } from '@/lib/useCurrency';
-import type { MemberProfile } from '@/lib/types';
+import { useMember } from '@/lib/contexts/MemberContext';
 
 interface BrandSettings {
   support_whatsapp?: string;
@@ -14,19 +14,15 @@ function maskAccount(acc: string) {
 }
 
 export default function ProfileCard() {
-  const [profile, setProfile] = useState<MemberProfile | null>(null);
-  const [brand, setBrand]     = useState<BrandSettings>({});
-  const [loading, setLoading] = useState(true);
+  const { profile, loading } = useMember();
+  const [brand, setBrand]   = useState<BrandSettings>({});
   const { fmt } = useCurrency();
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/member/profile').then(r => r.ok ? r.json() as Promise<MemberProfile> : Promise.reject()),
-      fetch('/api/public/brand').then(r => r.ok ? r.json() as Promise<BrandSettings> : Promise.resolve({} as BrandSettings)),
-    ]).then(([prof, b]) => {
-      setProfile(prof);
-      setBrand(b);
-    }).catch(() => {}).finally(() => setLoading(false));
+    fetch('/api/public/brand')
+      .then(r => r.ok ? r.json() as Promise<BrandSettings> : Promise.resolve({} as BrandSettings))
+      .then(setBrand)
+      .catch(() => {});
   }, []);
 
   if (loading) {

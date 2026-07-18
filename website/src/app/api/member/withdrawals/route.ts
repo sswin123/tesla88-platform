@@ -8,7 +8,8 @@ export async function GET() {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const res = await pool.query(
-    `SELECT id, withdraw_amount, status, bank_name, bank_account, created_at, reviewed_at
+    `SELECT id, withdraw_amount, status, bank_name, bank_account,
+            reject_reason, receipt_media_id, created_at, reviewed_at
      FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
     [member.sub]
   );

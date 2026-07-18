@@ -65,7 +65,7 @@ function SpinnerIcon() {
 }
 
 // Target: highest known migration number
-const MAX_MIGRATION = 63;
+const MAX_MIGRATION = 64;
 
 export default function MaintenancePage() {
   const [health, setHealth]               = useState<HealthResponse | null>(null);

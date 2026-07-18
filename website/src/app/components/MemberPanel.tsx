@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { MemberProfile } from '@/lib/types';
-
-type State = 'loading' | 'guest' | 'member';
+import { useMember } from '@/lib/contexts/MemberContext';
 
 type PublicSettings = {
   website_currency?: string;
@@ -20,33 +18,15 @@ function useFmt(currency: string, decimals: number) {
 }
 
 export default function MemberPanel() {
-  const [state, setState]       = useState<State>('loading');
-  const [profile, setProfile]   = useState<MemberProfile | null>(null);
-  const [pub, setPub]           = useState<PublicSettings>({});
-
-  async function loadPub() {
-    try {
-      const r = await fetch('/api/public/settings');
-      if (r.ok) setPub(await r.json() as PublicSettings);
-    } catch { /* keep defaults */ }
-  }
-
-  async function load() {
-    try {
-      const res = await fetch('/api/member/profile');
-      if (res.status === 401) { setState('guest'); return; }
-      if (!res.ok) { setState('guest'); return; }
-      const data = (await res.json()) as MemberProfile;
-      setProfile(data);
-      setState('member');
-    } catch {
-      setState('guest');
-    }
-  }
+  const { profile, loading, refreshProfile } = useMember();
+  const [pub, setPub] = useState<PublicSettings>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadPub();
-    load();
+    fetch('/api/public/settings')
+      .then(r => r.ok ? r.json() as Promise<PublicSettings> : Promise.resolve({} as PublicSettings))
+      .then(setPub)
+      .catch(() => {});
   }, []);
 
   async function handleLogout() {
@@ -54,19 +34,24 @@ export default function MemberPanel() {
     window.location.href = '/';
   }
 
-  const currency  = pub.website_currency       ?? 'RM';
-  const decimals  = parseInt(pub.website_decimal_places ?? '2', 10);
-  const fmt       = useFmt(currency, decimals);
-  const depMin    = pub.deposit_min_amount  ?? '—';
-  const wdMin     = pub.withdraw_min_amount ?? '—';
-  const regOpen   = pub.website_registration === 'true';
+  async function handleRefresh() {
+    setRefreshing(true);
+    await refreshProfile();
+    setRefreshing(false);
+  }
 
-  // available_balance = net_deposit - pending_withdrawal (GENERATED column, single source of truth)
-  const balance   = profile ? parseFloat(profile.available_balance ?? profile.net_deposit ?? '0') : 0;
+  const currency = pub.website_currency         ?? 'RM';
+  const decimals = parseInt(pub.website_decimal_places ?? '2', 10);
+  const fmt      = useFmt(currency, decimals);
+  const depMin   = pub.deposit_min_amount  ?? '—';
+  const wdMin    = pub.withdraw_min_amount ?? '—';
+  const regOpen  = pub.website_registration === 'true';
+
+  const balance   = profile ? parseFloat(profile.available_balance  ?? '0') : 0;
   const pendingWd = profile ? parseFloat(profile.pending_withdrawal ?? '0') : 0;
 
-  /* ── Loading skeleton ───────────────────────────────────── */
-  if (state === 'loading') {
+  /* ── Loading ─────────────────────────────────────────────── */
+  if (loading) {
     return (
       <div className="casino-card p-4 animate-pulse">
         <div className="h-3 rounded w-3/4 mb-3" style={{ background: 'var(--bg-surface3)' }} />
@@ -77,15 +62,13 @@ export default function MemberPanel() {
     );
   }
 
-  /* ── Guest state ────────────────────────────────────────── */
-  if (state === 'guest') {
+  /* ── Guest ───────────────────────────────────────────────── */
+  if (!profile) {
     return (
       <div className="casino-card p-5">
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
           Member Portal
         </p>
-
-        {/* Financial info for unauthenticated visitors */}
         <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg-surface3)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
           <p className="text-xl font-bold glow-text" style={{ color: 'var(--brand-primary)' }}>
@@ -96,39 +79,33 @@ export default function MemberPanel() {
             <span>Min Withdraw: <strong style={{ color: 'var(--text-muted)' }}>{currency} {wdMin}</strong></span>
           </div>
         </div>
-
         <div className="flex flex-col gap-2">
-          <a href="/login" className="casino-btn-primary text-center py-2.5 text-sm font-semibold">
-            Login
-          </a>
+          <a href="/login" className="casino-btn-primary text-center py-2.5 text-sm font-semibold">Login</a>
           {regOpen && (
-            <a href="/register" className="casino-btn-outline text-center py-2.5 text-sm font-semibold">
-              Register
-            </a>
+            <a href="/register" className="casino-btn-outline text-center py-2.5 text-sm font-semibold">Register</a>
           )}
         </div>
       </div>
     );
   }
 
-  /* ── Member state ───────────────────────────────────────── */
+  /* ── Member ──────────────────────────────────────────────── */
   return (
     <div className="casino-card p-5">
-      {/* User info row */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
             style={{ background: 'var(--brand-primary)', color: '#fff' }}
           >
-            {profile!.first_name.charAt(0).toUpperCase()}
+            {profile.first_name.charAt(0).toUpperCase()}
           </div>
           <div>
             <p className="text-sm font-semibold leading-none" style={{ color: 'var(--text-base)' }}>
-              {profile!.first_name}
+              {profile.first_name}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>
-              {profile!.phone}
+              {profile.phone}
             </p>
           </div>
         </div>
@@ -141,23 +118,26 @@ export default function MemberPanel() {
         </button>
       </div>
 
-      {/* Balance */}
+      {/* Balance — single source of truth: available_balance from context */}
       <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg-surface3)' }}>
-        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-          Available Balance
-        </p>
+        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
         <div className="flex items-center justify-between">
           <p className="text-xl font-bold glow-text" style={{ color: 'var(--brand-primary)' }}>
             {fmt(balance)}
           </p>
           <button
-            onClick={load}
+            onClick={handleRefresh}
+            disabled={refreshing}
             className="p-1.5 rounded-full transition-colors"
             style={{ color: 'var(--text-muted)' }}
             title="Refresh balance"
             aria-label="Refresh balance"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5"
+              className={refreshing ? 'animate-spin' : ''}
+            >
               <path d="M1 4v6h6" />
               <path d="M23 20v-6h-6" />
               <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
@@ -171,14 +151,9 @@ export default function MemberPanel() {
         )}
       </div>
 
-      {/* Action buttons */}
       <div className="grid grid-cols-2 gap-2">
-        <a href="/deposit" className="casino-btn-primary text-center py-2 text-sm font-semibold">
-          Deposit
-        </a>
-        <a href="/withdraw" className="casino-btn-outline text-center py-2 text-sm font-semibold">
-          Withdraw
-        </a>
+        <a href="/deposit"  className="casino-btn-primary text-center py-2 text-sm font-semibold">Deposit</a>
+        <a href="/withdraw" className="casino-btn-outline  text-center py-2 text-sm font-semibold">Withdraw</a>
       </div>
     </div>
   );
