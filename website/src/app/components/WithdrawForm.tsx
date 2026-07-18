@@ -80,13 +80,23 @@ export default function WithdrawForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: numAmount }),
       });
-      const data = await res.json() as { ok?: boolean; id?: number; error?: string; pending_id?: number };
+      const data = await res.json() as {
+        ok?: boolean; id?: number; error?: string;
+        available_balance?: string; pending_withdrawal?: string; net_deposit?: string;
+      };
       if (res.ok && data.id) {
+        /* API returns the post-trigger balance — update profile state immediately
+           so balance card reflects the lock without waiting for a page reload.  */
+        if (data.available_balance !== undefined && profile) {
+          setProfile({
+            ...profile,
+            available_balance:  data.available_balance,
+            pending_withdrawal: data.pending_withdrawal ?? profile.pending_withdrawal,
+            net_deposit:        data.net_deposit        ?? profile.net_deposit,
+          });
+        }
         setSuccessId(data.id);
         setStep('success');
-      } else if (res.status === 409) {
-        setError(data.error ?? '已有提款申请处理中');
-        setStep('form');
       } else {
         setError(data.error ?? '提交失败，请重试');
         setStep('form');

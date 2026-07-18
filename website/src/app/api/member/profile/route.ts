@@ -16,7 +16,7 @@ export async function GET() {
      FROM users u WHERE u.id = $1`,
     [member.sub]
   );
-  if (res.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (res.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
 
   const profile = res.rows[0] as Record<string, unknown>;
 
@@ -46,7 +46,9 @@ export async function GET() {
     }
   } catch { /* bonus_claims may not exist */ }
 
-  return NextResponse.json(profile);
+  return NextResponse.json(profile, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
 
 export async function PATCH(req: NextRequest) {
