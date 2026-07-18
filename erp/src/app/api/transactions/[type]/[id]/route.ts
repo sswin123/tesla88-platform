@@ -52,7 +52,9 @@ async function handleDeposit(id: number) {
      LEFT JOIN promotions p ON p.id = dr.promotion_id
      LEFT JOIN payment_banks pb ON pb.id = COALESCE(
        dr.receiving_bank_id,
-       (SELECT id FROM payment_banks WHERE bank_name = dr.payment_bank ORDER BY id LIMIT 1)
+       (SELECT id FROM payment_banks WHERE bank_name = dr.payment_bank ORDER BY id LIMIT 1),
+       (SELECT id FROM payment_banks WHERE bank_name ILIKE dr.payment_bank ORDER BY id LIMIT 1),
+       (SELECT id FROM payment_banks WHERE bank_name ILIKE '%' || dr.payment_bank || '%' ORDER BY id LIMIT 1)
      )
      LEFT JOIN admins a ON a.id = dr.processing_by
      WHERE dr.id = $1`,

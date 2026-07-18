@@ -51,9 +51,9 @@ export async function POST(
     await client.query(
       `UPDATE withdrawal_requests
        SET status = 'PAID', reviewed_by = $2, admin_note = $3, reviewed_at = NOW(),
-           approved_by = $2::int, approved_at = NOW()
+           approved_by = $4, approved_at = NOW()
        WHERE id = $1`,
-      [requestId, adminId, null]
+      [requestId, adminId, null, adminId]
     );
 
     /* Debit the actual balance (net_deposit) */

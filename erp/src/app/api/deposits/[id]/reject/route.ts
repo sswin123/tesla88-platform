@@ -25,10 +25,10 @@ export async function POST(
     const { rows } = await pool.query(
       `UPDATE deposit_requests
        SET status = 'REJECTED', reviewed_by = $2, reject_reason = $3, reviewed_at = NOW(),
-           rejected_by = $2::int, rejected_at = NOW()
+           rejected_by = $4, rejected_at = NOW()
        WHERE id = $1 AND status IN ('PENDING', 'PROCESSING')
        RETURNING id`,
-      [rejId, adminId, reason || null]
+      [rejId, adminId, reason || null, adminId]
     );
     if (!rows[0]) {
       return NextResponse.json(
