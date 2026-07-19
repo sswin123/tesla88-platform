@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requirePermission } from '@/lib/require_permission';
 
 export async function GET() {
+  const authPayload = await requirePermission('dashboard.view');
+  if (!authPayload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const BOT_RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
   const WEBSITE_URL   = process.env.WEBSITE_URL   ?? '';
   const APP_VERSION   = process.env.APP_VERSION   ?? '1.0.0';

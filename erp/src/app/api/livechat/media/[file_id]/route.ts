@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/require_permission';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ file_id: string }> }
 ) {
+  const payload = await requirePermission('livechat.view');
+  if (!payload) return new NextResponse('Unauthorized', { status: 401 });
   const { file_id } = await params;
 
   // Decode explicitly: Next.js may leave %3A un-decoded in route params

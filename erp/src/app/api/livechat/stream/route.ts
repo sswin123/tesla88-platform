@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
 import { Client } from 'pg';
+import { requirePermission } from '@/lib/require_permission';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const payload = await requirePermission('livechat.view');
+  if (!payload) return new Response('Unauthorized', { status: 401 });
+
   const client = new Client({ connectionString: process.env.DATABASE_URL });
 
   try {

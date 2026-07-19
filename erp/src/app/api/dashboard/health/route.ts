@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requirePermission } from '@/lib/require_permission';
 
 interface HealthStatus {
   database: { ok: boolean; latency_ms: number };
@@ -9,6 +10,9 @@ interface HealthStatus {
 }
 
 export async function GET() {
+  const authPayload = await requirePermission('dashboard.view');
+  if (!authPayload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const RELAY_URL = process.env.BOT_RELAY_URL ?? 'http://localhost:8090';
 
   // ── Database ping ───────────────────────────────────────────────────────
