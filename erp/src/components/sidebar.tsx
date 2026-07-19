@@ -19,7 +19,6 @@ import {
   Gamepad2,
   Database,
   Megaphone,
-  UserCog,
   Settings,
   Wrench,
   ShieldCheck,
@@ -112,7 +111,6 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     items: [
-      { href: '/admin-users',          label: 'Admin Users',      icon: UserCog,    permission: 'staff.manage' },
       { href: '/settings/staff',       label: 'Staff Manager',    icon: Users,      permission: 'staff.manage' },
       { href: '/settings/permissions', label: 'Staff Permissions',icon: ShieldCheck,permission: 'staff.manage' },
       { href: '/settings',             label: 'Settings',          icon: Settings, exact: true },

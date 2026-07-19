@@ -24,7 +24,6 @@ const PAGE_ACCESS: Record<string, AdminRole[]> = {
   '/providers':     ['ADMIN', 'SUPER_ADMIN'],
   '/accounts':      ['ADMIN', 'SUPER_ADMIN'],
   '/announcements': ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
-  '/admin-users':   ['SUPER_ADMIN'],
   '/settings':      ['SUPER_ADMIN'],
   '/maintenance':   ['SUPER_ADMIN'],
   '/banks':         ['ADMIN', 'SUPER_ADMIN'],
