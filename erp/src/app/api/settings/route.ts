@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
+import { requirePermission } from '@/lib/require_permission';
 import { getAllSettings, setSettings } from '@/lib/repositories/settings_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
-async function getSuperAdminPayload() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  const payload = token ? await verifyJWT(token) : null;
-  if (!payload) return null;
-  if (payload.role !== 'SUPER_ADMIN') return null;
-  return payload;
-}
-
 export async function GET() {
-  const payload = await getSuperAdminPayload();
+  const payload = await requirePermission('website.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const settings = await getAllSettings();
@@ -22,7 +12,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const payload = await getSuperAdminPayload();
+  const payload = await requirePermission('website.settings');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: Record<string, string>;

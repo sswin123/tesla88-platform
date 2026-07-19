@@ -113,7 +113,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/settings/staff',       label: 'Staff Manager',    icon: Users,      permission: 'staff.manage' },
       { href: '/settings/permissions', label: 'Staff Permissions',icon: ShieldCheck,permission: 'staff.manage' },
-      { href: '/settings',             label: 'Settings',          icon: Settings, exact: true },
+      { href: '/settings',             label: 'Settings',          icon: Settings, exact: true, permission: 'website.settings' },
       { href: '/maintenance',          label: 'Maintenance',       icon: Wrench,    permission: 'maintenance.view' },
     ],
   },
