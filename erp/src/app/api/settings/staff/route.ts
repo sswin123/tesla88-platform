@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const payload = await requirePermission('staff.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let body: { erp_username?: string; display_name?: string; role?: string; password?: string };
+  let body: { erp_username?: string; display_name?: string; telegram_id?: string; role?: string; password?: string };
   try {
     body = await request.json();
   } catch {
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const member = await createStaffMember({
       erp_username:      body.erp_username.trim(),
       display_name:      body.display_name?.trim() || body.erp_username.trim(),
+      telegram_id:       body.telegram_id?.trim() || undefined,
       role:              body.role,
       password:          body.password,
       added_by_username: payload.username,

@@ -7,6 +7,7 @@ interface StaffMember {
   id: number;
   erp_username: string;
   display_name: string | null;
+  telegram_id: string | null;
   role: string;
   is_active: boolean;
   last_login_at: string | null;
@@ -65,8 +66,8 @@ function fmt(iso: string | null) {
   return new Date(iso).toLocaleString();
 }
 
-interface CreateForm { erp_username: string; display_name: string; role: string; password: string }
-interface EditForm   { role: string; display_name: string; password: string; is_active: boolean }
+interface CreateForm { erp_username: string; display_name: string; telegram_id: string; role: string; password: string }
+interface EditForm   { role: string; display_name: string; telegram_id: string; password: string; is_active: boolean }
 
 export default function StaffPage() {
   const [staff, setStaff]       = useState<StaffMember[]>([]);
@@ -77,10 +78,10 @@ export default function StaffPage() {
   const { toast, show }         = useToast();
 
   const [createForm, setCreateForm] = useState<CreateForm>({
-    erp_username: '', display_name: '', role: 'CS', password: '',
+    erp_username: '', display_name: '', telegram_id: '', role: 'CS', password: '',
   });
   const [editForm, setEditForm] = useState<EditForm>({
-    role: 'CS', display_name: '', password: '', is_active: true,
+    role: 'CS', display_name: '', telegram_id: '', password: '', is_active: true,
   });
 
   const load = useCallback(async () => {
@@ -103,6 +104,7 @@ export default function StaffPage() {
     setEditForm({
       role:         member.role,
       display_name: member.display_name ?? member.erp_username,
+      telegram_id:  member.telegram_id ?? '',
       password:     '',
       is_active:    member.is_active,
     });
@@ -121,7 +123,7 @@ export default function StaffPage() {
       if (!r.ok) { show(d.error ?? 'Failed', 'error'); return; }
       show('Staff member created');
       setShowCreate(false);
-      setCreateForm({ erp_username: '', display_name: '', role: 'CS', password: '' });
+      setCreateForm({ erp_username: '', display_name: '', telegram_id: '', role: 'CS', password: '' });
       await load();
     } finally {
       setSaving(false);
@@ -135,6 +137,7 @@ export default function StaffPage() {
     const body: Record<string, unknown> = {
       role:         editForm.role,
       display_name: editForm.display_name,
+      telegram_id:  editForm.telegram_id || null,
       is_active:    editForm.is_active,
     };
     if (editForm.password) body.password = editForm.password;
@@ -192,7 +195,7 @@ export default function StaffPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Name', 'Username', 'Role', 'Status', 'Last Login', 'Created At', 'Actions'].map(h => (
+                {['Name', 'Username', 'Telegram ID', 'Role', 'Status', 'Last Login', 'Created At', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -202,6 +205,7 @@ export default function StaffPage() {
                 <tr key={m.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{m.display_name ?? m.erp_username}</td>
                   <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.erp_username}</td>
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.telegram_id ?? '—'}</td>
                   <td className="px-4 py-3"><RoleBadge role={m.role} /></td>
                   <td className="px-4 py-3"><StatusBadge active={m.is_active} /></td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{fmt(m.last_login_at)}</td>
@@ -230,7 +234,7 @@ export default function StaffPage() {
               ))}
               {staff.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">No staff members found</td>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400">No staff members found</td>
                 </tr>
               )}
             </tbody>
@@ -263,6 +267,16 @@ export default function StaffPage() {
                   onChange={e => setCreateForm(f => ({ ...f, display_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Optional — defaults to username"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telegram ID <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={createForm.telegram_id}
+                  onChange={e => setCreateForm(f => ({ ...f, telegram_id: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g. 123456789"
                 />
               </div>
               <div>
@@ -324,6 +338,16 @@ export default function StaffPage() {
                   value={editForm.display_name}
                   onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telegram ID <span className="text-gray-400 font-normal">(leave blank to clear)</span></label>
+                <input
+                  type="text"
+                  value={editForm.telegram_id}
+                  onChange={e => setEditForm(f => ({ ...f, telegram_id: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g. 123456789"
                 />
               </div>
               <div>

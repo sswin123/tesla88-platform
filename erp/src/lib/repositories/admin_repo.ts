@@ -85,23 +85,24 @@ export async function getStaffById(id: number): Promise<StaffMember | null> {
 export async function createStaffMember(data: {
   erp_username: string;
   display_name?: string;
+  telegram_id?: string;
   role: string;
   password: string;
   added_by_username: string;
 }): Promise<StaffMember> {
   const hash = await bcrypt.hash(data.password, 10);
   const r = await pool.query(
-    `INSERT INTO admins (erp_username, display_name, role, erp_password_hash, is_active, added_by_username)
-     VALUES ($1, $2, $3, $4, TRUE, $5)
+    `INSERT INTO admins (erp_username, display_name, telegram_id, role, erp_password_hash, is_active, added_by_username)
+     VALUES ($1, $2, $3, $4, $5, TRUE, $6)
      RETURNING ${STAFF_COLS}`,
-    [data.erp_username, data.display_name ?? data.erp_username, data.role, hash, data.added_by_username]
+    [data.erp_username, data.display_name ?? data.erp_username, data.telegram_id ?? null, data.role, hash, data.added_by_username]
   );
   return r.rows[0];
 }
 
 export async function updateStaffMember(
   id: number,
-  data: { role?: string; is_active?: boolean; password?: string; display_name?: string }
+  data: { role?: string; is_active?: boolean; password?: string; display_name?: string; telegram_id?: string | null }
 ): Promise<StaffMember | null> {
   const fields: string[] = [];
   const params: unknown[] = [id];
@@ -109,6 +110,7 @@ export async function updateStaffMember(
   if (data.role !== undefined)         { fields.push(`role = $${i++}`);         params.push(data.role); }
   if (data.is_active !== undefined)    { fields.push(`is_active = $${i++}`);    params.push(data.is_active); }
   if (data.display_name !== undefined) { fields.push(`display_name = $${i++}`); params.push(data.display_name); }
+  if (data.telegram_id !== undefined)  { fields.push(`telegram_id = $${i++}`);  params.push(data.telegram_id || null); }
   if (data.password !== undefined) {
     const hash = await bcrypt.hash(data.password, 10);
     fields.push(`erp_password_hash = $${i++}`);

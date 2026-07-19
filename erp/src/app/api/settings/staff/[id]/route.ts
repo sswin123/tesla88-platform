@@ -27,7 +27,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Cannot edit SUPER_ADMIN accounts' }, { status: 403 });
   }
 
-  let body: { role?: string; password?: string; is_active?: boolean; display_name?: string };
+  let body: { role?: string; password?: string; is_active?: boolean; display_name?: string; telegram_id?: string };
   try {
     body = await request.json();
   } catch {
@@ -65,13 +65,15 @@ export async function PATCH(
     is_active:    body.is_active,
     password:     body.password,
     display_name: body.display_name,
+    telegram_id:  body.telegram_id,
   });
 
   const changes: Record<string, unknown> = {};
-  if (body.role !== undefined)        changes.role = body.role;
-  if (body.is_active !== undefined)   changes.is_active = body.is_active;
+  if (body.role !== undefined)         changes.role = body.role;
+  if (body.is_active !== undefined)    changes.is_active = body.is_active;
   if (body.display_name !== undefined) changes.display_name = body.display_name;
-  if (body.password !== undefined)    changes.password_reset = true;
+  if (body.telegram_id !== undefined)  changes.telegram_id = body.telegram_id || null;
+  if (body.password !== undefined)     changes.password_reset = true;
 
   logAudit({
     admin_id:    payload.sub,

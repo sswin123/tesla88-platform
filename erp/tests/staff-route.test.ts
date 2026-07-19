@@ -185,6 +185,65 @@ describe('Test 6 — PATCH returns 403 when target is SUPER_ADMIN', () => {
   });
 });
 
+// ── Test 8: POST creates staff with telegram_id ───────────────────────────
+
+describe('Test 8 — POST creates staff with telegram_id', () => {
+  it('passes telegram_id to createStaffMember when provided', async () => {
+    const withTelegram = { ...BASE_STAFF, telegram_id: '123456789' };
+    mockCreateStaffMember.mockResolvedValueOnce(withTelegram);
+    const req = makeReq('POST', 'http://localhost/api/settings/staff', {
+      erp_username: 'john',
+      telegram_id:  '123456789',
+      password:     'secret123',
+      role:         'CS',
+    });
+    const res = await POST(req);
+    const d = await res.json() as { ok: boolean; member: { telegram_id: string } };
+    expect(res.status).toBe(201);
+    expect(d.ok).toBe(true);
+    expect(mockCreateStaffMember).toHaveBeenCalledWith(
+      expect.objectContaining({ telegram_id: '123456789' })
+    );
+  });
+
+  it('creates staff without telegram_id when not provided', async () => {
+    mockCreateStaffMember.mockResolvedValueOnce(BASE_STAFF);
+    const req = makeReq('POST', 'http://localhost/api/settings/staff', {
+      erp_username: 'john',
+      password:     'secret123',
+      role:         'CS',
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    expect(mockCreateStaffMember).toHaveBeenCalledWith(
+      expect.objectContaining({ erp_username: 'john' })
+    );
+    const callArg = mockCreateStaffMember.mock.calls[0][0] as { telegram_id?: string };
+    expect(callArg.telegram_id).toBeUndefined();
+  });
+});
+
+// ── Test 9: GET list includes telegram_id field ───────────────────────────
+
+describe('Test 9 — GET staff list includes telegram_id', () => {
+  it('returns telegram_id in staff list response', async () => {
+    const staffWithTelegram = { ...BASE_STAFF, telegram_id: '987654321' };
+    mockListStaff.mockResolvedValueOnce([staffWithTelegram]);
+    const res = await GET();
+    const d = await res.json() as { staff: { telegram_id: string | null }[] };
+    expect(res.status).toBe(200);
+    expect(d.staff[0].telegram_id).toBe('987654321');
+  });
+
+  it('returns null telegram_id when not set', async () => {
+    mockListStaff.mockResolvedValueOnce([BASE_STAFF]);
+    const res = await GET();
+    const d = await res.json() as { staff: { telegram_id: string | null }[] };
+    expect(res.status).toBe(200);
+    expect(d.staff[0].telegram_id).toBeNull();
+  });
+});
+
 // ── Test 7: Permission check blocks unauthorized access ───────────────────
 
 describe('Test 7 — Permission check blocks unauthorized access', () => {
