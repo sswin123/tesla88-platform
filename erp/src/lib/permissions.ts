@@ -20,8 +20,6 @@ const PAGE_ACCESS: Record<string, AdminRole[]> = {
   '/analytics':     ['FINANCE', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
   '/risk':          ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
   '/members':       ['FINANCE', 'SUPERVISOR', 'SUPPORT', 'ADMIN', 'SUPER_ADMIN'],
-  '/deposits':      ['FINANCE', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
-  '/withdrawals':   ['FINANCE', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
   '/livechat':      ['CS', 'SUPPORT', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN'],
   '/providers':     ['ADMIN', 'SUPER_ADMIN'],
   '/accounts':      ['ADMIN', 'SUPER_ADMIN'],

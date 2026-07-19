@@ -240,7 +240,6 @@ export function Sidebar() {
         const evt = JSON.parse(e.data as string) as { type?: string };
         if (evt.type === 'new_deposit') {
           setDepositsUnread((n) => {
-            if (window.location.pathname.startsWith('/deposits')) return n;
             playNotifBeep();
             return n + 1;
           });
