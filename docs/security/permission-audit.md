@@ -105,8 +105,6 @@
 | /api/settings/staff | POST | `staff.manage` | ✅ PASS |
 | /api/settings/staff/[id] | PATCH | `staff.manage` | ✅ PASS |
 | /api/settings/permissions | GET, PATCH | `staff.manage` | ✅ PASS |
-| /api/admin-users | GET, POST | `staff.manage` | ✅ PASS |
-| /api/admin-users/[id] | PATCH | `staff.manage` | ✅ PASS |
 
 ### Media Library
 
@@ -140,10 +138,8 @@
 | Safety Rule | Implementation | Status |
 |-------------|---------------|--------|
 | Cannot edit SUPER_ADMIN accounts | `settings/staff/[id]`: returns 403 if `target.role === 'SUPER_ADMIN'` | ✅ |
-| Cannot edit SUPER_ADMIN via old route | `admin-users/[id]`: returns 403 if `target.role === 'SUPER_ADMIN'` | ✅ |
 | Cannot assign SUPER_ADMIN role | `settings/staff`: POST rejects `role='SUPER_ADMIN'` (400); PATCH returns 403 | ✅ |
 | Cannot change own role | `settings/staff/[id]`: returns 403 if `target.id === payload.sub` | ✅ |
-| Cannot change own role (old route) | `admin-users/[id]`: returns 403 if `target.id === payload.sub` | ✅ |
 | Cannot disable last SUPER_ADMIN | `settings/staff/[id]`: calls `countActiveSuperAdmins()` before disable | ✅ |
 | SUPER_ADMIN permission bypass | `permission_engine.can()`: returns `true` immediately for SUPER_ADMIN | ✅ |
 
@@ -155,8 +151,6 @@
 |--------|-------|-----------|--------|
 | Staff created | POST /api/settings/staff | `STAFF_CREATED` | ✅ |
 | Staff updated | PATCH /api/settings/staff/[id] | `STAFF_UPDATED` | ✅ |
-| Admin created (legacy) | POST /api/admin-users | `ADMIN_CREATED` | ✅ |
-| Admin updated (legacy) | PATCH /api/admin-users/[id] | `ADMIN_UPDATED` | ✅ |
 | Permission changed | PATCH /api/settings/permissions | `PERMISSION_CHANGED` | ✅ |
 | Bot settings saved | PATCH /api/settings/bot | `BOT_SETTINGS_UPDATED` | ✅ |
 | Broadcast created/sent | POST /api/broadcast | `BROADCAST_CREATED` | ✅ |

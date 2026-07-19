@@ -174,16 +174,6 @@ describe('Test 4 — Sidebar filters nav items by permission', () => {
 // ── Test 5: Direct URL access blocked (API returns 401) ───────────────────────
 
 describe('Test 5 — Direct URL access returns 401 for unauthorized', () => {
-  it('admin-users route returns 401 without staff.manage', async () => {
-    mockVerifyJWT.mockResolvedValue(makePayload('FINANCE'));
-    mockCan.mockResolvedValue(false); // FINANCE lacks staff.manage
-
-    vi.resetModules();
-    const { GET } = await import('@/app/api/admin-users/route');
-    const res = await GET();
-    expect(res.status).toBe(401);
-  });
-
   it('withdrawals route returns 401 without permission', async () => {
     mockVerifyJWT.mockResolvedValue(makePayload('CS'));
     mockCan.mockResolvedValue(false);
