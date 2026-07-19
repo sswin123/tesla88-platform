@@ -352,5 +352,37 @@ export async function POST() {
     ok('067c_withdrawal_trigger_awaiting_receipt');
   } catch (e) { err('067c_withdrawal_trigger_awaiting_receipt', e); }
 
+  // ── Migration 068: Missing columns for deposit bank linkage ──────────────────
+  // deposit_requests.receiving_bank_id — FK to payment_banks (was referenced in code
+  // as "migration 027" but never had a corresponding .sql file; adds idempotently)
+  try {
+    await pool.query(`
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS receiving_bank_id INTEGER REFERENCES payment_banks(id) ON DELETE SET NULL`);
+    ok('068a_deposit_receiving_bank_id');
+  } catch (e) { err('068a_deposit_receiving_bank_id', e); }
+
+  // deposit_requests.receipt_media_id — media library FK for ERP-uploaded receipts
+  try {
+    await pool.query(`
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS receipt_media_id INTEGER REFERENCES media_library(id) ON DELETE SET NULL`);
+    ok('068b_deposit_receipt_media_id');
+  } catch (e) { err('068b_deposit_receipt_media_id', e); }
+
+  // payment_banks.qr_media_id — media library FK for QR code image (migration 039)
+  try {
+    await pool.query(`
+      ALTER TABLE payment_banks
+        ADD COLUMN IF NOT EXISTS qr_media_id INTEGER REFERENCES media_library(id) ON DELETE SET NULL`);
+    ok('068c_payment_banks_qr_media_id');
+  } catch (e) { err('068c_payment_banks_qr_media_id', e); }
+
+  // payment_banks.instructions — optional deposit instructions text (migration 039)
+  try {
+    await pool.query(`ALTER TABLE payment_banks ADD COLUMN IF NOT EXISTS instructions TEXT`);
+    ok('068d_payment_banks_instructions');
+  } catch (e) { err('068d_payment_banks_instructions', e); }
+
   return NextResponse.json({ ok: true, results });
 }

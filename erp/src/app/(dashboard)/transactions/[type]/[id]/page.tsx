@@ -98,6 +98,27 @@ export default function HandlePage() {
       .catch(() => {});
   }, [fetchDetail]);
 
+  // Clipboard paste support (Ctrl+V / Cmd+V) — only active when receipt upload is shown
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!detail) return;
+      const isWithdrawal = detail.type === 'withdrawal';
+      const isAwaitingOrPaid = detail.status === 'AWAITING_RECEIPT' || detail.status === 'PAID';
+      if (!isWithdrawal || !isAwaitingOrPaid) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) { void handleReceiptUpload(file); break; }
+        }
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail]);
+
   async function handleProcess() {
     setActing(true);
     setError('');
@@ -128,6 +149,20 @@ export default function HandlePage() {
     setActing(false);
   }
 
+  async function handleDone() {
+    setActing(true);
+    setError('');
+    const res = await fetch(`/api/withdrawals/${id}/done`, { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setError(body.error ?? 'Failed to complete payment');
+      setActing(false);
+      return;
+    }
+    fetchDetail();
+    setActing(false);
+  }
+
   async function handleReceiptUpload(file: File) {
     setUploading(true);
     setError('');
@@ -136,7 +171,6 @@ export default function HandlePage() {
     const res = await fetch(`/api/withdrawals/${id}/receipt`, { method: 'POST', body: form });
     const data = await res.json().catch(() => ({})) as { receipt_media_id?: number; error?: string };
     if (res.ok) {
-      // Re-fetch full detail so status (AWAITING_RECEIPT → PAID) and balance are current
       fetchDetail();
     } else {
       setError(data.error ?? 'Upload failed');
@@ -162,23 +196,26 @@ export default function HandlePage() {
   const isDeposit         = detail.type === 'deposit';
   const amount            = isDeposit ? detail.deposit_amount : detail.withdraw_amount;
   const isAwaitingReceipt = detail.status === 'AWAITING_RECEIPT';
+  const isPaid            = detail.status === 'PAID';
   const isFinal           = ['APPROVED', 'PAID', 'REJECTED', 'AWAITING_RECEIPT'].includes(detail.status);
   const isProcessing      = detail.status === 'PROCESSING';
   const isPending         = detail.status === 'PENDING';
   const myLock            = detail.processing_by !== null && meId !== null && Number(detail.processing_by) === Number(meId);
   const otherLock         = detail.processing_by !== null && (meId === null || Number(detail.processing_by) !== Number(meId));
 
-  const showProcess      = isPending && !detail.processing_by;
+  const showProcess       = isPending && !detail.processing_by;
   const showApproveReject = isProcessing && myLock;
+  const showReceiptSection = !isDeposit && (isAwaitingReceipt || isPaid);
+
+  // Receipt media URL helpers
+  const receiptMediaId = detail.receipt_media_id;
+  const receiptUrl = receiptMediaId ? `/api/public/media/${receiptMediaId}` : null;
 
   const turnoverRequired  = parseFloat(detail.active_turnover_required ?? '0');
   const turnoverCompleted = parseFloat(detail.active_turnover_completed ?? '0');
   const turnoverPct = turnoverRequired > 0 ? Math.min(100, (turnoverCompleted / turnoverRequired) * 100) : 0;
 
-  /* Receipt section helpers */
-  const showReceiptUpload = !isDeposit && (isAwaitingReceipt || detail.status === 'PAID');
-
-  void router; // suppress unused warning
+  void router;
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -316,11 +353,11 @@ export default function HandlePage() {
       )}
 
       {/* Payment Receipt (withdrawal only) */}
-      {showReceiptUpload && (
-        <div className={`rounded-lg border p-4 ${isAwaitingReceipt && !detail.receipt_media_id ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}>
+      {showReceiptSection && (
+        <div className={`rounded-lg border p-4 ${isAwaitingReceipt && !receiptMediaId ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Payment Receipt</h2>
 
-          {/* Hidden file input — shared for upload and replace */}
+          {/* Hidden file input — triggers file picker and handles onChange */}
           <input
             ref={receiptInputRef}
             type="file"
@@ -332,16 +369,23 @@ export default function HandlePage() {
             }}
           />
 
-          {detail.receipt_media_id ? (
-            /* Receipt uploaded — show view link + replace option */
-            <div className="flex items-center gap-3 flex-wrap">
+          {receiptUrl ? (
+            /* Receipt uploaded — View / Replace / Download */
+            <div className="flex flex-wrap items-center gap-3">
               <a
-                href={`/api/public/media/${detail.receipt_media_id}`}
+                href={receiptUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline text-sm font-medium"
               >
                 View Receipt ↗
+              </a>
+              <a
+                href={receiptUrl}
+                download={`receipt-wd-${detail.id}`}
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+              >
+                Download
               </a>
               <Button
                 size="sm"
@@ -351,24 +395,30 @@ export default function HandlePage() {
               >
                 {uploading ? 'Uploading…' : 'Replace Receipt'}
               </Button>
+              {!uploading && (
+                <span className="text-xs text-gray-400">or paste image (Ctrl+V)</span>
+              )}
             </div>
           ) : isAwaitingReceipt ? (
-            /* Required — must upload to complete payment */
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-medium text-amber-700">
-                Upload receipt to complete payment
+            /* AWAITING_RECEIPT — receipt optional before Done */
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-amber-700">
+                Receipt is optional — upload or press Done to complete payment
               </span>
               <Button
                 size="sm"
+                variant="outline"
                 disabled={uploading}
-                className="bg-amber-500 hover:bg-amber-600 text-white"
                 onClick={() => receiptInputRef.current?.click()}
               >
                 {uploading ? 'Uploading…' : 'Upload Receipt'}
               </Button>
+              {!uploading && (
+                <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>
+              )}
             </div>
           ) : (
-            /* PAID but no receipt — optional replacement */
+            /* PAID but no receipt — optional */
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-400">No receipt uploaded</span>
               <Button
@@ -384,7 +434,7 @@ export default function HandlePage() {
         </div>
       )}
 
-      {!isDeposit && !showReceiptUpload && (
+      {!isDeposit && !showReceiptSection && (
         <div className="rounded-lg border bg-white p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Payment Receipt</h2>
           <span className="text-sm text-gray-400">Receipt will be available after approval</span>
@@ -446,8 +496,31 @@ export default function HandlePage() {
         </div>
       )}
 
-      {/* Action buttons — hidden once AWAITING_RECEIPT/PAID/APPROVED/REJECTED */}
-      {!isFinal && (
+      {/* Action buttons */}
+      {/* AWAITING_RECEIPT: Done (primary) + Upload Receipt (secondary) */}
+      {isAwaitingReceipt && !isDeposit && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            size="lg"
+            onClick={handleDone}
+            disabled={acting}
+            className="px-10 bg-green-600 hover:bg-green-700 text-white"
+          >
+            {acting ? 'Processing…' : '✓ Done — Mark as PAID'}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            disabled={uploading || acting}
+            onClick={() => receiptInputRef.current?.click()}
+          >
+            {uploading ? 'Uploading…' : 'Upload Receipt (Optional)'}
+          </Button>
+        </div>
+      )}
+
+      {/* PENDING / PROCESSING actions */}
+      {!isFinal && !isAwaitingReceipt && (
         <div className="flex items-center gap-3">
           {showProcess && (
             <Button

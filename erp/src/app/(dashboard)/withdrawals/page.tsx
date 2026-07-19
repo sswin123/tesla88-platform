@@ -20,25 +20,22 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = 
   REJECTED:         'destructive',
 };
 
-// ── Receipt Upload Cell ────────────────────────────────────────────────────────
-function ReceiptCell({ row, onUploaded }: { row: WithdrawalRow; onUploaded: (id: number, mediaId: number) => void }) {
+// ── Receipt Cell ───────────────────────────────────────────────────────────────
+function ReceiptCell({
+  row,
+  onUploaded,
+}: {
+  row: WithdrawalRow;
+  onUploaded: (id: number, mediaId: number) => void;
+}) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (row.status !== 'PAID' && row.status !== 'AWAITING_RECEIPT') return <span className="text-xs text-gray-300">—</span>;
-
-  if (row.receipt_media_id) {
-    return (
-      <a
-        href={`/api/public/media/${row.receipt_media_id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-xs text-blue-600 hover:underline font-medium"
-      >
-        View Receipt
-      </a>
-    );
+  if (row.status !== 'PAID' && row.status !== 'AWAITING_RECEIPT') {
+    return <span className="text-xs text-gray-300">—</span>;
   }
+
+  const receiptUrl = row.receipt_media_id ? `/api/public/media/${row.receipt_media_id}` : null;
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -57,6 +54,28 @@ function ReceiptCell({ row, onUploaded }: { row: WithdrawalRow; onUploaded: (id:
     } finally {
       setUploading(false);
     }
+  }
+
+  if (receiptUrl) {
+    return (
+      <div className="flex flex-col gap-1">
+        <a
+          href={receiptUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-blue-600 hover:underline font-medium"
+        >
+          View ↗
+        </a>
+        <a
+          href={receiptUrl}
+          download={`receipt-wd-${row.id}`}
+          className="text-xs text-gray-500 hover:text-gray-800 underline"
+        >
+          Download
+        </a>
+      </div>
+    );
   }
 
   return (
@@ -78,7 +97,7 @@ function ReceiptCell({ row, onUploaded }: { row: WithdrawalRow; onUploaded: (id:
         disabled={uploading}
         className="text-xs h-7 px-2"
       >
-        {uploading ? 'Uploading…' : 'Upload Receipt'}
+        {uploading ? 'Uploading…' : 'Upload'}
       </Button>
     </>
   );
@@ -112,16 +131,24 @@ export default function WithdrawalsPage() {
     load();
   }
 
-  // Optimistic receipt update — also flips AWAITING_RECEIPT → PAID
+  async function done(id: number) {
+    setActing(id);
+    const res = await fetch(`/api/withdrawals/${id}/done`, { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      alert(body.error ?? 'Failed to complete payment');
+    }
+    setActing(null);
+    load();
+  }
+
   function handleReceiptUploaded(withdrawalId: number, mediaId: number) {
     setData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         data: prev.data.map(w =>
-          w.id === withdrawalId
-            ? { ...w, receipt_media_id: mediaId, status: w.status === 'AWAITING_RECEIPT' ? 'PAID' : w.status }
-            : w
+          w.id === withdrawalId ? { ...w, receipt_media_id: mediaId } : w
         ),
       };
     });
@@ -138,7 +165,7 @@ export default function WithdrawalsPage() {
         value={status || 'ALL'}
         onValueChange={(v) => { setStatus(v === 'ALL' ? '' : v); setPage(1); }}
       >
-        <SelectTrigger className="w-40">
+        <SelectTrigger className="w-44">
           <SelectValue placeholder="All Status" />
         </SelectTrigger>
         <SelectContent>
@@ -178,7 +205,7 @@ export default function WithdrawalsPage() {
                   <div className="text-xs text-gray-400">{w.bank_account}</div>
                 </td>
                 <td className="px-3 py-3">
-                  <Badge variant={STATUS_VARIANT[w.status]}>{w.status}</Badge>
+                  <Badge variant={STATUS_VARIANT[w.status] ?? 'secondary'}>{w.status}</Badge>
                 </td>
                 <td className="px-3 py-3 max-w-[150px]">
                   {w.reject_reason ? (
@@ -212,6 +239,16 @@ export default function WithdrawalsPage() {
                         Reject
                       </Button>
                     </div>
+                  )}
+                  {w.status === 'AWAITING_RECEIPT' && (
+                    <Button
+                      size="sm"
+                      onClick={() => done(w.id)}
+                      disabled={acting === w.id}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {acting === w.id ? 'Processing…' : '✓ Done'}
+                    </Button>
                   )}
                 </td>
               </tr>

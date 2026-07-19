@@ -99,9 +99,16 @@ export class MediaServiceImpl {
     this.validate(input);
     const hash = this.sha256(input.buffer);
 
-    // Dedup: return existing record without writing to disk
+    // Dedup: if hash exists, return existing record — but re-write to disk if the
+    // physical file is missing (e.g. Docker volume was recreated after a redeploy).
     const existing = await findMediaByHash(hash);
-    if (existing) return { record: existing, isDuplicate: true };
+    if (existing) {
+      const fileExists = await this.storage.exists(existing.storageKey).catch(() => false);
+      if (!fileExists) {
+        await this.storage.save(existing.storageKey, input.buffer, input.mimeType);
+      }
+      return { record: existing, isDuplicate: true };
+    }
 
     if (this.scan(input.buffer) === 'FAIL') throw new MediaVirusScanError();
 
