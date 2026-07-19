@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
+vi.mock('@/lib/require_permission', () => ({
+  requirePermission: vi.fn().mockResolvedValue({ sub: 1, username: 'admin1', role: 'SUPER_ADMIN' }),
+}));
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);

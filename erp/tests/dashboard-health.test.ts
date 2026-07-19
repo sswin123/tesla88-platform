@@ -4,12 +4,8 @@ vi.mock('@/lib/db', () => ({
   default: { query: vi.fn() },
 }));
 
-vi.mock('@/lib/auth', () => ({
-  verifyJWT: vi.fn().mockResolvedValue({ sub: 1, username: 'admin1', role: 'ADMIN' }),
-  COOKIE_NAME: 'token',
-}));
-vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockResolvedValue({ get: () => ({ value: 'tok' }) }),
+vi.mock('@/lib/require_permission', () => ({
+  requirePermission: vi.fn().mockResolvedValue({ sub: 1, username: 'admin1', role: 'SUPER_ADMIN' }),
 }));
 
 const mockFetch = vi.fn();

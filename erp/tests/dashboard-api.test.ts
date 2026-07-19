@@ -1,12 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/lib/auth', () => ({
-  verifyJWT: vi.fn().mockResolvedValue({ sub: 1, username: 'admin1', role: 'ADMIN' }),
-  COOKIE_NAME: 'token',
-}));
-vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockResolvedValue({ get: () => ({ value: 'tok' }) }),
+vi.mock('@/lib/require_permission', () => ({
+  requirePermission: vi.fn().mockResolvedValue({ sub: 1, username: 'admin1', role: 'SUPER_ADMIN' }),
 }));
 
 const mockQuery = vi.fn();
