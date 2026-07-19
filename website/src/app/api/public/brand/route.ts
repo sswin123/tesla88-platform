@@ -15,6 +15,7 @@ export async function GET() {
       support_telegram: brand.support_telegram,
       telegram_channel: brand.telegram_channel,
       facebook_url:     brand.facebook_url,
+      support_phone:    brand.support_phone ?? null,
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );

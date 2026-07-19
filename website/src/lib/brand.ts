@@ -20,6 +20,7 @@ export interface PublicBrand {
   support_telegram: string | null;
   telegram_channel: string | null;
   facebook_url: string | null;
+  support_phone: string | null;
   seo_title: string | null;
   seo_description: string | null;
   seo_keywords: string | null;
@@ -48,6 +49,7 @@ export const BRAND_FALLBACK: PublicBrand = {
   support_telegram: null,
   telegram_channel: null,
   facebook_url: null,
+  support_phone: null,
   seo_title: null,
   seo_description: null,
   seo_keywords: null,
@@ -75,6 +77,7 @@ const QUERY_V3 = `
          COALESCE(color_text, '#e8e8f5') AS color_text,
          website_domain, api_domain,
          support_whatsapp, support_telegram, telegram_channel, facebook_url,
+         support_phone,
          seo_title, seo_description, seo_keywords,
          COALESCE(design_preset,   'classic_purple') AS design_preset,
          COALESCE(design_overrides, '{}')            AS design_overrides
@@ -133,7 +136,7 @@ export async function getBrand(): Promise<PublicBrand> {
   try {
     const r = await pool.query<PublicBrand>(QUERY_V2);
     _cache = r.rows[0]
-      ? { ...r.rows[0], design_preset: 'classic_purple', design_overrides: {} }
+      ? { ...r.rows[0], design_preset: 'classic_purple', design_overrides: {}, support_phone: null }
       : BRAND_FALLBACK;
     _cacheAt = Date.now();
     return _cache;
@@ -148,11 +151,12 @@ export async function getBrand(): Promise<PublicBrand> {
       }
       _cache = {
         ...(r.rows[0] as Omit<PublicBrand, 'logo_size' | 'logo_align' | 'color_bg' | 'color_card' | 'color_text'>),
-        logo_size:  'medium',
-        logo_align: 'left',
-        color_bg:   '#0a0b14',
-        color_card: '#111222',
-        color_text: '#e8e8f5',
+        logo_size:     'medium',
+        logo_align:    'left',
+        color_bg:      '#0a0b14',
+        color_card:    '#111222',
+        color_text:    '#e8e8f5',
+        support_phone: null,
       } as PublicBrand;
       _cacheAt = Date.now();
       return _cache;

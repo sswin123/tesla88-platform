@@ -42,6 +42,7 @@ export interface BrandSettings {
   instagram_url: string | null;
   tiktok_url: string | null;
   support_email: string | null;
+  support_phone: string | null;
   support_line: string | null;
   support_wechat: string | null;
   support_messenger: string | null;
@@ -110,7 +111,7 @@ const ALL_COLS = `
   website_domain, api_domain, erp_domain,
   COALESCE(auto_detect_domain, FALSE) AS auto_detect_domain,
   support_whatsapp, support_telegram, telegram_channel, facebook_url,
-  instagram_url, tiktok_url, support_email,
+  instagram_url, tiktok_url, support_email, support_phone,
   support_line, support_wechat, support_messenger,
   support_discord, support_viber, support_x, support_youtube,
   seo_title, seo_description, seo_keywords, seo_author,
@@ -157,13 +158,14 @@ const MIGRATION_053_COLS: (keyof BrandUpdate)[] = [
   'sys_timezone', 'sys_language', 'sys_country', 'sys_locale',
 ];
 
+const MIGRATION_068_COLS: (keyof BrandUpdate)[] = ['support_phone'];
 const MIGRATION_051_COLS: (keyof BrandUpdate)[] = ['design_preset', 'design_overrides'];
 const MIGRATION_048_COLS: (keyof BrandUpdate)[] = ['erp_domain', 'instagram_url', 'tiktok_url', 'support_email'];
 const MIGRATION_024_COLS: (keyof BrandUpdate)[] = ['color_bg', 'color_card', 'color_text', 'logo_size', 'logo_align'];
 
 const MIGRATION_COL_KEYWORDS = [
   'color_bg', 'color_card', 'color_text', 'logo_size', 'logo_align',
-  'erp_domain', 'instagram_url', 'tiktok_url', 'support_email',
+  'erp_domain', 'instagram_url', 'tiktok_url', 'support_email', 'support_phone',
   'design_preset', 'design_overrides',
   'referral_prefix', 'website_name', 'short_name', 'auto_detect_domain',
   'loading_logo_media_id', 'pwa_icon_media_id', 'apple_touch_media_id',
@@ -207,6 +209,7 @@ function applyBrandDefaults(row: Record<string, unknown>): BrandSettings {
     instagram_url:   (row.instagram_url as string)   ?? null,
     tiktok_url:      (row.tiktok_url as string)      ?? null,
     support_email:   (row.support_email as string)   ?? null,
+    support_phone:   (row.support_phone as string)   ?? null,
     auto_detect_domain: (row.auto_detect_domain as boolean) ?? false,
     support_line:      (row.support_line as string)      ?? null,
     support_wechat:    (row.support_wechat as string)    ?? null,
@@ -274,7 +277,7 @@ export async function updateBrandSettings(
     'color_bg', 'color_card', 'color_text',
     'website_domain', 'api_domain', 'erp_domain', 'auto_detect_domain',
     'support_whatsapp', 'support_telegram', 'telegram_channel', 'facebook_url',
-    'instagram_url', 'tiktok_url', 'support_email',
+    'instagram_url', 'tiktok_url', 'support_email', 'support_phone',
     'support_line', 'support_wechat', 'support_messenger', 'support_discord',
     'support_viber', 'support_x', 'support_youtube',
     'seo_title', 'seo_description', 'seo_keywords', 'seo_author',
@@ -322,7 +325,8 @@ export async function updateBrandSettings(
         k => !MIGRATION_024_COLS.includes(k) &&
              !MIGRATION_048_COLS.includes(k) &&
              !MIGRATION_051_COLS.includes(k) &&
-             !MIGRATION_053_COLS.includes(k)
+             !MIGRATION_053_COLS.includes(k) &&
+             !MIGRATION_068_COLS.includes(k)
       );
       const { sql, params } = buildQuery(compatKeys, ALL_COLS_COMPAT);
       const r = await pool.query(sql, params);

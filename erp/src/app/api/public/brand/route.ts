@@ -13,6 +13,7 @@ const PUBLIC_COLS = `
   COALESCE(color_text, '#e8e8f5') AS color_text,
   website_domain, api_domain,
   support_whatsapp, support_telegram, telegram_channel, facebook_url,
+  support_phone,
   seo_title, seo_description, seo_keywords
 `.trim();
 
@@ -43,11 +44,12 @@ export async function GET() {
       }
       const row = {
         ...r.rows[0],
-        logo_size:  'medium',
-        logo_align: 'left',
-        color_bg:   '#0a0b14',
-        color_card: '#111222',
-        color_text: '#e8e8f5',
+        logo_size:     'medium',
+        logo_align:    'left',
+        color_bg:      '#0a0b14',
+        color_card:    '#111222',
+        color_text:    '#e8e8f5',
+        support_phone: null,
       };
       return NextResponse.json(row);
     } catch (e2) {

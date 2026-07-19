@@ -47,6 +47,7 @@ const EMPTY_FORM: FormState = {
   auto_detect_domain: false,
   support_whatsapp: '', support_telegram: '', telegram_channel: '',
   facebook_url: '', instagram_url: '', tiktok_url: '', support_email: '',
+  support_phone: '',
   support_line: '', support_wechat: '', support_messenger: '',
   support_discord: '', support_viber: '', support_x: '', support_youtube: '',
   seo_title: '', seo_description: '', seo_keywords: '',
@@ -560,6 +561,9 @@ export default function BrandCenterPage() {
           </Field>
           <Field label="支持邮箱">
             <TextInput type="email" value={form.support_email} onChange={v => set('support_email', v)} placeholder="support@apidemo.club" />
+          </Field>
+          <Field label="支持电话">
+            <TextInput value={form.support_phone} onChange={v => set('support_phone', v)} placeholder="+60123456789" />
           </Field>
         </div>
       </Section>

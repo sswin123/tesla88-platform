@@ -41,6 +41,7 @@ export type FormState = {
   instagram_url: string;
   tiktok_url: string;
   support_email: string;
+  support_phone: string;
   support_line: string;
   support_wechat: string;
   support_messenger: string;
@@ -139,6 +140,7 @@ export function initForm(brand: BrandSettings): FormState {
     instagram_url:     brand.instagram_url     ?? '',
     tiktok_url:        brand.tiktok_url        ?? '',
     support_email:     brand.support_email     ?? '',
+    support_phone:     brand.support_phone     ?? '',
     support_line:      brand.support_line      ?? '',
     support_wechat:    brand.support_wechat    ?? '',
     support_messenger: brand.support_messenger ?? '',
@@ -213,6 +215,7 @@ export function buildSavePatch(form: FormState): Record<string, unknown> {
     instagram_url:     str(form.instagram_url),
     tiktok_url:        str(form.tiktok_url),
     support_email:     str(form.support_email),
+    support_phone:     str(form.support_phone),
     support_line:      str(form.support_line),
     support_wechat:    str(form.support_wechat),
     support_messenger: str(form.support_messenger),

@@ -44,6 +44,7 @@ const FALLBACK: BrandSettings = {
   instagram_url: null,
   tiktok_url: null,
   support_email: null,
+  support_phone: null,
   support_line: null,
   support_wechat: null,
   support_messenger: null,
