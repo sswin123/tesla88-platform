@@ -1,3 +1,6 @@
+// @deprecated Phase M4b — This repository serves the legacy website_banners table.
+// The ERP UI (website-banners page) has migrated to banner-slides (homepage_sections CMS).
+// Repository preserved intact pending Phase M4c approval.
 import pool from '@/lib/db';
 import type { WebsiteBanner } from '@/lib/types';
 

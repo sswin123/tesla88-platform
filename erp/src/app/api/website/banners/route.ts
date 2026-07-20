@@ -3,12 +3,21 @@ import { requirePermission } from '@/lib/require_permission';
 import { getAllBanners, createBanner } from '@/lib/repositories/banner_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
+// @deprecated Phase M4b — Legacy website_banners CRUD API with zero active consumers.
+// ERP UI (website-banners page) migrated to /api/website/banner-slides (CMS homepage_sections).
+// Infrastructure preserved pending M4c approval + 14-day production observation.
+
+const DEPRECATION_HEADERS = {
+  Deprecation: 'true',
+  'X-Deprecation-Info': 'Legacy Banner CRUD deprecated (Phase M4b). Pending M4c retirement after observation.',
+} as const;
+
 export async function GET() {
   const payload = await requirePermission('website.banner.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const banners = await getAllBanners();
-  return NextResponse.json(banners);
+  return NextResponse.json(banners, { headers: DEPRECATION_HEADERS });
 }
 
 export async function POST(req: NextRequest) {
@@ -54,5 +63,5 @@ export async function POST(req: NextRequest) {
     new_value:   { title: banner.title, is_active: banner.is_active },
   });
 
-  return NextResponse.json(banner, { status: 201 });
+  return NextResponse.json(banner, { status: 201, headers: DEPRECATION_HEADERS });
 }

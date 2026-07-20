@@ -3,6 +3,14 @@ import { requirePermission } from '@/lib/require_permission';
 import { getBannerById, updateBanner, deleteBanner } from '@/lib/repositories/banner_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
+// @deprecated Phase M4b — Legacy website_banners CRUD API with zero active consumers.
+// Infrastructure preserved pending M4c approval + 14-day production observation.
+
+const DEPRECATION_HEADERS = {
+  Deprecation: 'true',
+  'X-Deprecation-Info': 'Legacy Banner CRUD deprecated (Phase M4b). Pending M4c retirement after observation.',
+} as const;
+
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -11,8 +19,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   const banner = await getBannerById(parseInt(id, 10));
-  if (!banner) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json(banner);
+  if (!banner) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: DEPRECATION_HEADERS });
+  return NextResponse.json(banner, { headers: DEPRECATION_HEADERS });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -30,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!old) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const updated = await updateBanner(numId, body as Parameters<typeof updateBanner>[1]);
-  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: DEPRECATION_HEADERS });
 
   await logAudit({
     admin_id:    payload.sub,
@@ -41,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     new_value:   body as Record<string, unknown>,
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json(updated, { headers: DEPRECATION_HEADERS });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
@@ -55,7 +63,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!old) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const deleted = await deleteBanner(numId);
-  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: DEPRECATION_HEADERS });
 
   await logAudit({
     admin_id:    payload.sub,
@@ -66,5 +74,5 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     new_value:   null,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true }, { headers: DEPRECATION_HEADERS });
 }
