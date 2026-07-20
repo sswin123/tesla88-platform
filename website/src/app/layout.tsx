@@ -32,17 +32,6 @@ async function getHeaderConfig(): Promise<HeaderConfig | null> {
   }
 }
 
-async function getFallbackBannerText(): Promise<string> {
-  try {
-    const res = await pool.query<{ value: string }>(
-      "SELECT value FROM system_settings WHERE key = 'site_banner_text'"
-    );
-    return res.rows[0]?.value ?? '';
-  } catch {
-    return '';
-  }
-}
-
 async function getActiveAnnouncements(): Promise<PublicAnnouncement[]> {
   try {
     const res = await pool.query<PublicAnnouncement>(
@@ -90,17 +79,15 @@ const HEADER_H_MAP: Record<string, string> = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [brand, announcements, fallbackText, headerConfig] = await Promise.all([
+  const [brand, announcements, headerConfig] = await Promise.all([
     getBrand(),
     getActiveAnnouncements(),
-    getFallbackBannerText(),
     getHeaderConfig(),
   ]);
 
   const headerH = HEADER_H_MAP[brand.logo_size ?? 'medium'] ?? '60px';
 
-  /* Ticker shows if we have ERP announcements OR a legacy banner text */
-  const hasTicker = announcements.length > 0 || !!fallbackText;
+  const hasTicker = announcements.length > 0;
 
   /* Total offset from top = header + optional ticker + safe area (iPhone notch) */
   const topOffset = hasTicker
@@ -135,7 +122,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <CasinoHeader
           brand={brand}
           announcements={announcements}
-          fallbackBannerText={announcements.length === 0 ? fallbackText : ''}
           headerConfig={headerConfig}
         />
 

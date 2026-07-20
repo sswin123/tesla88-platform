@@ -19,7 +19,6 @@ export interface HeaderConfig {
 interface Props {
   brand: PublicBrand;
   announcements?: PublicAnnouncement[];
-  fallbackBannerText?: string;
   headerConfig?: HeaderConfig | null;
 }
 
@@ -33,31 +32,26 @@ const LOGO_SIZE_CLASS: Record<string, string> = {
 
 function buildTickerContent(
   announcements: PublicAnnouncement[],
-  fallback: string,
 ): React.ReactNode {
-  if (announcements.length > 0) {
-    return announcements.map((a, i) => (
-      <span key={a.id} className="inline-flex items-center">
-        {a.link_url ? (
-          <a href={a.link_url} className="hover:underline" style={{ color: 'inherit', textDecoration: 'none' }}>
-            {TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}
-          </a>
-        ) : (
-          <span>{TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}</span>
-        )}
-        {i < announcements.length - 1 && (
-          <span className="mx-10 opacity-30 select-none">◆</span>
-        )}
-      </span>
-    ));
-  }
-  return <span>📢&nbsp;{fallback}</span>;
+  return announcements.map((a, i) => (
+    <span key={a.id} className="inline-flex items-center">
+      {a.link_url ? (
+        <a href={a.link_url} className="hover:underline" style={{ color: 'inherit', textDecoration: 'none' }}>
+          {TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}
+        </a>
+      ) : (
+        <span>{TYPE_ICONS[a.type] ?? '📢'}&nbsp;{a.title}：{a.message}</span>
+      )}
+      {i < announcements.length - 1 && (
+        <span className="mx-10 opacity-30 select-none">◆</span>
+      )}
+    </span>
+  ));
 }
 
 export default function CasinoHeader({
   brand,
   announcements = [],
-  fallbackBannerText = '',
   headerConfig,
 }: Props) {
   const logoUrl     = brand.logo_media_id ? `/api/public/media/${brand.logo_media_id}` : null;
@@ -77,7 +71,7 @@ export default function CasinoHeader({
   const showWidgets   = cfg ? (cfg.show_header_widgets ?? true) : true;
   const widgets       = cfg?.widgets ?? [];
 
-  const hasTicker = showTicker && (announcements.length > 0 || !!fallbackBannerText);
+  const hasTicker = showTicker && announcements.length > 0;
 
   const logoEl = showLogo ? (
     <a href="/" className="flex items-center gap-2 shrink-0">
@@ -193,10 +187,10 @@ export default function CasinoHeader({
           }}>
           <div className="ticker-track text-xs" style={{ color: 'var(--text-muted)' }}>
             <span className="mr-16 inline-flex items-center gap-0">
-              {buildTickerContent(announcements, fallbackBannerText)}
+              {buildTickerContent(announcements)}
             </span>
             <span className="mr-16 inline-flex items-center gap-0" aria-hidden>
-              {buildTickerContent(announcements, fallbackBannerText)}
+              {buildTickerContent(announcements)}
             </span>
           </div>
         </div>
