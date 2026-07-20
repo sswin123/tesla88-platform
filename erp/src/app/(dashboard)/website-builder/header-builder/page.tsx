@@ -82,6 +82,7 @@ export type HeaderLayout = 'left-logo' | 'center-logo' | 'right-logo';
 export type HeaderStyle  = 'classic' | 'minimal' | 'glass' | 'solid' | 'gradient';
 
 export interface HeaderConfig {
+  _version?: number;
   layout: HeaderLayout;
   style: HeaderStyle;
   sticky: boolean;
@@ -100,6 +101,7 @@ export interface HeaderConfig {
 function puid() { return `p-${Date.now()}-${Math.random().toString(36).slice(2,6)}`; }
 
 const DEFAULT_CONFIG: HeaderConfig = {
+  _version: 1,
   layout: 'left-logo',
   style: 'classic',
   sticky: true,

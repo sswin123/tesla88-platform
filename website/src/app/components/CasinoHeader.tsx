@@ -1,20 +1,9 @@
 import type { PublicBrand } from '@/lib/brand';
 import type { PublicAnnouncement } from '@/app/api/public/announcements/route';
-import HeaderWidgets, { type HeaderWidget } from './HeaderWidgets';
+import HeaderWidgets from './HeaderWidgets';
+import { type HeaderConfig } from '@/lib/header-config';
 
-export interface HeaderConfig {
-  layout: 'left-logo' | 'center-logo' | 'right-logo';
-  style: string;
-  sticky: boolean;
-  blur: boolean;
-  show_menu_button: boolean;
-  show_announcement: boolean;
-  show_logo: boolean;
-  show_brand_text: boolean;
-  show_profile_widget: boolean;
-  show_header_widgets: boolean;
-  widgets: HeaderWidget[];
-}
+export type { HeaderConfig };
 
 interface Props {
   brand: PublicBrand;

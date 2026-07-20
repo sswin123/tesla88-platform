@@ -3,7 +3,8 @@ import './globals.css';
 import pool from '@/lib/db';
 import { getBrand } from '@/lib/brand';
 import { resolveDesignVars } from '@/lib/design-themes';
-import CasinoHeader, { type HeaderConfig } from './components/CasinoHeader';
+import CasinoHeader from './components/CasinoHeader';
+import { parseHeaderConfig, type HeaderConfig } from '@/lib/header-config';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
@@ -26,7 +27,7 @@ async function getHeaderConfig(): Promise<HeaderConfig | null> {
     );
     const raw = res.rows[0]?.value;
     if (!raw) return null;
-    return JSON.parse(raw) as HeaderConfig;
+    return parseHeaderConfig(raw);
   } catch {
     return null;
   }
