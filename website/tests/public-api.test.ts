@@ -13,14 +13,14 @@ describe('GET /api/public/settings', () => {
   it('returns settings object', async () => {
     vi.mocked(pool.query).mockResolvedValueOnce({
       rows: [
-        { key: 'site_brand_name', value: 'TestBrand' },
-        { key: 'site_primary_color', value: '#FF0000' },
+        { key: 'website_currency', value: 'MYR' },
+        { key: 'deposit_min_amount', value: '30' },
       ],
     } as never);
     const res = await getSettings();
     expect(res.status).toBe(200);
     const data = await res.json() as Record<string, string>;
-    expect(data.site_brand_name).toBe('TestBrand');
+    expect(data.website_currency).toBe('MYR');
   });
 });
 
