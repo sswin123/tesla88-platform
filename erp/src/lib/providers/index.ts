@@ -115,6 +115,11 @@ export type { IPromotionHook, PromotionHookType } from './interfaces/IPromotionH
 
 export { BaseProviderAdapter, NotSupportedError, ProviderApiError, ProviderError } from './adapters/base/BaseProviderAdapter';
 
+// ── 918KISS Adapter ───────────────────────────────────────────────────────────
+
+export { Kiss918Adapter } from './adapters/kiss918/Kiss918Adapter';
+export type { Kiss918Credentials, Kiss918Config } from './adapters/kiss918/Kiss918Adapter';
+
 // ── Core Services ─────────────────────────────────────────────────────────────
 
 export { ProviderRegistry } from './core/ProviderRegistry';
