@@ -1,0 +1,35 @@
+# Staging Docker Compose — apidemo.club (Sandbox / Pre-Production)
+#
+# Usage:
+#   docker compose -f docker-compose.production.yml \
+#                  -f docker-compose.staging.yml up -d
+#
+# This file OVERRIDES the production compose for staging-specific settings:
+#   - NODE_ENV=staging, LOG_LEVEL=debug
+#   - Debug flags: ENABLE_PROVIDER_DEBUG, CALLBACK_DEBUG
+#   - 918KISS environment set to SANDBOX
+#   - Reduced replica count (no high-availability needed)
+#
+# Environment variables must be defined in .env.staging (copy from erp/.env.staging.example)
+
+services:
+
+  erp:
+    environment:
+      NODE_ENV:                staging
+      LOG_LEVEL:               debug
+      # ── Gaming Platform — Staging Overrides ───────────────────────────────
+      ENABLE_PROVIDER_DEBUG:   "true"
+      CALLBACK_DEBUG:          "true"
+      RETRY_ENABLED:           "true"
+      IDEMPOTENCY_ENABLED:     "true"
+      # AES_ENCRYPTION_KEY must still be set via .env.staging
+      # GAME_SYSTEM_ADMIN_ID defaults to 1 in production compose
+
+  website:
+    environment:
+      NODE_ENV: staging
+
+  telegram-bot:
+    environment:
+      NODE_ENV: staging

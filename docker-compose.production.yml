@@ -93,6 +93,16 @@ services:
       APP_VERSION:         ${APP_VERSION:-1.0.0}
       BACKUP_DIR:          /backups
       MEDIA_UPLOAD_DIR:    /uploads/media
+      # ── Enterprise Gaming Platform ────────────────────────────────────────
+      # AES-256-GCM key (32 bytes as 64 hex chars) for gp_credentials encryption
+      AES_ENCRYPTION_KEY:        ${AES_ENCRYPTION_KEY}
+      # System admin ID used as operator for automated game callbacks (default=1)
+      GAME_SYSTEM_ADMIN_ID:      ${GAME_SYSTEM_ADMIN_ID:-1}
+      # Gaming platform feature flags
+      ENABLE_PROVIDER_DEBUG:     ${ENABLE_PROVIDER_DEBUG:-false}
+      CALLBACK_DEBUG:            ${CALLBACK_DEBUG:-false}
+      RETRY_ENABLED:             ${RETRY_ENABLED:-true}
+      IDEMPOTENCY_ENABLED:       ${IDEMPOTENCY_ENABLED:-true}
       # 启用 Node.js 警告追踪（内存 / 废弃 API），输出到 stderr 被 startup-hooks 捕获
       NODE_OPTIONS:        "--trace-warnings"
     volumes:
