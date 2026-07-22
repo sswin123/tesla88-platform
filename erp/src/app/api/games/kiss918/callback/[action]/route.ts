@@ -53,6 +53,12 @@ export async function POST(
 ): Promise<NextResponse> {
   const { action } = await params;
 
+  // Diagnostic — proves request reached route.ts (past middleware)
+  // Visible in: docker compose -f docker-compose.production.yml logs erp
+  console.log(`[kiss918-callback] route.ts reached: action=${action} ip=${
+    request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown'
+  }`);
+
   // 1. Parse body
   let rawBody: Record<string, unknown>;
   try {

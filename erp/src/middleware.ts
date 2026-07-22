@@ -24,6 +24,11 @@ export async function middleware(request: NextRequest) {
 }
 
 async function handle(request: NextRequest, pathname: string): Promise<NextResponse> {
+  // Diagnostic — printed to Docker stdout, visible in: docker compose logs erp
+  if (pathname.startsWith('/api/games/')) {
+    console.log(`[middleware] ${request.method} ${pathname} — checking exclusions`);
+  }
+
   // Public paths — no auth required
   if (
     pathname.startsWith('/login') ||
@@ -63,6 +68,7 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
   // Security is handled inside each handler via operatorToken validation.
   // Nginx additionally enforces IP whitelist before this middleware runs.
   if (pathname.startsWith('/api/games/kiss918/callback/')) {
+    console.log(`[middleware] PASS-THROUGH: ${pathname} — 918KISS callback, no auth required`);
     return NextResponse.next();
   }
 
