@@ -34,42 +34,53 @@ type CfgRow  = { key: string; value: string };
 
 // ── Adapter Factory ───────────────────────────────────────────────────────────
 async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
+  console.log('[gaming:build] step 1 — createGamingPlatform()');
   // 1. Resolve the platform singleton (creates all core engines once)
   const platform = createGamingPlatform();
+  console.log('[gaming:build] step 1 OK');
 
   // 2. Find the 918KISS provider record
+  console.log('[gaming:build] step 2 — querying gp_providers WHERE code=\'918KISS\'');
   const { rows: provRows } = await pool.query<{ id: number; status: string }>(
     `SELECT id, status FROM gp_providers WHERE code = '918KISS' LIMIT 1`,
   );
   const prov = provRows[0];
   if (!prov) {
-    console.warn('[gaming] 918KISS provider not found in gp_providers.');
+    console.warn('[gaming:build] step 2 FAIL — 918KISS not found in gp_providers.');
     return null;
   }
+  console.log(`[gaming:build] step 2 OK — provider id=${prov.id} status=${prov.status}`);
   if (prov.status !== 'ACTIVE') {
-    console.warn(`[gaming] 918KISS provider status is "${prov.status}" — not ACTIVE.`);
+    console.warn(`[gaming:build] step 2 FAIL — provider status="${prov.status}", expected ACTIVE.`);
     return null;
   }
 
   // 3. Load and decrypt credentials
+  console.log(`[gaming:build] step 3 — querying gp_credentials for provider_id=${prov.id}`);
   const { rows: credRows } = await pool.query<CredRow>(
     `SELECT key, value, is_encrypted FROM gp_credentials WHERE provider_id = $1`,
     [prov.id],
   );
+  console.log(`[gaming:build] step 3 OK — ${credRows.length} credential rows`);
   const cred: Record<string, string> = {};
   for (const row of credRows) {
+    console.log(`[gaming:build] step 3 processing key="${row.key}" is_encrypted=${row.is_encrypted}`);
     cred[row.key] = row.is_encrypted ? decryptCredential(row.value) : row.value;
+    console.log(`[gaming:build] step 3 key="${row.key}" loaded OK`);
   }
 
   // 4. Load configuration
+  console.log(`[gaming:build] step 4 — querying gp_config for provider_id=${prov.id}`);
   const { rows: cfgRows } = await pool.query<CfgRow>(
     `SELECT key, value FROM gp_config WHERE provider_id = $1`,
     [prov.id],
   );
+  console.log(`[gaming:build] step 4 OK — ${cfgRows.length} config rows`);
   const cfg: Record<string, string> = {};
   for (const row of cfgRows) cfg[row.key] = row.value;
 
   // 5. Build typed objects
+  console.log('[gaming:build] step 5 — building credentials/config objects');
   const credentials: Kiss918Credentials = {
     api_token:      cred['api_token']      ?? '',
     operator_token: cred['operator_token'] ?? '',
@@ -96,20 +107,26 @@ async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
       cfg['debug'] === 'true' ||
       process.env.ENABLE_PROVIDER_DEBUG === 'true',
   };
+  console.log(`[gaming:build] step 5 OK — operator_token present=${!!credentials.operator_token} api_base_url=${config.api_base_url}`);
 
   // 6. Instantiate adapter
+  console.log('[gaming:build] step 6 — new Kiss918Adapter(...)');
   const providerRepo = new ProviderRepository();
-  return new Kiss918Adapter(
+  const adapter = new Kiss918Adapter(
     credentials,
     config,
     platform.wallet,
     platform.eventLogger,
     providerRepo,
   );
+  console.log('[gaming:build] step 6 OK — Kiss918Adapter ready');
+  return adapter;
 }
 
 // ── Singleton Cache ───────────────────────────────────────────────────────────
-// undefined = not yet initialised; null = attempted but provider not ACTIVE/found
+// undefined = not yet attempted; null = provider not ACTIVE or not found (intentional)
+// Exceptions (transient errors) do NOT cache to null — they leave _kiss918 as
+// undefined so the next request retries instead of being permanently broken.
 let _kiss918: Kiss918Adapter | null | undefined = undefined;
 
 export async function getKiss918Adapter(): Promise<Kiss918Adapter | null> {
@@ -117,8 +134,11 @@ export async function getKiss918Adapter(): Promise<Kiss918Adapter | null> {
   try {
     _kiss918 = await buildKiss918Adapter();
   } catch (err) {
-    console.error('[gaming] Kiss918Adapter init failed:', err);
-    _kiss918 = null;
+    // Log the full error so it appears in docker compose logs
+    console.error('[gaming] Kiss918Adapter init EXCEPTION — not caching null, will retry on next request.');
+    console.error('[gaming] Exception detail:', err instanceof Error ? err.stack : String(err));
+    // _kiss918 stays undefined → next request retries buildKiss918Adapter()
+    return null;
   }
   return _kiss918;
 }
