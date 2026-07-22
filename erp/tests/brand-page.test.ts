@@ -17,8 +17,8 @@ import type { BrandSettings } from '@/lib/repositories/brand_repo';
 
 const BASE_BRAND: BrandSettings = {
   id: 1,
-  brand_name: 'SSWIN88',
-  company_name: 'SSWIN88 Sdn Bhd',
+  brand_name: 'Opulux',
+  company_name: 'Opulux Sdn Bhd',
   tagline: 'Play Smart',
   logo_media_id: 10,
   favicon_media_id: null,
@@ -30,7 +30,7 @@ const BASE_BRAND: BrandSettings = {
   color_bg: '#0a0b14',
   color_card: '#111222',
   color_text: '#e8e8f5',
-  website_domain: 'https://sswin88.com',
+  website_domain: 'https://opulux.com',
   api_domain: null,
   erp_domain: null,
   support_whatsapp: '+60123456789',
@@ -40,7 +40,7 @@ const BASE_BRAND: BrandSettings = {
   instagram_url: null,
   tiktok_url: null,
   support_email: null,
-  seo_title: 'SSWIN88',
+  seo_title: 'Opulux',
   seo_description: null,
   seo_keywords: null,
   member_id_prefix: 'SS',
@@ -79,13 +79,13 @@ describe('测试 1 — 模块导出检查（页面渲染验证等价）', () => 
 describe('测试 2 — 加载品牌数据：initForm 将 API 数据转换为表单状态', () => {
   it('正确映射所有字段', () => {
     const form = initForm(BASE_BRAND);
-    expect(form.brand_name).toBe('SSWIN88');
-    expect(form.company_name).toBe('SSWIN88 Sdn Bhd');
+    expect(form.brand_name).toBe('Opulux');
+    expect(form.company_name).toBe('Opulux Sdn Bhd');
     expect(form.tagline).toBe('Play Smart');
     expect(form.logo_media_id).toBe(10);
     expect(form.primary_color).toBe('#1d4ed8');
     expect(form.theme_mode).toBe('light');
-    expect(form.website_domain).toBe('https://sswin88.com');
+    expect(form.website_domain).toBe('https://opulux.com');
     expect(form.support_whatsapp).toBe('+60123456789');
   });
 

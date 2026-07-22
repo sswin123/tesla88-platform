@@ -391,10 +391,10 @@ export default function BrandCenterPage() {
       <Section title="1. 品牌身份">
         <div className="grid grid-cols-2 gap-4">
           <Field label="品牌名称">
-            <TextInput value={form.brand_name} onChange={v => set('brand_name', v)} placeholder="Tesla88" />
+            <TextInput value={form.brand_name} onChange={v => set('brand_name', v)} placeholder="Opulux" />
           </Field>
           <Field label="公司名称">
-            <TextInput value={form.company_name} onChange={v => set('company_name', v)} placeholder="Tesla88 Sdn Bhd" />
+            <TextInput value={form.company_name} onChange={v => set('company_name', v)} placeholder="Opulux Sdn Bhd" />
           </Field>
           <Field label="网站名称 (website_name)">
             <TextInput value={form.website_name} onChange={v => set('website_name', v)} placeholder="与品牌名相同则留空" />
@@ -572,7 +572,7 @@ export default function BrandCenterPage() {
       <Section title="6. SEO" collapsible>
         <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">基础 SEO</p>
         <Field label="页面标题 (title)">
-          <TextInput value={form.seo_title} onChange={v => set('seo_title', v)} placeholder="Tesla88 — Best Online Casino" />
+          <TextInput value={form.seo_title} onChange={v => set('seo_title', v)} placeholder="Opulux — Best Online Casino" />
         </Field>
         <Field label="描述 (description)">
           <TextArea value={form.seo_description} onChange={v => set('seo_description', v)} placeholder="Meta description..." />
@@ -582,7 +582,7 @@ export default function BrandCenterPage() {
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="作者 (author)">
-            <TextInput value={form.seo_author} onChange={v => set('seo_author', v)} placeholder="Tesla88 Team" />
+            <TextInput value={form.seo_author} onChange={v => set('seo_author', v)} placeholder="Opulux Team" />
           </Field>
           <Field label="Robots">
             <select value={form.robots} onChange={e => set('robots', e.target.value)}

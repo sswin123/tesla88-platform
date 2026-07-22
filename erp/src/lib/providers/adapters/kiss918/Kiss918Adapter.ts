@@ -82,7 +82,7 @@ export interface Kiss918Config {
   h5_lobby_domain: string;
   /** 918KISS H5 Game launch domain. */
   h5_game_domain: string;
-  /** PostfixID appended to player accountIDs (e.g. "sswin88"). */
+  /** PostfixID appended to player accountIDs (e.g. "opulux"). */
   postfix_id: string;
   /** Default currency (default "MYR"). */
   currency?: string;

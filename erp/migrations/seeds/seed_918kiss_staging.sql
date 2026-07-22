@@ -126,10 +126,10 @@ BEGIN
     (v_provider_id, 'h5_game_domain',     'https://staging-game.918kiss.com')
   ON CONFLICT (provider_id, key) DO NOTHING;
 
-  -- PostfixID appended to player accountIDs (e.g. "sswin88")
+  -- PostfixID appended to player accountIDs (e.g. "opulux")
   -- Account format: u{userId}@{postfix_id}
   INSERT INTO gp_config (provider_id, key, value) VALUES
-    (v_provider_id, 'postfix_id',         'sswin88stg')
+    (v_provider_id, 'postfix_id',         'opuluxstg')
   ON CONFLICT (provider_id, key) DO NOTHING;
 
   -- Default currency

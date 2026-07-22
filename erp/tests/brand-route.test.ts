@@ -36,7 +36,7 @@ vi.mock('@/lib/brand_service', () => ({
   getBrand:            vi.fn(),
   invalidateBrandCache:(...a: unknown[]) => mockInvalidate(...a),
   BRAND_FALLBACK: {
-    id: 1, brand_name: 'SSWIN88', company_name: 'SSWIN88', tagline: null,
+    id: 1, brand_name: 'Opulux', company_name: 'Opulux', tagline: null,
     logo_media_id: null, favicon_media_id: null,
     primary_color: '#1d4ed8', secondary_color: '#1e40af', theme_mode: 'light',
     website_domain: null, api_domain: null,
@@ -53,8 +53,8 @@ import { logAudit }   from '@/lib/repositories/audit_repo';
 
 const BASE_BRAND = {
   id: 1,
-  brand_name: 'SSWIN88',
-  company_name: 'SSWIN88',
+  brand_name: 'Opulux',
+  company_name: 'Opulux',
   tagline: null,
   logo_media_id: null,
   favicon_media_id: null,
@@ -93,7 +93,7 @@ describe('测试 1 — GET /api/settings/brand 加载品牌设置', () => {
     const res = await GET();
     const d = await res.json() as { brand: typeof BASE_BRAND };
     expect(res.status).toBe(200);
-    expect(d.brand.brand_name).toBe('SSWIN88');
+    expect(d.brand.brand_name).toBe('Opulux');
     expect(d.brand.primary_color).toBe('#1d4ed8');
     expect(mockGetBrand).toHaveBeenCalledOnce();
   });
@@ -231,7 +231,7 @@ describe('测试 8 — DB 故障时使用 fallback 值', () => {
 
   it('BRAND_FALLBACK 包含正确的默认值', async () => {
     const { BRAND_FALLBACK } = await import('@/lib/brand_service');
-    expect(BRAND_FALLBACK.brand_name).toBe('SSWIN88');
+    expect(BRAND_FALLBACK.brand_name).toBe('Opulux');
     expect(BRAND_FALLBACK.primary_color).toBe('#1d4ed8');
     expect(BRAND_FALLBACK.secondary_color).toBe('#1e40af');
     expect(BRAND_FALLBACK.theme_mode).toBe('light');

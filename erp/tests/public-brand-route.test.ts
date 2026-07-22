@@ -6,21 +6,21 @@ import pool from '@/lib/db';
 import { GET } from '@/app/api/public/brand/route';
 
 const BRAND_ROW = {
-  brand_name: 'SSWIN88',
-  company_name: 'SSWIN88 Sdn Bhd',
+  brand_name: 'Opulux',
+  company_name: 'Opulux Sdn Bhd',
   tagline: null,
   logo_media_id: null,
   favicon_media_id: null,
   primary_color: '#1d4ed8',
   secondary_color: '#1e40af',
   theme_mode: 'light',
-  website_domain: 'https://sswin88.com',
+  website_domain: 'https://opulux.com',
   api_domain: null,
   support_whatsapp: '+60123456789',
   support_telegram: null,
-  telegram_channel: '@sswin88',
+  telegram_channel: '@opulux',
   facebook_url: null,
-  seo_title: 'SSWIN88 Online Casino',
+  seo_title: 'Opulux Online Casino',
   seo_description: 'Best online casino',
   seo_keywords: null,
 };
@@ -35,11 +35,11 @@ describe('GET /api/public/brand 返回公开字段', () => {
     const res = await GET();
     expect(res.status).toBe(200);
     const data = await res.json() as typeof BRAND_ROW;
-    expect(data.brand_name).toBe('SSWIN88');
+    expect(data.brand_name).toBe('Opulux');
     expect(data.primary_color).toBe('#1d4ed8');
-    expect(data.seo_title).toBe('SSWIN88 Online Casino');
+    expect(data.seo_title).toBe('Opulux Online Casino');
     expect(data.support_whatsapp).toBe('+60123456789');
-    expect(data.telegram_channel).toBe('@sswin88');
+    expect(data.telegram_channel).toBe('@opulux');
   });
 });
 

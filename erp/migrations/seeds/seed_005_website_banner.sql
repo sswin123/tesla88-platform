@@ -3,7 +3,7 @@
 
 INSERT INTO website_banners (title, description, link_url, button_text, display_order, is_active)
 SELECT
-  '欢迎加入 SSWIN88',
+  '欢迎加入 Opulux',
   '全马最安全的网上娱乐平台，提供最新老虎机、真人百家乐、体育博彩',
   '/register',
   '立即注册',

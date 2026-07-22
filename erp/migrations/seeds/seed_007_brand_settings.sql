@@ -3,8 +3,8 @@
 
 UPDATE brand_settings
 SET
-    brand_name      = 'SSWIN88',
-    company_name    = 'SSWIN88 SDN BHD',
+    brand_name      = 'Opulux',
+    company_name    = 'Opulux Sdn Bhd',
     primary_color   = '#1d4ed8',
     secondary_color = '#1e40af',
     theme_mode      = 'dark'

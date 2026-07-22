@@ -54,17 +54,17 @@ describe('getBrand() 加载品牌数据', () => {
 // ── 测试 2：fallback 正常工作 ─────────────────────────────────────────────
 
 describe('getBrand() fallback', () => {
-  it('DB 返回空行时使用 SSWIN88 默认值', async () => {
+  it('DB 返回空行时使用 Opulux 默认值', async () => {
     vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
     const brand = await getBrand();
-    expect(brand.brand_name).toBe('SSWIN88');
+    expect(brand.brand_name).toBe('Opulux');
     expect(brand.primary_color).toBe('#1d4ed8');
   });
 
   it('DB 抛出异常时返回 fallback 不崩溃', async () => {
     vi.mocked(pool.query).mockRejectedValueOnce(new Error('DB offline'));
     const brand = await getBrand();
-    expect(brand.brand_name).toBe('SSWIN88');
+    expect(brand.brand_name).toBe('Opulux');
     expect(brand).toEqual(BRAND_FALLBACK);
   });
 });

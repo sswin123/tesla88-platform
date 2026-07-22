@@ -101,7 +101,7 @@ function ThemePreview({ vars, size = 'md' }: { vars: ThemeVars; size?: 'sm' | 'm
         boxShadow: vars['--shadow-card'],
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: vars['--text-base'], fontSize: p.text, fontWeight: 600 }}>SSWIN88</span>
+          <span style={{ color: vars['--text-base'], fontSize: p.text, fontWeight: 600 }}>Opulux</span>
           <span style={{ color: vars['--brand-primary'], fontSize: p.text - 1, fontWeight: 700 }}>RM 2,500</span>
         </div>
         <div style={{ color: vars['--text-muted'], fontSize: p.text - 2, marginTop: 2 }}>Welcome back</div>
@@ -128,7 +128,7 @@ function LivePreview({ vars }: { vars: ThemeVars }) {
 
       {/* Header bar */}
       <div style={{ background: vars['--bg-surface'], borderBottom: `1px solid ${vars['--border-dim']}`, borderRadius: vars['--radius-card'], padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ color: vars['--brand-primary'], fontWeight: 800, fontSize: 14 }}>SSWIN88</div>
+        <div style={{ color: vars['--brand-primary'], fontWeight: 800, fontSize: 14 }}>Opulux</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {['首页','存款','提款'].map(l => <span key={l} style={{ color: vars['--text-muted'], fontSize: 10 }}>{l}</span>)}
         </div>

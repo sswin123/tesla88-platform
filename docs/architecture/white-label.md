@@ -62,7 +62,7 @@ Post-update side effects (non-blocking):
 erp/src/lib/brand_service.ts
   getBrand()          — 60s in-memory cache over getBrandSettings()
   invalidateBrandCache() — called after PATCH /api/settings/brand
-  BRAND_FALLBACK      — SSWIN88 defaults, used when DB is unreachable
+  BRAND_FALLBACK      — Opulux defaults, used when DB is unreachable
 
 Consumed by:
   erp/src/app/layout.tsx          → page <title> = "{brand_name} — ERP"
@@ -81,7 +81,7 @@ Consumed by the ERP sidebar (client-side fetch) and available for external integ
 ```
 website/src/lib/brand.ts
   getBrand()          — 60s in-memory cache, DB direct query
-  BRAND_FALLBACK      — SSWIN88 defaults
+  BRAND_FALLBACK      — Opulux defaults
 
 Consumed by:
   website/src/app/layout.tsx   → SEO metadata, favicon, nav logo/brand name,
@@ -125,7 +125,7 @@ bot/services/brand_service.py
     get_variables()      — returns {brand_name, company_name, support_whatsapp,
                             telegram_channel, website_domain} as str dict
     check_and_reload()   — called every 30s by _periodic_reload() in main.py
-    _FALLBACK            — SSWIN88 defaults
+    _FALLBACK            — Opulux defaults
 
 Integration with BotMessageService:
   BotMessageService(pool, brand_service=brand_svc)
@@ -192,7 +192,7 @@ These are separate processes with separate caches — by design.
 
 The following are **intentional fallback defaults**, not hardcoded branding:
 - `BRAND_FALLBACK` / `_FALLBACK` in all three brand services → used when DB is unreachable
-- `resetBrandSettings()` in `brand_repo.ts` → resets to SSWIN88 defaults on demand
+- `resetBrandSettings()` in `brand_repo.ts` → resets to Opulux defaults on demand
 - SQL seed data in `migrations/034_brand_settings.sql` → initial DB population
 
 ERP admin UI blue buttons (`bg-blue-600`) are the **ERP's own design system** color, not brand colors. They are intentionally kept as-is per the "No redesign" constraint.

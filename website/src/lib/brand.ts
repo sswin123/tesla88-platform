@@ -30,8 +30,8 @@ export interface PublicBrand {
 }
 
 export const BRAND_FALLBACK: PublicBrand = {
-  brand_name: 'YourBrandName',
-  company_name: 'YourBrandName',
+  brand_name: 'Opulux',
+  company_name: 'Opulux',
   tagline: null,
   logo_media_id: null,
   favicon_media_id: null,
