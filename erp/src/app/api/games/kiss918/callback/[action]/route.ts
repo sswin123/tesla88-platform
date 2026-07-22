@@ -60,26 +60,28 @@ export async function POST(
   }`);
 
   // 1. Parse body
+  // 918KISS Seamless Wallet protocol: ALL responses MUST be HTTP 200.
+  // 918KISS parses the JSON body to determine success/failure via the "error" field.
+  // Any non-200 HTTP status is treated as a transport error — the JSON body is discarded.
   let rawBody: Record<string, unknown>;
   try {
     rawBody = await request.json();
   } catch {
-    return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR }, { status: 400 });
+    return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR }); // HTTP 200
   }
 
   // 2. Load adapter (lazy singleton — returns null if provider not ACTIVE)
   const adapter = await getKiss918Adapter();
   if (!adapter) {
-    return NextResponse.json(
-      { error: OPERATOR_ERROR.MAINTENANCE },
-      { status: 503 },
-    );
+    // HTTP 200 — error:8 (MAINTENANCE) tells 918KISS the operator wallet is temporarily unavailable.
+    // 918KISS will retry the callback rather than flagging it as a permanent failure.
+    return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE }); // HTTP 200
   }
 
   // 3. Resolve handler
   const handler = resolveHandler(adapter, action);
   if (!handler) {
-    return NextResponse.json({ error: OPERATOR_ERROR.UNKNOWN }, { status: 404 });
+    return NextResponse.json({ error: OPERATOR_ERROR.UNKNOWN }); // HTTP 200
   }
 
   // 4. Build headers map
