@@ -39,6 +39,7 @@ import {
   SlidersHorizontal,
   Palette,
   PanelTop,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -311,6 +312,18 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t p-2">
+        <Link
+          href="/settings/profile"
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+            pathname === '/settings/profile'
+              ? 'bg-blue-50 text-blue-700 font-medium'
+              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          )}
+        >
+          <KeyRound size={16} />
+          Change Password
+        </Link>
         <button
           onClick={() => void handleLogout()}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
