@@ -9,6 +9,7 @@ backups/
 deploy_history/
 .env
 .env.local
+.env.staging
 # .env.production 是部署模板（不含真实密钥），允许提交
 .DS_Store
 nginx/ssl/

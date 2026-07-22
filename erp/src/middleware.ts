@@ -59,6 +59,13 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // 918KISS Seamless Wallet callbacks — called by 918KISS servers, not ERP users.
+  // Security is handled inside each handler via operatorToken validation.
+  // Nginx additionally enforces IP whitelist before this middleware runs.
+  if (pathname.startsWith('/api/games/kiss918/callback/')) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
