@@ -137,9 +137,15 @@ export class TransactionEngine {
         status: TRANSACTION_STATUS.SUCCESS,
       };
     } catch (err) {
-      await client.query('ROLLBACK');
-      // Release idempotency key so the operation can be retried
-      await this.idempotency.release(params.provider, params.reference_id);
+      // Use nested try/catch so a ROLLBACK failure doesn't swallow the
+      // original error and doesn't prevent idempotency key cleanup.
+      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+      // Release idempotency key so the operation can be retried.
+      // If this fails too (e.g. total DB loss) the key stays claimed
+      // but a DBA can clear it manually.
+      try {
+        await this.idempotency.release(params.provider, params.reference_id);
+      } catch { /* ignore */ }
       throw err;
     } finally {
       client.release();

@@ -309,11 +309,14 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   }
 
   async syncGames(): Promise<GameSyncResult> {
-    const games = await this.api.getGameList();
-    // GameRepository.upsertBatch is called by GameSyncService — return raw list
+    // GameSyncService.syncProvider() owns the actual upsert via getGameList() +
+    // gameRepo.upsertBatch().  This method pre-fetches the list so callers that
+    // bypass GameSyncService get an up-to-date result, but counts are 0 because
+    // no DB write occurs here.
+    await this.api.getGameList();
     return {
       provider_code: this.code,
-      inserted:      games.length,
+      inserted:      0,
       updated:       0,
       deactivated:   0,
       errors:        [],
@@ -350,7 +353,8 @@ export class Kiss918Adapter extends BaseProviderAdapter {
 
   // ── Async Callback Handlers (full pipeline) ────────────────────────────────
   // Route handlers call these instead of the sync parse/format pair.
-  // These methods own: logging → player resolution → parsing → wallet → formatting.
+  // These methods own: token validation → logging → player resolution →
+  //                    parsing → wallet → formatting.
 
   async handleAuthenticateCallback(
     rawBody: Record<string, unknown>,
@@ -359,11 +363,15 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('AUTHENTICATE', rawBody, headers, ip);
     const start = Date.now();
+    // Guard: validate operator token before any DB operation
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
-      // For Authenticate, 918KISS sends userName (our accountID) — extract userId
       const accountId = String(rawBody.userName ?? '');
       const userId    = this.extractUserIdFromAccountId(accountId);
-
       const req = this.parser.parseAuthenticateRequest({
         ...rawBody,
         __resolved_user_id: userId != null ? String(userId) : undefined,
@@ -387,6 +395,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('GET_BALANCE', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseGetBalanceRequest({ ...rawBody, __resolved_user_id: userId });
@@ -409,6 +422,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('BET', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseBetRequest({ ...rawBody, __resolved_user_id: userId });
@@ -431,6 +449,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('BET_RESULT', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseBetResultRequest({ ...rawBody, __resolved_user_id: userId });
@@ -453,6 +476,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('REFUND', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseRefundRequest({ ...rawBody, __resolved_user_id: userId });
@@ -475,6 +503,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('JACKPOT_WIN', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseJackpotWinRequest({ ...rawBody, __resolved_user_id: userId });
@@ -497,6 +530,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('FUND_REQUEST', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseFundRequestRequest({ ...rawBody, __resolved_user_id: userId });
@@ -519,6 +557,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('FUND_RETURN', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseFundReturnRequest({ ...rawBody, __resolved_user_id: userId });
@@ -541,6 +584,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Promise<Record<string, unknown>> {
     const logId = await this.cbLogger.logInbound('FUND_BET_RESULT', rawBody, headers, ip);
     const start = Date.now();
+    const tokenErr = this.checkToken(rawBody, headers);
+    if (tokenErr) {
+      await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
+      return tokenErr;
+    }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       const req    = this.parser.parseFundBetResultRequest({ ...rawBody, __resolved_user_id: userId });
@@ -555,6 +603,27 @@ export class Kiss918Adapter extends BaseProviderAdapter {
         err instanceof Error ? err.message : String(err));
       return out;
     }
+  }
+
+  /**
+   * Validate the operator token sent by 918KISS in every callback.
+   * Token may be in the request body (operatorToken field) or in a header
+   * (operator-token or authorization).  Returns a formatted error response
+   * if invalid, or null if the token is valid.
+   */
+  private checkToken(
+    rawBody: Record<string, unknown>,
+    headers: Record<string, string | string[] | undefined>,
+  ): Record<string, unknown> | null {
+    const token =
+      String(rawBody.operatorToken ?? '') ||
+      String(headers['operator-token'] ?? '') ||
+      String(headers['authorization'] ?? '').replace(/^Bearer\s+/i, '');
+
+    if (!this.validateCallbackToken(token)) {
+      return { error: OPERATOR_ERROR.INVALID_TOKEN };
+    }
+    return null;
   }
 
   // ── Replay Support ─────────────────────────────────────────────────────────
@@ -813,7 +882,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   private extractUserIdFromAccountId(accountId: string): number | null {
     const postfix = this.cfg.postfix_id ? `@${this.cfg.postfix_id}` : '';
     const re = postfix
-      ? new RegExp(`^u(\\d+)${postfix.replace('@', '@')}$`)
+      ? new RegExp(`^u(\\d+)${postfix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
       : /^u(\d+)@/;
     const m = accountId.match(re);
     return m ? Number(m[1]) : null;

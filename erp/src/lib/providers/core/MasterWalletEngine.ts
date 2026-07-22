@@ -23,7 +23,7 @@ import type {
 import { TRANSACTION_TYPE } from '../types/transaction.types';
 import { TransactionEngine } from './TransactionEngine';
 import pool from '@/lib/db';
-import { randomUUID } from 'crypto';
+
 
 const ERROR = {
   OK: 0,
@@ -92,13 +92,28 @@ export class MasterWalletEngine implements IMasterWalletEngine {
       return { transaction_id: '', balance: 0, currency: req.currency, error_code: ERROR.PLAYER_NOT_FOUND };
     }
 
-    // Free spin / informational round — no balance change
-    const isFreeRound = /free\s*spin/i.test(req.round_details ?? '');
+    // Free spin / informational round — credit $0 to preserve idempotency
+    // and produce a stable transaction_id without debiting the wallet.
+    const isFreeRound = /free\s*spin|free\s*game|free\s*round/i.test(req.round_details ?? '');
     if (isFreeRound) {
-      const balance = await this.txEngine.getBalance(userId);
+      const result = await this.txEngine.process({
+        provider: req.provider,
+        user_id: userId,
+        amount: 0,
+        currency: req.currency,
+        type: TRANSACTION_TYPE.WIN, // $0 credit: no balance change, creates audit row
+        reference_id: req.reference_id,
+        game_id: req.game_id,
+        round_id: req.round_id ?? null,
+        metadata: {
+          free_round: true,
+          round_details: req.round_details,
+          raw: req.raw_payload,
+        },
+      });
       return {
-        transaction_id: randomUUID(),
-        balance,
+        transaction_id: result.transaction_id,
+        balance: result.balance_after,
         currency: req.currency,
         error_code: ERROR.OK,
       };
