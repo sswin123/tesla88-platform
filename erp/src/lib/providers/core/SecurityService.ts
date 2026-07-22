@@ -6,11 +6,20 @@ import type { IEventRepository } from '../interfaces/IEventRepository';
  * Security Service — handles encryption, token validation, and IP filtering.
  *
  * Encryption key is loaded from AES_ENCRYPTION_KEY env var (32-byte hex).
- * If the env var is missing in development, a warning is emitted and a
- * random key is generated for the current process (NOT suitable for production).
+ *
+ * KEY DESIGN DECISION: the constructor NEVER throws, even in production.
+ * Throwing here breaks createGamingPlatform(), which in turn permanently
+ * breaks getKiss918Adapter() because the singleton caches the null result.
+ * The Seamless Wallet callback path does not call encrypt() or decrypt() at
+ * all (credentials in gp_credentials are is_encrypted=false for staging),
+ * so the missing-key error should surface only when those operations are
+ * actually attempted — not at platform construction time.
  */
 export class SecurityService implements ISecurityService {
   private readonly key: Buffer;
+  // True only when AES_ENCRYPTION_KEY was present and correct length.
+  // When false, encrypt() and decrypt() throw immediately.
+  private readonly keyReady: boolean;
   private readonly ipAllowlists = new Map<string, Set<string>>();
   private readonly operatorTokenMap = new Map<string, string>(); // token → providerCode
 
@@ -18,23 +27,33 @@ export class SecurityService implements ISecurityService {
     const hexKey = process.env.AES_ENCRYPTION_KEY;
     if (hexKey && hexKey.length === 64) {
       this.key = Buffer.from(hexKey, 'hex');
+      this.keyReady = true;
     } else {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(
-          'AES_ENCRYPTION_KEY env var is required in production (32 bytes as 64 hex chars)',
-        );
-      }
-      // Development fallback — random per-process key
+      // Use an ephemeral key so the object is always constructable.
+      // encrypt() / decrypt() will throw if keyReady is false.
       this.key = randomBytes(32);
-      console.warn(
-        '[SecurityService] AES_ENCRYPTION_KEY not set. Using ephemeral key — credentials will not persist across restarts.',
-      );
+      this.keyReady = false;
+      const msg =
+        'AES_ENCRYPTION_KEY is not set or is not a 64-character hex string. ' +
+        'Credential encrypt/decrypt operations will throw. ' +
+        'Wallet callback handling is NOT affected (it does not use this key).';
+      if (process.env.NODE_ENV === 'production') {
+        console.error(`[SecurityService] ${msg}`);
+      } else {
+        console.warn(`[SecurityService] ${msg} Using ephemeral key for dev.`);
+      }
     }
   }
 
   // ── Credential Encryption (AES-256-GCM) ───────────────────────────────────
 
   encrypt(plaintext: string): string {
+    if (!this.keyReady) {
+      throw new Error(
+        'SecurityService.encrypt() called but AES_ENCRYPTION_KEY is not configured. ' +
+        'Set AES_ENCRYPTION_KEY to a 64-character hex string (32 bytes).',
+      );
+    }
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.key, iv);
     const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
@@ -44,6 +63,12 @@ export class SecurityService implements ISecurityService {
   }
 
   decrypt(ciphertext: string): string {
+    if (!this.keyReady) {
+      throw new Error(
+        'SecurityService.decrypt() called but AES_ENCRYPTION_KEY is not configured. ' +
+        'Set AES_ENCRYPTION_KEY to a 64-character hex string (32 bytes).',
+      );
+    }
     const buf = Buffer.from(ciphertext, 'base64');
     const iv = buf.subarray(0, 12);
     const authTag = buf.subarray(12, 28);
