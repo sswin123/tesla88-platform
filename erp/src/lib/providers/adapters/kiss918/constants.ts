@@ -5,7 +5,7 @@ export const KISS918_NAME = '918Kiss';
 
 /** Integration (Operations) API endpoints. */
 export const API_PATH = {
-  CREATE_PLAYER:       '/operator/v2/CreatePlayer',
+  CREATE_PLAYER:       '/api/createplayer',
   UPDATE_PLAYER:       '/operator/v2/UpdatePlayer',
   GET_BALANCE:         '/operator/v2/GetBalance',
   TOP_UP:             '/operator/v2/TopUp',
