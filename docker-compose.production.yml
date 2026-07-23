@@ -105,8 +105,8 @@ services:
       CALLBACK_DEBUG:            ${CALLBACK_DEBUG:-false}
       RETRY_ENABLED:             ${RETRY_ENABLED:-true}
       IDEMPOTENCY_ENABLED:       ${IDEMPOTENCY_ENABLED:-true}
-      # 启用 Node.js 警告追踪（内存 / 废弃 API），输出到 stderr 被 startup-hooks 捕获
-      NODE_OPTIONS:        "--trace-warnings"
+      # 启用 Node.js 警告追踪 + 恢复 OpenSSL Legacy Provider（918KISS 需要 DES-ECB）
+      NODE_OPTIONS:        "--trace-warnings --openssl-legacy-provider"
     volumes:
       - erp_backups:/backups
       - erp_uploads:/uploads/media
