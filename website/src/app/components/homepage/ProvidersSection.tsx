@@ -1,11 +1,10 @@
 import pool from '@/lib/db';
 
 interface ProviderRow {
-  id: number;
-  name: string;
-  display_name: string | null;
-  logo_media_id: number | null;
+  code: string;
+  display_name: string;
   logo_url: string | null;
+  website_sort_order: number;
 }
 
 interface ProvidersConfig {
@@ -16,11 +15,13 @@ interface ProvidersConfig {
 async function getProviders(): Promise<ProviderRow[]> {
   try {
     const { rows } = await pool.query<ProviderRow>(
-      `SELECT id, name, display_name, logo_media_id, logo_url
-       FROM website_game_providers
-       WHERE is_active = TRUE
-       ORDER BY display_order ASC, id ASC
-       LIMIT 20`
+      `SELECT code, COALESCE(website_display_name, display_name) AS display_name,
+              website_logo_url AS logo_url, website_sort_order
+       FROM gp_providers
+       WHERE website_visible = TRUE
+         AND status IN ('ACTIVE', 'TESTING')
+       ORDER BY website_sort_order ASC, id ASC
+       LIMIT 20`,
     );
     return rows;
   } catch {
@@ -31,6 +32,7 @@ async function getProviders(): Promise<ProviderRow[]> {
 export default async function ProvidersSection({ config }: { config: ProvidersConfig }) {
   const { title = '游戏合作伙伴', columns = 4 } = config;
   const providers = await getProviders();
+
   if (providers.length === 0) {
     return (
       <section>
@@ -63,37 +65,31 @@ export default async function ProvidersSection({ config }: { config: ProvidersCo
         <h2 className="text-base font-semibold mb-2" style={{ color: 'var(--text-base)' }}>{title}</h2>
       )}
       <div className={`grid ${gridClass} gap-2`}>
-        {providers.map(p => {
-          const logoSrc = p.logo_media_id
-            ? `/api/public/media/${p.logo_media_id}`
-            : p.logo_url ?? null;
-
-          return (
-            <div
-              key={p.id}
-              className="casino-card p-2 flex flex-col items-center justify-center gap-1 text-center"
-            >
-              {logoSrc ? (
-                <img
-                  src={logoSrc}
-                  alt={p.display_name ?? p.name}
-                  className="w-9 h-9 object-contain"
-                  loading="lazy"
-                />
-              ) : (
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--brand-primary)' }}
-                >
-                  {(p.display_name ?? p.name).slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <p className="text-xs font-medium leading-tight" style={{ color: 'var(--text-muted)' }}>
-                {p.display_name ?? p.name}
-              </p>
-            </div>
-          );
-        })}
+        {providers.map(p => (
+          <div
+            key={p.code}
+            className="casino-card p-2 flex flex-col items-center justify-center gap-1 text-center"
+          >
+            {p.logo_url ? (
+              <img
+                src={p.logo_url}
+                alt={p.display_name}
+                className="w-9 h-9 object-contain"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--brand-primary)' }}
+              >
+                {p.display_name.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <p className="text-xs font-medium leading-tight" style={{ color: 'var(--text-muted)' }}>
+              {p.display_name}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );
