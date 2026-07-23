@@ -98,6 +98,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    module: 'Security',
+    permissions: [
+      { key: 'settings.manage',          label: 'Registration Security Settings' },
+      { key: 'security.ratelimit.clear', label: 'Clear Login Rate Limit (Unlock IPs)' },
+    ],
+  },
+  {
     module: 'Wallet Center',
     permissions: [
       { key: 'member.wallet.view',    label: 'View Wallet Summary' },

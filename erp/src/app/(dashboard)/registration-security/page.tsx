@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Phone, Landmark, AtSign, Mail, Monitor, Globe, List, Building2, AlertTriangle, Plus, Trash2, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Phone, Landmark, AtSign, Mail, Monitor, Globe, List, Building2, AlertTriangle, Plus, Trash2, RefreshCw, ShieldOff } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Cfg = Record<string, string>;
@@ -103,6 +103,10 @@ export default function RegistrationSecurityPage() {
   const [report,       setReport]       = useState<DupReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportTab,    setReportTab]    = useState<'phones' | 'banks' | 'telegrams' | 'emails'>('phones');
+
+  // Rate limit clear state
+  const [rlClearing, setRlClearing] = useState(false);
+  const [rlMsg,      setRlMsg]      = useState<{ text: string; ok: boolean } | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -245,6 +249,21 @@ export default function RegistrationSecurityPage() {
     if (mode === 'CUSTOM') { set('registration_mode', 'CUSTOM'); return; }
     const preset = modePolicies[mode as keyof typeof modePolicies];
     if (preset) setCfg(prev => ({ ...prev, registration_mode: mode, ...preset }));
+  }
+
+  async function clearRateLimit() {
+    setRlClearing(true);
+    setRlMsg(null);
+    try {
+      const res = await fetch('/api/admin/rate-limit', { method: 'POST' });
+      const d = await res.json() as { ok?: boolean; message?: string; error?: string };
+      setRlMsg({ text: d.message ?? d.error ?? (res.ok ? 'Cleared' : 'Failed'), ok: res.ok });
+    } catch {
+      setRlMsg({ text: 'Network error', ok: false });
+    } finally {
+      setRlClearing(false);
+      setTimeout(() => setRlMsg(null), 5000);
+    }
   }
 
   return (
@@ -419,6 +438,36 @@ export default function RegistrationSecurityPage() {
               className="rounded-md bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
               {saving ? '保存中…' : '保存所有政策'}
             </button>
+          </div>
+
+          {/* ── Rate Limit Management ───────────────────────────────────── */}
+          <div className="rounded-lg border border-orange-200 bg-orange-50">
+            <div className="flex items-center gap-2 border-b border-orange-200 px-5 py-3">
+              <ShieldOff size={15} className="text-orange-600" />
+              <span className="text-sm font-semibold text-orange-800">Login Rate Limit — 登录限速管理</span>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-orange-700">
+                ERP 登录限速：同一 IP <strong>5 次失败 / 15 分钟</strong>触发锁定。<br />
+                点击下方按钮可立即解锁所有被限速的 IP（清除内存中的计数器）。
+              </p>
+              {rlMsg && (
+                <div className={`rounded-md px-3 py-2 text-sm font-medium ${rlMsg.ok ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
+                  {rlMsg.ok ? '✓ ' : '✗ '}{rlMsg.text}
+                </div>
+              )}
+              <button
+                onClick={() => void clearRateLimit()}
+                disabled={rlClearing}
+                className="flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+              >
+                <ShieldOff size={14} />
+                {rlClearing ? '清除中…' : 'Clear All Rate Limits（解锁所有 IP）'}
+              </button>
+              <p className="text-[11px] text-orange-500">
+                ⚠ 此操作会清除 ERP + Website 所有登录限速计数。操作已记录至 Audit Log。
+              </p>
+            </div>
           </div>
         </div>
       )}
