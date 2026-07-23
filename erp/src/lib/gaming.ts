@@ -64,10 +64,9 @@ async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
   console.log(`[gaming:build] step 3 OK — ${credRows.length} credential rows`);
   const cred: Record<string, string> = {};
   for (const row of credRows) {
-    console.log(`[gaming:build] step 3 processing key="${row.key}" is_encrypted=${row.is_encrypted}`);
     cred[row.key] = row.is_encrypted ? decryptCredential(row.value) : row.value;
-    console.log(`[gaming:build] step 3 key="${row.key}" loaded OK`);
   }
+  console.log(`[gaming:build] step 3 OK — ${credRows.length} credentials decrypted`);
 
   // 4. Load configuration
   console.log(`[gaming:build] step 4 — querying gp_config for provider_id=${prov.id}`);
@@ -91,18 +90,20 @@ async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
   };
 
   const config: Kiss918Config = {
-    api_base_url:       cfg['api_base_url']       ?? '',
-    h5_api_domain:      cfg['h5_api_domain']       ?? '',
-    h5_lobby_domain:    cfg['h5_lobby_domain']     ?? '',
-    h5_game_domain:     cfg['h5_game_domain']      ?? '',
-    postfix_id:         cfg['postfix_id']           ?? '',
-    currency:           cfg['currency']             ?? 'MYR',
-    timeout_ms:         cfg['timeout_ms']
-                          ? parseInt(cfg['timeout_ms'], 10) : 10_000,
-    circuit_threshold:  cfg['circuit_threshold']
-                          ? parseInt(cfg['circuit_threshold'], 10) : 5,
+    api_base_url:        cfg['api_base_url']        ?? '',
+    datafeed_url:        cfg['datafeed_url']         ?? undefined,
+    h5_api_domain:       cfg['h5_api_domain']        ?? '',
+    h5_lobby_domain:     cfg['h5_lobby_domain']      ?? '',
+    h5_game_domain:      cfg['h5_game_domain']       ?? '',
+    game_icon_url:       cfg['game_icon_url']        ?? undefined,
+    postfix_id:          cfg['postfix_id']            ?? '',
+    currency:            cfg['currency']              ?? 'MYR',
+    timeout_ms:          cfg['timeout_ms']
+                           ? parseInt(cfg['timeout_ms'], 10) : 10_000,
+    circuit_threshold:   cfg['circuit_threshold']
+                           ? parseInt(cfg['circuit_threshold'], 10) : 5,
     circuit_cooldown_ms: cfg['circuit_cooldown_ms']
-                          ? parseInt(cfg['circuit_cooldown_ms'], 10) : 30_000,
+                           ? parseInt(cfg['circuit_cooldown_ms'], 10) : 30_000,
     debug:
       cfg['debug'] === 'true' ||
       process.env.ENABLE_PROVIDER_DEBUG === 'true',

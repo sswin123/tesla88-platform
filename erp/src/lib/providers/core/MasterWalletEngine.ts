@@ -57,7 +57,15 @@ export class MasterWalletEngine implements IMasterWalletEngine {
   ) {}
 
   async handleAuthenticate(req: AuthenticateRequest): Promise<AuthenticateResponse> {
-    const user = await this.findUserByUsername(req.username);
+    // Kiss918Adapter pre-resolves provider_player_id to users.id from the
+    // accountID format (u{userId}@{postfix}).  Use it directly when available.
+    // Fallback to username lookup for adapters that don't pre-resolve.
+    const preResolved = parseInt(req.provider_player_id, 10);
+    const user =
+      !isNaN(preResolved) && preResolved > 0
+        ? await this.findUserById(preResolved)
+        : await this.findUserByUsername(req.username);
+
     if (!user) {
       return { player_id: '', balance: 0, currency: 'MYR', error_code: ERROR.PLAYER_NOT_FOUND };
     }
@@ -299,6 +307,14 @@ export class MasterWalletEngine implements IMasterWalletEngine {
   }
 
   // ── Internal Helpers ───────────────────────────────────────────────────────
+
+  private async findUserById(id: number): Promise<{ id: number } | null> {
+    const { rows } = await pool.query<{ id: number }>(
+      `SELECT id FROM users WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
 
   private async findUserByUsername(
     username: string,

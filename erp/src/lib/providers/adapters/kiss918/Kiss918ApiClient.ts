@@ -6,6 +6,8 @@ import type { CheckOrderResult } from '../../interfaces/IGameProvider';
 
 export interface ApiClientConfig {
   apiBaseUrl: string;
+  /** Separate DataFeed base URL (stgapidf.asiah5.com).  Falls back to apiBaseUrl. */
+  datafeedBaseUrl?: string;
   h5ApiDomain: string;
   apiToken: string;
   timeoutMs: number;
@@ -143,7 +145,8 @@ export class Kiss918ApiClient {
     playerID: number,
     timePoint: number,
   ): Promise<{ records: Array<Record<string, unknown>>; nextTimePoint: number }> {
-    const res = await this.get<PlaySessionsRes>(API_PATH.PLAY_SESSIONS, {
+    // DataFeed uses a separate base URL — fall back to apiBaseUrl if not configured.
+    const res = await this.datafeedGet<PlaySessionsRes>(API_PATH.PLAY_SESSIONS, {
       playerID: String(playerID), timePoint: String(timePoint),
     });
     this.assertOk(res);
@@ -153,7 +156,7 @@ export class Kiss918ApiClient {
   async getFailedTransactions(
     timePoint: number,
   ): Promise<{ records: Array<Record<string, unknown>>; nextTimePoint: number }> {
-    const res = await this.get<FailedTransactionsRes>(API_PATH.FAILED_TRANSACTIONS, {
+    const res = await this.datafeedGet<FailedTransactionsRes>(API_PATH.FAILED_TRANSACTIONS, {
       timePoint: String(timePoint),
     });
     this.assertOk(res);
@@ -215,6 +218,26 @@ export class Kiss918ApiClient {
     );
     if (this.cfg.debug) {
       console.debug('[Kiss918ApiClient] ← GET', path, res);
+    }
+    return res;
+  }
+
+  /** GET against the DataFeed base URL (separate from Operations API). */
+  private async datafeedGet<T>(path: string, params: Record<string, string>): Promise<T> {
+    const base = (this.cfg.datafeedBaseUrl ?? this.cfg.apiBaseUrl).replace(/\/$/, '');
+    const qs   = new URLSearchParams(params).toString();
+    const url  = `${base}${path}?${qs}`;
+    if (this.cfg.debug) {
+      console.debug('[Kiss918ApiClient] DATAFEED GET', url);
+    }
+    const res = await this.circuit.exec<T>(() =>
+      this.fetchWithTimeout(url, {
+        method: 'GET',
+        headers: this.headers(),
+      }).then((r) => r.json() as Promise<T>),
+    );
+    if (this.cfg.debug) {
+      console.debug('[Kiss918ApiClient] ← DATAFEED GET', path, res);
     }
     return res;
   }

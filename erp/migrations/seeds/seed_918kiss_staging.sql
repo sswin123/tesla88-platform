@@ -36,7 +36,7 @@ INSERT INTO gp_providers (
   '918KISS',
   '1.11',
   10,
-  'ACTIVE',           -- Set to 'DISABLED' for initial staging; enable after connectivity test
+  'DISABLED',         -- Enable via ERP Gaming Platform Settings after connectivity test
   'SANDBOX',
   'SEAMLESS',
   '["SEAMLESS_WALLET","JACKPOT","GAME_SYNC","LOBBY","HISTORY",
@@ -70,13 +70,10 @@ BEGIN
   ON CONFLICT (provider_id, key) DO NOTHING;
 
   -- operator_token: sent by 918KISS in every inbound callback (validated by checkToken).
-  -- This is the token WE generate and share with 918KISS so they can authenticate to us.
-  -- Generated via: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  -- Set via ERP Gaming Platform Settings or migration 074.
   INSERT INTO gp_credentials (provider_id, key, value, is_encrypted) VALUES
-    (v_provider_id, 'operator_token', 'b26180f3c132f760355a3ad2a6b53e7a149213e895fbce7d46041a40ad5c0f9d', FALSE)
-  ON CONFLICT (provider_id, key) DO UPDATE SET
-    value      = EXCLUDED.value,
-    updated_at = NOW();
+    (v_provider_id, 'operator_token', 'REPLACE_WITH_OPERATOR_TOKEN', FALSE)
+  ON CONFLICT (provider_id, key) DO NOTHING;
 
   -- md5_key: used in H5 Login signature generation
   INSERT INTO gp_credentials (provider_id, key, value, is_encrypted) VALUES

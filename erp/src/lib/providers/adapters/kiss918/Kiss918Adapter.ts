@@ -76,13 +76,17 @@ export interface Kiss918Credentials {
 export interface Kiss918Config {
   /** 918KISS Integration / Operations API base URL. */
   api_base_url: string;
+  /** 918KISS DataFeed API base URL (separate from Operations API). */
+  datafeed_url?: string;
   /** 918KISS H5 API domain (for /api/Acc/Login, /api/Game/GameList). */
   h5_api_domain: string;
   /** 918KISS H5 Lobby launch domain. */
   h5_lobby_domain: string;
   /** 918KISS H5 Game launch domain. */
   h5_game_domain: string;
-  /** PostfixID appended to player accountIDs (e.g. "opulux"). */
+  /** Base URL for game icon images. */
+  game_icon_url?: string;
+  /** PostfixID appended to player accountIDs (e.g. "stopulux"). Must be lowercase. */
   postfix_id: string;
   /** Default currency (default "MYR"). */
   currency?: string;
@@ -161,11 +165,12 @@ export class Kiss918Adapter extends BaseProviderAdapter {
 
     this.api = new Kiss918ApiClient(
       {
-        apiBaseUrl: cfg.api_base_url,
-        h5ApiDomain: cfg.h5_api_domain,
-        apiToken:   creds.api_token,
-        timeoutMs:  cfg.timeout_ms ?? 10_000,
-        debug:      this.debug,
+        apiBaseUrl:      cfg.api_base_url,
+        datafeedBaseUrl: cfg.datafeed_url,
+        h5ApiDomain:     cfg.h5_api_domain,
+        apiToken:        creds.api_token,
+        timeoutMs:       cfg.timeout_ms ?? 10_000,
+        debug:           this.debug,
       },
       this.circuit,
     );
@@ -746,6 +751,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   // ── Data Feeds ────────────────────────────────────────────────────────────
 
   async getPlaySessions(timepoint = 0): Promise<PlaySessionsFeed> {
+    // playerID=0 is the 918KISS wildcard meaning "all players for this operator".
     const res = await this.api.getPlaySessions(0, timepoint);
     return {
       records: res.records.map((r) => ({
