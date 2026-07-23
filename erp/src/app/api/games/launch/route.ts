@@ -104,7 +104,11 @@ export async function POST(req: NextRequest) {
     const accountId   = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
     const nickname    = user.first_name ?? `Player${user_id}`;
 
-    // Call provider API to create the player account
+    // Call provider API to create the player account.
+    // For H5 LOBBY providers (e.g. 918KISS), the provider auto-registers the player
+    // on first H5 Login — so a failed createPlayer/checkPlayer is non-fatal.
+    // We still persist the local gp_players record so adapter.launch() can find
+    // the account_id and proceed with getLoginToken().
     let providerPlayerId: string | null = null;
     try {
       const result = await adapter.createPlayer({
@@ -114,17 +118,14 @@ export async function POST(req: NextRequest) {
       });
       providerPlayerId = result.provider_player_id;
     } catch (err) {
-      // If player already exists on provider side (e.g. after DB reset), try checkPlayer
+      // Player may already exist on provider side — try checkPlayer first.
       console.warn(`[games/launch] createPlayer failed: ${err instanceof Error ? err.message : String(err)} — attempting checkPlayer`);
       try {
         const pid = await adapter.getPlayerID(accountId);
         providerPlayerId = pid;
       } catch (err2) {
-        console.error('[games/launch] getPlayerID also failed:', err2);
-        return NextResponse.json(
-          { error: 'Failed to register player with gaming provider. Please try again.' },
-          { status: 502 },
-        );
+        // H5 providers auto-register on first H5 login — proceed without provider_player_id.
+        console.warn(`[games/launch] checkPlayer also failed: ${err2 instanceof Error ? err2.message : String(err2)} — proceeding with H5 auto-registration`);
       }
     }
 
