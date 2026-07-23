@@ -125,17 +125,16 @@ export class Kiss918AuthService {
     }
 
     const rawBody = await res.text();
-    console.log('[Kiss918AuthService] H5 Login raw response:', rawBody.slice(0, 800));
-    let data: { actk?: string; statusCode?: number; errMsg?: string };
+    let data: { actk?: string | null; playerID?: number | null; status?: number | string | null; description?: string | null };
     try { data = JSON.parse(rawBody); } catch { data = {}; }
 
     if (params.debug) {
       console.debug('[Kiss918AuthService] H5 Login ←', { data, latencyMs });
     }
 
-    if (data.statusCode !== 0 || !data.actk) {
+    if (!data.actk) {
       throw new Error(
-        `918KISS H5 Login failed: statusCode=${data.statusCode} errMsg="${data.errMsg}"`,
+        `918KISS H5 Login failed: status=${data.status} description="${data.description}"`,
       );
     }
 
