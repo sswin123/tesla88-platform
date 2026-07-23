@@ -18,6 +18,19 @@ export interface PublicGameProvider {
 }
 
 /**
+ * Wraps an external https:// URL in the website's image-proxy endpoint so the
+ * browser receives a same-origin URL and satisfies CSP `img-src 'self'`.
+ * Relative URLs (already same-origin) are returned unchanged.
+ */
+function proxied(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+/**
  * GET /api/public/game-providers
  *
  * Returns the visible provider list for the website Game Lobby.
@@ -73,8 +86,8 @@ export async function GET() {
         category:        (r.website_category ?? 'slot') as PublicGameProvider['category'],
         logo_media_id:   null,
         banner_media_id: null,
-        logo_url:        r.website_logo_url,
-        banner_url:      r.website_banner_url,
+        logo_url:        proxied(r.website_logo_url),
+        banner_url:      proxied(r.website_banner_url),
         is_hot:          r.website_is_hot,
         is_new:          r.website_is_new,
         is_maintenance:  r.website_maintenance,
