@@ -100,7 +100,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     `SELECT id, code, name, display_name, version, status, environment,
             wallet_type, capabilities, health_status, health_checked_at,
             last_success_at, last_failed_at, last_reload_at, adapter_loaded,
-            metadata, created_at, updated_at
+            metadata, created_at, updated_at,
+            website_visible, website_display_name, website_logo_url, website_banner_url,
+            website_category, website_sort_order, website_is_hot, website_is_new,
+            website_maintenance, website_launch_mode, website_platforms
      FROM gp_providers WHERE code = $1 LIMIT 1`,
     [code.toUpperCase()],
   );
@@ -153,11 +156,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const upperCode = code.toUpperCase();
 
   const body = await req.json() as {
-    type?: 'config' | 'credential';
+    type?: 'config' | 'credential' | 'website';
     key?: string;
     value?: string;
     encrypt?: boolean;
     provider_status?: string;
+    // Website display settings (bulk update)
+    website?: {
+      website_visible?: boolean;
+      website_display_name?: string;
+      website_logo_url?: string;
+      website_banner_url?: string;
+      website_category?: string;
+      website_sort_order?: number;
+      website_is_hot?: boolean;
+      website_is_new?: boolean;
+      website_maintenance?: boolean;
+      website_launch_mode?: string;
+    };
   };
 
   // Credential updates require elevated permission
@@ -260,5 +276,59 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ error: 'type must be config or credential' }, { status: 400 });
+  // ── Website display settings update ──────────────────────────────────────
+  if (body.type === 'website' && body.website) {
+    const ws = body.website;
+    const ALLOWED_CATEGORIES = ['slot', 'live', 'sport', 'fishing'];
+    const ALLOWED_LAUNCH_MODES = ['LOBBY', 'DIRECT'];
+
+    if (ws.website_category && !ALLOWED_CATEGORIES.includes(ws.website_category)) {
+      return NextResponse.json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` }, { status: 400 });
+    }
+    if (ws.website_launch_mode && !ALLOWED_LAUNCH_MODES.includes(ws.website_launch_mode)) {
+      return NextResponse.json({ error: `Invalid launch_mode. Allowed: ${ALLOWED_LAUNCH_MODES.join(', ')}` }, { status: 400 });
+    }
+
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    let i = 2;
+
+    const fields: Array<[keyof typeof ws, string]> = [
+      ['website_visible',      'website_visible'],
+      ['website_display_name', 'website_display_name'],
+      ['website_logo_url',     'website_logo_url'],
+      ['website_banner_url',   'website_banner_url'],
+      ['website_category',     'website_category'],
+      ['website_sort_order',   'website_sort_order'],
+      ['website_is_hot',       'website_is_hot'],
+      ['website_is_new',       'website_is_new'],
+      ['website_maintenance',  'website_maintenance'],
+      ['website_launch_mode',  'website_launch_mode'],
+    ];
+
+    for (const [wsKey, col] of fields) {
+      if (ws[wsKey] !== undefined) {
+        sets.push(`${col} = $${i++}`);
+        vals.push(ws[wsKey]);
+      }
+    }
+
+    if (sets.length === 0) return NextResponse.json({ ok: true });
+
+    sets.push('updated_at = NOW()');
+    await pool.query(
+      `UPDATE gp_providers SET ${sets.join(', ')} WHERE id = $1`,
+      [providerId, ...vals],
+    );
+
+    await writeAuditLog({
+      providerId, providerCode: upperCode, adminId, adminUsername,
+      action: 'UPDATE_WEBSITE_SETTINGS', ip,
+      notes: `Updated: ${Object.keys(ws).join(', ')}`,
+    });
+
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: 'type must be config, credential, or website' }, { status: 400 });
 }

@@ -23,10 +23,17 @@ interface Stats24h {
 interface GpProvider {
   id: number; code: string; name: string; display_name: string; version: string;
   status: string; environment: string; wallet_type: string;
+  capabilities: string[];
   health_status: string; health_checked_at: string | null;
   last_success_at: string | null; last_failed_at: string | null;
   last_reload_at: string | null; adapter_loaded: boolean;
   updated_at: string; stats_24h: Stats24h; retry_queue_pending: number;
+  // Website display settings
+  website_visible: boolean; website_display_name: string | null;
+  website_logo_url: string | null; website_banner_url: string | null;
+  website_category: string; website_sort_order: number;
+  website_is_hot: boolean; website_is_new: boolean;
+  website_maintenance: boolean; website_launch_mode: string;
 }
 
 interface ConfigRow   { key: string; value: string; updated_at: string; updated_by_name: string | null }
@@ -96,7 +103,7 @@ const HEALTH_CFG: Record<string, { color: string; icon: typeof CheckCircle }> = 
   UNKNOWN: { color: 'text-slate-400',   icon: AlertCircle },
 };
 
-const TABS = ['overview', 'settings', 'credentials', 'logs', 'statistics', 'history', 'audit'] as const;
+const TABS = ['overview', 'website', 'settings', 'credentials', 'logs', 'statistics', 'history', 'audit'] as const;
 type Tab = typeof TABS[number];
 
 const ALL_STATUSES: string[] = ['ACTIVE', 'TESTING', 'DISABLED', 'MAINTENANCE'];
@@ -811,6 +818,215 @@ function AuditTab({ code }: { code: string }) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Website Display Tab
+// ══════════════════════════════════════════════════════════════
+
+const CATEGORY_OPTIONS = [
+  { value: 'slot',    label: '老虎机 Slot' },
+  { value: 'live',    label: '真人娱乐 Live' },
+  { value: 'sport',   label: '体育博彩 Sport' },
+  { value: 'fishing', label: '捕鱼 Fishing' },
+];
+
+const LAUNCH_MODE_OPTIONS = [
+  { value: 'LOBBY',  label: 'LOBBY — 进入 H5 大厅（918KISS 类型）' },
+  { value: 'DIRECT', label: 'DIRECT — 直接启动游戏（需游戏列表）' },
+];
+
+function WebsiteDisplayTab({
+  provider, patchWebsite, onToast,
+}: {
+  provider: GpProvider;
+  patchWebsite: (patch: Record<string, unknown>) => Promise<void>;
+  onToast: (m: string, ok: boolean) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  // Local form state — initialised from provider
+  const [visible,     setVisible]     = useState(provider.website_visible);
+  const [maintenance, setMaintenance] = useState(provider.website_maintenance);
+  const [isHot,       setIsHot]       = useState(provider.website_is_hot);
+  const [isNew,       setIsNew]       = useState(provider.website_is_new);
+  const [displayName, setDisplayName] = useState(provider.website_display_name ?? '');
+  const [logoUrl,     setLogoUrl]     = useState(provider.website_logo_url ?? '');
+  const [bannerUrl,   setBannerUrl]   = useState(provider.website_banner_url ?? '');
+  const [category,    setCategory]    = useState(provider.website_category);
+  const [sortOrder,   setSortOrder]   = useState(String(provider.website_sort_order ?? 0));
+  const [launchMode,  setLaunchMode]  = useState(provider.website_launch_mode ?? 'LOBBY');
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await patchWebsite({
+        website_visible:      visible,
+        website_maintenance:  maintenance,
+        website_is_hot:       isHot,
+        website_is_new:       isNew,
+        website_display_name: displayName || null,
+        website_logo_url:     logoUrl || null,
+        website_banner_url:   bannerUrl || null,
+        website_category:     category,
+        website_sort_order:   parseInt(sortOrder, 10) || 0,
+        website_launch_mode:  launchMode,
+      });
+      onToast('网站展示设置已保存', true);
+    } catch (e) {
+      onToast(`保存失败: ${e instanceof Error ? e.message : String(e)}`, false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function ToggleRow({ label, sub, checked, onChange }: { label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
+    return (
+      <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700/60 last:border-0">
+        <div>
+          <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</div>
+          {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(!checked)}
+          className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none
+            ${checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5
+            ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Visibility toggles */}
+      <div>
+        <SectionHead title="可见性与状态" sub="控制该 Provider 在玩家网站首页的显示行为" />
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4">
+          <ToggleRow label="显示在网站" sub="关闭后玩家不可见，但仍可通过直链进入" checked={visible} onChange={setVisible} />
+          <ToggleRow label="维护中" sub="显示维护提示，不允许玩家启动游戏" checked={maintenance} onChange={setMaintenance} />
+          <ToggleRow label="🔥 热门标签" sub="在 Provider 卡片上显示 HOT 标签" checked={isHot} onChange={setIsHot} />
+          <ToggleRow label="🆕 最新标签" sub="在 Provider 卡片上显示 NEW 标签" checked={isNew} onChange={setIsNew} />
+        </div>
+      </div>
+
+      {/* Display info */}
+      <div>
+        <SectionHead title="展示信息" sub="网站 Provider 卡片的显示内容" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">显示名称</label>
+            <input
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder={provider.display_name ?? provider.code}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">排列顺序（数字越小越靠前）</label>
+            <input
+              type="number" min={0}
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value)}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Logo URL</label>
+            <input
+              value={logoUrl}
+              onChange={e => setLogoUrl(e.target.value)}
+              placeholder="https://cdn.example.com/logo/918kiss.png"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            />
+            {logoUrl && (
+              <img src={logoUrl} alt="logo preview" className="mt-2 h-10 object-contain rounded" onError={e => (e.currentTarget.style.display = 'none')} />
+            )}
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Banner URL</label>
+            <input
+              value={bannerUrl}
+              onChange={e => setBannerUrl(e.target.value)}
+              placeholder="https://cdn.example.com/banner/918kiss.jpg"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+            />
+            {bannerUrl && (
+              <img src={bannerUrl} alt="banner preview" className="mt-2 h-20 w-full object-cover rounded-lg" onError={e => (e.currentTarget.style.display = 'none')} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Category & Launch mode */}
+      <div>
+        <SectionHead title="分类与启动模式" sub="决定 Provider 归属哪个游戏分类，以及网站如何启动它" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">游戏分类</label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {CATEGORY_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">启动模式</label>
+            <select
+              value={launchMode}
+              onChange={e => setLaunchMode(e.target.value)}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {LAUNCH_MODE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {launchMode === 'LOBBY' && (
+          <div className="mt-2 flex items-start gap-2 text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>LOBBY 模式：玩家点击后直接进入 Provider 的 H5 大厅，无需维护独立游戏列表。适用于 918KISS 等大厅型 Provider。</span>
+          </div>
+        )}
+        {launchMode === 'DIRECT' && (
+          <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>DIRECT 模式：网站展示该 Provider 的游戏列表，玩家点击具体游戏后传入 game_code 启动。需在 Games Library 维护游戏。</span>
+          </div>
+        )}
+      </div>
+
+      {/* Provider code (read-only) */}
+      <div>
+        <SectionHead title="Provider 标识（只读）" />
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3 text-sm font-mono text-slate-600 dark:text-slate-300">
+          <span className="text-slate-400 text-xs">code</span>
+          <span className="font-semibold">{provider.code}</span>
+          <CopyButton value={provider.code} />
+        </div>
+      </div>
+
+      {/* Save button */}
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+        >
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> 保存中…</> : <><Save className="w-4 h-4" /> 保存网站设置</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // Provider Detail Panel (tabs)
 // ══════════════════════════════════════════════════════════════
 
@@ -900,6 +1116,16 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
     }
   }
 
+  async function patchWebsite(patch: Record<string, unknown>) {
+    const r = await fetch(`/api/games/settings/${code}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'website', website: patch }),
+    });
+    const d = await r.json() as { ok?: boolean; error?: string };
+    if (!d.ok) throw new Error(d.error ?? 'Save failed');
+    await reload();
+  }
+
   async function handleSyncGames() {
     setSyncing(true);
     setSyncResult(null);
@@ -962,13 +1188,14 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const credMap = Object.fromEntries(credentials.map(r => [r.key, r]));
 
   const TAB_META: { id: Tab; label: string; icon: typeof Activity }[] = [
-    { id: 'overview',     label: '概览',   icon: Activity },
-    { id: 'settings',     label: '配置',   icon: Zap },
-    { id: 'credentials',  label: '凭证',   icon: ShieldCheck },
-    { id: 'statistics',   label: '统计',   icon: BarChart2 },
-    { id: 'logs',         label: '回调日志', icon: ScrollText },
-    { id: 'history',      label: '版本历史', icon: History },
-    { id: 'audit',        label: '审计',   icon: Filter },
+    { id: 'overview',     label: '概览',     icon: Activity },
+    { id: 'website',      label: '网站展示',  icon: TrendingUp },
+    { id: 'settings',     label: '配置',     icon: Zap },
+    { id: 'credentials',  label: '凭证',     icon: ShieldCheck },
+    { id: 'statistics',   label: '统计',     icon: BarChart2 },
+    { id: 'logs',         label: '回调日志',  icon: ScrollText },
+    { id: 'history',      label: '版本历史',  icon: History },
+    { id: 'audit',        label: '审计',     icon: Filter },
   ];
 
   return (
@@ -1076,36 +1303,38 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
               <ConnectionTestPanel code={code} onToast={onToast} />
             </div>
 
-            {/* Game Sync */}
+            {/* Game Sync — conditional on GAME_SYNC capability */}
             <div>
-              <SectionHead title="同步游戏列表" sub="从 Provider API 拉取游戏目录，写入 gp_games 和网站 Games Library" />
-              <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  onClick={() => void handleSyncGames()}
-                  disabled={syncing}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
-                >
-                  {syncing
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> 同步中…</>
-                    : <><RefreshCw className="w-4 h-4" /> 从 API 同步游戏</>}
-                </button>
-                {syncResult && (
-                  <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-2">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">共 {syncResult.total} 个游戏</span>
-                    <span>gp_games: <span className="text-emerald-600">+{syncResult.gp_games.inserted}</span> ~{syncResult.gp_games.updated} -{syncResult.gp_games.deactivated}</span>
-                    <span>Games Library: <span className="text-emerald-600">+{syncResult.website_games.inserted}</span> ~{syncResult.website_games.updated}</span>
-                    {!syncResult.website_provider_linked && (
-                      <span className="text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" /> 未关联 Game Provider 条目
-                      </span>
+              <SectionHead title="游戏目录同步" sub="从 Provider API 拉取游戏列表，写入 gp_games 和网站 Games Library" />
+              {provider.capabilities?.includes('GAME_SYNC') ? (
+                <>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={() => void handleSyncGames()}
+                      disabled={syncing}
+                      className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+                    >
+                      {syncing
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> 同步中…</>
+                        : <><RefreshCw className="w-4 h-4" /> 从 API 同步游戏</>}
+                    </button>
+                    {syncResult && (
+                      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-2">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">共 {syncResult.total} 个游戏</span>
+                        <span>gp_games: <span className="text-emerald-600">+{syncResult.gp_games.inserted}</span> ~{syncResult.gp_games.updated} -{syncResult.gp_games.deactivated}</span>
+                        <span>Games Library: <span className="text-emerald-600">+{syncResult.website_games.inserted}</span> ~{syncResult.website_games.updated}</span>
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-              {syncResult && !syncResult.website_provider_linked && (
-                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                  提示：在 <strong>Website → Game Providers</strong> 创建一条 provider_code = <strong>{code}</strong> 的记录，下次同步后游戏会自动关联到该 Provider。
-                </p>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    此 Provider 支持 API 游戏列表同步。同步后在网站 Games Library 可见。
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>此 Provider 不支持自动游戏列表同步（H5 Lobby 模式）。请在 <strong>Website → Games Library</strong> 手动添加游戏，或在 <strong>网站展示</strong> Tab 中配置直接进入 Lobby。</span>
+                </div>
               )}
             </div>
 
@@ -1126,6 +1355,11 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
               </div>
             )}
           </div>
+        )}
+
+        {/* ── Website Display ── */}
+        {tab === 'website' && (
+          <WebsiteDisplayTab provider={provider} patchWebsite={patchWebsite} onToast={onToast} />
         )}
 
         {/* ── Settings ── */}
