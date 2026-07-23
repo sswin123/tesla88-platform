@@ -11,7 +11,7 @@ type Site = {
   id: number;
   name: string;
   slug: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   logo_url: string | null;
   template_id: number | null;
   theme_id: number | null;
@@ -19,7 +19,7 @@ type Site = {
   updated_at: string;
 };
 
-const STATUS_OPTIONS = ['all', 'draft', 'published', 'archived'] as const;
+const STATUS_OPTIONS = ['all', 'DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
 
 export default function PartnerSiteListPage() {
   const [sites, setSites]   = useState<Site[]>([]);
@@ -83,11 +83,11 @@ export default function PartnerSiteListPage() {
 
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
-      published: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-      draft:     'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-      archived:  'bg-zinc-500/15 text-zinc-400 border border-zinc-600/30',
+      PUBLISHED: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+      DRAFT:     'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+      ARCHIVED:  'bg-zinc-500/15 text-zinc-400 border border-zinc-600/30',
     };
-    return map[s] ?? map.draft;
+    return map[s] ?? map.DRAFT;
   };
 
   return (
@@ -141,7 +141,7 @@ export default function PartnerSiteListPage() {
                   : 'bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
               }`}
             >
-              {s}
+              {s.toLowerCase()}
             </button>
           ))}
         </div>
@@ -178,7 +178,7 @@ export default function PartnerSiteListPage() {
                 <Globe className="w-12 h-12 text-violet-500/30" />
                 <div className="absolute top-2 right-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(site.status)}`}>
-                    {site.status}
+                    {site.status.toLowerCase()}
                   </span>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export default function PartnerSiteListPage() {
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
-                  {site.status === 'published' && (
+                  {site.status === 'PUBLISHED' && (
                     <a
                       href={`/p/${site.slug}`}
                       target="_blank"

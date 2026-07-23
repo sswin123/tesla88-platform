@@ -12,7 +12,7 @@ type Site = {
   id: number;
   name: string;
   slug: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   template_id: number | null;
   theme_id: number | null;
   updated_at: string;
@@ -41,8 +41,8 @@ export default function PartnerBuilderDashboard() {
       setSites(allSites.slice(0, 5));
       setStats({
         total:     allSites.length,
-        published: allSites.filter(s => s.status === 'published').length,
-        draft:     allSites.filter(s => s.status === 'draft').length,
+        published: allSites.filter(s => s.status === 'PUBLISHED').length,
+        draft:     allSites.filter(s => s.status === 'DRAFT').length,
         templates: Array.isArray(templatesData) ? templatesData.length : 0,
         themes:    Array.isArray(themesData) ? themesData.length : 0,
       });
@@ -50,8 +50,8 @@ export default function PartnerBuilderDashboard() {
   }, []);
 
   const statusColor = (s: string) =>
-    s === 'published' ? 'bg-emerald-500/15 text-emerald-400' :
-    s === 'draft'     ? 'bg-amber-500/15 text-amber-400' :
+    s === 'PUBLISHED' ? 'bg-emerald-500/15 text-emerald-400' :
+    s === 'DRAFT'     ? 'bg-amber-500/15 text-amber-400' :
                         'bg-zinc-500/15 text-zinc-400';
 
   return (
@@ -188,7 +188,7 @@ export default function PartnerBuilderDashboard() {
                   <div className="text-xs text-zinc-500">/{site.slug}</div>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(site.status)}`}>
-                  {site.status}
+                  {site.status.toLowerCase()}
                 </span>
                 <div className="flex items-center gap-1 text-xs text-zinc-600">
                   <Clock className="w-3 h-3" />
@@ -201,7 +201,7 @@ export default function PartnerBuilderDashboard() {
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </Link>
-                  {site.status === 'published' && (
+                  {site.status === 'PUBLISHED' && (
                     <a
                       href={`/p/${site.slug}`}
                       target="_blank"

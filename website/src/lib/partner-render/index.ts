@@ -88,7 +88,8 @@ async function fetchPageData(slug: string): Promise<PartnerPageData | null> {
   >(
     `SELECT
        id, name, slug, status, page_type,
-       meta_title, meta_description,
+       seo_title    AS meta_title,
+       seo_description AS meta_description,
        template_id, theme_id,
        CASE WHEN logo_media_id IS NOT NULL
             THEN '/api/public/media/' || logo_media_id::text

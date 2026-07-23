@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       page_type:   body.page_type ?? 'partner',
       template_id: body.template_id,
       theme_id:    body.theme_id,
-      status:      (body.status as 'DRAFT' | 'PUBLISHED') ?? 'DRAFT',
+      status:      ((body.status as string | undefined)?.toUpperCase() as 'DRAFT' | 'PUBLISHED') ?? 'DRAFT',
       created_by:  payload.sub,
     });
     await logAudit({

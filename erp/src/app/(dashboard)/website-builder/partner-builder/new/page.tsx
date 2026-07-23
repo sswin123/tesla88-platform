@@ -381,7 +381,7 @@ export default function CreatePartnerWizard() {
                   const primary   = cssVar(vars, '--pb-primary');
                   const secondary = cssVar(vars, '--pb-secondary');
                   const accent    = cssVar(vars, '--pb-accent');
-                  const bg        = cssVar(vars, '--pb-bg', '#18181b');
+                  const bg        = cssVar(vars, '--pb-bg-page', '#18181b');
                   return (
                     <button
                       key={t.id}
