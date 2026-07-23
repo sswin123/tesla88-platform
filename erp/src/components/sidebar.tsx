@@ -40,6 +40,7 @@ import {
   Palette,
   PanelTop,
   KeyRound,
+  Handshake,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/website-builder',                        label: 'Website Builder',  icon: Layout,             permission: 'website.builder.manage' },
       { href: '/design-system',                          label: 'Design System',    icon: Palette,            permission: 'website.builder.manage' },
       { href: '/website-builder/header-builder',         label: 'Header Builder',   icon: PanelTop,           permission: 'website.builder.manage' },
+      { href: '/website-builder/partner-builder',        label: 'Partner Builder',  icon: Handshake,          permission: 'website.builder.manage' },
       { href: '/website-builder/website-config',         label: 'Website Config',   icon: SlidersHorizontal, permission: 'website.builder.manage' },
       { href: '/apk-manager',             label: 'APK Manager',      icon: Smartphone, permission: 'website.settings' },
       { href: '/website-banners',         label: 'Banners',          icon: Image,      permission: 'website.banner.manage' },
