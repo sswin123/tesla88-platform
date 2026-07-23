@@ -12,6 +12,14 @@ interface ProvidersConfig {
   columns?: number;
 }
 
+function proxiedUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 async function getProviders(): Promise<ProviderRow[]> {
   try {
     const { rows } = await pool.query<ProviderRow>(
@@ -72,7 +80,7 @@ export default async function ProvidersSection({ config }: { config: ProvidersCo
           >
             {p.logo_url ? (
               <img
-                src={p.logo_url}
+                src={proxiedUrl(p.logo_url)!}
                 alt={p.display_name}
                 className="w-9 h-9 object-contain"
                 loading="lazy"

@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
 
 const TABS = [
@@ -25,6 +24,7 @@ interface CardItem {
   provider_code: string;
   name: string;
   logoUrl: string | null;
+  bannerUrl: string | null;
   is_hot: boolean;
   is_new: boolean;
   is_maintenance: boolean;
@@ -41,6 +41,7 @@ function toCards(providers: PublicGameProvider[], tab: TabKey): CardItem[] {
     provider_code:  p.provider_code,
     name:           p.provider_name,
     logoUrl:        p.logo_url ?? (p.logo_media_id ? `/api/public/media/${p.logo_media_id}` : null),
+    bannerUrl:      p.banner_url ?? (p.banner_media_id ? `/api/public/media/${p.banner_media_id}` : null),
     is_hot:         p.is_hot,
     is_new:         p.is_new,
     is_maintenance: p.is_maintenance,
@@ -190,13 +191,37 @@ export default function GameLobby() {
                 key={card.key}
                 onClick={() => void handleLaunch(card)}
                 disabled={!!launching}
-                className="casino-card casino-card-hover relative flex flex-col items-center justify-center gap-1 p-2 text-center transition-all duration-200 disabled:opacity-70 w-full"
-                style={{ textDecoration: 'none', minHeight: '72px' }}
+                className="casino-card casino-card-hover relative overflow-hidden transition-all duration-200 disabled:opacity-70 w-full"
+                style={{ textDecoration: 'none', aspectRatio: '3/4', minHeight: '120px' }}
               >
+                {/* Full-bleed background: banner → logo → emoji */}
+                {(card.bannerUrl ?? card.logoUrl) ? (
+                  <img
+                    src={(card.bannerUrl ?? card.logoUrl)!}
+                    alt={card.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-4xl"
+                    style={{ background: 'var(--bg-surface2)' }}
+                  >
+                    🎮
+                  </div>
+                )}
+
+                {/* Gradient overlay so text is readable */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(to top, rgba(10,11,20,0.95) 0%, rgba(10,11,20,0.15) 55%, transparent 100%)',
+                  }}
+                />
+
                 {/* HOT badge */}
                 {card.is_hot && (
                   <span
-                    className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold leading-none"
+                    className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold leading-none z-10"
                     style={{
                       background: 'var(--brand-primary)',
                       color: '#fff',
@@ -209,7 +234,7 @@ export default function GameLobby() {
                 {/* NEW badge */}
                 {card.is_new && !card.is_hot && (
                   <span
-                    className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold leading-none"
+                    className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold leading-none z-10"
                     style={{ background: 'var(--brand-primary)', color: '#fff' }}
                   >
                     NEW
@@ -219,7 +244,7 @@ export default function GameLobby() {
                 {/* Maintenance overlay */}
                 {card.is_maintenance && (
                   <div
-                    className="absolute inset-0 rounded-xl flex items-center justify-center z-10"
+                    className="absolute inset-0 flex items-center justify-center z-10"
                     style={{ background: 'rgba(0,0,0,0.55)' }}
                   >
                     <span className="text-xs font-semibold text-white">维护中</span>
@@ -229,7 +254,7 @@ export default function GameLobby() {
                 {/* Loading spinner overlay */}
                 {isThisLaunching && (
                   <div
-                    className="absolute inset-0 rounded-xl flex items-center justify-center z-10"
+                    className="absolute inset-0 flex items-center justify-center z-10"
                     style={{ background: 'rgba(0,0,0,0.45)' }}
                   >
                     <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
@@ -239,22 +264,9 @@ export default function GameLobby() {
                   </div>
                 )}
 
-                {/* Logo or emoji */}
-                {card.logoUrl ? (
-                  <Image
-                    src={card.logoUrl}
-                    alt={card.name}
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="text-2xl">🎮</span>
-                )}
-
+                {/* Provider name at bottom */}
                 <span
-                  className="text-xs font-semibold leading-tight"
+                  className="absolute bottom-0 inset-x-0 p-2 text-xs font-semibold leading-tight text-center z-10"
                   style={{ color: 'var(--text-base)' }}
                 >
                   {card.name}
