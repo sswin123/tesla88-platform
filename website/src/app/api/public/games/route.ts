@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
       `g.is_active = TRUE`,
       `p.status IN ('ACTIVE', 'TESTING')`,
       `p.website_visible = TRUE`,
+      `COALESCE(p.website_display_mode, 'PROVIDER_CARD') != 'PROVIDER_CARD'`,
     ];
     const vals: unknown[] = [];
     let i = 1;

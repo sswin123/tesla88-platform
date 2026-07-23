@@ -1062,8 +1062,6 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const [syncResult, setSyncResult] = useState<{
     total: number;
     gp_games: { inserted: number; updated: number; deactivated: number };
-    website_games: { inserted: number; updated: number };
-    website_provider_linked: boolean;
     synced_at: string;
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1155,19 +1153,15 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
       const d = await r.json() as {
         ok?: boolean; error?: string; total?: number;
         gp_games?: { inserted: number; updated: number; deactivated: number };
-        website_games?: { inserted: number; updated: number };
-        website_provider_linked?: boolean;
         synced_at?: string;
       };
       if (!r.ok || !d.ok) throw new Error(d.error ?? 'Sync failed');
       setSyncResult({
         total: d.total ?? 0,
         gp_games: d.gp_games ?? { inserted: 0, updated: 0, deactivated: 0 },
-        website_games: d.website_games ?? { inserted: 0, updated: 0 },
-        website_provider_linked: d.website_provider_linked ?? false,
         synced_at: d.synced_at ?? new Date().toISOString(),
       });
-      onToast(`同步完成: ${d.total ?? 0} 个游戏 (新增 ${d.website_games?.inserted ?? 0})`, true);
+      onToast(`同步完成: ${d.total ?? 0} 个游戏 (新增 ${d.gp_games?.inserted ?? 0} 到内部目录)`, true);
     } catch (e) {
       onToast(`同步失败: ${e instanceof Error ? e.message : String(e)}`, false);
     } finally {
@@ -1326,7 +1320,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
 
             {/* Game Sync — conditional on GAME_SYNC capability */}
             <div>
-              <SectionHead title="游戏目录同步" sub="从 Provider API 拉取游戏列表，写入 gp_games 和网站 Games Library" />
+              <SectionHead title="游戏目录同步" sub="从 Provider API 拉取游戏列表，写入 gp_games 内部目录（不影响网站展示）" />
               {provider.capabilities?.includes('GAME_SYNC') ? (
                 <>
                   <div className="flex items-center gap-3 flex-wrap">
@@ -1343,18 +1337,17 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
                       <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-2">
                         <span className="font-semibold text-slate-800 dark:text-slate-200">共 {syncResult.total} 个游戏</span>
                         <span>gp_games: <span className="text-emerald-600">+{syncResult.gp_games.inserted}</span> ~{syncResult.gp_games.updated} -{syncResult.gp_games.deactivated}</span>
-                        <span>Games Library: <span className="text-emerald-600">+{syncResult.website_games.inserted}</span> ~{syncResult.website_games.updated}</span>
                       </div>
                     )}
                   </div>
                   <p className="mt-1.5 text-xs text-slate-500">
-                    此 Provider 支持 API 游戏列表同步。同步后在网站 Games Library 可见。
+                    同步结果写入内部游戏目录（gp_games），不影响网站 Games Library 显示。
                   </p>
                 </>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>此 Provider 不支持自动游戏列表同步（H5 Lobby 模式）。请在 <strong>Website → Games Library</strong> 手动添加游戏，或在 <strong>网站展示</strong> Tab 中配置直接进入 Lobby。</span>
+                  <span>此 Provider 为 Lobby 模式，无需游戏列表。玩家点击后直接进入 Provider H5 Lobby，在 <strong>网站展示</strong> Tab 中启用即可。</span>
                 </div>
               )}
             </div>
