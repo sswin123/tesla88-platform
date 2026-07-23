@@ -34,12 +34,19 @@ interface CredRow     { key: string; masked_value: string; is_encrypted: boolean
 interface AuditEntry  { action: string; field_key: string | null; old_value_hint: string | null; new_value_hint: string | null; admin_username: string; ip_address: string; created_at: string }
 interface ProviderDetail { provider: GpProvider; config: ConfigRow[]; credentials: CredRow[]; recent_audit: AuditEntry[] }
 
+type UrlState = 'ok' | 'configured' | 'error';
+
+interface UrlCheckResult {
+  label: string; url: string | null; state: UrlState;
+  latency_ms: number | null; http_status?: number; error?: string; note?: string;
+}
+
 interface TestResult {
   overall: 'SUCCESS' | 'PARTIAL';
-  url_checks: { label: string; url: string | null; ok: boolean; latency_ms: number | null; http_status?: number; error?: string }[];
+  url_checks: UrlCheckResult[];
   credential_checks: { label: string; loaded: boolean }[];
   config_checks: { label: string; loaded: boolean; value?: string }[];
-  summary: { urls_ok: number; urls_fail: number; creds_ok: number; creds_total: number; config_ok: number; config_total: number };
+  summary: { urls_ok: number; urls_configured: number; urls_error: number; creds_ok: number; creds_total: number; config_ok: number; config_total: number };
   total_latency_ms: number;
   tested_at: string;
 }
@@ -323,8 +330,13 @@ function ConnectionTestPanel({ code, onToast }: { code: string; onToast: (m: str
         {result && (
           <span className={`flex items-center gap-1.5 text-sm font-semibold ${result.overall === 'SUCCESS' ? 'text-emerald-600' : 'text-amber-600'}`}>
             {result.overall === 'SUCCESS' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            {result.overall === 'SUCCESS' ? '全部通过' : '部分失败'}
-            <span className="text-slate-400 font-normal text-xs ml-1">总延迟 {result.total_latency_ms}ms · {fmtDate(result.tested_at)}</span>
+            {result.overall === 'SUCCESS' ? '测试通过' : '存在异常'}
+            <span className="text-slate-400 font-normal text-xs ml-1">
+              {result.summary.urls_ok} 可达
+              {result.summary.urls_configured > 0 ? ` · ${result.summary.urls_configured} 已配置` : ''}
+              {result.summary.urls_error > 0 ? ` · ${result.summary.urls_error} 错误` : ''}
+              {' · '}{result.total_latency_ms}ms · {fmtDate(result.tested_at)}
+            </span>
           </span>
         )}
       </div>
@@ -333,17 +345,49 @@ function ConnectionTestPanel({ code, onToast }: { code: string; onToast: (m: str
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* URL Checks */}
           <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">URL 可达性</div>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">URL 可达性</div>
+              <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />可达</span>
+                <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500" />已配置</span>
+                <span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-rose-500" />无法连接</span>
+              </div>
+            </div>
+            <div className="space-y-2.5">
               {result.url_checks.map(c => (
-                <div key={c.label} className="flex items-center gap-2 text-sm">
-                  {c.ok
-                    ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                    : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                  <span className="w-32 text-slate-600 dark:text-slate-400 shrink-0">{c.label}</span>
-                  <span className="flex-1 font-mono text-xs text-slate-500 truncate">{c.url ?? '未配置'}</span>
-                  {c.latency_ms != null && <span className="text-xs text-slate-400 shrink-0">{c.latency_ms}ms</span>}
-                  {c.error && <span className="text-xs text-rose-500 shrink-0">{c.error}</span>}
+                <div key={c.label}>
+                  <div className="flex items-center gap-2 text-sm">
+                    {c.state === 'ok'
+                      ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      : c.state === 'configured'
+                        ? <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                        : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                    <span className="w-28 text-slate-700 dark:text-slate-300 shrink-0 font-medium text-xs">
+                      {c.label}
+                    </span>
+                    <span className={`text-xs font-semibold shrink-0 ${
+                      c.state === 'ok' ? 'text-emerald-600 dark:text-emerald-400'
+                        : c.state === 'configured' ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}>
+                      {c.state === 'ok' ? '可达' : c.state === 'configured' ? '已配置' : '错误'}
+                    </span>
+                    {c.latency_ms != null && (
+                      <span className="text-xs text-slate-400 shrink-0">{c.latency_ms}ms</span>
+                    )}
+                    <span className="flex-1 font-mono text-[10px] text-slate-400 truncate ml-1">
+                      {c.url ?? '未配置'}
+                    </span>
+                  </div>
+                  {/* Note for configured/error state */}
+                  {(c.note || c.error) && (
+                    <div className={`ml-6 mt-1 text-[10px] leading-relaxed ${
+                      c.state === 'configured' ? 'text-amber-500 dark:text-amber-400'
+                        : 'text-rose-500 dark:text-rose-400'
+                    }`}>
+                      {c.note ?? c.error}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
