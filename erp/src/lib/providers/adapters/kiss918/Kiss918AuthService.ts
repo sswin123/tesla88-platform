@@ -124,10 +124,13 @@ export class Kiss918AuthService {
       throw new Error(`918KISS H5 Login HTTP ${res.status}: ${text.slice(0, 200)}`);
     }
 
-    const data = (await res.json()) as { actk?: string; statusCode?: number; errMsg?: string };
+    const rawBody = await res.text();
+    console.log('[Kiss918AuthService] H5 Login raw response:', rawBody.slice(0, 800));
+    let data: { actk?: string; statusCode?: number; errMsg?: string };
+    try { data = JSON.parse(rawBody); } catch { data = {}; }
 
     if (params.debug) {
-      console.debug('[Kiss918AuthService] H5 Login ←', { statusCode: data.statusCode, latencyMs });
+      console.debug('[Kiss918AuthService] H5 Login ←', { data, latencyMs });
     }
 
     if (data.statusCode !== 0 || !data.actk) {
