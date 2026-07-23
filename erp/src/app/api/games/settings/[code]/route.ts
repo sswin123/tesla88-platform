@@ -222,7 +222,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ ok: true });
   }
 
-  if (!body.key || body.value === undefined) {
+  // key/value only required for config/credential ops — website type uses body.website instead
+  if (body.type !== 'website' && (!body.key || body.value === undefined)) {
     return NextResponse.json({ error: 'key and value are required' }, { status: 400 });
   }
 
@@ -268,7 +269,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await writeAuditLog({
       providerId, providerCode: upperCode, adminId, adminUsername,
       action: 'UPDATE_CREDENTIAL', fieldKey: body.key,
-      oldHint: '(previous)', newHint: maskValue(body.value), ip,
+      oldHint: '(previous)', newHint: maskValue(body.value ?? ''), ip,
     });
     await takeHistorySnapshot({
       providerId, providerCode: upperCode, providerStatus: currentStatus,

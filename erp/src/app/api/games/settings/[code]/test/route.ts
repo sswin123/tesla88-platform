@@ -1,6 +1,8 @@
+import { createDecipheriv } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { Kiss918AuthService } from '@/lib/providers/adapters/kiss918/Kiss918AuthService';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -22,10 +24,110 @@ export interface UrlCheckResult {
   note?:       string;   // human-readable explanation for non-ok states
 }
 
+// ── AES-256-GCM credential decryption (mirrors gaming.ts) ────────────────────
+function decryptCredential(encrypted: string): string {
+  const hexKey = process.env.AES_ENCRYPTION_KEY;
+  if (!hexKey || hexKey.length !== 64) throw new Error('AES_ENCRYPTION_KEY not configured');
+  const key    = Buffer.from(hexKey, 'hex');
+  const buf    = Buffer.from(encrypted, 'base64');
+  const iv      = buf.subarray(0, 12);
+  const authTag = buf.subarray(12, 28);
+  const cipher  = buf.subarray(28);
+  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  return decipher.update(cipher).toString('utf8') + decipher.final('utf8');
+}
+
+function safeDecrypt(value: string, isEncrypted: boolean): string {
+  if (!isEncrypted) return value;
+  try { return decryptCredential(value); } catch { return ''; }
+}
+
+// ── 918KISS H5 Lobby real launch flow test ────────────────────────────────────
+// Tests the actual Authenticate → Token → apiLobby?tkn=TOKEN flow.
+// Uses probe account u0@{postfix_id} — 918KISS will return player-not-found (expected).
+// "configured" state = H5 API reachable, credentials signed correctly.
+// "ok" state        = Full token received, complete lobby URL generated.
+// "error" state     = H5 API unreachable or credentials rejected.
+async function testKiss918H5LobbyFlow(
+  cfg: Record<string, string>,
+  decryptedCreds: Record<string, string>,
+): Promise<UrlCheckResult> {
+  const label         = 'H5 Lobby (Auth→Token→apiLobby)';
+  const h5ApiDomain   = cfg['h5_api_domain']?.replace(/\/$/, '');
+  const h5LobbyDomain = cfg['h5_lobby_domain']?.replace(/\/$/, '');
+  const postfixId     = cfg['postfix_id'] ?? 'probe';
+  const currency      = cfg['currency'] ?? 'MYR';
+
+  if (!h5ApiDomain || !h5LobbyDomain) {
+    return { label, url: null, state: 'error', latency_ms: null, error: 'h5_api_domain 或 h5_lobby_domain 未配置' };
+  }
+
+  const md5Key     = decryptedCreds['md5_key'];
+  const secretKey  = decryptedCreds['secret_key'];
+  const encryptKey = decryptedCreds['encrypt_key'];
+  const delimiter  = decryptedCreds['delimiter'] ?? '';
+
+  if (!md5Key || !secretKey || !encryptKey) {
+    return { label, url: null, state: 'error', latency_ms: null, error: 'H5 凭证未配置 (md5_key / secret_key / encrypt_key)' };
+  }
+
+  const probeAccount = `u0@${postfixId}`;
+  const authService  = new Kiss918AuthService();
+  const start        = Date.now();
+
+  try {
+    const { actk, latencyMs } = await authService.getLoginToken({
+      accountId:   probeAccount,
+      currency,
+      nickname:    probeAccount,
+      language:    2,
+      lobbyUrl:    '',
+      h5ApiDomain,
+      md5Key,
+      secretKey,
+      encryptKey,
+      delimiter,
+      timeoutMs:   8000,
+      debug:       false,
+    });
+
+    const lobbyUrl = `${h5LobbyDomain}/apiLobby?tkn=${actk}&language=2&lobbyUrl=`;
+    return {
+      label,
+      url:        lobbyUrl,
+      state:      'ok',
+      latency_ms: latencyMs,
+      note:       'H5 认证成功，Lobby URL 已生成（含实时 Token）。',
+    };
+  } catch (err) {
+    const latency_ms = Date.now() - start;
+    const msg = err instanceof Error ? err.message : String(err);
+
+    // statusCode= in message = 918KISS API responded (reachable + credentials signed OK)
+    if (msg.includes('statusCode=')) {
+      return {
+        label,
+        url:        `${h5LobbyDomain}/apiLobby?tkn=…`,
+        state:      'configured',
+        latency_ms,
+        note:       `H5 API 可达，凭证签名成功。探测账号 "${probeAccount}" 返回: ${msg.replace('918KISS H5 Login failed: ', '')}`,
+      };
+    }
+
+    return {
+      label,
+      url:        `${h5LobbyDomain}/apiLobby?tkn=…`,
+      state:      'error',
+      latency_ms,
+      error:      msg,
+    };
+  }
+}
+
 // Per-URL-type notes for common non-2xx responses
 const URL_NOTES: Record<string, string> = {
-  'H5 Lobby URL': 'Requires a valid session token (/apiLobby?tkn=…) — cannot health-check directly',
-  'H5 Game URL':  'Requires a valid session token — cannot health-check directly',
+  'H5 Game URL': 'Requires a valid session token — cannot health-check directly',
 };
 
 async function checkUrl(
@@ -102,10 +204,15 @@ export async function POST(_req: NextRequest, { params }: Params) {
   );
   const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
 
-  const { rows: credRows } = await pool.query<{ key: string; value: string }>(
-    `SELECT key, value FROM gp_credentials WHERE provider_id = $1`, [provider.id],
+  const { rows: credRows } = await pool.query<{
+    key: string; value: string; is_encrypted: boolean;
+  }>(
+    `SELECT key, value, is_encrypted FROM gp_credentials WHERE provider_id = $1`, [provider.id],
   );
-  const creds = Object.fromEntries(credRows.map(r => [r.key, r.value]));
+  const creds          = Object.fromEntries(credRows.map(r => [r.key, r.value]));
+  const decryptedCreds = Object.fromEntries(
+    credRows.map(r => [r.key, safeDecrypt(r.value, r.is_encrypted)]),
+  );
 
   // ── URL checks ────────────────────────────────────────────────────────────
   const startAll = Date.now();
@@ -113,7 +220,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
     checkUrl('API Base URL', cfg['api_base_url']),
     checkUrl('DataFeed URL', cfg['datafeed_url']),
     checkUrl('H5 API URL',   cfg['h5_api_domain']),
-    checkUrl('H5 Lobby URL', cfg['h5_lobby_domain']),
+    // 918KISS H5 Lobby cannot be health-checked by GET to root domain.
+    // Test the real Authenticate → Token → apiLobby?tkn flow instead.
+    upperCode === '918KISS'
+      ? testKiss918H5LobbyFlow(cfg, decryptedCreds)
+      : checkUrl('H5 Lobby URL', cfg['h5_lobby_domain']),
   ]);
   const totalLatency = Date.now() - startAll;
 
