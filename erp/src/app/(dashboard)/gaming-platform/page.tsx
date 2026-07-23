@@ -821,6 +821,14 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const [reloading, setReloading] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing]     = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    total: number;
+    gp_games: { inserted: number; updated: number; deactivated: number };
+    website_games: { inserted: number; updated: number };
+    website_provider_linked: boolean;
+    synced_at: string;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isCredAdmin = userRole === 'SUPER_ADMIN';
@@ -889,6 +897,34 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
       onToast(`重置失败: ${e instanceof Error ? e.message : String(e)}`, false);
     } finally {
       setReloading(false);
+    }
+  }
+
+  async function handleSyncGames() {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const r = await fetch(`/api/games/settings/${code}/sync`, { method: 'POST' });
+      const d = await r.json() as {
+        ok?: boolean; error?: string; total?: number;
+        gp_games?: { inserted: number; updated: number; deactivated: number };
+        website_games?: { inserted: number; updated: number };
+        website_provider_linked?: boolean;
+        synced_at?: string;
+      };
+      if (!r.ok || !d.ok) throw new Error(d.error ?? 'Sync failed');
+      setSyncResult({
+        total: d.total ?? 0,
+        gp_games: d.gp_games ?? { inserted: 0, updated: 0, deactivated: 0 },
+        website_games: d.website_games ?? { inserted: 0, updated: 0 },
+        website_provider_linked: d.website_provider_linked ?? false,
+        synced_at: d.synced_at ?? new Date().toISOString(),
+      });
+      onToast(`同步完成: ${d.total ?? 0} 个游戏 (新增 ${d.website_games?.inserted ?? 0})`, true);
+    } catch (e) {
+      onToast(`同步失败: ${e instanceof Error ? e.message : String(e)}`, false);
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -1038,6 +1074,39 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
             <div>
               <SectionHead title="Connection Test" sub="服务端发起的连通性测试，不经过浏览器" />
               <ConnectionTestPanel code={code} onToast={onToast} />
+            </div>
+
+            {/* Game Sync */}
+            <div>
+              <SectionHead title="同步游戏列表" sub="从 Provider API 拉取游戏目录，写入 gp_games 和网站 Games Library" />
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => void handleSyncGames()}
+                  disabled={syncing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  {syncing
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> 同步中…</>
+                    : <><RefreshCw className="w-4 h-4" /> 从 API 同步游戏</>}
+                </button>
+                {syncResult && (
+                  <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-2">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">共 {syncResult.total} 个游戏</span>
+                    <span>gp_games: <span className="text-emerald-600">+{syncResult.gp_games.inserted}</span> ~{syncResult.gp_games.updated} -{syncResult.gp_games.deactivated}</span>
+                    <span>Games Library: <span className="text-emerald-600">+{syncResult.website_games.inserted}</span> ~{syncResult.website_games.updated}</span>
+                    {!syncResult.website_provider_linked && (
+                      <span className="text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> 未关联 Game Provider 条目
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {syncResult && !syncResult.website_provider_linked && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  提示：在 <strong>Website → Game Providers</strong> 创建一条 provider_code = <strong>{code}</strong> 的记录，下次同步后游戏会自动关联到该 Provider。
+                </p>
+              )}
             </div>
 
             {/* Recent audit */}
