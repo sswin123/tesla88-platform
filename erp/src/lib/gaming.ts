@@ -50,8 +50,8 @@ async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
     return null;
   }
   console.log(`[gaming:build] step 2 OK — provider id=${prov.id} status=${prov.status}`);
-  if (prov.status !== 'ACTIVE') {
-    console.warn(`[gaming:build] step 2 FAIL — provider status="${prov.status}", expected ACTIVE.`);
+  if (prov.status !== 'ACTIVE' && prov.status !== 'TESTING') {
+    console.warn(`[gaming:build] step 2 FAIL — provider status="${prov.status}", expected ACTIVE or TESTING.`);
     return null;
   }
 
@@ -125,7 +125,7 @@ async function buildKiss918Adapter(): Promise<Kiss918Adapter | null> {
 }
 
 // ── Singleton Cache ───────────────────────────────────────────────────────────
-// undefined = not yet attempted; null = provider not ACTIVE or not found (intentional)
+// undefined = not yet attempted; null = provider not ACTIVE/TESTING or not found (intentional)
 // Exceptions (transient errors) do NOT cache to null — they leave _kiss918 as
 // undefined so the next request retries instead of being permanently broken.
 let _kiss918: Kiss918Adapter | null | undefined = undefined;

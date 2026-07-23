@@ -3,7 +3,7 @@
  * Represents a game provider as stored in the gp_providers table.
  */
 
-export type ProviderStatus = 'ACTIVE' | 'DISABLED' | 'MAINTENANCE' | 'DEPRECATED';
+export type ProviderStatus = 'ACTIVE' | 'TESTING' | 'DISABLED' | 'MAINTENANCE' | 'DEPRECATED';
 export type ProviderEnvironment = 'PRODUCTION' | 'SANDBOX';
 export type ProviderWalletType = 'SEAMLESS' | 'TRANSFER';
 export type ProviderHealthStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';

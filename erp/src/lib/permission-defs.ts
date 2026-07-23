@@ -122,10 +122,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     module: 'Others',
     permissions: [
-      { key: 'risk.view',   label: 'Risk Center' },
-      { key: 'banks.manage',label: 'Bank Manager' },
-      { key: 'game.manage', label: 'Game Accounts' },
-      { key: 'media.view',  label: 'Media Library' },
+      { key: 'risk.view',         label: 'Risk Center' },
+      { key: 'banks.manage',      label: 'Bank Manager' },
+      { key: 'game.manage',       label: 'Game Accounts & Platform Settings (view + status)' },
+      { key: 'game.credentials',  label: 'Gaming Platform: Edit Credentials, Reload, Export/Import (SuperAdmin only)' },
+      { key: 'media.view',        label: 'Media Library' },
     ],
   },
 ];
