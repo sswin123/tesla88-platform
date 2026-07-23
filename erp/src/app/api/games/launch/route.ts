@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 2. Load user info ─────────────────────────────────────────────────────
-  const { rows: userRows } = await pool.query<{ id: number; username: string; phone: string | null }>(
-    `SELECT id, username, phone FROM users WHERE id = $1 LIMIT 1`,
+  const { rows: userRows } = await pool.query<{ id: number; first_name: string; phone: string | null }>(
+    `SELECT id, first_name, phone FROM users WHERE id = $1 LIMIT 1`,
     [user_id],
   );
   const user = userRows[0];
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     const postfix     = cfg['postfix_id'] ?? '';
     const currency    = cfg['currency'] ?? 'MYR';
     const accountId   = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
-    const nickname    = user.username ?? `Player${user_id}`;
+    const nickname    = user.first_name ?? `Player${user_id}`;
 
     // Call provider API to create the player account
     let providerPlayerId: string | null = null;
