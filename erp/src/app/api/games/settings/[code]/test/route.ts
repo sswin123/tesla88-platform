@@ -15,13 +15,28 @@ type Params = { params: Promise<{ code: string }> };
 export type UrlState = 'ok' | 'configured' | 'error';
 
 export interface UrlCheckResult {
-  label:       string;
-  url:         string | null;
-  state:       UrlState;
-  latency_ms:  number | null;
+  label:        string;
+  url:          string | null;
+  state:        UrlState;
+  latency_ms:   number | null;
   http_status?: number;
-  error?:      string;
-  note?:       string;   // human-readable explanation for non-ok states
+  error?:       string;
+  note?:        string;   // human-readable explanation for non-ok states
+  raw_http?:    RawHttpDiagnostics;
+}
+
+export interface RawHttpDiagnostics {
+  request_url:      string;
+  request_method:   string;
+  request_headers:  Record<string, string>;
+  request_body:     string;
+  response_status:  number;
+  response_headers: Record<string, string>;
+  response_body:    string;        // first 4000 chars
+  response_body_len: number;
+  response_format:  string;        // 'JSON' | 'HTML' | 'XML' | 'EMPTY' | 'BINARY' | 'UNKNOWN'
+  parsed_body:      unknown;       // result of JSON.parse, or null
+  parse_error:      string | null;
 }
 
 // ── AES-256-GCM credential decryption (mirrors gaming.ts) ────────────────────
@@ -44,11 +59,14 @@ function safeDecrypt(value: string, isEncrypted: boolean): string {
 }
 
 // ── 918KISS H5 Lobby real launch flow test ────────────────────────────────────
-// Tests the actual Authenticate → Token → apiLobby?tkn=TOKEN flow.
+// Builds the same DES-ECB + MD5 signed request that Kiss918AuthService uses,
+// but makes the raw fetch itself so we can capture the complete HTTP
+// request + response for diagnostic output.
+//
 // Uses probe account u0@{postfix_id} — 918KISS will return player-not-found (expected).
-// "configured" state = H5 API reachable, credentials signed correctly.
-// "ok" state        = Full token received, complete lobby URL generated.
-// "error" state     = H5 API unreachable or credentials rejected.
+// "ok"         = actk received, full Lobby URL generated.
+// "configured" = H5 API reachable and replied (any non-network failure).
+// "error"      = network / timeout / DNS failure.
 async function testKiss918H5LobbyFlow(
   cfg: Record<string, string>,
   decryptedCreds: Record<string, string>,
@@ -73,56 +91,109 @@ async function testKiss918H5LobbyFlow(
   }
 
   const probeAccount = `u0@${postfixId}`;
-  const authService  = new Kiss918AuthService();
-  const start        = Date.now();
 
+  // Build request using Kiss918AuthService public helpers (same logic as getLoginToken)
+  const svc      = new Kiss918AuthService();
+  const qs       = svc.buildQS(probeAccount, currency, probeAccount, 2, '');
+  const q        = svc.desEncrypt(qs, encryptKey);
+  const time     = Math.floor(Date.now() / 1000);
+  const s        = svc.md5Upper(`${md5Key}${secretKey}${time}${q}${delimiter}`);
+  const formBody = new URLSearchParams({ userName: probeAccount, time: String(time), q, s }).toString();
+  const reqUrl   = `${h5ApiDomain}/api/Acc/Login`;
+  const reqHeaders: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
+
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+  const start = Date.now();
+
+  let res: Response;
   try {
-    const { actk, latencyMs } = await authService.getLoginToken({
-      accountId:   probeAccount,
-      currency,
-      nickname:    probeAccount,
-      language:    2,
-      lobbyUrl:    '',
-      h5ApiDomain,
-      md5Key,
-      secretKey,
-      encryptKey,
-      delimiter,
-      timeoutMs:   8000,
-      debug:       false,
+    res = await fetch(reqUrl, {
+      method:  'POST',
+      headers: reqHeaders,
+      body:    formBody,
+      signal:  ctrl.signal,
     });
-
-    const lobbyUrl = `${h5LobbyDomain}/apiLobby?tkn=${actk}&language=2&lobbyUrl=`;
-    return {
-      label,
-      url:        lobbyUrl,
-      state:      'ok',
-      latency_ms: latencyMs,
-      note:       'H5 认证成功，Lobby URL 已生成（含实时 Token）。',
-    };
   } catch (err) {
+    clearTimeout(timer);
     const latency_ms = Date.now() - start;
     const msg = err instanceof Error ? err.message : String(err);
+    return { label, url: `${h5LobbyDomain}/apiLobby?tkn=…`, state: 'error', latency_ms, error: msg };
+  }
+  clearTimeout(timer);
+  const latency_ms = Date.now() - start;
 
-    // statusCode= in message = 918KISS API responded (reachable + credentials signed OK)
-    if (msg.includes('statusCode=')) {
+  // Capture raw response ─────────────────────────────────────────────────────
+  const resStatus  = res.status;
+  const resHeaders: Record<string, string> = {};
+  res.headers.forEach((v, k) => { resHeaders[k] = v; });
+  const rawBody = await res.text();
+
+  let parsedBody: unknown = null;
+  let parseError: string | null = null;
+  try { parsedBody = JSON.parse(rawBody); } catch (e) { parseError = String(e); }
+
+  const bodyTrimmed = rawBody.trimStart();
+  const responseFormat =
+    rawBody.length === 0                          ? 'EMPTY'
+    : bodyTrimmed.startsWith('<')                 ? (bodyTrimmed.startsWith('<!') ? 'HTML' : 'XML')
+    : (parsedBody !== null && parseError === null)? 'JSON'
+    : /^[\x00-\x08\x0e-\x1f]/.test(rawBody)     ? 'BINARY'
+    : 'UNKNOWN';
+
+  const diag: RawHttpDiagnostics = {
+    request_url:       reqUrl,
+    request_method:    'POST',
+    request_headers:   reqHeaders,
+    request_body:      formBody,
+    response_status:   resStatus,
+    response_headers:  resHeaders,
+    response_body:     rawBody.slice(0, 4000),
+    response_body_len: rawBody.length,
+    response_format:   responseFormat,
+    parsed_body:       parsedBody,
+    parse_error:       parseError,
+  };
+
+  // Classify result ──────────────────────────────────────────────────────────
+  if (parsedBody && typeof parsedBody === 'object' && !Array.isArray(parsedBody)) {
+    const d = parsedBody as Record<string, unknown>;
+    const actk       = d['actk']       as string | undefined;
+    const statusCode = d['statusCode'] as number | undefined;
+
+    if (actk && statusCode === 0) {
       return {
         label,
-        url:        `${h5LobbyDomain}/apiLobby?tkn=…`,
-        state:      'configured',
+        url:        `${h5LobbyDomain}/apiLobby?tkn=${actk}&language=2&lobbyUrl=`,
+        state:      'ok',
         latency_ms,
-        note:       `H5 API 可达，凭证签名成功。探测账号 "${probeAccount}" 返回: ${msg.replace('918KISS H5 Login failed: ', '')}`,
+        note:       'H5 认证成功，Lobby URL 已生成（含实时 Token）。',
+        raw_http:   diag,
       };
     }
 
+    // API replied with JSON but token not granted (expected for probe account)
     return {
       label,
       url:        `${h5LobbyDomain}/apiLobby?tkn=…`,
-      state:      'error',
+      state:      'configured',
       latency_ms,
-      error:      msg,
+      http_status: resStatus,
+      note:       `H5 API 可达。响应格式: ${responseFormat}。parsed_body 见 raw_http。`,
+      raw_http:   diag,
     };
   }
+
+  // Non-JSON or empty response
+  return {
+    label,
+    url:        `${h5LobbyDomain}/apiLobby?tkn=…`,
+    state:      resStatus >= 200 && resStatus < 300 ? 'configured' : 'error',
+    latency_ms,
+    http_status: resStatus,
+    note:       `响应格式: ${responseFormat}（非 JSON）。完整内容见 raw_http。`,
+    raw_http:   diag,
+  };
 }
 
 // Per-URL-type notes for common non-2xx responses

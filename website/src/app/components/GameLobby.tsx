@@ -247,6 +247,7 @@ export default function GameLobby() {
                     width={48}
                     height={48}
                     className="object-contain"
+                    unoptimized
                   />
                 ) : (
                   <span className="text-2xl">🎮</span>
