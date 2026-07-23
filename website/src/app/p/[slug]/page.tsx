@@ -44,7 +44,7 @@ export default async function PartnerPage({ params }: Props) {
 
       {/* Responsive base styles */}
       <style>{`
-        html { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+        html { -webkit-text-size-adjust: 100%; }
         a { color: inherit; }
         img { max-width: 100%; height: auto; }
         @media (max-width: 640px) {
@@ -56,29 +56,29 @@ export default async function PartnerPage({ params }: Props) {
       <div
         style={{
           minHeight:  '100vh',
-          background: 'var(--pb-bg, #09090b)',
-          color:      'var(--pb-text, #f4f4f5)',
+          background: 'var(--pb-bg-page, #09090b)',
+          color:      'var(--pb-text-primary, #f4f4f5)',
         }}
       >
         {/* Minimal nav bar */}
         <nav style={{
-          position:     'sticky',
-          top:          0,
-          zIndex:       100,
-          background:   'var(--pb-header-bg, var(--pb-surface, #18181b))',
-          borderBottom: '1px solid var(--pb-border, rgba(255,255,255,0.06))',
-          backdropFilter:'blur(12px)',
+          position:           'sticky',
+          top:                0,
+          zIndex:             100,
+          background:         'var(--pb-bg-header, var(--pb-bg-section, #18181b))',
+          borderBottom:       '1px solid var(--pb-border, rgba(255,255,255,0.06))',
+          backdropFilter:     'blur(12px)',
           WebkitBackdropFilter:'blur(12px)',
-          padding:      '0 20px',
+          padding:            '0 var(--pb-section-px, 20px)',
         }}>
           <div style={{
-            maxWidth:   '1200px',
-            margin:     '0 auto',
-            height:     '56px',
-            display:    'flex',
-            alignItems: 'center',
+            maxWidth:      'var(--pb-container-width, 1200px)',
+            margin:        '0 auto',
+            height:        '56px',
+            display:       'flex',
+            alignItems:    'center',
             justifyContent:'space-between',
-            gap:        '12px',
+            gap:           '12px',
           }}>
             {data.site.logo_url ? (
               <img
@@ -96,12 +96,13 @@ export default async function PartnerPage({ params }: Props) {
               href="#partners"
               style={{
                 padding:        '7px 18px',
-                borderRadius:   '8px',
-                background:     'var(--pb-btn-primary-bg, var(--pb-primary, #7c3aed))',
-                color:          'var(--pb-btn-primary-fg, #fff)',
+                borderRadius:   'var(--pb-radius-btn, 6px)',
+                background:     'var(--pb-btn-bg, var(--pb-primary, #7c3aed))',
+                color:          'var(--pb-btn-text, #fff)',
                 textDecoration: 'none',
                 fontSize:       '13px',
                 fontWeight:     '700',
+                transition:     'opacity var(--pb-duration-base, 0.2s)',
               }}
             >
               View Partners

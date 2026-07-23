@@ -253,6 +253,26 @@ export async function getThemeById(id: number): Promise<PartnerTheme | null> {
   return rows[0] ?? null;
 }
 
+export async function updateTheme(
+  id: number,
+  data: { name?: string; preview_color?: string; preview_gradient?: string | null; css_variables?: Record<string, string> }
+): Promise<PartnerTheme | null> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if ('name'             in data) { fields.push(`name = $${i++}`);             values.push(data.name); }
+  if ('preview_color'    in data) { fields.push(`preview_color = $${i++}`);    values.push(data.preview_color); }
+  if ('preview_gradient' in data) { fields.push(`preview_gradient = $${i++}`); values.push(data.preview_gradient ?? null); }
+  if ('css_variables'    in data) { fields.push(`css_variables = $${i++}`);    values.push(JSON.stringify(data.css_variables)); }
+  if (fields.length === 0) return getThemeById(id);
+  values.push(id);
+  const { rows } = await pool.query<PartnerTheme>(
+    `UPDATE partner_themes SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+    values
+  );
+  return rows[0] ?? null;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SITES
 // ═══════════════════════════════════════════════════════════════
