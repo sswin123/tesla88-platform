@@ -49,6 +49,14 @@ export async function middleware(req: NextRequest) {
   // Pass through static files and API routes immediately
   if (isStaticOrApi(pathname)) return NextResponse.next();
 
+  // Partner landing pages (/p/*): bypass casino chrome — set header so
+  // root layout.tsx renders a bare <html><body> instead of CasinoHeader etc.
+  if (pathname.startsWith('/p/')) {
+    const res = NextResponse.next();
+    res.headers.set('x-is-partner-page', '1');
+    return res;
+  }
+
   // Pass through fully public pages (no auth needed)
   if (matchesPath(pathname, PUBLIC_PATHS)) return NextResponse.next();
 

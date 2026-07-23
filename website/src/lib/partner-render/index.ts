@@ -76,21 +76,42 @@ export type PartnerPageData = {
 /* ─── Raw DB loader ──────────────────────────────────────── */
 
 async function fetchPageData(slug: string): Promise<PartnerPageData | null> {
-  /* 1. Load site — only published, non-deleted */
-  const siteRes = await pool.query<PartnerSite & { template_id: number | null; theme_id: number | null }>(
-    `SELECT id, name, slug, status, page_type, logo_url, meta_title, meta_description,
-            template_id, theme_id
+  /* 1. Load site — only PUBLISHED (uppercase), non-deleted.
+   *    logo_url is constructed from logo_media_id; partner_sites has no logo_url column.
+   */
+  const siteRes = await pool.query<
+    Omit<PartnerSite, 'logo_url'> & {
+      logo_url: string | null;
+      template_id: number | null;
+      theme_id: number | null;
+    }
+  >(
+    `SELECT
+       id, name, slug, status, page_type,
+       meta_title, meta_description,
+       template_id, theme_id,
+       CASE WHEN logo_media_id IS NOT NULL
+            THEN '/api/public/media/' || logo_media_id::text
+            ELSE NULL
+       END AS logo_url
      FROM partner_sites
      WHERE slug = $1 AND deleted_at IS NULL`,
     [slug]
   );
+
   const row = siteRes.rows[0];
-  if (!row || row.status !== 'published') return null;
+  /* status is stored as 'PUBLISHED' (uppercase) */
+  if (!row || row.status !== 'PUBLISHED') return null;
 
   const site: PartnerSite = {
-    id: row.id, name: row.name, slug: row.slug, status: row.status,
-    page_type: row.page_type, logo_url: row.logo_url,
-    meta_title: row.meta_title, meta_description: row.meta_description,
+    id:               row.id,
+    name:             row.name,
+    slug:             row.slug,
+    status:           row.status,
+    page_type:        row.page_type,
+    logo_url:         row.logo_url,
+    meta_title:       row.meta_title,
+    meta_description: row.meta_description,
   };
 
   if (!row.template_id || !row.theme_id) return null;
