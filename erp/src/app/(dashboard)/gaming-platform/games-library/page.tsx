@@ -429,8 +429,8 @@ export default function GamesLibraryPage() {
       fetch('/api/games/categories'),
     ]);
     if (pRes.ok) {
-      const d = await pRes.json() as { providers: Provider[] };
-      setProviders(d.providers ?? []);
+      const raw = await pRes.json() as Provider[] | { providers?: Provider[] };
+      setProviders(Array.isArray(raw) ? raw : (raw.providers ?? []));
     }
     if (cRes.ok) {
       const d = await cRes.json() as Category[];

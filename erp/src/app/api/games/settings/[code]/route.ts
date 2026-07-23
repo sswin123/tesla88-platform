@@ -103,7 +103,7 @@ export async function GET(req: NextRequest, { params }: Params) {
             metadata, created_at, updated_at,
             website_visible, website_display_name, website_logo_url, website_banner_url,
             website_category, website_sort_order, website_is_hot, website_is_new,
-            website_maintenance, website_launch_mode, website_platforms
+            website_maintenance, website_launch_mode, website_display_mode, website_platforms
      FROM gp_providers WHERE code = $1 LIMIT 1`,
     [code.toUpperCase()],
   );
@@ -173,6 +173,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       website_is_new?: boolean;
       website_maintenance?: boolean;
       website_launch_mode?: string;
+      website_display_mode?: string;
     };
   };
 
@@ -279,14 +280,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // ── Website display settings update ──────────────────────────────────────
   if (body.type === 'website' && body.website) {
     const ws = body.website;
-    const ALLOWED_CATEGORIES = ['slot', 'live', 'sport', 'fishing'];
-    const ALLOWED_LAUNCH_MODES = ['LOBBY', 'DIRECT'];
+    const ALLOWED_CATEGORIES    = ['slot', 'live', 'sport', 'fishing'];
+    const ALLOWED_LAUNCH_MODES  = ['LOBBY', 'DIRECT'];
+    const ALLOWED_DISPLAY_MODES = ['PROVIDER_CARD', 'GAME_LIST', 'BOTH'];
 
     if (ws.website_category && !ALLOWED_CATEGORIES.includes(ws.website_category)) {
       return NextResponse.json({ error: `Invalid category. Allowed: ${ALLOWED_CATEGORIES.join(', ')}` }, { status: 400 });
     }
     if (ws.website_launch_mode && !ALLOWED_LAUNCH_MODES.includes(ws.website_launch_mode)) {
       return NextResponse.json({ error: `Invalid launch_mode. Allowed: ${ALLOWED_LAUNCH_MODES.join(', ')}` }, { status: 400 });
+    }
+    if (ws.website_display_mode && !ALLOWED_DISPLAY_MODES.includes(ws.website_display_mode)) {
+      return NextResponse.json({ error: `Invalid display_mode. Allowed: ${ALLOWED_DISPLAY_MODES.join(', ')}` }, { status: 400 });
     }
 
     const sets: string[] = [];
@@ -304,6 +309,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ['website_is_new',       'website_is_new'],
       ['website_maintenance',  'website_maintenance'],
       ['website_launch_mode',  'website_launch_mode'],
+      ['website_display_mode', 'website_display_mode'],
     ];
 
     for (const [wsKey, col] of fields) {

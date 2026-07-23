@@ -40,21 +40,23 @@ const CAT_AUTO_CSS = `
 `;
 
 // Unified card — same shape regardless of whether the data came from
-// website_game_providers (platform mode) or website_games (games mode).
-// Switching game_source is a config change only — no code rewrite required.
+// gp_providers (primary) or website_game_providers (legacy fallback).
 interface PublicLobbyCard extends LobbyIconData {
-  id: string;                    // 'p-{id}' for providers, 'g-{id}' for games
+  id: string;                    // 'gp-{id}' for gp_providers, 'p-{id}' for legacy, 'g-{id}' for games
   card_type: 'provider' | 'game';
   name: string;
   provider_id: number | null;
   provider_name: string | null;
   provider_code: string | null;
-  category_code: string;         // from website_game_categories
+  category_code: string;
   category_name: string;
-  thumbnail_url: string | null;  // logo for providers; thumbnail for games
+  thumbnail_url: string | null;
   banner_url: string | null;
   is_hot: boolean;
   is_new: boolean;
+  is_maintenance: boolean;       // provider/game in maintenance
+  launch_mode: string;           // LOBBY | DIRECT | EXTERNAL | DOWNLOAD | COMING_SOON
+  display_mode: string;          // PROVIDER_CARD | GAME_LIST | BOTH
   display_order: number;
 }
 
@@ -281,6 +283,7 @@ const GL_KEYFRAMES = `
 @keyframes gl-bounce-in { 0%{opacity:0;transform:scale(0.8)} 70%{transform:scale(1.04)} 100%{opacity:1;transform:scale(1)} }
 @keyframes gl-float     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
 @keyframes gl-pulse     { 0%,100%{opacity:1} 50%{opacity:0.65} }
+@keyframes gl-spin      { to{transform:rotate(360deg)} }
 `;
 
 const ANIM_CLASS: Record<string, string> = {
@@ -441,7 +444,7 @@ function IconRenderer({
 // ─── GameLobbyCard ────────────────────────────────────────────────────────────
 
 interface CardProps {
-  card: PublicLobbyCard;   // unified — works for providers AND games
+  card: PublicLobbyCard;
   cfg: GameLobbyConfig;
   accent: string;
   animClass: string;
@@ -449,7 +452,42 @@ interface CardProps {
 }
 
 function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) {
-  const [hovered, setHovered] = useState(false);
+  const [hovered,  setHovered]  = useState(false);
+  const [launching, setLaunching] = useState(false);
+
+  async function handleLaunch(e: React.MouseEvent) {
+    e.preventDefault();
+    if (card.is_maintenance) {
+      alert('该游戏平台正在维护中，请稍后再试。');
+      return;
+    }
+    if (!card.provider_code) {
+      window.location.href = '/download';
+      return;
+    }
+    setLaunching(true);
+    try {
+      const r = await fetch('/api/public/games/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_code: card.provider_code }),
+      });
+      if (r.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      const d = await r.json() as { launch_url?: string; error?: string };
+      if (d.launch_url) {
+        window.location.href = d.launch_url;
+      } else {
+        alert(d.error ?? '启动失败，请稍后再试。');
+      }
+    } catch {
+      alert('网络错误，请稍后再试。');
+    } finally {
+      setLaunching(false);
+    }
+  }
 
   const style     = cfg.card_style      ?? 'classic';
   const shadow    = cfg.card_shadow     ?? 'medium';
@@ -527,11 +565,13 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
   };
 
   return (
-    <a href="/download" style={{ textDecoration: 'none', display: 'block' }}
+    <div
+      onClick={e => { void handleLaunch(e); }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={{ textDecoration: 'none', display: 'block', cursor: launching ? 'wait' : 'pointer' }}
     >
-      <div className={animClass} style={cardStyle}>
+      <div className={animClass} style={{ ...cardStyle, opacity: launching ? 0.75 : 1, transition: 'opacity 0.2s' }}>
         {/* Aspect ratio container */}
         <div style={{ paddingTop, position: 'relative' }}>
           {/* Image / placeholder */}
@@ -621,8 +661,36 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
             </div>
           )}
         </div>
+
+        {/* Maintenance overlay — inside card div so position:absolute works */}
+        {card.is_maintenance && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 20 }}>🔧</span>
+            <span style={{ color: '#fff', fontSize: 11, marginTop: 4, fontWeight: 600 }}>维护中</span>
+          </div>
+        )}
+
+        {/* Launch loading overlay */}
+        {launching && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 28, height: 28, border: '3px solid rgba(255,255,255,0.3)',
+              borderTopColor: '#fff', borderRadius: '50%',
+              animation: 'gl-spin 0.7s linear infinite',
+            }} />
+          </div>
+        )}
       </div>
-    </a>
+    </div>
   );
 }
 

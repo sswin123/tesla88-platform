@@ -34,6 +34,7 @@ interface GpProvider {
   website_category: string; website_sort_order: number;
   website_is_hot: boolean; website_is_new: boolean;
   website_maintenance: boolean; website_launch_mode: string;
+  website_display_mode: string;
 }
 
 interface ConfigRow   { key: string; value: string; updated_at: string; updated_by_name: string | null }
@@ -833,6 +834,12 @@ const LAUNCH_MODE_OPTIONS = [
   { value: 'DIRECT', label: 'DIRECT — 直接启动游戏（需游戏列表）' },
 ];
 
+const DISPLAY_MODE_OPTIONS = [
+  { value: 'PROVIDER_CARD', label: 'PROVIDER_CARD — 仅显示 Provider 卡片（LOBBY 模式推荐）' },
+  { value: 'GAME_LIST',     label: 'GAME_LIST — 显示 Games Library 中的游戏列表' },
+  { value: 'BOTH',          label: 'BOTH — 显示 Provider 卡片 + 精选游戏' },
+];
+
 function WebsiteDisplayTab({
   provider, patchWebsite, onToast,
 }: {
@@ -852,7 +859,8 @@ function WebsiteDisplayTab({
   const [bannerUrl,   setBannerUrl]   = useState(provider.website_banner_url ?? '');
   const [category,    setCategory]    = useState(provider.website_category);
   const [sortOrder,   setSortOrder]   = useState(String(provider.website_sort_order ?? 0));
-  const [launchMode,  setLaunchMode]  = useState(provider.website_launch_mode ?? 'LOBBY');
+  const [launchMode,   setLaunchMode]   = useState(provider.website_launch_mode ?? 'LOBBY');
+  const [displayMode,  setDisplayMode]  = useState(provider.website_display_mode ?? 'PROVIDER_CARD');
 
   async function handleSave() {
     setSaving(true);
@@ -868,6 +876,7 @@ function WebsiteDisplayTab({
         website_category:     category,
         website_sort_order:   parseInt(sortOrder, 10) || 0,
         website_launch_mode:  launchMode,
+        website_display_mode: displayMode,
       });
       onToast('网站展示设置已保存', true);
     } catch (e) {
@@ -983,6 +992,18 @@ function WebsiteDisplayTab({
               className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {LAUNCH_MODE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">网站展示模式</label>
+            <select
+              value={displayMode}
+              onChange={e => setDisplayMode(e.target.value)}
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {DISPLAY_MODE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>

@@ -74,6 +74,10 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
+    // API routes must return JSON — never HTML redirect
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -81,6 +85,12 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     await jwtVerify(token, SECRET);
     return NextResponse.next();
   } catch {
+    // API routes must return JSON — never HTML redirect
+    if (pathname.startsWith('/api/')) {
+      const resp = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      resp.cookies.delete(COOKIE_NAME);
+      return resp;
+    }
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete(COOKIE_NAME);
     return response;
