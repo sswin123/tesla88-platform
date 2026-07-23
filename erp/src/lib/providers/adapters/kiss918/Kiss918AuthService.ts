@@ -99,7 +99,7 @@ export class Kiss918AuthService {
     const url = `${params.h5ApiDomain.replace(/\/$/, '')}${H5_PATH.LOGIN}`;
 
     if (params.debug) {
-      console.debug('[Kiss918AuthService] H5 Login →', url, { userName: params.accountId, time, s });
+      console.debug('[Kiss918AuthService] H5 Login →', url, { userName: params.accountId, time, q, s, QS: qs });
     }
 
     const controller = new AbortController();
