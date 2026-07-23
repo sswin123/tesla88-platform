@@ -3,6 +3,24 @@ import { requirePermission } from '@/lib/require_permission';
 import { getSiteById, publishSite } from '@/lib/repositories/partner_repo';
 import { logAudit } from '@/lib/repositories/audit_repo';
 
+/** Notify website to bust the ISR cache for the given partner page slug */
+async function notifyWebsiteRevalidate(slug: string): Promise<void> {
+  const websiteUrl = (process.env.WEBSITE_INTERNAL_URL ?? '').replace(/\/$/, '');
+  const secret     = process.env.REVALIDATE_SECRET ?? '';
+  if (!websiteUrl || !secret) return;
+
+  try {
+    await fetch(`${websiteUrl}/api/revalidate`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ tag: `partner-site-${slug}`, secret }),
+      signal:  AbortSignal.timeout(5000),
+    });
+  } catch {
+    /* Non-fatal: ISR will re-render on the next 60-second window */
+  }
+}
+
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Ctx) {
@@ -25,6 +43,11 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     target_type: 'partner_site', target_id: siteId,
     new_value: { slug: existing.slug, status: publish ? 'PUBLISHED' : 'DRAFT' },
   });
+
+  /* Bust the website's ISR cache for this slug immediately on publish */
+  if (publish) {
+    await notifyWebsiteRevalidate(existing.slug);
+  }
 
   return NextResponse.json({ ok: true, site: updated });
 }

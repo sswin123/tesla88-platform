@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import pool from '@/lib/db';
 import { getBrand } from '@/lib/brand';
@@ -80,6 +81,16 @@ const HEADER_H_MAP: Record<string, string> = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  /* Partner pages (/p/*) get a bare layout — no casino chrome */
+  const h = await headers();
+  if (h.get('x-is-partner-page') === '1') {
+    return (
+      <html lang="en">
+        <body style={{ margin: 0, padding: 0 }}>{children}</body>
+      </html>
+    );
+  }
+
   const [brand, announcements, headerConfig] = await Promise.all([
     getBrand(),
     getActiveAnnouncements(),

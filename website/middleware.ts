@@ -7,6 +7,14 @@ const PROTECTED = ['/dashboard', '/profile', '/deposit', '/withdrawal', '/withdr
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  /* Partner landing pages — bypass casino chrome in root layout */
+  if (pathname.startsWith('/p/')) {
+    const res = NextResponse.next();
+    res.headers.set('x-is-partner-page', '1');
+    return res;
+  }
+
   if (!PROTECTED.some(p => pathname.startsWith(p))) return NextResponse.next();
 
   const token = req.cookies.get('member_session')?.value;
@@ -23,5 +31,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/profile/:path*', '/deposit/:path*', '/withdrawal/:path*', '/withdraw/:path*', '/chat/:path*', '/history/:path*'],
+  matcher: [
+    '/p/:path*',
+    '/dashboard/:path*', '/profile/:path*', '/deposit/:path*',
+    '/withdrawal/:path*', '/withdraw/:path*', '/chat/:path*', '/history/:path*',
+  ],
 };
