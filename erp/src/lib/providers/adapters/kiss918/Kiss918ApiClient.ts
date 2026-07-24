@@ -21,7 +21,15 @@ interface BaseResponse {
   errMsg: string;
 }
 
-interface CreatePlayerRes extends BaseResponse { playerID: number }
+// /api/createplayer uses a different response envelope than /operator/v2/*
+interface CreatePlayerRes {
+  playerID: number;
+  error?: string | number;
+  description?: string;
+  // Legacy format fallback
+  statusCode?: number;
+  errMsg?: string;
+}
 interface CheckPlayerRes  extends BaseResponse { playerID: number }
 interface GetBalanceRes   extends BaseResponse { balance: number }
 interface TopUpRes        extends BaseResponse { orderID: string; balance: number }
@@ -58,15 +66,19 @@ export class Kiss918ApiClient {
   // ── Player Operations ──────────────────────────────────────────────────────
 
   async createPlayer(
-    userName: string,
+    accountID: string,
     nickName: string,
     currency: string,
     language = 2,
   ): Promise<{ playerID: number }> {
     const res = await this.post<CreatePlayerRes>(API_PATH.CREATE_PLAYER, {
-      userName, nickName, currency, language,
+      accountID, nickName, currency, language,
     });
-    this.assertOk(res);
+    // /api/createplayer returns { error, description } instead of { statusCode, errMsg }
+    const errCode = res.statusCode ?? Number(res.error ?? 0);
+    if (errCode !== 0) {
+      throw new Error(`918KISS CreatePlayer error ${res.error ?? res.statusCode}: ${res.description ?? res.errMsg}`);
+    }
     return { playerID: res.playerID };
   }
 
