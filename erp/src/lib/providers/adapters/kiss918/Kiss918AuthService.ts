@@ -35,13 +35,12 @@ export interface H5LoginResult {
  */
 export class Kiss918AuthService {
   /**
-   * DES-CBC encrypt using key as both key and IV.
-   * Matches C# DESCryptoServiceProvider.CreateEncryptor(key, key) (default CBC mode).
+   * DES-ECB encrypt (no IV). 918KISS uses ECB mode for q encryption.
    * Returns base64-encoded ciphertext.
    */
   desEncrypt(plaintext: string, key: string): string {
     const keyBuf = Buffer.from(key.padEnd(8, '\0').slice(0, 8), 'utf8');
-    const cipher = createCipheriv('des-cbc', keyBuf, keyBuf);
+    const cipher = createCipheriv('des-ecb', keyBuf, Buffer.alloc(0));
     cipher.setAutoPadding(true);
     return Buffer.concat([
       cipher.update(Buffer.from(plaintext, 'utf8')),
