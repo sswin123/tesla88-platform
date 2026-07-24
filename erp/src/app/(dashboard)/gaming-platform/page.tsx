@@ -286,7 +286,7 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
             </button>
           </div>
           <div className="flex gap-1">
-            <button onClick={save} disabled={saving || !val.trim()} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+            <button onClick={save} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
               {saving ? <Spinner /> : <Save className="w-3 h-3" />} 保存
             </button>
             <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">取消</button>
