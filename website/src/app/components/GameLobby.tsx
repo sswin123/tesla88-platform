@@ -31,6 +31,14 @@ interface CardItem {
   launch_mode: string;
 }
 
+function proxied(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 function toCards(providers: PublicGameProvider[], tab: TabKey): CardItem[] {
   const filtered = tab === 'HOT'
     ? providers.filter(p => p.is_hot)
@@ -40,8 +48,8 @@ function toCards(providers: PublicGameProvider[], tab: TabKey): CardItem[] {
     key:            `p-${p.provider_code}`,
     provider_code:  p.provider_code,
     name:           p.provider_name,
-    logoUrl:        p.logo_url ?? (p.logo_media_id ? `/api/public/media/${p.logo_media_id}` : null),
-    bannerUrl:      p.banner_url ?? (p.banner_media_id ? `/api/public/media/${p.banner_media_id}` : null),
+    logoUrl:        proxied(p.logo_url) ?? (p.logo_media_id ? `/api/public/media/${p.logo_media_id}` : null),
+    bannerUrl:      proxied(p.banner_url) ?? (p.banner_media_id ? `/api/public/media/${p.banner_media_id}` : null),
     is_hot:         p.is_hot,
     is_new:         p.is_new,
     is_maintenance: p.is_maintenance,
