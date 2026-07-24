@@ -59,9 +59,11 @@ function safeDecrypt(value: string, isEncrypted: boolean): string {
 }
 
 // ── 918KISS H5 Lobby real launch flow test ────────────────────────────────────
-// Builds the same DES-ECB + MD5 signed request that Kiss918AuthService uses,
-// but makes the raw fetch itself so we can capture the complete HTTP
-// request + response for diagnostic output.
+// Mirrors the Kiss918AuthService.getLoginToken() format (API v1.11 page 45-48):
+//   QS = key=…{d}time=…{d}userName=…{d}password=…{d}currency=…{d}nickName=…
+//   q  = URLEncode(DES-CBC-encrypt(QS, encryptKey))
+//   s  = MD5(QS + md5Key + currTime + secretKey)  — lowercase
+//   POST body JSON: { q, s, accessToken }
 //
 // Uses probe account u0@{postfix_id} — 918KISS will return player-not-found (expected).
 // "ok"         = actk received, full Lobby URL generated.
@@ -81,10 +83,11 @@ async function testKiss918H5LobbyFlow(
     return { label, url: null, state: 'error', latency_ms: null, error: 'h5_api_domain 或 h5_lobby_domain 未配置' };
   }
 
-  const md5Key     = decryptedCreds['md5_key'];
-  const secretKey  = decryptedCreds['secret_key'];
-  const encryptKey = decryptedCreds['encrypt_key'];
-  const delimiter  = decryptedCreds['delimiter'] ?? '';
+  const md5Key      = decryptedCreds['md5_key'];
+  const secretKey   = decryptedCreds['secret_key'];
+  const encryptKey  = decryptedCreds['encrypt_key'];
+  const delimiter   = decryptedCreds['delimiter'] ?? '';
+  const accessToken = decryptedCreds['api_token'] ?? '';
 
   if (!md5Key || !secretKey || !encryptKey) {
     return { label, url: null, state: 'error', latency_ms: null, error: 'H5 凭证未配置 (md5_key / secret_key / encrypt_key)' };
@@ -92,15 +95,29 @@ async function testKiss918H5LobbyFlow(
 
   const probeAccount = `u0@${postfixId}`;
 
-  // Build request using Kiss918AuthService public helpers (same logic as getLoginToken)
-  const svc      = new Kiss918AuthService();
-  const qs       = svc.buildQS(probeAccount, currency, probeAccount, 2, '');
-  const q        = svc.desEncrypt(qs, encryptKey);
-  const time     = Math.floor(Date.now() / 1000);
-  const s        = svc.md5Upper(`${md5Key}${secretKey}${time}${q}${delimiter}`);
-  const formBody = new URLSearchParams({ userName: probeAccount, time: String(time), q, s }).toString();
+  // Format currTime as yyyyMMddHHmmss UTC (API v1.11 requirement)
+  const now = new Date();
+  const p   = (n: number) => String(n).padStart(2, '0');
+  const currTime = String(now.getUTCFullYear()) + p(now.getUTCMonth() + 1) + p(now.getUTCDate()) +
+    p(now.getUTCHours()) + p(now.getUTCMinutes()) + p(now.getUTCSeconds());
+
+  // Build request using Kiss918AuthService (same logic as getLoginToken)
+  const svc = new Kiss918AuthService();
+  const d   = delimiter;
+  const QS  = [
+    `key=${secretKey}`,
+    `time=${currTime}`,
+    `userName=${probeAccount}`,
+    `password=${probeAccount}`,
+    `currency=${currency}`,
+    `nickName=${probeAccount}`,
+  ].join(d);
+
+  const q        = encodeURIComponent(svc.desEncrypt(QS, encryptKey));
+  const s        = svc.md5Hex(QS + md5Key + currTime + secretKey);
+  const jsonBody = JSON.stringify({ q, s, accessToken });
   const reqUrl   = `${h5ApiDomain}/api/Acc/Login`;
-  const reqHeaders: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  const reqHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
 
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10_000);
@@ -111,7 +128,7 @@ async function testKiss918H5LobbyFlow(
     res = await fetch(reqUrl, {
       method:  'POST',
       headers: reqHeaders,
-      body:    formBody,
+      body:    jsonBody,
       signal:  ctrl.signal,
     });
   } catch (err) {
@@ -145,7 +162,7 @@ async function testKiss918H5LobbyFlow(
     request_url:       reqUrl,
     request_method:    'POST',
     request_headers:   reqHeaders,
-    request_body:      formBody,
+    request_body:      JSON.stringify({ q: q.slice(0, 20) + '…', s, accessToken: accessToken.slice(0, 8) + '…' }),
     response_status:   resStatus,
     response_headers:  resHeaders,
     response_body:     rawBody.slice(0, 4000),

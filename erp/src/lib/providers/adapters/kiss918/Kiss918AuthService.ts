@@ -2,7 +2,7 @@ import { createCipheriv, createHash } from 'crypto';
 import { H5_PATH } from './constants';
 
 export interface H5LoginParams {
-  accountId: string;
+  accountId: string;    // with postfix: u{userId}@{postfixId}
   currency: string;
   nickname: string;
   language: number;
@@ -11,7 +11,9 @@ export interface H5LoginParams {
   md5Key: string;
   secretKey: string;
   encryptKey: string;
-  delimiter: string;
+  delimiter: string;    // field separator in QS (may be empty string)
+  accessToken: string;  // API Access Token sent in POST body
+  password: string;     // player password sent in QS (918KISS passes back in Authenticate callback)
   timeoutMs: number;
   debug: boolean;
 }
@@ -22,27 +24,24 @@ export interface H5LoginResult {
 }
 
 /**
- * Kiss918AuthService — DES-ECB encryption + MD5 signing for H5 Login.
+ * Kiss918AuthService — DES-CBC encryption + MD5 signing for H5 Login.
  *
- * 918KISS H5 Login flow:
- *   1. Build QS string with player attributes.
- *   2. DES-ECB encrypt QS using EncryptKey (8 bytes) → base64 encoded `q`.
- *   3. epoch_seconds = current Unix timestamp.
- *   4. sign_input = MD5Key + SecretKey + epoch_seconds + q + Delimiter.
- *   5. s = MD5(sign_input).toUpperCase().
- *   6. POST to /api/Acc/Login with: userName, time, q, s.
- *   7. Extract `actk` from the JSON response.
+ * Per 918KISS API v1.11 page 45-48:
+ *   QS = "key={secretKey}{d}time={currTime}{d}userName={userName}{d}password={password}{d}currency={currency}{d}nickName={nickName}"
+ *   q  = URLEncode(DES-CBC-encrypt(QS, encryptKey))   // CBC, IV = encryptKey
+ *   s  = MD5(QS + md5Key + currTime + secretKey)      // lowercase hex
+ *   POST body JSON: { "q": q, "s": s, "accessToken": accessToken }
+ *   time format: "yyyyMMddHHmmss" UTC+0
  */
 export class Kiss918AuthService {
   /**
-   * DES-ECB encrypt plaintext with an 8-byte key.
+   * DES-CBC encrypt using key as both key and IV.
+   * Matches C# DESCryptoServiceProvider.CreateEncryptor(key, key) (default CBC mode).
    * Returns base64-encoded ciphertext.
    */
   desEncrypt(plaintext: string, key: string): string {
-    // DES key must be exactly 8 bytes — pad or truncate
     const keyBuf = Buffer.from(key.padEnd(8, '\0').slice(0, 8), 'utf8');
-    // ECB mode uses no IV (pass empty Buffer)
-    const cipher = createCipheriv('des-ecb', keyBuf, Buffer.alloc(0));
+    const cipher = createCipheriv('des-cbc', keyBuf, keyBuf);
     cipher.setAutoPadding(true);
     return Buffer.concat([
       cipher.update(Buffer.from(plaintext, 'utf8')),
@@ -50,56 +49,53 @@ export class Kiss918AuthService {
     ]).toString('base64');
   }
 
-  md5Upper(input: string): string {
-    return createHash('md5').update(input, 'utf8').digest('hex').toUpperCase();
+  md5Hex(input: string): string {
+    return createHash('md5').update(input, 'utf8').digest('hex');
   }
 
-  /** Build the QS string that will be DES-encrypted for the H5 login request. */
-  buildQS(
-    accountId: string,
-    currency: string,
-    nickname: string,
-    language: number,
-    lobbyUrl: string,
-  ): string {
+  private formatUtcDateTime(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
     return (
-      `userName=${accountId}` +
-      `&currency=${currency}` +
-      `&nickName=${encodeURIComponent(nickname)}` +
-      `&language=${language}` +
-      `&lobbyUrl=${encodeURIComponent(lobbyUrl)}`
+      String(d.getUTCFullYear()) +
+      p(d.getUTCMonth() + 1) +
+      p(d.getUTCDate()) +
+      p(d.getUTCHours()) +
+      p(d.getUTCMinutes()) +
+      p(d.getUTCSeconds())
     );
   }
 
-  /**
-   * Call the 918KISS H5 Login API and return the `actk` (Access Token).
-   * The token is short-lived and scoped to the player's session.
-   */
   async getLoginToken(params: H5LoginParams): Promise<H5LoginResult> {
-    const qs  = this.buildQS(
-      params.accountId,
-      params.currency,
-      params.nickname,
-      params.language,
-      params.lobbyUrl,
-    );
-    const q    = this.desEncrypt(qs, params.encryptKey);
-    const time = Math.floor(Date.now() / 1000);
-    const s    = this.md5Upper(
-      `${params.md5Key}${params.secretKey}${time}${q}${params.delimiter}`,
-    );
+    const currTime = this.formatUtcDateTime(new Date());
+    const d = params.delimiter;
 
-    const formBody = new URLSearchParams({
-      userName: params.accountId,
-      time: String(time),
-      q,
-      s,
-    }).toString();
+    // Build QS with Delimiter as field separator (NOT "&")
+    const QS = [
+      `key=${params.secretKey}`,
+      `time=${currTime}`,
+      `userName=${params.accountId}`,
+      `password=${params.password}`,
+      `currency=${params.currency}`,
+      `nickName=${params.nickname}`,
+    ].join(d);
 
-    const url = `${params.h5ApiDomain.replace(/\/$/, '')}${H5_PATH.LOGIN}`;
+    // q = URLEncode(DES-CBC-encrypt(QS))
+    const q = encodeURIComponent(this.desEncrypt(QS, params.encryptKey));
+
+    // s = MD5(QS + md5Key + currTime + secretKey)  — lowercase
+    const s = this.md5Hex(QS + params.md5Key + currTime + params.secretKey);
+
+    const body = JSON.stringify({ q, s, accessToken: params.accessToken });
+    const url  = `${params.h5ApiDomain.replace(/\/$/, '')}${H5_PATH.LOGIN}`;
 
     if (params.debug) {
-      console.debug('[Kiss918AuthService] H5 Login →', url, { userName: params.accountId, time, q, s, QS: qs });
+      console.debug('[Kiss918AuthService] H5 Login →', url, {
+        currTime,
+        QS,
+        q: q.slice(0, 30) + '…',
+        s,
+        accessToken: params.accessToken.slice(0, 8) + '…',
+      });
     }
 
     const controller = new AbortController();
@@ -109,10 +105,10 @@ export class Kiss918AuthService {
     let res: Response;
     try {
       res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody,
-        signal: controller.signal,
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal:  controller.signal,
       });
     } finally {
       clearTimeout(timer);
@@ -125,11 +121,21 @@ export class Kiss918AuthService {
     }
 
     const rawBody = await res.text();
-    let data: { actk?: string | null; playerID?: number | null; status?: number | string | null; description?: string | null };
+    let data: {
+      actk?: string | null;
+      playerID?: number | null;
+      status?: number | string | null;
+      description?: string | null;
+    };
     try { data = JSON.parse(rawBody); } catch { data = {}; }
 
     if (params.debug) {
-      console.debug('[Kiss918AuthService] H5 Login ←', { data, latencyMs });
+      console.debug('[Kiss918AuthService] H5 Login ←', {
+        status: data.status,
+        hasActk: !!data.actk,
+        description: data.description,
+        latencyMs,
+      });
     }
 
     if (!data.actk) {

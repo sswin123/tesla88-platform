@@ -201,8 +201,15 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   // ── Player Lifecycle ───────────────────────────────────────────────────────
 
   async createPlayer(params: CreatePlayerParams): Promise<CreatePlayerResult> {
+    // 918KISS CreatePlayer requires accountID WITHOUT postfix (@postfixId).
+    // 918KISS appends "@{postfixId}" automatically. All subsequent APIs use the full ID.
+    const postfix = `@${this.cfg.postfix_id}`;
+    const baseAccountId = params.account_id.endsWith(postfix)
+      ? params.account_id.slice(0, -postfix.length)
+      : params.account_id;
+
     const res = await this.api.createPlayer(
-      params.account_id,
+      baseAccountId,
       params.nickname,
       params.currency ?? this.currency,
       KISS918_LANGUAGE.ZH,
@@ -242,6 +249,8 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       secretKey:    this.creds.secret_key,
       encryptKey:   this.creds.encrypt_key,
       delimiter:    this.creds.delimiter,
+      accessToken:  this.creds.api_token,
+      password:     params.account_id,
       timeoutMs:    this.cfg.timeout_ms ?? 10_000,
       debug:        this.debug,
     });
@@ -295,6 +304,8 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       secretKey:   this.creds.secret_key,
       encryptKey:  this.creds.encrypt_key,
       delimiter:   this.creds.delimiter,
+      accessToken: this.creds.api_token,
+      password:    playerRecord.provider_account_id,
       timeoutMs:   this.cfg.timeout_ms ?? 10_000,
       debug:       this.debug,
     });
