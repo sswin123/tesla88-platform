@@ -443,17 +443,21 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     const start = Date.now();
     const tokenErr = this.checkToken(rawBody, headers);
     if (tokenErr) {
+      console.error('[kiss918-bet] TOKEN FAIL body=%j headers=%j', rawBody, headers);
       await this.cbLogger.logComplete(logId, tokenErr, 401, Date.now() - start, 'Invalid operator token');
       return tokenErr;
     }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
+      console.log('[kiss918-bet] resolved userId=%s playerID=%s', userId, rawBody.playerID);
       const req    = this.parser.parseBetRequest({ ...rawBody, __resolved_user_id: userId });
+      console.log('[kiss918-bet] parsed bet_amount=%s reference_id=%s', req.bet_amount, req.reference_id);
       const res    = await this.wallet.handleBet(req);
       const out    = this.formatter.formatBet(res);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
+      console.error('[kiss918-bet] ERROR:', err);
       const out = this.formatter.formatBet(this.systemErrorBet());
       await this.cbLogger.logComplete(logId, out, 500, Date.now() - start,
         err instanceof Error ? err.message : String(err));
