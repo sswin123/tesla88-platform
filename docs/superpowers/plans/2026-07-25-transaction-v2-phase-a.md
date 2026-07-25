@@ -80,6 +80,9 @@
 | `erp/src/lib/repositories/audit_repo.ts` | ① 新增 `getAuditLogsByTarget()` 函数 ② 在 `logAudit()` 参数中新增可选 `description?: string` | 现有调用不传 description 继续工作，默认为 NULL。现有 `getAuditLogs()` 函数签名及行为不变。 |
 | `erp/src/lib/types.ts` | 在 `AuditLog` interface 新增 `description?: string` 字段 | 现有使用 AuditLog 类型的代码无需改动（新字段可选）。 |
 
+**关于 audit_repo.ts 的修改边界：**
+修改 `logAudit()` 时，**必须**更新函数体内的 SQL INSERT 语句以包含 `description` 列（否则新列永远为 NULL）。允许的修改范围是：参数 interface 加 `description?` 字段、SQL INSERT 加第 7 个参数。除此之外，函数签名、返回类型、调用约定均不变。现有调用点不传 description 时，值写入 NULL，行为与 Phase A 前完全一致。
+
 **禁止改动的文件：** 所有现有 deposit/withdrawal API routes、所有 game provider adapter 文件、所有 webhook/callback 处理文件、所有 SSE 路由。
 
 ---
@@ -145,7 +148,9 @@ docker exec tesla88-platform-postgres-1 \
 4. `DROP INDEX IF EXISTS idx_audit_logs_target` — 删除新索引
 5. `DELETE FROM role_permissions WHERE updated_by = 'migration-082'` — 删除权限种子
 
-**注意：** `audit_logs.description` 加列是安全的（现有行 description = NULL）。`DROP COLUMN` 会丢失已写入的 description，生产环境回滚前确认是否有数据。
+**注意：** `audit_logs.description` 加列是安全的（现有行 description = NULL）。`DROP COLUMN` 会丢失已写入的 description，`DROP TABLE transaction_internal_notes` 会丢失所有 notes 数据。生产环境若已有数据，**不执行 DROP 操作，改为修复代码**。
+
+**生产环境大表索引注意：** `idx_audit_logs_target` 在 `audit_logs` 上创建索引，若该表数据量大（数十万行以上），标准 `CREATE INDEX` 会锁表。**生产环境执行迁移时，应将此条替换为 `CREATE INDEX CONCURRENTLY`**（注意：CONCURRENTLY 不能在事务块内使用，需单独执行）。暂存环境数据量小，使用标准 `CREATE INDEX` 即可。
 
 ---
 
@@ -274,8 +279,8 @@ API Route (timeline)
 3. `requirePermission('transaction.notes.delete')` → 401 if null
 4. `dbGetNoteById(noteId)` 确认存在且未删除，否则 404
 5. 验证 note 属于正确事务，否则 403
-6. 调用 `deleteNote(noteId, adminId)`（soft delete）
-7. 返回 204 No Content
+6. 调用 `deleteNote({ noteId, adminId })`（soft delete）
+7. 返回 **200 `{ ok: true }`**（规范明确要求，非 204）
 
 **权限：** `transaction.notes.delete`  
 **行为：** 软删除（`deleted_at = NOW()`），不物理删除  
@@ -293,18 +298,19 @@ API Route (timeline)
 6. 将每条 `AuditLog` 映射为 `TimelineItem` ViewModel（不暴露原始 audit_log 列名）
 7. 返回 200 `{ items: TimelineItem[], total, page, pageSize }`
 
-**TimelineItem ViewModel 字段：**
+**TimelineItem ViewModel 字段（严格按规范定义）：**
 ```
 id           — audit_log.id
 event        — audit_log.action（事件名）
-actorName    — audit_log.admin_username（JOIN admins）
+adminName    — audit_log.admin_username（JOIN admins，可为 null）
 description  — audit_log.description（人读描述）
-occurredAt   — audit_log.created_at（ISO 8601）
-metadata     — audit_log.new_value（任意 JSON）
+createdAt    — audit_log.created_at（ISO 8601）
+metadata     — audit_log.new_value（任意 JSON，可为 null）
 ```
 
 **权限：** `transaction.timeline.view`  
 **排序：** 最新优先（created_at DESC）  
+**空数据：** 无 audit 条目时返回 `{ items: [], total: 0, page: 1, pageSize: 20 }`，**绝不返回 404**  
 **错误响应：** 400 Invalid type / 400 Invalid id / 400 Invalid page/pageSize / 401 Unauthorized
 
 ---
@@ -356,7 +362,13 @@ metadata     — audit_log.new_value（任意 JSON）
 ```
 1. 执行上述 CRUD 后，GET /api/transactions/deposit/1/timeline
 2. 期望：timeline 含 INTERNAL_NOTE_CREATED、INTERNAL_NOTE_UPDATED、INTERNAL_NOTE_DELETED 三条
-3. 每条含 actorName、description、occurredAt
+3. 每条含 adminName、description、createdAt（严格按规范字段名）
+4. GET /api/transactions/deposit/999999/timeline（不存在事务） → 200 { items: [], total: 0 }（非 404）
+```
+
+**现有 audit 回归：**
+```
+5. GET /api/audit → 200，现有 audit 条目正常显示（含新 description 列，值为 null 时不报错）
 ```
 
 **边界值测试：**
@@ -416,13 +428,14 @@ feat(transaction-v2): add timeline API route with TimelineItem ViewModel
 
 ```
 1. git pull（确认最新代码）
-2. docker compose -f docker-compose.production.yml down
-3. docker compose -f docker-compose.production.yml up -d --build
-4. 执行 migration 082（见第四节步骤）
-5. 验证 migration（见 7.1 清单）
-6. 验证 API（见 7.3 清单）
-7. 跑完整回归检查（见 7.4 清单）
-8. ✅ 暂存通过后再进行生产部署
+2. npm run build — 验证 TypeScript 零编译错误（严格执行，有错误必须修复后再部署）
+3. docker compose -f docker-compose.production.yml down
+4. docker compose -f docker-compose.production.yml up -d --build
+5. 执行 migration 082（见第四节步骤）
+6. 验证 migration（见 7.1 清单）
+7. 验证 API（见 7.3 清单）
+8. 跑完整回归检查（见 7.4 清单）
+9. ✅ 暂存通过后再进行生产部署
 ```
 
 ### 9.2 生产环境（Production — 45.77.169.133）部署流程
@@ -430,19 +443,21 @@ feat(transaction-v2): add timeline API route with TimelineItem ViewModel
 ```
 1. 通知相关团队：即将部署 Transaction V2 Phase A
 2. git pull on VPS
-3. docker compose -f docker-compose.production.yml build app
-4. 执行 migration 082（先不重启 app）：
+3. npm run build（在 VPS 上或 CI 环境确认编译通过）
+4. docker compose -f docker-compose.production.yml build app
+5. 执行 migration 082（先不重启 app）：
+   注意：idx_audit_logs_target 索引改用 CONCURRENTLY 方式（若 audit_logs 数据量大）：
    docker exec tesla88-platform-postgres-1 \
      psql -U postgres -d member_bot \
      -f /path/to/082_transaction_v2_foundation.sql
-5. 验证 migration 结果（\d 查表结构）
-6. docker compose -f docker-compose.production.yml up -d app
-7. 冒烟测试（Smoke Test）：
+6. 验证 migration 结果（\d 查表结构，确认 audit_logs.description 列存在）
+7. docker compose -f docker-compose.production.yml up -d app
+8. 冒烟测试（Smoke Test）：
    a. POST /api/transactions/deposit/[任意现有 ID]/notes
    b. GET  /api/transactions/deposit/[同 ID]/notes
    c. GET  /api/transactions/deposit/[同 ID]/timeline
    d. 确认现有 Deposit SSE 正常推送
-8. 监控 5 分钟，确认无报错
+9. 监控 5 分钟，确认无报错
 ```
 
 ### 9.3 冒烟测试预期结果
@@ -476,6 +491,7 @@ git revert [Phase A commits] && docker compose restart app
 |---|---|---|---|---|
 | Migration 082 — ADD COLUMN | 🟢 低 | `description TEXT` 为 nullable，不影响现有写入 | 使用 `ADD COLUMN IF NOT EXISTS`，幂等 | `DROP COLUMN IF EXISTS description` |
 | Migration 082 — CREATE TABLE | 🟢 低 | 新表，不影响任何现有表 | `CREATE TABLE IF NOT EXISTS`，幂等 | `DROP TABLE IF EXISTS transaction_internal_notes` |
+| Migration 082 — idx_audit_logs_target 创建 | 🟡 中 | audit_logs 大表时标准 CREATE INDEX 锁表 | 生产环境改用 `CREATE INDEX CONCURRENTLY`（需在事务外单独执行） | DROP INDEX IF EXISTS |
 | Migration 082 — 权限种子 | 🟢 低 | 25 行新权限，`DO NOTHING` on conflict | `DO NOTHING` 保证幂等 | `DELETE WHERE updated_by = 'migration-082'` |
 | audit_repo 扩展 | 🟡 中 | `logAudit` 签名变更影响现有调用点 | description 严格可选（默认 undefined），现有调用不传即为 NULL，无任何行为变化 | git revert commit 2 |
 | AuditLog type 加字段 | 🟢 低 | TypeScript interface 加可选字段不破坏现有引用 | `description?: string` 可选，编译不报错 | git revert |
@@ -510,7 +526,8 @@ git revert [Phase A commits] && docker compose restart app
 - [ ] POST notes 返回 201 + 新建 NoteRow
 - [ ] PUT notes 返回 200 + 更新后 NoteRow
 - [ ] DELETE notes 返回 204，行未物理删除
-- [ ] GET timeline 返回 200 + TimelineItem 列表（含 actorName、description、occurredAt）
+- [ ] GET timeline 返回 200 + TimelineItem 列表（字段严格为 `adminName`、`description`、`createdAt`、`metadata`）
+- [ ] timeline 无数据时返回 `{ items: [], total: 0 }`（非 404）
 - [ ] 所有路由：无效 type → 400，无效 id → 400，无 token → 401
 
 ### 权限层
@@ -533,9 +550,11 @@ git revert [Phase A commits] && docker compose restart app
 - [ ] 现有 Deposit SSE 正常推送
 - [ ] 现有 `GET /api/transactions/[type]/[id]` 返回格式不变
 - [ ] 现有 audit_log 写入（不含 description）无报错
+- [ ] `GET /api/audit` 仍正常返回现有 audit 条目（`description` 字段为 null 时不报错）
 
 ### 部署
 - [ ] Migration 082 在暂存环境成功执行
+- [ ] `npm run build` 零 TypeScript 编译错误（暂存和生产均需）
 - [ ] 暂存环境全部 API 测试通过
 - [ ] 暂存环境回归检查通过
 - [ ] 生产环境 Migration 082 成功执行
