@@ -96,19 +96,34 @@ export class TransactionEngine {
     try {
       await client.query('BEGIN');
 
-      const walletTx = await adjustWallet(client, {
-        userId: params.user_id,
-        type: 'PAYMENT_GATEWAY',
-        direction: isDebit ? 'D' : 'C',
-        amount: params.amount,
-        gateway: params.provider,
-        referenceNumber: params.reference_id,
-        remark: `[GAME] ${params.type} | ${params.provider} | ${params.round_id ?? params.game_id ?? ''}`,
-        operatorAdminId: this.systemAdminId,
-      });
+      let balanceBefore: number;
+      let balanceAfter: number;
 
-      const balanceBefore = parseFloat(walletTx.balance_before);
-      const balanceAfter = parseFloat(walletTx.balance_after);
+      if (params.amount === 0) {
+        // Zero-amount credit (e.g. losing bet betresult with winAmount=0).
+        // wallet_transactions has CHECK (amount > 0) so we skip that insert.
+        // We still lock the row for consistency and record in provider_transactions.
+        const { rows } = await client.query<{ net_deposit: string }>(
+          `SELECT net_deposit FROM users WHERE id = $1`,
+          [params.user_id],
+        );
+        const bal = parseFloat(rows[0]?.net_deposit ?? '0');
+        balanceBefore = bal;
+        balanceAfter = bal;
+      } else {
+        const walletTx = await adjustWallet(client, {
+          userId: params.user_id,
+          type: 'PAYMENT_GATEWAY',
+          direction: isDebit ? 'D' : 'C',
+          amount: params.amount,
+          gateway: params.provider,
+          referenceNumber: params.reference_id,
+          remark: `[GAME] ${params.type} | ${params.provider} | ${params.round_id ?? params.game_id ?? ''}`,
+          operatorAdminId: this.systemAdminId,
+        });
+        balanceBefore = parseFloat(walletTx.balance_before);
+        balanceAfter = parseFloat(walletTx.balance_after);
+      }
 
       // Use the same client (same transaction) to avoid FK lock contention:
       // pool.query() in txRepo.create would open a 2nd connection and block
