@@ -34,13 +34,11 @@ export interface H5LoginResult {
  *   time format: "yyyyMMddHHmmss" UTC+0
  */
 export class Kiss918AuthService {
-  /**
-   * DES-ECB encrypt (no IV). 918KISS uses ECB mode for q encryption.
-   * Returns base64-encoded ciphertext.
-   */
+  // DES-CBC, Key = IV = first 8 bytes of encryptKey (API v1.11 p.47:
+  // DESCryptoServiceProvider().CreateEncryptor(encryptKey, encryptKey))
   desEncrypt(plaintext: string, key: string): string {
     const keyBuf = Buffer.from(key.padEnd(8, '\0').slice(0, 8), 'utf8');
-    const cipher = createCipheriv('des-ecb', keyBuf, Buffer.alloc(0));
+    const cipher = createCipheriv('des-cbc', keyBuf, keyBuf);
     cipher.setAutoPadding(true);
     return Buffer.concat([
       cipher.update(Buffer.from(plaintext, 'utf8')),

@@ -241,7 +241,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     const { actk } = await this.auth.getLoginToken({
       accountId:    params.account_id,
       currency:     params.currency,
-      nickname:     params.nickname ?? params.account_id,
+      nickname:     this.stripPostfix(params.nickname ?? params.account_id),
       language:     KISS918_LANGUAGE.ZH,
       lobbyUrl:     this.defaultLobbyUrl,
       h5ApiDomain:  this.cfg.h5_api_domain,
@@ -296,7 +296,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     const { actk } = await this.auth.getLoginToken({
       accountId:   playerRecord.provider_account_id,
       currency:    playerRecord.currency,
-      nickname:    playerRecord.provider_account_id,
+      nickname:    this.stripPostfix(playerRecord.provider_account_id),
       language:    params.language,
       lobbyUrl:    params.lobby_return_url,
       h5ApiDomain: this.cfg.h5_api_domain,
@@ -903,6 +903,14 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       : /^u(\d+)@/;
     const m = accountId.match(re);
     return m ? Number(m[1]) : null;
+  }
+
+  // 918KISS requires nickName WITHOUT postfix in H5 Login QS (e.g. "u9" not "u9@stopulux")
+  private stripPostfix(accountId: string): string {
+    const postfix = this.cfg.postfix_id ? `@${this.cfg.postfix_id}` : '';
+    return postfix && accountId.endsWith(postfix)
+      ? accountId.slice(0, -postfix.length)
+      : accountId;
   }
 
   // ── System Error Response Factories ───────────────────────────────────────

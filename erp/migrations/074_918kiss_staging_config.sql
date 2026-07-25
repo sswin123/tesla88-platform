@@ -86,7 +86,7 @@ BEGIN
   --   operator_token ← Operator Token (sent by 918KISS in inbound callbacks; we validate it)
   --   secret_key     ← SecretKey (used in H5 Login MD5 signature)
   --   md5_key        ← Md5EncryptKey (used in H5 Login MD5 signature)
-  --   encrypt_key    ← EncryptKey 8-byte DES-ECB key for H5 Login QS encryption
+  --   encrypt_key    ← EncryptKey 8-byte DES-CBC key for H5 Login QS encryption (IV = key)
 
   INSERT INTO gp_credentials (provider_id, key, value, is_encrypted) VALUES
     (v_pid, 'api_token',
