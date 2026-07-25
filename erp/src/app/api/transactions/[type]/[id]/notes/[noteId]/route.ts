@@ -31,7 +31,7 @@ export async function PUT(
   const adminId = payload.sub;
 
   const note = await dbGetNoteById(numNoteId);
-  if (!note) {
+  if (!note || note.deleted_at !== null) {
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }
 
@@ -91,7 +91,7 @@ export async function DELETE(
   const adminId = payload.sub;
 
   const note = await dbGetNoteById(numNoteId);
-  if (!note) {
+  if (!note || note.deleted_at !== null) {
     return NextResponse.json({ error: 'Note not found' }, { status: 404 });
   }
 

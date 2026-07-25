@@ -8,6 +8,7 @@ export interface NoteRow {
   content: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export async function dbCreateNote(data: {
@@ -59,7 +60,7 @@ export async function dbListNotes(
 
 export async function dbGetNoteById(noteId: number): Promise<NoteRow | null> {
   const result = await pool.query<NoteRow>(
-    `SELECT id, transaction_type, transaction_id, admin_id, content, created_at, updated_at
+    `SELECT id, transaction_type, transaction_id, admin_id, content, created_at, updated_at, deleted_at
      FROM transaction_internal_notes
      WHERE id = $1`,
     [noteId]
