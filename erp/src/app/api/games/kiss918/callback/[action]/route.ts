@@ -47,25 +47,25 @@ function resolveHandler(
   }
 }
 
-export async function POST(
+async function handleCallback(
   request: NextRequest,
-  { params }: Params,
+  action: string,
 ): Promise<NextResponse> {
-  const { action } = await params;
-
   // Diagnostic — proves request reached route.ts (past middleware)
-  // Visible in: docker compose -f docker-compose.production.yml logs erp
-  console.log(`[kiss918-callback] route.ts reached: action=${action} ip=${
+  console.log(`[kiss918-callback] route.ts reached: action=${action} method=${request.method} ip=${
     request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown'
   }`);
 
-  // 1. Parse body
-  // 918KISS Seamless Wallet protocol: ALL responses MUST be HTTP 200.
-  // 918KISS parses the JSON body to determine success/failure via the "error" field.
-  // Any non-200 HTTP status is treated as a transport error — the JSON body is discarded.
+  // 1. Parse body — POST: JSON body; GET: URL query params (e.g. getbalance)
   let rawBody: Record<string, unknown>;
   try {
-    rawBody = await request.json();
+    if (request.method === 'GET') {
+      const parsed: Record<string, unknown> = {};
+      request.nextUrl.searchParams.forEach((v, k) => { parsed[k] = v; });
+      rawBody = parsed;
+    } else {
+      rawBody = await request.json();
+    }
   } catch {
     return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR }); // HTTP 200
   }
@@ -73,8 +73,6 @@ export async function POST(
   // 2. Load adapter (lazy singleton — returns null if provider not ACTIVE)
   const adapter = await getKiss918Adapter();
   if (!adapter) {
-    // HTTP 200 — error:8 (MAINTENANCE) tells 918KISS the operator wallet is temporarily unavailable.
-    // 918KISS will retry the callback rather than flagging it as a permanent failure.
     return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE }); // HTTP 200
   }
 
@@ -97,4 +95,15 @@ export async function POST(
   // 6. Dispatch — the handler owns token validation, logging, wallet, formatting
   const result = await handler(rawBody, headers, ip);
   return NextResponse.json(result);
+}
+
+export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const { action } = await params;
+  return handleCallback(request, action);
+}
+
+// 918KISS sends some callbacks (e.g. getbalance) as GET with query params
+export async function GET(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const { action } = await params;
+  return handleCallback(request, action);
 }
