@@ -636,6 +636,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   ): Record<string, unknown> | null {
     const token =
       String(rawBody.operatorToken ?? '') ||
+      String(headers['token'] ?? '') ||           // 918KISS sends token in 'token' header
       String(headers['operator-token'] ?? '') ||
       String(headers['authorization'] ?? '').replace(/^Bearer\s+/i, '');
 
