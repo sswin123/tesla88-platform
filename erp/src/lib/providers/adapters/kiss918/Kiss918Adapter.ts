@@ -387,7 +387,10 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     }
     try {
       const accountId = String(rawBody.userName ?? '');
-      const userId    = this.extractUserIdFromAccountId(accountId);
+      // 918KISS sends userName without postfix (e.g. "u9"); password has full ID.
+      const userId =
+        this.extractUserIdFromAccountId(accountId) ??
+        this.extractUserIdFromAccountId(String(rawBody.password ?? ''));
       const req = this.parser.parseAuthenticateRequest({
         ...rawBody,
         __resolved_user_id: userId != null ? String(userId) : undefined,
