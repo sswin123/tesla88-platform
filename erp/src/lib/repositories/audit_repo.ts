@@ -8,10 +8,11 @@ export async function logAudit(data: {
   target_id?: number | null;
   old_value?: Record<string, unknown> | null;
   new_value?: Record<string, unknown> | null;
+  description?: string;
 }): Promise<void> {
   await pool.query(
-    `INSERT INTO audit_logs (admin_id, action, target_type, target_id, old_value, new_value)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO audit_logs (admin_id, action, target_type, target_id, old_value, new_value, description)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       data.admin_id,
       data.action,
@@ -19,6 +20,7 @@ export async function logAudit(data: {
       data.target_id ?? null,
       data.old_value ? JSON.stringify(data.old_value) : null,
       data.new_value ? JSON.stringify(data.new_value) : null,
+      data.description ?? null,
     ]
   );
 }
@@ -53,6 +55,34 @@ export async function getAuditLogs(opts: {
     pool.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count FROM audit_logs ${countWhere}`,
       countParams
+    ),
+  ]);
+
+  return { data: rows.rows, total: count.rows[0].count };
+}
+
+export async function getAuditLogsByTarget(opts: {
+  target_type: string;
+  target_id: number;
+  page: number;
+  pageSize: number;
+}): Promise<{ data: AuditLog[]; total: number }> {
+  const pageSize = Math.min(opts.pageSize, 100);
+  const offset = (opts.page - 1) * pageSize;
+
+  const [rows, count] = await Promise.all([
+    pool.query<AuditLog>(
+      `SELECT al.*, a.erp_username AS admin_username
+       FROM audit_logs al
+       LEFT JOIN admins a ON a.id = al.admin_id
+       WHERE al.target_type = $1 AND al.target_id = $2
+       ORDER BY al.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [opts.target_type, opts.target_id, pageSize, offset]
+    ),
+    pool.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM audit_logs WHERE target_type = $1 AND target_id = $2`,
+      [opts.target_type, opts.target_id]
     ),
   ]);
 

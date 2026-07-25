@@ -479,6 +479,7 @@ export interface AuditLog {
   target_id: number | null;
   old_value: Record<string, unknown> | null;
   new_value: Record<string, unknown> | null;
+  description?: string;
   created_at: string;
   // joined
   admin_username?: string;
