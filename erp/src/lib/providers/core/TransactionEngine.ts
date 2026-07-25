@@ -110,22 +110,32 @@ export class TransactionEngine {
       const balanceBefore = parseFloat(walletTx.balance_before);
       const balanceAfter = parseFloat(walletTx.balance_after);
 
-      await this.txRepo.create({
-        provider: params.provider,
-        transaction_id: transactionId,
-        reference_id: params.reference_id,
-        type: params.type,
-        status: TRANSACTION_STATUS.SUCCESS,
-        user_id: params.user_id,
-        amount: params.amount,
-        currency: params.currency,
-        before_balance: balanceBefore,
-        after_balance: balanceAfter,
-        game_id: params.game_id ?? null,
-        round_id: params.round_id ?? null,
-        session_id: params.session_id ?? null,
-        metadata: params.metadata ?? null,
-      });
+      // Use the same client (same transaction) to avoid FK lock contention:
+      // pool.query() in txRepo.create would open a 2nd connection and block
+      // on the FOR UPDATE lock held by this client → 15s statement timeout.
+      await client.query(
+        `INSERT INTO provider_transactions
+           (provider, transaction_id, reference_id, type, status,
+            user_id, amount, currency, before_balance, after_balance,
+            game_id, round_id, session_id, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [
+          params.provider,
+          transactionId,
+          params.reference_id,
+          params.type,
+          TRANSACTION_STATUS.SUCCESS,
+          params.user_id,
+          params.amount,
+          params.currency,
+          balanceBefore,
+          balanceAfter,
+          params.game_id ?? null,
+          params.round_id ?? null,
+          params.session_id ?? null,
+          params.metadata ? JSON.stringify(params.metadata) : null,
+        ],
+      );
 
       await client.query('COMMIT');
 
