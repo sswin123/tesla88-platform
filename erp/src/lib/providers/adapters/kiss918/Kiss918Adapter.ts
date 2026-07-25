@@ -464,6 +464,8 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       console.log('[kiss918-bet] parsed bet_amount=%s reference_id=%s', req.bet_amount, req.reference_id);
       const res    = await this.wallet.handleBet(req);
       const out    = this.formatter.formatBet(res);
+      out.referenceID = req.reference_id;
+      console.log('[kiss918-bet] RESPONSE=%j elapsed=%sms', out, Date.now() - start);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -489,12 +491,17 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     }
     try {
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
+      console.log('[kiss918-betresult] resolved userId=%s playerID=%s', userId, rawBody.playerID);
       const req    = this.parser.parseBetResultRequest({ ...rawBody, __resolved_user_id: userId });
+      console.log('[kiss918-betresult] parsed win_amount=%s reference_id=%s', req.win_amount, req.reference_id);
       const res    = await this.wallet.handleBetResult(req);
       const out    = this.formatter.formatBetResult(res);
+      out.referenceID = req.reference_id;
+      console.log('[kiss918-betresult] RESPONSE=%j elapsed=%sms', out, Date.now() - start);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
+      console.error('[kiss918-betresult] ERROR:', err);
       const out = this.formatter.formatBetResult(this.systemErrorBetResult());
       await this.cbLogger.logComplete(logId, out, 500, Date.now() - start,
         err instanceof Error ? err.message : String(err));
@@ -519,6 +526,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const req    = this.parser.parseRefundRequest({ ...rawBody, __resolved_user_id: userId });
       const res    = await this.wallet.handleRefund(req);
       const out    = this.formatter.formatRefund(res);
+      out.referenceID = req.reference_id;
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -546,6 +554,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const req    = this.parser.parseJackpotWinRequest({ ...rawBody, __resolved_user_id: userId });
       const res    = await this.wallet.handleJackpotWin(req);
       const out    = this.formatter.formatJackpotWin(res);
+      out.referenceID = req.reference_id;
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -573,6 +582,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const req    = this.parser.parseFundRequestRequest({ ...rawBody, __resolved_user_id: userId });
       const res    = await this.wallet.handleFundRequest(req);
       const out    = this.formatter.formatFundRequest(res);
+      out.referenceID = req.reference_id;
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -600,6 +610,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const req    = this.parser.parseFundReturnRequest({ ...rawBody, __resolved_user_id: userId });
       const res    = await this.wallet.handleFundReturn(req);
       const out    = this.formatter.formatFundReturn(res);
+      out.referenceID = req.reference_id;
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
