@@ -9,6 +9,7 @@ import MemberCard from '@/components/transactions/MemberCard';
 import { DepositPaymentCard, WithdrawalPaymentCard } from '@/components/transactions/PaymentCard';
 import TurnoverCard from '@/components/transactions/TurnoverCard';
 import ReceiptCard from '@/components/transactions/ReceiptCard';
+import DepositReceiptCard from '@/components/transactions/DepositReceiptCard';
 import ActionPanel from '@/components/transactions/ActionPanel';
 import WorkspacePanel from '@/components/transactions/WorkspacePanel';
 import type { HandleDetail } from '@/components/transactions/types';
@@ -189,6 +190,14 @@ export default function HandlePage() {
             bankName={detail.bank_name}
             bankAccount={detail.bank_account}
             bankHolderName={detail.bank_holder_name}
+          />
+        )}
+
+        {isDeposit && (
+          <DepositReceiptCard
+            depositId={detail.id}
+            receiptMediaId={detail.receipt_media_id}
+            receiptFileId={detail.receipt_file_id}
           />
         )}
 

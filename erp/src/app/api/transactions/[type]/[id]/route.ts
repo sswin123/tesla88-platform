@@ -33,7 +33,7 @@ export async function GET(
 
 async function handleDeposit(id: number) {
   const queries = [
-    // Level 1: Full query — processing columns (migration 065) + bank lookup
+    // Level 1: Full query — processing columns (migration 065) + bank lookup + receipt
     // COALESCE: verify receiving_bank_id actually exists in payment_banks before using it,
     // so stale IDs don't block the text-based fallback subqueries.
     `SELECT
@@ -48,7 +48,9 @@ async function handleDeposit(id: number) {
        pb.account_name   AS receiving_bank_account_name,
        pb.account_number AS receiving_bank_account_number,
        pb.qr_media_id    AS receiving_bank_qr_media_id,
-       a.erp_username    AS processing_by_name
+       a.erp_username    AS processing_by_name,
+       dr.receipt_media_id,
+       dr.receipt_file_id
      FROM deposit_requests dr
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
@@ -75,7 +77,9 @@ async function handleDeposit(id: number) {
        NULL::text AS receiving_bank_account_name,
        NULL::text AS receiving_bank_account_number,
        NULL::int  AS receiving_bank_qr_media_id,
-       a.erp_username AS processing_by_name
+       a.erp_username AS processing_by_name,
+       dr.receipt_media_id,
+       dr.receipt_file_id
      FROM deposit_requests dr
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
@@ -97,7 +101,9 @@ async function handleDeposit(id: number) {
        NULL::text AS receiving_bank_account_name,
        NULL::text AS receiving_bank_account_number,
        NULL::int  AS receiving_bank_qr_media_id,
-       NULL::text AS processing_by_name
+       NULL::text AS processing_by_name,
+       NULL::int  AS receipt_media_id,
+       NULL::text AS receipt_file_id
      FROM deposit_requests dr
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
