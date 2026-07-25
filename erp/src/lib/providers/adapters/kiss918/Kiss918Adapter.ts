@@ -407,6 +407,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
         );
       }
       const out = this.formatter.formatAuthenticate(res);
+      console.log('[kiss918-auth] RAW=%j RESPONSE=%j', rawBody, out);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -434,6 +435,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const req    = this.parser.parseGetBalanceRequest({ ...rawBody, __resolved_user_id: userId });
       const res    = await this.wallet.handleGetBalance(req);
       const out    = this.formatter.formatGetBalance(res);
+      console.log('[kiss918-getbalance] RAW=%j RESPONSE=%j', rawBody, out);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
     } catch (err) {
@@ -458,6 +460,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       return tokenErr;
     }
     try {
+      console.log('[kiss918-bet] RAW=%j', rawBody);
       const userId = await this.resolveUserId(String(rawBody.playerID ?? ''));
       console.log('[kiss918-bet] resolved userId=%s playerID=%s', userId, rawBody.playerID);
       const req    = this.parser.parseBetRequest({ ...rawBody, __resolved_user_id: userId });
