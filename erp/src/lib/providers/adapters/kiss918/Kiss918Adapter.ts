@@ -396,6 +396,16 @@ export class Kiss918Adapter extends BaseProviderAdapter {
         __resolved_user_id: userId != null ? String(userId) : undefined,
       });
       const res = await this.wallet.handleAuthenticate(req);
+      // Store provider_player_id so getbalance/bet/etc can resolve userId later.
+      // 918KISS uses the playerID we return here in all subsequent callbacks.
+      if (res.error_code === OPERATOR_ERROR.OK && res.player_id && userId != null) {
+        const pid = await this.getProviderId();
+        const { default: pool } = await import('@/lib/db');
+        await pool.query(
+          `UPDATE gp_players SET provider_player_id = $1 WHERE provider_id = $2 AND user_id = $3`,
+          [res.player_id, pid, userId],
+        );
+      }
       const out = this.formatter.formatAuthenticate(res);
       await this.cbLogger.logComplete(logId, out, 200, Date.now() - start);
       return out;
