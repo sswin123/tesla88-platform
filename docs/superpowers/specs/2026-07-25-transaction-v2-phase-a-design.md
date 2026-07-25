@@ -1,5 +1,5 @@
-# ERP Transaction Module V2 — Phase A: Transaction Foundation
-# Design Specification
+# ERP Transaction Module V2 — Full Roadmap Design Specification
+# (Phase A: Foundation · Phase B: Detail V2 · Phase C: Search · Phase D: Realtime)
 
 **Goal:** Build the core infrastructure required for all future Transaction V2 features — Internal Notes, Timeline, Transaction Event System, and the Transaction Service layer — without changing any existing production workflow.
 
@@ -440,3 +440,196 @@ Defaults can be changed via ERP Settings → Permissions page.
 | Permission seed conflicts | Low | `ON CONFLICT DO NOTHING` — safe to re-run |
 | Soft delete logic not filtering correctly | Medium | Covered by partial index + WHERE clause in repo |
 | No existing route touched | None | Phase A is additive only — zero regression risk from route changes |
+
+---
+
+## Phase B — Transaction Detail V2
+
+### Goals
+Redesign the Transaction Detail page into a professional enterprise layout. Add receipt preview, member history, timeline UI, and internal notes UI. Migrate `approve/reject/process` routes to call `TransactionService` helper methods.
+
+### Backward Compatibility
+All existing approve/reject/process API routes continue to work. Phase B wraps their shared logic inside `TransactionService` methods without changing external behavior or response format.
+
+### DB Changes — Migration 083
+No new tables required. Potential additions only if audit trail for receipt views is needed:
+```sql
+-- Optional: track receipt view events (Phase B may log via audit_logs only)
+-- If receipt_viewed_at is needed on deposit_requests:
+ALTER TABLE deposit_requests ADD COLUMN IF NOT EXISTS receipt_viewed_at TIMESTAMPTZ;
+```
+
+### Architecture Reuse
+| Feature | Existing Infrastructure | Reuse |
+|---------|------------------------|-------|
+| Receipt Preview | `/api/deposits/[id]/receipt/route.ts` already serves via Media Library | ✅ No new backend — frontend only |
+| Member Summary Stats | `deposit_requests`, `withdrawal_requests`, `users.balance` | ✅ New API: `GET /api/members/[id]/transaction-summary` |
+| Deposit/Withdraw History | Existing deposit/withdrawal APIs | ✅ Reuse with `user_id` filter |
+| Timeline UI | Phase A `GET /api/transactions/[type]/[id]/timeline` | ✅ Phase A API consumed by Phase B UI |
+| Internal Notes UI | Phase A `GET/POST/PUT/DELETE /api/transactions/[type]/[id]/notes` | ✅ Phase A API consumed by Phase B UI |
+| Audit logging | Phase A `recordTransactionAudit()` | ✅ Call on receipt view |
+
+### New API — Migration 083
+```
+GET /api/members/[id]/transaction-summary
+```
+Returns:
+```typescript
+{
+  total_deposit:      number;  // sum of APPROVED deposit amounts
+  total_withdrawal:   number;  // sum of PAID withdrawal amounts
+  available_balance:  number;  // users.balance
+  last_deposit_at:    string | null;
+  last_withdrawal_at: string | null;
+}
+```
+
+### Detail Page Sections (UI)
+1. **Member Information** — name, member ID, username, phone, balance, VIP, register date, View Profile button
+2. **Transaction Information** — ID, amount, bonus, promotion, reference, status, timestamps
+3. **Bank Information** — customer bank, company bank, account number, account holder
+4. **Payment Receipt** — thumbnail preview, click to enlarge, open in tab, download (PNG/JPG/JPEG/WEBP/PDF)
+5. **Approval Information** — approved/rejected by, timestamps, reject reason, internal note
+6. **Timeline** — chronological event list from Phase A API
+7. **Internal Notes** — add/edit/delete panel from Phase A API
+8. **Member Transaction History** — summary stats + latest 10 deposits + latest 10 withdrawals + "View Full" button
+
+### Permissions (Phase B additions)
+```
+transaction.receipt.view      — view receipt preview
+transaction.receipt.download  — download receipt
+```
+
+### Estimated Complexity: Large (4–5 days)
+
+---
+
+## Phase C — Search & Advanced Filters
+
+### Goals
+Add multi-field search and advanced filter panel to the Transaction list page.
+
+### DB Changes — Migration 084
+```sql
+-- Enable trigram search for partial matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- GIN indexes on searchable text columns
+CREATE INDEX IF NOT EXISTS idx_deposit_requests_search
+  ON deposit_requests USING gin(
+    (COALESCE(reference_number, '') || ' ' || COALESCE(notes, '')) gin_trgm_ops
+  );
+
+-- Index for join-based search on users
+CREATE INDEX IF NOT EXISTS idx_users_search
+  ON users USING gin(
+    (username || ' ' || COALESCE(full_name, '') || ' ' || COALESCE(phone, '')) gin_trgm_ops
+  );
+```
+
+### New API
+```
+GET /api/transactions/search?q=&type=&status=&dateFrom=&dateTo=&amountMin=&amountMax=&page=1&pageSize=20
+```
+Searchable fields:
+- Transaction ID · Deposit ID · Withdraw ID
+- Member ID · Public Member ID
+- Username · Member Name · Phone Number
+- Reference Number · Bank Account Number · Bank Account Name · Bank Name
+- Status · Date Range · Amount Range
+
+### Architecture Reuse
+- Existing `deposit_requests` and `withdrawal_requests` tables — no schema changes
+- Existing permission: `deposit.view` / `withdrawal.view`
+- `pg_trgm` for partial matching on text fields
+
+### Estimated Complexity: Medium (2–3 days)
+
+---
+
+## Phase D — Withdraw Realtime Notification
+
+### Goals
+Mirror the existing Deposit SSE realtime system for Withdrawal requests. 100% reuse of deposit pattern.
+
+### DB Changes — Migration 085
+```sql
+-- Unread column for ERP badge count
+ALTER TABLE withdrawal_requests
+  ADD COLUMN IF NOT EXISTS erp_unread BOOLEAN NOT NULL DEFAULT false;
+
+-- PostgreSQL NOTIFY trigger (mirrors notify_new_deposit from migration 050)
+CREATE OR REPLACE FUNCTION notify_new_withdrawal()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'PENDING' THEN
+    NEW.erp_unread := true;
+    PERFORM pg_notify('withdrawal_updates', json_build_object(
+      'type',    'new_withdrawal',
+      'id',      NEW.id,
+      'user_id', NEW.user_id
+    )::text);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_withdrawal_insert ON withdrawal_requests;
+CREATE TRIGGER on_withdrawal_insert
+  BEFORE INSERT ON withdrawal_requests
+  FOR EACH ROW EXECUTE FUNCTION notify_new_withdrawal();
+```
+
+### New API Routes (mirrors deposit SSE pattern exactly)
+```
+GET /api/withdrawals/stream   — SSE: LISTEN withdrawal_updates (mirrors /api/deposits/stream)
+GET /api/withdrawals/unread   — unread count (mirrors /api/deposits/unread)
+PUT /api/withdrawals/unread   — mark all read
+```
+
+### ERP UI Changes
+- Transaction list: new withdraw SSE connection alongside existing deposit SSE
+- On `new_withdrawal` event: play notification sound + increment badge + prepend row
+- Unread badge on "Withdrawals" tab/section (mirrors deposit badge)
+- `emitTransactionEvent(WITHDRAW_CREATED, ...)` called in Phase D (wires Phase A placeholder)
+
+### Future WebSocket-ready
+`emitTransactionEvent()` placeholder (added in Phase A) becomes the hook point. Phase D wires SSE; a future WebSocket upgrade only changes the emitter, not Notes or Audit code.
+
+### Architecture Reuse
+| Component | Source | Reuse |
+|-----------|--------|-------|
+| SSE stream handler | `/api/deposits/stream/route.ts` | ✅ Copy pattern, change channel name |
+| Unread API | `/api/deposits/unread/route.ts` | ✅ Copy pattern |
+| Notification sound | Existing deposit sound asset | ✅ Same asset |
+| LISTEN/NOTIFY | PostgreSQL, migration 050 pattern | ✅ New trigger only |
+
+### Estimated Complexity: Small (1–2 days)
+
+---
+
+## Full Migration Plan Summary
+
+| Migration | Phase | Content |
+|-----------|-------|---------|
+| 082 | A | `transaction_internal_notes` · `audit_logs.description` · target index · permission seed |
+| 083 | B | `receipt_viewed_at` on deposit_requests (optional) |
+| 084 | C | `pg_trgm` extension · GIN search indexes |
+| 085 | D | `withdrawal_requests.erp_unread` · `notify_new_withdrawal()` trigger |
+
+---
+
+## Full Backward Compatibility Guarantee
+
+Every existing production flow is unaffected across all phases:
+
+| Flow | Phase A | Phase B | Phase C | Phase D |
+|------|---------|---------|---------|---------|
+| Website Deposit | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
+| Website Withdrawal | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Trigger added (additive) |
+| ERP Deposit approve/reject | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
+| ERP Withdrawal approve/reject | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
+| Balance updates | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
+| Existing audit logs | ✅ Extended (additive) | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
+| Media Library | ✅ Unchanged | ✅ Read-only reuse | ✅ Unchanged | ✅ Unchanged |
+| Deposit SSE stream | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged | ✅ Unchanged |
