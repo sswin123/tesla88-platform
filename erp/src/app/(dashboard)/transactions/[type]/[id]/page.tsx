@@ -226,7 +226,7 @@ export default function HandlePage() {
 
       {/* ── RIGHT PANEL (Workspace) ─────────────────────────────────────────── */}
       <div className="flex-1 min-w-0">
-        <WorkspacePanel />
+        <WorkspacePanel type={type} id={detail.id} />
       </div>
 
       {/* Reject Modal */}

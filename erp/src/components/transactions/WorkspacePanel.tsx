@@ -1,8 +1,11 @@
 'use client';
 
 import WorkspaceSection from './WorkspaceSection';
+import TimelinePanel from './TimelinePanel';
 
 interface WorkspacePanelProps {
+  type: string;
+  id: number;
   children?: React.ReactNode;
 }
 
@@ -14,19 +17,17 @@ function PlaceholderContent({ label }: { label: string }) {
   );
 }
 
-export default function WorkspacePanel({ children }: WorkspacePanelProps) {
+export default function WorkspacePanel({ type, id, children }: WorkspacePanelProps) {
   return (
     <div className="space-y-4">
       {children ?? (
         <>
-          <WorkspaceSection title="Timeline" defaultOpen>
-            <PlaceholderContent label="Transaction timeline" />
-          </WorkspaceSection>
+          <TimelinePanel type={type} id={id} />
           <WorkspaceSection title="Internal Notes" defaultOpen>
             <PlaceholderContent label="Internal notes" />
           </WorkspaceSection>
           <WorkspaceSection title="Audit Panel" defaultOpen={false} comingSoon />
-          <WorkspaceSection title="Risk Panel" defaultOpen={false} comingSoon />
+          <WorkspaceSection title="Risk Panel"  defaultOpen={false} comingSoon />
         </>
       )}
     </div>

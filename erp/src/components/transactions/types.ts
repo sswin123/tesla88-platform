@@ -47,6 +47,15 @@ export const STATUS_CLASS: Record<string, string> = {
   REJECTED:         'bg-red-100 text-red-800 border-red-200',
 };
 
+export interface TimelineEvent {
+  id: number;
+  event: string;
+  description: string | null;
+  adminName: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
