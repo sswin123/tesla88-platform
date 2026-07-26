@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { subscribeSSE } from '@/lib/sse-manager';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -132,17 +133,16 @@ export default function TransactionsPage() {
 
   // SSE subscription — 250ms throttle, no sound (sidebar handles that)
   useEffect(() => {
-    const es = new EventSource('/api/transactions/stream');
-    es.onmessage = () => {
+    const unsub = subscribeSSE('/api/transactions/stream', () => {
       if (refreshTimer.current) return;
       refreshTimer.current = setTimeout(() => {
         refreshTimer.current = null;
         fetchCounts();
         loadRef.current(true);
       }, 250);
-    };
+    });
     return () => {
-      es.close();
+      unsub();
       if (refreshTimer.current) {
         clearTimeout(refreshTimer.current);
         refreshTimer.current = null;

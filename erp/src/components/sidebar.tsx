@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -43,6 +43,7 @@ import {
   Handshake,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { subscribeSSE } from '@/lib/sse-manager';
 
 type NavItem  = { href: string; label: string; icon: React.ElementType; exact?: boolean; permission?: string };
 type NavGroup = { title?: string; items: NavItem[] };
@@ -175,6 +176,13 @@ export function Sidebar() {
   const [pendingCount, setPendingCount] = useState(0);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const filteredNavGroups = useMemo(
+    () => filterNavGroups(NAV_GROUPS, me?.isSuperAdmin ?? false, me?.permissions ?? []),
+    // me object reference changes on each fetch; depend on stable primitive fields
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [me?.isSuperAdmin, me?.permissions]
+  );
+
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
       .then((r) => (r.ok ? r.json() : null))
@@ -220,8 +228,7 @@ export function Sidebar() {
       .catch(() => {});
 
     // SSE: live chat — increment unread + play sound when customer sends a message
-    const chatEs = new EventSource('/api/livechat/stream');
-    chatEs.onmessage = (e: MessageEvent) => {
+    const unsubChat = subscribeSSE('/api/livechat/stream', (e: MessageEvent) => {
       try {
         const evt = JSON.parse(e.data as string) as { sender_type?: string; type?: string };
         if (evt.type === 'new_message' && evt.sender_type === 'USER') {
@@ -232,11 +239,10 @@ export function Sidebar() {
           });
         }
       } catch { /* ignore */ }
-    };
+    });
 
     // SSE: transactions — throttled 250ms refresh of pending count
-    const txEs = new EventSource('/api/transactions/stream');
-    txEs.onmessage = () => {
+    const unsubTx = subscribeSSE('/api/transactions/stream', () => {
       if (refreshTimer.current) return; // window already has a timer, ignore
       refreshTimer.current = setTimeout(() => {
         refreshTimer.current = null;
@@ -250,11 +256,11 @@ export function Sidebar() {
           })
           .catch(() => {});
       }, 250);
-    };
+    });
 
     return () => {
-      chatEs.close();
-      txEs.close();
+      unsubChat();
+      unsubTx();
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
   }, [loadMe]);
@@ -286,7 +292,7 @@ export function Sidebar() {
       )}
 
       <nav className="flex-1 overflow-y-auto p-2">
-        {filterNavGroups(NAV_GROUPS, me.isSuperAdmin, me.permissions).map((group, gi) => (
+        {filteredNavGroups.map((group, gi) => (
           <div key={gi}>
             {gi > 0 && <div className="mx-1 my-2 border-t border-gray-100" />}
             {group.title && (

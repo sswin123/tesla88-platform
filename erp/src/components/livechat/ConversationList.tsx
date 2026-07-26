@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { SessionCard } from './SessionCard';
 import type { SupportSession, LiveChatSSEEvent } from '@/lib/types';
 import { loadNotifSettings, type NotifSettings } from '@/hooks/useNotifications';
+import { subscribeSSE } from '@/lib/sse-manager';
 import { NotificationSettings } from './NotificationSettings';
 
 // ── Notification helpers (inlined so ConversationList owns its single SSE) ──────
@@ -141,9 +142,7 @@ export function ConversationList({
     function handleVisibilityChange() { if (!document.hidden) stopFlash(); }
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const es = new EventSource('/api/livechat/stream');
-
-    es.onmessage = (e) => {
+    const unsub = subscribeSSE('/api/livechat/stream', (e) => {
       try {
         const evt = JSON.parse(e.data as string) as LiveChatSSEEvent;
 
@@ -188,14 +187,10 @@ export function ConversationList({
       } catch {
         // ignore parse errors
       }
-    };
-
-    es.onerror = () => {
-      // EventSource auto-reconnects; no action needed
-    };
+    });
 
     return () => {
-      es.close();
+      unsub();
       stopFlash();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

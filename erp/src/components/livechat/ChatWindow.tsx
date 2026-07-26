@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { subscribeSSE } from '@/lib/sse-manager';
 import { MessageBubble } from './MessageBubble';
 import { ImageLightbox } from './ImageLightbox';
 import type { SupportMessage, SessionSummary } from '@/lib/types';
@@ -221,8 +222,7 @@ export function ChatWindow({
 
   // SSE: new messages for this session (both USER and AGENT, supports guests)
   useEffect(() => {
-    const es = new EventSource('/api/livechat/stream');
-    es.onmessage = (e: MessageEvent) => {
+    const unsub = subscribeSSE('/api/livechat/stream', (e: MessageEvent) => {
       try {
         const evt = JSON.parse(e.data as string) as {
           type: string;
@@ -253,8 +253,8 @@ export function ChatWindow({
       } catch {
         // ignore parse errors
       }
-    };
-    return () => es.close();
+    });
+    return () => unsub();
   }, [sessionId, setMessages]);
 
   // Infinite scroll: load older messages by user
