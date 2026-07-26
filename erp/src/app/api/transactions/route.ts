@@ -155,6 +155,8 @@ export async function GET(request: NextRequest) {
                        effectiveStatus                       ? `status = '${effectiveStatus.replace(/'/g, "''")}'` :
                        '';
 
+  console.log('[transactions/route] txType=%s isPending=%s statusFilter=%s', txType, isPending, statusFilter || '(none)');
+
   // Build extra params (search pattern) and the param index offset for LIMIT/OFFSET
   const extraParams: string[] = search ? [`%${search}%`] : [];
   const searchParamIdx        = extraParams.length > 0 ? 1 : 0; // $1 when search present

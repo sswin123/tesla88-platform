@@ -175,7 +175,8 @@ function getAudioCtx(): AudioContext | null {
 function playNotifBeep(): void {
   try {
     const ctx = getAudioCtx();
-    if (!ctx) return;
+    if (!ctx) { console.log('[sidebar:beep] no AudioContext available'); return; }
+    console.log('[sidebar:beep] AudioContext state =', ctx.state);
     const scheduleNote = () => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -187,14 +188,22 @@ function playNotifBeep(): void {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.3);
-      // Do NOT close ctx — it is shared across all beeps
+      console.log('[sidebar:beep] note scheduled at t=', ctx.currentTime);
     };
     if (ctx.state === 'suspended') {
-      void ctx.resume().then(scheduleNote);
+      console.log('[sidebar:beep] context suspended — calling resume()');
+      void ctx.resume().then(() => {
+        console.log('[sidebar:beep] resume() resolved, state now =', ctx.state);
+        scheduleNote();
+      }).catch((err) => {
+        console.warn('[sidebar:beep] resume() REJECTED:', err);
+      });
     } else {
       scheduleNote();
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error('[sidebar:beep] exception:', err);
+  }
 }
 
 export function Sidebar() {
@@ -220,28 +229,37 @@ export function Sidebar() {
   // Starts the repeat-beep reminder when pending > 0; stops it when pending reaches 0.
   // Guarantees at most one setInterval exists at any time.
   const handlePendingCountUpdate = useCallback((newCount: number) => {
+    console.log('[sidebar:pending] handlePendingCountUpdate called, count =', newCount, ', interval running =', !!reminderInterval.current);
     setPendingCount(newCount);
     if (newCount > 0) {
       if (!reminderInterval.current) {
         // First pending item: play immediately then repeat on interval
+        console.log('[sidebar:pending] starting reminder interval');
         playNotifBeep();
         reminderInterval.current = setInterval(() => {
+          console.log('[sidebar:pending] interval tick — fetching pending-count...');
           // Fetch count BEFORE playing — ensures we never beep for Processing-only queues.
           // The SSE handler is the fast path (stops reminder instantly via handlePendingCountUpdate).
           // This interval is the safety-net poll in case an SSE event was missed.
           fetch('/api/transactions/pending-count')
-            .then((r) => r.json())
-            .then((d: { count: number }) => {
+            .then((r) => {
+              console.log('[sidebar:pending] pending-count HTTP status =', r.status, r.ok);
+              return r.ok ? r.json() : null;
+            })
+            .then((d: { count: number } | null) => {
+              if (d === null) { console.warn('[sidebar:pending] pending-count returned error — NOT clearing interval'); return; }
               const c = d.count ?? 0;
+              console.log('[sidebar:pending] pending-count =', c);
               setPendingCount(c);
               if (c === 0) {
+                console.log('[sidebar:pending] count is 0 — clearing interval');
                 clearInterval(reminderInterval.current!);
                 reminderInterval.current = null;
               } else {
                 playNotifBeep();
               }
             })
-            .catch(() => {});
+            .catch((err) => { console.error('[sidebar:pending] interval fetch error:', err); });
         }, NOTIFICATION_REPEAT_INTERVAL_MS);
       }
       // Interval already running — let it continue; don't create a duplicate
@@ -325,13 +343,20 @@ export function Sidebar() {
 
     // SSE: transactions — throttled 250ms refresh; reminder lifecycle handled by handlePendingCountUpdate
     const unsubTx = subscribeSSE('/api/transactions/stream', () => {
+      console.log('[sidebar:sse] transaction SSE event received');
       if (refreshTimer.current) return;
       refreshTimer.current = setTimeout(() => {
         refreshTimer.current = null;
         fetch('/api/transactions/pending-count')
-          .then((r) => r.json())
-          .then((d: { count: number }) => handlePendingCountUpdate(d.count ?? 0))
-          .catch(() => {});
+          .then((r) => {
+            console.log('[sidebar:sse] SSE-triggered pending-count HTTP status =', r.status, r.ok);
+            return r.ok ? r.json() : null;
+          })
+          .then((d: { count: number } | null) => {
+            if (d) handlePendingCountUpdate(d.count ?? 0);
+            else console.warn('[sidebar:sse] pending-count returned error — skipping update');
+          })
+          .catch((err) => { console.error('[sidebar:sse] SSE-triggered fetch error:', err); });
       }, 250);
     });
 
