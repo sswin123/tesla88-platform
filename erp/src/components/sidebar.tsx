@@ -151,22 +151,49 @@ function isActive(href: string, pathname: string, exact?: boolean): boolean {
 // Increase this value to reduce frequency; decrease to alert more aggressively.
 const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
 
+// Persistent shared AudioContext.
+// Creating a new AudioContext inside a setInterval callback (no user gesture) causes
+// the browser to start it in "suspended" state — audio is silently blocked.
+// Reusing a single context that was created/resumed during a prior user gesture keeps
+// it in "running" state across all subsequent interval beeps.
+let _audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  try {
+    const Ctor = window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new Ctor();
+    }
+    return _audioCtx;
+  } catch {
+    return null;
+  }
+}
+
 function playNotifBeep(): void {
   try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => { ctx.close(); };
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    const scheduleNote = () => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+      // Do NOT close ctx — it is shared across all beeps
+    };
+    if (ctx.state === 'suspended') {
+      void ctx.resume().then(scheduleNote);
+    } else {
+      scheduleNote();
+    }
   } catch { /* ignore */ }
 }
 
@@ -232,6 +259,17 @@ export function Sidebar() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d: MeData | null) => { if (d) setMe(d); })
       .catch(() => {});
+  }, []);
+
+  // Warm-up: unlock and resume the shared AudioContext on the first user click.
+  // Ensures subsequent setInterval beeps are not silenced by the browser autoplay policy.
+  useEffect(() => {
+    const unlock = () => {
+      const ctx = getAudioCtx();
+      if (ctx?.state === 'suspended') void ctx.resume();
+    };
+    document.addEventListener('click', unlock, { once: true });
+    return () => document.removeEventListener('click', unlock);
   }, []);
 
   // Auto-reset unread when user is on /livechat

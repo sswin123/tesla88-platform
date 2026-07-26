@@ -31,9 +31,12 @@ interface TransactionRow {
 }
 
 interface PendingCounts {
-  count: number;
+  count: number;              // PENDING only — sidebar badge + reminder
   deposit_count: number;
   withdrawal_count: number;
+  active_count?: number;              // PENDING + PROCESSING — display only
+  deposit_active_count?: number;
+  withdrawal_active_count?: number;
 }
 
 type TabType = 'pending' | 'all' | 'deposit' | 'withdrawal';
@@ -162,8 +165,9 @@ export default function TransactionsPage() {
   }
 
   const tabLabel = (t: TabType): string => {
+    const activeCount = pendingCounts.active_count ?? pendingCounts.count;
     switch (t) {
-      case 'pending':    return pendingCounts.count > 0 ? `Pending (${pendingCounts.count})` : 'Pending';
+      case 'pending':    return activeCount > 0 ? `Pending (${activeCount})` : 'Pending';
       case 'all':        return 'All';
       case 'deposit':    return 'Deposits';
       case 'withdrawal': return 'Withdrawals';
@@ -200,16 +204,22 @@ export default function TransactionsPage() {
       {tab === 'pending' && (
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Deposits Pending</div>
-            <div className="text-2xl font-bold text-emerald-600">{pendingCounts.deposit_count}</div>
+            <div className="text-xs text-gray-500 mb-1">Deposits Pending / Processing</div>
+            <div className="text-2xl font-bold text-emerald-600">
+              {pendingCounts.deposit_active_count ?? pendingCounts.deposit_count}
+            </div>
           </div>
           <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Withdrawals Pending</div>
-            <div className="text-2xl font-bold text-orange-600">{pendingCounts.withdrawal_count}</div>
+            <div className="text-xs text-gray-500 mb-1">Withdrawals Pending / Processing</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {pendingCounts.withdrawal_active_count ?? pendingCounts.withdrawal_count}
+            </div>
           </div>
           <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Total Pending</div>
-            <div className="text-2xl font-bold text-gray-900">{pendingCounts.count}</div>
+            <div className="text-xs text-gray-500 mb-1">Total Active</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {pendingCounts.active_count ?? pendingCounts.count}
+            </div>
           </div>
         </div>
       )}

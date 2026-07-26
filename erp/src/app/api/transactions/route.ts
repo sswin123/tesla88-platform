@@ -145,13 +145,14 @@ export async function GET(request: NextRequest) {
   const limit  = 20;
   const offset = (page - 1) * limit;
 
-  // type=pending forces status=PENDING and ignores any explicit status param
-  const isPending      = txType === 'pending';
-  const effectiveStatus = isPending ? 'PENDING' : status;
+  // type=pending shows the active work queue: PENDING (unacknowledged) + PROCESSING (in-progress)
+  const isPending       = txType === 'pending';
+  const effectiveStatus = isPending ? '' : status;
 
   // approved/paid virtual status filter (non-parameterized; sanitized with replace)
-  const statusFilter = effectiveStatus === 'approved_paid' ? `status IN ('APPROVED','PAID')` :
-                       effectiveStatus                      ? `status = '${effectiveStatus.replace(/'/g, "''")}'` :
+  const statusFilter = isPending                             ? `status IN ('PENDING','PROCESSING')` :
+                       effectiveStatus === 'approved_paid'  ? `status IN ('APPROVED','PAID')` :
+                       effectiveStatus                       ? `status = '${effectiveStatus.replace(/'/g, "''")}'` :
                        '';
 
   // Build extra params (search pattern) and the param index offset for LIMIT/OFFSET
