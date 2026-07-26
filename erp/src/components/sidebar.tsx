@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -172,7 +172,8 @@ export function Sidebar() {
   const [me, setMe] = useState<MeData>({ isSuperAdmin: false, permissions: [] });
   const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
   const [livechatUnread, setLivechatUnread] = useState(0);
-  const [depositsUnread, setDepositsUnread] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
@@ -186,13 +187,12 @@ export function Sidebar() {
     if (pathname.startsWith('/livechat')) setLivechatUnread(0);
   }, [pathname]);
 
-  // Auto-reset deposit badge when user navigates to /transactions
+  // Browser title: show pending count when > 0
   useEffect(() => {
-    if (pathname.startsWith('/transactions')) {
-      setDepositsUnread(0);
-      fetch('/api/deposits/unread', { method: 'POST' }).catch(() => {});
-    }
-  }, [pathname]);
+    document.title = pendingCount > 0
+      ? `(${pendingCount}) Tesla88 ERP`
+      : 'Tesla88 ERP';
+  }, [pendingCount]);
 
   useEffect(() => {
     loadMe();
@@ -213,10 +213,10 @@ export function Sidebar() {
       .then((d: { count: number } | null) => { if (d?.count) setLivechatUnread(d.count); })
       .catch(() => {});
 
-    // Fetch initial deposit unread count
-    fetch('/api/deposits/unread')
+    // Fetch initial transactions pending count
+    fetch('/api/transactions/pending-count')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count: number } | null) => { if (d?.count) setDepositsUnread(d.count); })
+      .then((d: { count: number } | null) => { if (d?.count) setPendingCount(d.count); })
       .catch(() => {});
 
     // SSE: live chat — increment unread + play sound when customer sends a message
@@ -234,21 +234,29 @@ export function Sidebar() {
       } catch { /* ignore */ }
     };
 
-    // SSE: deposits — increment badge + play sound when new pending deposit arrives
-    const depositEs = new EventSource('/api/deposits/stream');
-    depositEs.onmessage = (e: MessageEvent) => {
-      try {
-        const evt = JSON.parse(e.data as string) as { type?: string };
-        if (evt.type === 'new_deposit') {
-          setDepositsUnread((n) => {
-            playNotifBeep();
-            return n + 1;
-          });
-        }
-      } catch { /* ignore */ }
+    // SSE: transactions — throttled 250ms refresh of pending count
+    const txEs = new EventSource('/api/transactions/stream');
+    txEs.onmessage = () => {
+      if (refreshTimer.current) return; // window already has a timer, ignore
+      refreshTimer.current = setTimeout(() => {
+        refreshTimer.current = null;
+        fetch('/api/transactions/pending-count')
+          .then((r) => r.json())
+          .then((d: { count: number }) => {
+            setPendingCount((prev) => {
+              if (d.count > prev) playNotifBeep(); // only play when count increases
+              return d.count;
+            });
+          })
+          .catch(() => {});
+      }, 250);
     };
 
-    return () => { chatEs.close(); depositEs.close(); };
+    return () => {
+      chatEs.close();
+      txEs.close();
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    };
   }, [loadMe]);
 
   async function handleLogout() {
@@ -304,9 +312,9 @@ export function Sidebar() {
                     {livechatUnread > 99 ? '99+' : livechatUnread}
                   </span>
                 )}
-                {href === '/transactions' && depositsUnread > 0 && (
+                {href === '/transactions' && pendingCount > 0 && (
                   <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {depositsUnread > 99 ? '99+' : depositsUnread}
+                    {pendingCount > 99 ? '99+' : pendingCount}
                   </span>
                 )}
               </Link>
