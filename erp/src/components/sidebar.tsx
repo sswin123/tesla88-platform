@@ -147,6 +147,10 @@ function isActive(href: string, pathname: string, exact?: boolean): boolean {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
+// Interval (ms) between repeated notification beeps while pending transactions exist.
+// Increase this value to reduce frequency; decrease to alert more aggressively.
+const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
+
 function playNotifBeep(): void {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -174,7 +178,8 @@ export function Sidebar() {
   const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
   const [livechatUnread, setLivechatUnread] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reminderInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const filteredNavGroups = useMemo(
     () => filterNavGroups(NAV_GROUPS, me?.isSuperAdmin ?? false, me?.permissions ?? []),
@@ -183,6 +188,40 @@ export function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [me?.isSuperAdmin, me?.permissions]
   );
+
+  // Central handler for every pending-count update.
+  // Starts the repeat-beep reminder when pending > 0; stops it when pending reaches 0.
+  // Guarantees at most one setInterval exists at any time.
+  const handlePendingCountUpdate = useCallback((newCount: number) => {
+    setPendingCount(newCount);
+    if (newCount > 0) {
+      if (!reminderInterval.current) {
+        // First pending item: play immediately then repeat on interval
+        playNotifBeep();
+        reminderInterval.current = setInterval(() => {
+          playNotifBeep();
+          fetch('/api/transactions/pending-count')
+            .then((r) => r.json())
+            .then((d: { count: number }) => {
+              const c = d.count ?? 0;
+              setPendingCount(c);
+              if (c === 0) {
+                clearInterval(reminderInterval.current!);
+                reminderInterval.current = null;
+              }
+            })
+            .catch(() => {});
+        }, NOTIFICATION_REPEAT_INTERVAL_MS);
+      }
+      // Interval already running — let it continue; don't create a duplicate
+    } else {
+      // No pending transactions: stop reminding
+      if (reminderInterval.current) {
+        clearInterval(reminderInterval.current);
+        reminderInterval.current = null;
+      }
+    }
+  }, []);
 
   const loadMe = useCallback(() => {
     fetch('/api/auth/me')
@@ -222,10 +261,10 @@ export function Sidebar() {
       .then((d: { count: number } | null) => { if (d?.count) setLivechatUnread(d.count); })
       .catch(() => {});
 
-    // Fetch initial transactions pending count
+    // Fetch initial transactions pending count and start reminder if needed
     fetch('/api/transactions/pending-count')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count: number } | null) => { if (d?.count) setPendingCount(d.count); })
+      .then((d: { count: number } | null) => { if (d) handlePendingCountUpdate(d.count ?? 0); })
       .catch(() => {});
 
     // SSE: live chat — increment unread + play sound when customer sends a message
@@ -242,19 +281,14 @@ export function Sidebar() {
       } catch { /* ignore */ }
     });
 
-    // SSE: transactions — throttled 250ms refresh of pending count
+    // SSE: transactions — throttled 250ms refresh; reminder lifecycle handled by handlePendingCountUpdate
     const unsubTx = subscribeSSE('/api/transactions/stream', () => {
-      if (refreshTimer.current) return; // window already has a timer, ignore
+      if (refreshTimer.current) return;
       refreshTimer.current = setTimeout(() => {
         refreshTimer.current = null;
         fetch('/api/transactions/pending-count')
           .then((r) => r.json())
-          .then((d: { count: number }) => {
-            setPendingCount((prev) => {
-              if (d.count > prev) playNotifBeep(); // only play when count increases
-              return d.count;
-            });
-          })
+          .then((d: { count: number }) => handlePendingCountUpdate(d.count ?? 0))
           .catch(() => {});
       }, 250);
     });
@@ -263,8 +297,12 @@ export function Sidebar() {
       unsubChat();
       unsubTx();
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (reminderInterval.current) {
+        clearInterval(reminderInterval.current);
+        reminderInterval.current = null;
+      }
     };
-  }, [loadMe]);
+  }, [loadMe, handlePendingCountUpdate]);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
