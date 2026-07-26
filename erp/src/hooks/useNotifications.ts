@@ -69,8 +69,9 @@ function showBrowserNotif(): void {
   }
 }
 
-// NOTE: This hook is currently unused. SSE is managed by sidebar.tsx directly.
-// Safe to remove in a future cleanup PR.
+// WARNING: This hook is unused. Do NOT call useNotifications() — it opens a raw
+// EventSource('/api/livechat/stream') which bypasses the SSE dedup manager and
+// adds a third connection. Migrate to subscribeSSE() (lib/sse-manager.ts) before use.
 export function useNotifications(settings: NotifSettings): void {
   const settingsRef = useRef(settings);
 
