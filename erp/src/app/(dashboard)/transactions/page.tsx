@@ -61,9 +61,10 @@ export default function TransactionsPage() {
   const [pendingCounts,   setPendingCounts]   = useState<PendingCounts>({ count: 0, deposit_count: 0, withdrawal_count: 0 });
   const [highlightedIds,  setHighlightedIds]  = useState<Set<string>>(new Set());
 
-  const prevIdsRef   = useRef<Set<string>>(new Set());
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const loadRef      = useRef<(rt?: boolean) => void>(() => {});
+  const prevIdsRef      = useRef<Set<string>>(new Set());
+  const refreshTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadRef         = useRef<(rt?: boolean) => void>(() => {});
 
   // 500ms debounce for search input
   useEffect(() => {
@@ -100,8 +101,12 @@ export default function TransactionsPage() {
             if (!prevIdsRef.current.has(key)) newlyAdded.add(key);
           });
           if (newlyAdded.size > 0) {
+            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
             setHighlightedIds(newlyAdded);
-            setTimeout(() => setHighlightedIds(new Set()), 2500);
+            highlightTimerRef.current = setTimeout(() => {
+              highlightTimerRef.current = null;
+              setHighlightedIds(new Set());
+            }, 2500);
           }
           prevIdsRef.current = newIds;
         } else {
@@ -141,6 +146,10 @@ export default function TransactionsPage() {
       if (refreshTimer.current) {
         clearTimeout(refreshTimer.current);
         refreshTimer.current = null;
+      }
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
       }
     };
   }, [fetchCounts]);
