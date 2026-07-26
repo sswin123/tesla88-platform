@@ -6,12 +6,17 @@ export const runtime = 'nodejs';
 // Delegate all file I/O to ERP's MediaService via internal Docker network.
 // Website never touches the filesystem — ERP is the single storage authority.
 const ERP_INTERNAL_URL = (process.env.ERP_INTERNAL_URL ?? '').replace(/\/$/, '');
-const INTERNAL_TOKEN   = process.env.BOT_RELAY_AUTH_TOKEN ?? '';
 
 const MAX_SIZE    = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export async function POST(req: NextRequest) {
+  // Read at request time (not module-level) — Next.js standalone inlines module-level
+  // process.env at build time when the var is absent from the build environment,
+  // producing an empty string that silently sends Authorization: Bearer <empty>.
+  // Reading inside the function ensures the runtime env var is always used.
+  const internalToken = process.env.BOT_RELAY_AUTH_TOKEN ?? '';
+
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -28,6 +33,10 @@ export async function POST(req: NextRequest) {
     console.error('[uploads/receipt] ERP_INTERNAL_URL not configured');
     return NextResponse.json({ error: '上传服务未配置，请联系客服' }, { status: 503 });
   }
+  if (!internalToken) {
+    console.error('[uploads/receipt] BOT_RELAY_AUTH_TOKEN not configured in website container');
+    return NextResponse.json({ error: '上传服务配置错误，请联系客服' }, { status: 503 });
+  }
 
   const erpForm = new FormData();
   erpForm.append('file', file);
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest) {
   try {
     erpRes = await fetch(`${ERP_INTERNAL_URL}/api/internal/media/upload`, {
       method:  'POST',
-      headers: { Authorization: `Bearer ${INTERNAL_TOKEN}` },
+      headers: { Authorization: `Bearer ${internalToken}` },
       body:    erpForm,
       signal:  AbortSignal.timeout(15_000),
     });
