@@ -179,9 +179,9 @@ export default function MembersPage() {
                   {new Date(m.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
-                  <Link href={`/members/${m.id}`}>
-                    <Button size="sm" variant="outline">View</Button>
-                  </Link>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/members/${m.id}`}>View</Link>
+                  </Button>
                 </td>
               </tr>
             ))}
