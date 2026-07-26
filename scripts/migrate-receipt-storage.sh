@@ -33,7 +33,12 @@ for arg in "$@"; do
   esac
 done
 
-PROJECT_NAME=$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]-_')
+# Ask Docker Compose for the canonical project name (reads the YAML, no containers needed).
+# Falls back to lowercased directory name if compose config is unavailable.
+PROJECT_NAME=$(docker compose -f "$COMPOSE_FILE" config 2>/dev/null | grep '^name:' | awk '{print $2}')
+if [ -z "$PROJECT_NAME" ]; then
+  PROJECT_NAME=$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]')
+fi
 
 echo "============================================"
 echo " Deposit Receipt Storage Migration"
