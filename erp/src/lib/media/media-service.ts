@@ -129,7 +129,9 @@ export class MediaServiceImpl {
       createdBy:        input.uploadedBy,
     });
 
-    this.emit({ type: 'MEDIA_CREATED', mediaId: record.id, uploadedBy: input.uploadedBy });
+    if (input.uploadedBy !== null) {
+      this.emit({ type: 'MEDIA_CREATED', mediaId: record.id, uploadedBy: input.uploadedBy });
+    }
     return { record, isDuplicate: false };
   }
 
@@ -192,7 +194,9 @@ export class MediaServiceImpl {
     });
     if (!record) throw new MediaNotFoundError(id);
 
-    this.emit({ type: 'MEDIA_UPDATED', mediaId: id, updatedBy: input.uploadedBy });
+    if (input.uploadedBy !== null) {
+      this.emit({ type: 'MEDIA_UPDATED', mediaId: id, updatedBy: input.uploadedBy });
+    }
     return record;
   }
 

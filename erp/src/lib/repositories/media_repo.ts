@@ -54,7 +54,7 @@ interface InsertMediaData {
   height?: number | null;
   duration?: number | null;
   metadata?: Record<string, unknown>;
-  createdBy: number;
+  createdBy: number | null;
 }
 
 export async function insertMedia(data: InsertMediaData): Promise<MediaRecord> {

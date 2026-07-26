@@ -36,6 +36,10 @@ export async function GET(
         },
       });
     }
+    // receipt_media_id exists in DB but file is missing/unreadable on storage.
+    // Do NOT fall through to the Telegram branch — that is a different source.
+    console.error(`[deposits/receipt] id=${id} receipt_media_id=${receipt_media_id} found in DB but file unreadable`);
+    return Response.json({ error: 'Receipt file unavailable' }, { status: 502 });
   }
 
   // 2. Telegram photo (legacy bot deposits)

@@ -53,7 +53,7 @@ export interface SaveMediaInput {
   buffer:           Buffer;
   originalFilename: string;
   mimeType:         string;
-  uploadedBy:       number;
+  uploadedBy:       number | null;  // null for anonymous/customer uploads
   displayName?:     string;
 }
 
