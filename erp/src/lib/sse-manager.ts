@@ -40,10 +40,10 @@ export function subscribeSSE(url: string, handler: MessageHandler): () => void {
     };
 
     es.onerror = () => {
-      // On error: close and remove so the next subscriber gets a fresh connection.
-      const c = connections.get(url);
-      if (c) {
-        c.es.close();
+      // EventSource auto-reconnects on transient errors per browser spec (RFC 7934).
+      // Only clean up the Map entry when the connection is permanently closed
+      // (readyState CLOSED means the server rejected or the URL is invalid).
+      if (es.readyState === EventSource.CLOSED) {
         connections.delete(url);
       }
     };

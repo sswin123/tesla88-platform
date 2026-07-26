@@ -178,7 +178,8 @@ export function Sidebar() {
 
   const filteredNavGroups = useMemo(
     () => filterNavGroups(NAV_GROUPS, me?.isSuperAdmin ?? false, me?.permissions ?? []),
-    // me object reference changes on each fetch; depend on stable primitive fields
+    // me.permissions is an array reference — changes on every setMe call (once at mount).
+    // Using it here means memo invalidates when /api/auth/me returns, not on every SSE re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [me?.isSuperAdmin, me?.permissions]
   );
