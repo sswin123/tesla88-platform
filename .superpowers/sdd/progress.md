@@ -96,3 +96,11 @@ Bot Settings Fix: complete (commit a5d8195f) — Telegram profile sync; setMyNam
 5.9 Task 3: complete (commit cd8f65d8) — require_permission.ts central helper; /api/auth/me; AccessDenied+usePermissionGuard; 18 API routes migrated (deposits/withdrawals/members previously unguarded); sidebar permission-based filtering (filterNavGroups exported); 14 new tests + 2 updated; 299/299 total; tsc clean; build clean
 5.9 Task 4: complete (commit 041be8e2) — migration 033 (display_name+last_login_at); admin_repo 5 new functions; GET+POST /api/settings/staff + PATCH /[id] (staff.manage guard; no SA creation; SA edit blocked; self-role-change blocked); /settings/staff page (table+create modal+edit modal+toggle); sidebar Staff Manager entry; 11/11 new tests, 310/310 total; tsc clean; build clean
 5.9 Task 5: complete (commit a922ae3b) — Security audit: 29 routes fixed across 11 modules (Members/Deposits/Withdrawals/Broadcast/APK/Media/QuickReply/LiveChat-sessions/Audit); SUPER_ADMIN safety hardened in admin-users/[id]; 10 test files updated with permission_engine mock; docs/security/permission-audit.md created; 310/310 total; tsc clean; build clean — PHASE 5.9 LOCKED
+
+# Staff Attendance & Live Monitor — Phase 1 Progress Ledger
+# Spec: docs/superpowers/specs/2026-07-26-staff-attendance-live-monitor-design.md
+# Plan: docs/superpowers/plans/2026-07-26-staff-attendance-live-monitor-phase1.md
+# Worktree: .claude/worktrees/staff-attendance-live-monitor (branch worktree-staff-attendance-live-monitor)
+# Base commit (branch start): a20133d
+
+Baseline fix: complete (commit 3f42116) — brand-page.test.ts BASE_BRAND fixture backfilled with 40+ missing BrandSettings fields (pre-existing lint failure on main, unrelated to this phase); lint clean, 449/449 tests pass, build clean. Note: tests/internal-upload-route.test.ts (main's other reported lint failure) is untracked WIP in the main working tree — absent from this worktree entirely, so no fix needed here.
