@@ -30,11 +30,23 @@ No changes to approval logic, wallet, authentication, 918KISS, nginx, or Docker.
 
 ---
 
+## Clarifications (added 2026-07-26 post-approval)
+
+1. **Single source of truth is absolute.** Summary Card, Sidebar Badge, Browser Title, and Pending Tab Badge must all derive their count from the same `GET /api/transactions/pending-count` call. No location may maintain its own independent counter.
+
+2. **Notification sound fires at most once per throttle window.** If multiple `pending_changed` events arrive within the 250ms throttle window, `playNotifBeep()` is called exactly once — not once per event. The throttle collapses burst events into a single API fetch, and the sound decision is made after that single fetch.
+
+3. **Row highlight is one-shot and session-keyed.** A row highlights only when its composite key (`{type}-{id}`) is absent from the previous render's ID set AND the update was triggered by a realtime SSE event (not by tab switch, search change, pagination, or manual navigation). A `highlightSource` flag distinguishes SSE-driven refreshes from user-driven ones. Existing rows never re-highlight.
+
+4. **Search applies identically to deposits and withdrawals.** The ILIKE filter on `u.first_name`, `u.phone`, `u.public_id`, `u.id::text` is added to the outer WHERE clause of the UNION ALL sub-query, so it applies uniformly regardless of which table a row came from. There is no type-specific search path.
+
+---
+
 ## Architecture Overview
 
 ### Single Source of Truth
 
-All three UI locations (sidebar badge, browser title, pending tab badge) read from **one** database query:
+All four UI locations (sidebar badge, browser title, pending tab badge, summary card) read from **one** database query:
 
 ```sql
 SELECT (
@@ -142,16 +154,18 @@ Add:
 On `message` event from `/api/transactions/stream`:
 
 ```typescript
-// Throttle: schedule one refresh, ignore subsequent events within 250ms
+// Throttle: schedule ONE refresh per 250ms window.
+// Multiple burst events collapse into a single fetch + a single sound decision.
 const scheduleRefresh = useCallback(() => {
-  if (refreshTimer.current) return;
+  if (refreshTimer.current) return;          // already scheduled — skip
   refreshTimer.current = setTimeout(() => {
     refreshTimer.current = null;
     fetch('/api/transactions/pending-count')
       .then(r => r.json())
       .then((d: { count: number }) => {
         setPendingCount(prev => {
-          if (d.count > prev) playNotifBeep();  // sound only when queue grows
+          // Sound fires at most once per throttle window, only when count grows.
+          if (d.count > prev) playNotifBeep();
           return d.count;
         });
       })
@@ -160,8 +174,9 @@ const scheduleRefresh = useCallback(() => {
 }, []);
 ```
 
-- Timer reference stored in `useRef<ReturnType<typeof setTimeout> | null>`
+- Timer reference: `useRef<ReturnType<typeof setTimeout> | null>(null)`
 - Cleared on component unmount
+- **Invariant:** `playNotifBeep()` is called at most once per 250ms window, regardless of how many SSE events arrive in that window.
 
 ### 2.3 Browser Title
 
@@ -202,17 +217,29 @@ Existing params (`type=all|deposit|withdrawal`, `status`, `page`) are unchanged.
 
 ### 3.2 Search SQL Pattern
 
+Search is applied as a single `AND` condition on the **outer** query wrapping the UNION ALL sub-query. It therefore applies uniformly and identically to both deposit rows and withdrawal rows — there is no type-specific search path.
+
 ```sql
--- Applied as additional WHERE condition (AND) on the outer sub-query
-(
-  u.first_name ILIKE $search
-  OR u.phone ILIKE $search
-  OR u.public_id ILIKE $search
-  OR u.id::text ILIKE $search
+-- Outer query structure:
+SELECT * FROM (
+  -- deposit half of UNION ALL (u = users JOIN)
+  UNION ALL
+  -- withdrawal half of UNION ALL (u = users JOIN)
+) sub
+WHERE (
+  u.first_name ILIKE $1
+  OR u.phone    ILIKE $1
+  OR u.public_id ILIKE $1
+  OR u.id::text  ILIKE $1
 )
+-- plus any existing status / pending filters
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
 ```
 
-Where `$search = '%' + term + '%'`.
+Where `$1 = '%' + term + '%'`.
+
+**Invariant:** Because both halves of the UNION ALL join the same `users` table on `user_id`, the `u.*` columns are identical in structure. The outer WHERE filter works equally on deposit rows and withdrawal rows without any conditional logic.
 
 ### 3.3 Pending Type Logic
 
@@ -306,26 +333,48 @@ useEffect(() => {
 
 ### 4.5 Row Highlight for New Arrivals
 
-When a new pending row appears after auto-refresh:
+Highlight applies **only** to rows that arrive via an SSE-triggered refresh. Tab switches, search changes, pagination, and manual navigation never trigger highlights.
 
-- Compare previous row IDs to new row IDs
-- Rows with IDs not in the previous set get CSS class `animate-highlight`
-- Highlight fades after 2.5 seconds
+A boolean `isRealtimeRefresh` flag is passed into the load function:
 
 ```typescript
-const prevIdsRef = useRef<Set<string>>(new Set());
+const load = useCallback((realtimeRefresh = false) => {
+  setLoading(true);
+  fetch(...)
+    .then(r => r.json())
+    .then(d => {
+      const incoming = d.data as TransactionRow[];
+      if (realtimeRefresh) {
+        // Only highlight rows whose key was absent from the previous render.
+        const incomingKeys = new Set(incoming.map(r => `${r.type}-${r.id}`));
+        const newKeys = new Set([...incomingKeys].filter(k => !prevIdsRef.current.has(k)));
+        if (newKeys.size > 0) {
+          setHighlightedIds(newKeys);
+          setTimeout(() => setHighlightedIds(new Set()), 2500);
+        }
+        prevIdsRef.current = incomingKeys;
+      } else {
+        // User-driven navigation: update prevIds silently, never highlight.
+        prevIdsRef.current = new Set(incoming.map(r => `${r.type}-${r.id}`));
+        setHighlightedIds(new Set());
+      }
+      setData(d);
+    })
+    .finally(() => setLoading(false));
+}, [tab, status, search, page]);
 
-// After load:
-const newIds = new Set(rows.map(r => `${r.type}-${r.id}`));
-const highlightIds = new Set([...newIds].filter(k => !prevIdsRef.current.has(k)));
-prevIdsRef.current = newIds;
-setHighlightedIds(highlightIds);
+// SSE triggers:
+es.onmessage = () => { loadRef.current(true); };   // realtimeRefresh = true
 
-// Clear after 2.5s:
-setTimeout(() => setHighlightedIds(new Set()), 2500);
+// User navigation (tab switch, search, pagination):
+load(false);                                         // realtimeRefresh = false
 ```
 
-CSS (Tailwind + keyframes in `globals.css` or inline style):
+**Invariants:**
+- A row highlights at most once — the `prevIdsRef` is updated after each SSE refresh, so the same row ID cannot re-highlight on the next event.
+- Tab switch / search change / pagination always calls `load(false)` → highlight set is cleared → existing rows never re-highlight.
+
+CSS in `erp/src/app/globals.css`:
 ```css
 @keyframes highlight-fade {
   0%   { background-color: rgb(254 240 138); } /* yellow-200 */
