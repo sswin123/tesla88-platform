@@ -42,3 +42,11 @@
     -moz-appearance: textfield;
   }
 }
+
+@keyframes highlight-fade {
+  0%   { background-color: rgb(254 240 138); }
+  100% { background-color: transparent; }
+}
+.animate-highlight {
+  animation: highlight-fade 2.5s ease-out forwards;
+}

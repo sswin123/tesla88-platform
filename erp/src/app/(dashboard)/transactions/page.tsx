@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,13 +29,13 @@ interface TransactionRow {
   created_at: string;
 }
 
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  APPROVED:   'default',
-  PAID:       'default',
-  PENDING:    'secondary',
-  PROCESSING: 'outline',
-  REJECTED:   'destructive',
-};
+interface PendingCounts {
+  count: number;
+  deposit_count: number;
+  withdrawal_count: number;
+}
+
+type TabType = 'pending' | 'all' | 'deposit' | 'withdrawal';
 
 const STATUS_CLASS: Record<string, string> = {
   APPROVED:   'bg-green-100 text-green-800 border-green-200',
@@ -51,48 +50,116 @@ const TYPE_CLASS: Record<string, string> = {
   withdrawal: 'bg-orange-50 text-orange-700 border border-orange-200',
 };
 
-type TabType = 'all' | 'deposit' | 'withdrawal';
-
 export default function TransactionsPage() {
-  const [data,    setData]    = useState<PaginatedResponse<TransactionRow> | null>(null);
-  const [tab,     setTab]     = useState<TabType>('all');
-  const [status,  setStatus]  = useState('');
-  const [page,    setPage]    = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [data,            setData]            = useState<PaginatedResponse<TransactionRow> | null>(null);
+  const [tab,             setTab]             = useState<TabType>('pending');
+  const [status,          setStatus]          = useState('');
+  const [page,            setPage]            = useState(1);
+  const [search,          setSearch]          = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loading,         setLoading]         = useState(true);
+  const [pendingCounts,   setPendingCounts]   = useState<PendingCounts>({ count: 0, deposit_count: 0, withdrawal_count: 0 });
+  const [highlightedIds,  setHighlightedIds]  = useState<Set<string>>(new Set());
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const prevIdsRef   = useRef<Set<string>>(new Set());
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadRef      = useRef<(rt?: boolean) => void>(() => {});
+
+  // 500ms debounce for search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchCounts = useCallback(() => {
+    fetch('/api/transactions/pending-count')
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: PendingCounts | null) => {
+        if (d !== null) setPendingCounts(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  const load = useCallback((realtimeRefresh = false) => {
+    if (!realtimeRefresh) setLoading(true);
     const p = new URLSearchParams({ page: page.toString() });
-    if (tab !== 'all') p.set('type', tab);
-    if (status) p.set('status', status);
+    p.set('type', tab);
+    if (debouncedSearch) p.set('search', debouncedSearch);
+    if (tab !== 'pending' && status) p.set('status', status);
+
     fetch(`/api/transactions?${p}`)
       .then(r => r.json())
-      .then(setData)
+      .then((d: PaginatedResponse<TransactionRow>) => {
+        if (realtimeRefresh) {
+          const newIds = new Set(d.data.map(row => `${row.type}-${row.id}`));
+          const newlyAdded = new Set<string>();
+          newIds.forEach(key => {
+            if (!prevIdsRef.current.has(key)) newlyAdded.add(key);
+          });
+          if (newlyAdded.size > 0) {
+            setHighlightedIds(newlyAdded);
+            setTimeout(() => setHighlightedIds(new Set()), 2500);
+          }
+          prevIdsRef.current = newIds;
+        } else {
+          prevIdsRef.current = new Set(d.data.map(row => `${row.type}-${row.id}`));
+          setHighlightedIds(new Set());
+        }
+        setData(d);
+      })
       .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [tab, status, page]);
+      .finally(() => {
+        if (!realtimeRefresh) setLoading(false);
+      });
+  }, [tab, status, page, debouncedSearch]);
 
-  useEffect(() => { load(); }, [load]);
-
-  // SSE: refresh when new deposit arrives
-  const loadRef = useRef(load);
+  // Keep loadRef current so SSE handler never captures stale closure
   useEffect(() => { loadRef.current = load; }, [load]);
+
+  // Load data on user-action-driven state changes
+  useEffect(() => { load(false); }, [load]);
+
+  // Initial pending count
+  useEffect(() => { fetchCounts(); }, [fetchCounts]);
+
+  // SSE subscription — 250ms throttle, no sound (sidebar handles that)
   useEffect(() => {
-    const es = new EventSource('/api/deposits/stream');
-    es.onmessage = (e: MessageEvent) => {
-      try {
-        const evt = JSON.parse(e.data as string) as { type?: string };
-        if (evt.type === 'new_deposit') loadRef.current();
-      } catch { /* ignore */ }
+    const es = new EventSource('/api/transactions/stream');
+    es.onmessage = () => {
+      if (refreshTimer.current) return;
+      refreshTimer.current = setTimeout(() => {
+        refreshTimer.current = null;
+        fetchCounts();
+        loadRef.current(true);
+      }, 250);
     };
-    return () => es.close();
-  }, []);
+    return () => {
+      es.close();
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+    };
+  }, [fetchCounts]);
 
   function switchTab(t: TabType) {
     setTab(t);
     setStatus('');
     setPage(1);
+    setHighlightedIds(new Set());
   }
+
+  const tabLabel = (t: TabType): string => {
+    switch (t) {
+      case 'pending':    return pendingCounts.count > 0 ? `Pending (${pendingCounts.count})` : 'Pending';
+      case 'all':        return 'All';
+      case 'deposit':    return 'Deposits';
+      case 'withdrawal': return 'Withdrawals';
+    }
+  };
 
   const rows  = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -105,38 +172,68 @@ export default function TransactionsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b">
-        {(['all', 'deposit', 'withdrawal'] as const).map(t => (
+        {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(t => (
           <button
             key={t}
             onClick={() => switchTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t
                 ? 'border-gray-900 text-gray-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'all' ? 'All' : t === 'deposit' ? 'Deposits' : 'Withdrawals'}
+            {tabLabel(t)}
           </button>
         ))}
       </div>
 
-      {/* Status filter */}
+      {/* Pending Summary Card — only on pending tab */}
+      {tab === 'pending' && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border bg-white p-4">
+            <div className="text-xs text-gray-500 mb-1">Deposits Pending</div>
+            <div className="text-2xl font-bold text-emerald-600">{pendingCounts.deposit_count}</div>
+          </div>
+          <div className="rounded-lg border bg-white p-4">
+            <div className="text-xs text-gray-500 mb-1">Withdrawals Pending</div>
+            <div className="text-2xl font-bold text-orange-600">{pendingCounts.withdrawal_count}</div>
+          </div>
+          <div className="rounded-lg border bg-white p-4">
+            <div className="text-xs text-gray-500 mb-1">Total Pending</div>
+            <div className="text-2xl font-bold text-gray-900">{pendingCounts.count}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
       <div className="flex items-center gap-3">
-        <Select
-          value={status || 'ALL'}
-          onValueChange={v => { setStatus(v === 'ALL' ? '' : v); setPage(1); }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Status</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="PROCESSING">Processing</SelectItem>
-            <SelectItem value="approved_paid">Approved / Paid</SelectItem>
-            <SelectItem value="REJECTED">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by Member ID, username, phone..."
+          className="border rounded-md px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-gray-300"
+        />
+
+        {/* Status filter — hidden on pending tab */}
+        {tab !== 'pending' && (
+          <Select
+            value={status || 'ALL'}
+            onValueChange={v => { setStatus(v === 'ALL' ? '' : v); setPage(1); }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Status</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="PROCESSING">Processing</SelectItem>
+              <SelectItem value="approved_paid">Approved / Paid</SelectItem>
+              <SelectItem value="REJECTED">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
         <span className="text-sm text-gray-400">Total: {total}</span>
       </div>
 
@@ -154,14 +251,23 @@ export default function TransactionsPage() {
             {loading ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No transactions found</td></tr>
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                  {tab === 'pending' ? 'No pending transactions.' : 'No transactions found.'}
+                </td>
+              </tr>
             ) : rows.map(row => (
-              <tr key={`${row.type}-${row.id}`} className="border-b last:border-0 hover:bg-gray-50">
+              <tr
+                key={`${row.type}-${row.id}`}
+                className={`border-b last:border-0 hover:bg-gray-50 ${
+                  highlightedIds.has(`${row.type}-${row.id}`) ? 'animate-highlight' : ''
+                }`}
+              >
                 <td className="px-3 py-3 font-mono text-xs text-gray-500">{row.id}</td>
 
                 <td className="px-3 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${TYPE_CLASS[row.type]}`}>
-                    {row.type === 'deposit' ? '↓ Dep' : '↑ Wd'}
+                    {row.type === 'deposit' ? '🟢 Deposit' : '🟠 Withdraw'}
                   </span>
                 </td>
 
@@ -213,11 +319,21 @@ export default function TransactionsPage() {
 
       {/* Pagination */}
       <div className="flex items-center justify-end gap-2 text-sm">
-        <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+        >
           Previous
         </Button>
         <span className="px-2 py-1 text-gray-500">Page {page}</span>
-        <Button size="sm" variant="outline" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setPage(p => p + 1)}
+          disabled={page * 20 >= total}
+        >
           Next
         </Button>
       </div>
