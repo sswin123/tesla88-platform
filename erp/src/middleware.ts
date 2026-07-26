@@ -64,6 +64,13 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // Internal service-to-service endpoints — called by the website container, not the browser.
+  // Auth is handled inside each route handler via BOT_RELAY_AUTH_TOKEN shared secret.
+  // Middleware JWT check does not apply (no browser session cookie on machine-to-machine calls).
+  if (pathname.startsWith('/api/internal/')) {
+    return NextResponse.next();
+  }
+
   // Internal service-to-service game launch — called by the website, not the browser.
   // Auth is handled inside the route handler via X-Service-Secret.
   if (pathname === '/api/games/launch' && request.method === 'POST') {

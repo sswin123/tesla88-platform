@@ -13,32 +13,6 @@ function isAuthorized(req: NextRequest): boolean {
   const auth = req.headers.get('authorization') ?? '';
   const [scheme, token] = auth.split(' ');
 
-  // [DEBUG-REMOVE] Trace received Authorization — delete after diagnosis
-  console.log('[internal/media/upload][DEBUG] expected', JSON.stringify({
-    length:      expected.length,
-    prefix:      expected.slice(0, 8),
-    suffix:      expected.slice(-8),
-    prefixCodes: [...expected.slice(0, 8)].map(c => c.charCodeAt(0)),
-    suffixCodes: [...expected.slice(-8)].map(c => c.charCodeAt(0)),
-  }));
-  console.log('[internal/media/upload][DEBUG] raw.auth', JSON.stringify({
-    length:      auth.length,
-    prefix:      auth.slice(0, 15),
-    suffix:      auth.slice(-8),
-    prefixCodes: [...auth.slice(0, 8)].map(c => c.charCodeAt(0)),
-    suffixCodes: [...auth.slice(-8)].map(c => c.charCodeAt(0)),
-  }));
-  const _dbgToken = token ?? '';
-  console.log('[internal/media/upload][DEBUG] parsed', JSON.stringify({
-    scheme:      scheme,
-    tokenLength: _dbgToken.length,
-    prefix:      _dbgToken.slice(0, 8),
-    suffix:      _dbgToken.slice(-8),
-    prefixCodes: [..._dbgToken.slice(0, 8)].map(c => c.charCodeAt(0)),
-    suffixCodes: [..._dbgToken.slice(-8)].map(c => c.charCodeAt(0)),
-    match:       (scheme === 'Bearer' && token === expected),
-  }));
-
   return scheme === 'Bearer' && token === expected;
 }
 
