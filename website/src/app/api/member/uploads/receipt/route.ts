@@ -43,10 +43,17 @@ export async function POST(req: NextRequest) {
 
   // [DEBUG-REMOVE] Trace outgoing Authorization header — delete after diagnosis
   const _dbgAuthValue = `Bearer ${internalToken}`;
-  console.log('[uploads/receipt][DEBUG] token.length=' + internalToken.length
-    + ' token.prefix=' + JSON.stringify(internalToken.slice(0, 8))
-    + ' auth.length=' + _dbgAuthValue.length
-    + ' auth.prefix=' + JSON.stringify(_dbgAuthValue.slice(0, 15)));
+  console.log('[uploads/receipt][DEBUG] token'
+    + ' length=' + internalToken.length
+    + ' prefix=' + JSON.stringify(internalToken.slice(0, 8))
+    + ' suffix.json=' + JSON.stringify(internalToken.slice(-4))
+    + ' prefix.codes=' + JSON.stringify([...internalToken.slice(0, 4)].map(c => c.charCodeAt(0)))
+    + ' suffix.codes=' + JSON.stringify([...internalToken.slice(-4)].map(c => c.charCodeAt(0))));
+  console.log('[uploads/receipt][DEBUG] auth'
+    + ' length=' + _dbgAuthValue.length
+    + ' prefix=' + JSON.stringify(_dbgAuthValue.slice(0, 15))
+    + ' suffix.json=' + JSON.stringify(_dbgAuthValue.slice(-4))
+    + ' suffix.codes=' + JSON.stringify([..._dbgAuthValue.slice(-4)].map(c => c.charCodeAt(0))));
 
   let erpRes: Response;
   try {

@@ -14,16 +14,23 @@ function isAuthorized(req: NextRequest): boolean {
   const [scheme, token] = auth.split(' ');
 
   // [DEBUG-REMOVE] Trace received Authorization — delete after diagnosis
-  console.log('[internal/media/upload][DEBUG]'
-    + ' expected.length=' + expected.length
-    + ' expected.prefix=' + JSON.stringify(expected.slice(0, 8)));
-  console.log('[internal/media/upload][DEBUG]'
-    + ' raw.auth.length=' + auth.length
-    + ' raw.auth.prefix=' + JSON.stringify(auth.slice(0, 15)));
-  console.log('[internal/media/upload][DEBUG]'
+  console.log('[internal/media/upload][DEBUG] expected'
+    + ' length=' + expected.length
+    + ' prefix=' + JSON.stringify(expected.slice(0, 8))
+    + ' suffix.json=' + JSON.stringify(expected.slice(-4))
+    + ' prefix.codes=' + JSON.stringify([...expected.slice(0, 4)].map(c => c.charCodeAt(0)))
+    + ' suffix.codes=' + JSON.stringify([...expected.slice(-4)].map(c => c.charCodeAt(0))));
+  console.log('[internal/media/upload][DEBUG] raw.auth'
+    + ' length=' + auth.length
+    + ' prefix=' + JSON.stringify(auth.slice(0, 15))
+    + ' suffix.json=' + JSON.stringify(auth.slice(-4))
+    + ' suffix.codes=' + JSON.stringify([...auth.slice(-4)].map(c => c.charCodeAt(0))));
+  console.log('[internal/media/upload][DEBUG] parsed'
     + ' scheme=' + JSON.stringify(scheme)
     + ' token.length=' + (token?.length ?? 0)
     + ' token.prefix=' + JSON.stringify(token?.slice(0, 8) ?? '')
+    + ' token.suffix.json=' + JSON.stringify((token ?? '').slice(-4))
+    + ' token.suffix.codes=' + JSON.stringify([...(token ?? '').slice(-4)].map(c => c.charCodeAt(0)))
     + ' match=' + (scheme === 'Bearer' && token === expected));
 
   return scheme === 'Bearer' && token === expected;
