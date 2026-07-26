@@ -138,19 +138,29 @@ export async function GET(request: NextRequest) {
   const canViewPhone = !!(await requirePermission('member.view_phone'));
   const { searchParams } = request.nextUrl;
 
-  const txType = searchParams.get('type') ?? 'all';   // all | deposit | withdrawal
+  const txType = searchParams.get('type') ?? 'all';   // all | deposit | withdrawal | pending
   const status = searchParams.get('status')?.trim() ?? '';
+  const search = searchParams.get('search')?.trim() ?? '';
   const page   = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
   const limit  = 20;
   const offset = (page - 1) * limit;
 
-  // approved/paid virtual status filter
-  const statusFilter = status === 'approved_paid' ? `status IN ('APPROVED','PAID')` :
-                       status                     ? `status = '${status.replace(/'/g, "''")}'` :
+  // type=pending forces status=PENDING and ignores any explicit status param
+  const isPending      = txType === 'pending';
+  const effectiveStatus = isPending ? 'PENDING' : status;
+
+  // approved/paid virtual status filter (non-parameterized; sanitized with replace)
+  const statusFilter = effectiveStatus === 'approved_paid' ? `status IN ('APPROVED','PAID')` :
+                       effectiveStatus                      ? `status = '${effectiveStatus.replace(/'/g, "''")}'` :
                        '';
+
+  // Build extra params (search pattern) and the param index offset for LIMIT/OFFSET
+  const extraParams: string[] = search ? [`%${search}%`] : [];
+  const searchParamIdx        = extraParams.length > 0 ? 1 : 0; // $1 when search present
 
   for (const useProcessing of [true, false]) {
     let baseSql: string;
+    // type=pending uses the UNION ALL base (same as type=all)
     if (txType === 'deposit') {
       baseSql = useProcessing ? DEPOSIT_ONLY_WITH_PROCESSING : DEPOSIT_ONLY_NO_PROCESSING;
     } else if (txType === 'withdrawal') {
@@ -159,15 +169,31 @@ export async function GET(request: NextRequest) {
       baseSql = useProcessing ? SELECT_WITH_PROCESSING : SELECT_NO_PROCESSING;
     }
 
-    const whereClause = statusFilter ? `WHERE ${statusFilter}` : '';
+    // Build WHERE conditions
+    const conditions: string[] = [];
+    if (statusFilter) conditions.push(statusFilter);
+    if (searchParamIdx > 0) {
+      conditions.push(
+        `(first_name ILIKE $${searchParamIdx} OR phone ILIKE $${searchParamIdx}` +
+        ` OR public_id ILIKE $${searchParamIdx} OR user_id::text ILIKE $${searchParamIdx})`,
+      );
+    }
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const dataSql  = `SELECT * FROM (${baseSql}) sub ${whereClause} ORDER BY created_at DESC LIMIT $1 OFFSET $2`;
+    // LIMIT and OFFSET param indices follow any extra params
+    const limitIdx  = extraParams.length + 1;
+    const offsetIdx = extraParams.length + 2;
+
+    const dataSql  = `SELECT * FROM (${baseSql}) sub ${whereClause} ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
     const countSql = `SELECT COUNT(*)::int AS count FROM (${baseSql}) sub ${whereClause}`;
+
+    const dataParams: (string | number)[]  = [...extraParams, limit, offset];
+    const countParams: (string | number)[] = [...extraParams];
 
     try {
       const [dataRes, countRes] = await Promise.all([
-        pool.query(dataSql, [limit, offset]),
-        pool.query<{ count: number }>(countSql),
+        pool.query(dataSql, dataParams),
+        pool.query<{ count: number }>(countSql, countParams),
       ]);
 
       const applyMask = (r: Record<string, unknown>) =>
