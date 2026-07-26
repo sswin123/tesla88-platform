@@ -12,6 +12,20 @@ function isAuthorized(req: NextRequest): boolean {
   if (!expected) return false;
   const auth = req.headers.get('authorization') ?? '';
   const [scheme, token] = auth.split(' ');
+
+  // [DEBUG-REMOVE] Trace received Authorization — delete after diagnosis
+  console.log('[internal/media/upload][DEBUG]'
+    + ' expected.length=' + expected.length
+    + ' expected.prefix=' + JSON.stringify(expected.slice(0, 8)));
+  console.log('[internal/media/upload][DEBUG]'
+    + ' raw.auth.length=' + auth.length
+    + ' raw.auth.prefix=' + JSON.stringify(auth.slice(0, 15)));
+  console.log('[internal/media/upload][DEBUG]'
+    + ' scheme=' + JSON.stringify(scheme)
+    + ' token.length=' + (token?.length ?? 0)
+    + ' token.prefix=' + JSON.stringify(token?.slice(0, 8) ?? '')
+    + ' match=' + (scheme === 'Bearer' && token === expected));
+
   return scheme === 'Bearer' && token === expected;
 }
 

@@ -41,11 +41,18 @@ export async function POST(req: NextRequest) {
   const erpForm = new FormData();
   erpForm.append('file', file);
 
+  // [DEBUG-REMOVE] Trace outgoing Authorization header — delete after diagnosis
+  const _dbgAuthValue = `Bearer ${internalToken}`;
+  console.log('[uploads/receipt][DEBUG] token.length=' + internalToken.length
+    + ' token.prefix=' + JSON.stringify(internalToken.slice(0, 8))
+    + ' auth.length=' + _dbgAuthValue.length
+    + ' auth.prefix=' + JSON.stringify(_dbgAuthValue.slice(0, 15)));
+
   let erpRes: Response;
   try {
     erpRes = await fetch(`${ERP_INTERNAL_URL}/api/internal/media/upload`, {
       method:  'POST',
-      headers: { Authorization: `Bearer ${internalToken}` },
+      headers: { Authorization: _dbgAuthValue },
       body:    erpForm,
       signal:  AbortSignal.timeout(15_000),
     });
