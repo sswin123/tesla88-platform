@@ -199,7 +199,9 @@ export function Sidebar() {
         // First pending item: play immediately then repeat on interval
         playNotifBeep();
         reminderInterval.current = setInterval(() => {
-          playNotifBeep();
+          // Fetch count BEFORE playing — ensures we never beep for Processing-only queues.
+          // The SSE handler is the fast path (stops reminder instantly via handlePendingCountUpdate).
+          // This interval is the safety-net poll in case an SSE event was missed.
           fetch('/api/transactions/pending-count')
             .then((r) => r.json())
             .then((d: { count: number }) => {
@@ -208,6 +210,8 @@ export function Sidebar() {
               if (c === 0) {
                 clearInterval(reminderInterval.current!);
                 reminderInterval.current = null;
+              } else {
+                playNotifBeep();
               }
             })
             .catch(() => {});
