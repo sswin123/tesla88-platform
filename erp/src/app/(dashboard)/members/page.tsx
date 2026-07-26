@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,7 +102,6 @@ export default function MembersPage() {
   const [data, setData]       = useState<PaginatedResponse<Member> | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const router = useRouter();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -180,13 +179,9 @@ export default function MembersPage() {
                   {new Date(m.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push(`/members/${m.id}`)}
-                  >
-                    View
-                  </Button>
+                  <Link href={`/members/${m.id}`}>
+                    <Button size="sm" variant="outline">View</Button>
+                  </Link>
                 </td>
               </tr>
             ))}

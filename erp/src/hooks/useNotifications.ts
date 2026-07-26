@@ -69,6 +69,8 @@ function showBrowserNotif(): void {
   }
 }
 
+// NOTE: This hook is currently unused. SSE is managed by sidebar.tsx directly.
+// Safe to remove in a future cleanup PR.
 export function useNotifications(settings: NotifSettings): void {
   const settingsRef = useRef(settings);
 
