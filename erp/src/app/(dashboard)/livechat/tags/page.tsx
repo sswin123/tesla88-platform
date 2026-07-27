@@ -139,7 +139,7 @@ export default function TagManagerPage() {
         {newName.trim() && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">Preview:</span>
-            <TagBadge tag={{ id: 0, name: newName, color: newColor, created_at: '' }} />
+            <TagBadge tag={{ id: 0, name: newName, color: newColor, sort_order: 0, is_active: true, created_at: '', updated_at: '' }} />
           </div>
         )}
         {addError && <p className="text-xs text-red-500">{addError}</p>}
@@ -169,7 +169,7 @@ export default function TagManagerPage() {
                   onChange={(e) => setEditColor(e.target.value)}
                   className="h-8 w-10 cursor-pointer rounded border border-gray-300 p-0.5"
                 />
-                <TagBadge tag={{ id: tag.id, name: editName || tag.name, color: editColor, created_at: tag.created_at }} />
+                <TagBadge tag={{ id: tag.id, name: editName || tag.name, color: editColor, sort_order: tag.sort_order, is_active: tag.is_active, created_at: tag.created_at, updated_at: tag.updated_at }} />
                 <Button
                   size="sm"
                   className="h-7 text-xs"

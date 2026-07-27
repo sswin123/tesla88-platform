@@ -2,11 +2,12 @@ import { getAllTags, createTag } from '@/lib/repositories/support_repo';
 import { requirePermission } from '@/lib/require_permission';
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const authPayload = await requirePermission('livechat.view');
   if (!authPayload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const tags = await getAllTags();
+  const includeInactive = req.nextUrl.searchParams.get('include_inactive') === '1';
+  const tags = await getAllTags(includeInactive);
   return NextResponse.json(tags);
 }
 

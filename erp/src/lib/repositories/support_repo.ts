@@ -189,18 +189,18 @@ export async function getSessionsLiveChat(opts: {
   // Batch-load tags for all sessions (avoid N+1) — guests have no user_id
   const userIds = sessions.map((s) => s.user_id).filter((id): id is number => id != null);
   if (userIds.length > 0) {
-    const tagRows = await pool.query<{ user_id: number; id: number; name: string; color: string; created_at: string }>(
-      `SELECT uta.user_id, ct.id, ct.name, ct.color, ct.created_at
+    const tagRows = await pool.query<{ user_id: number; id: number; name: string; color: string; sort_order: number; is_active: boolean; created_at: string; updated_at: string }>(
+      `SELECT uta.user_id, ct.id, ct.name, ct.color, ct.sort_order, ct.is_active, ct.created_at, ct.updated_at
        FROM user_tag_assignments uta
        JOIN customer_tags ct ON ct.id = uta.tag_id
        WHERE uta.user_id = ANY($1::int[])
-       ORDER BY ct.name`,
+       ORDER BY ct.sort_order ASC, ct.name ASC`,
       [userIds]
     );
     const tagsByUser = new Map<number, CustomerTag[]>();
     for (const tr of tagRows.rows) {
       const existing = tagsByUser.get(tr.user_id) ?? [];
-      existing.push({ id: tr.id, name: tr.name, color: tr.color, created_at: tr.created_at });
+      existing.push({ id: tr.id, name: tr.name, color: tr.color, sort_order: tr.sort_order, is_active: tr.is_active, created_at: tr.created_at, updated_at: tr.updated_at });
       tagsByUser.set(tr.user_id, existing);
     }
     for (const s of sessions) {
@@ -994,36 +994,47 @@ export async function deleteSessionNote(noteId: number): Promise<void> {
 
 // ── Customer Tags ─────────────────────────────────────────────────────────────
 
-export async function getAllTags(): Promise<CustomerTag[]> {
+export async function getAllTags(includeInactive = false): Promise<CustomerTag[]> {
+  const where = includeInactive ? '' : 'WHERE is_active = TRUE';
   const { rows } = await pool.query(
-    `SELECT id, name, color, created_at FROM customer_tags ORDER BY name`
+    `SELECT id, name, color, sort_order, is_active, created_at, updated_at
+     FROM customer_tags
+     ${where}
+     ORDER BY sort_order ASC, name ASC`
   );
   return rows;
 }
 
-export async function createTag(data: { name: string; color: string }): Promise<CustomerTag> {
+export async function createTag(data: { name: string; color: string; sort_order?: number }): Promise<CustomerTag> {
+  // Place new tag after current max sort_order
+  const maxRow = await pool.query<{ max: number | null }>(`SELECT MAX(sort_order) AS max FROM customer_tags`);
+  const nextOrder = (maxRow.rows[0]?.max ?? 0) + 1;
   const { rows } = await pool.query(
-    `INSERT INTO customer_tags (name, color) VALUES ($1, $2)
-     RETURNING id, name, color, created_at`,
-    [data.name, data.color]
+    `INSERT INTO customer_tags (name, color, sort_order)
+     VALUES ($1, $2, $3)
+     RETURNING id, name, color, sort_order, is_active, created_at, updated_at`,
+    [data.name, data.color, data.sort_order ?? nextOrder]
   );
   return rows[0];
 }
 
 export async function updateTag(
   id: number,
-  data: { name?: string; color?: string }
+  data: { name?: string; color?: string; is_active?: boolean; sort_order?: number }
 ): Promise<CustomerTag | null> {
   const sets: string[] = [];
-  const params: (string | number)[] = [];
+  const params: (string | number | boolean)[] = [];
   let i = 1;
-  if (data.name  !== undefined) { sets.push(`name=$${i++}`);  params.push(data.name); }
-  if (data.color !== undefined) { sets.push(`color=$${i++}`); params.push(data.color); }
+  if (data.name       !== undefined) { sets.push(`name=$${i++}`);       params.push(data.name); }
+  if (data.color      !== undefined) { sets.push(`color=$${i++}`);      params.push(data.color); }
+  if (data.is_active  !== undefined) { sets.push(`is_active=$${i++}`);  params.push(data.is_active); }
+  if (data.sort_order !== undefined) { sets.push(`sort_order=$${i++}`); params.push(data.sort_order); }
   if (!sets.length) return null;
+  sets.push(`updated_at=NOW()`);
   params.push(id);
   const { rows } = await pool.query(
     `UPDATE customer_tags SET ${sets.join(', ')} WHERE id=$${i}
-     RETURNING id, name, color, created_at`,
+     RETURNING id, name, color, sort_order, is_active, created_at, updated_at`,
     params
   );
   return rows[0] ?? null;
@@ -1035,11 +1046,11 @@ export async function deleteTag(id: number): Promise<void> {
 
 export async function getTagsForUser(userId: number): Promise<CustomerTag[]> {
   const { rows } = await pool.query(
-    `SELECT ct.id, ct.name, ct.color, ct.created_at
+    `SELECT ct.id, ct.name, ct.color, ct.sort_order, ct.is_active, ct.created_at, ct.updated_at
      FROM user_tag_assignments uta
      JOIN customer_tags ct ON ct.id = uta.tag_id
      WHERE uta.user_id = $1
-     ORDER BY ct.name`,
+     ORDER BY ct.sort_order ASC, ct.name ASC`,
     [userId]
   );
   return rows;

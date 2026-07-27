@@ -7,7 +7,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json().catch(() => ({})) as { name?: string; color?: string };
+  const body = await req.json().catch(() => ({})) as {
+    name?: string;
+    color?: string;
+    is_active?: boolean;
+    sort_order?: number;
+  };
   const tag = await updateTag(Number(id), body);
   if (!tag) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(tag);
