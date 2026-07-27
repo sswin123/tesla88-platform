@@ -339,3 +339,69 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   return NextResponse.json({ error: 'type must be config, credential, or website' }, { status: 400 });
 }
+
+/**
+ * DELETE /api/games/settings/[code]
+ * Removes a provider and all dependent rows.
+ * Three protections (checked in order):
+ *   1. Provider must not be ACTIVE
+ *   2. No gp_games rows referencing this provider
+ *   3. No gp_credentials rows for this provider
+ */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const payload = await requirePermission('game.manage');
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { code } = await params;
+
+  const { rows: provRows } = await pool.query<{ id: number; status: string }>(
+    `SELECT id, status FROM gp_providers WHERE code = $1`,
+    [code.toUpperCase()],
+  );
+  if (provRows.length === 0) {
+    return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  }
+  const { id: providerId, status: providerStatus } = provRows[0];
+
+  // Protection 1: must not be ACTIVE
+  if (providerStatus === 'ACTIVE') {
+    return NextResponse.json(
+      { error: 'Provider is currently active. Set status to DISABLED first.' },
+      { status: 409 },
+    );
+  }
+
+  // Protection 2: no games
+  const { rows: gameCount } = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*)::text AS cnt FROM gp_games WHERE provider_id = $1`,
+    [providerId],
+  );
+  if (parseInt(gameCount[0].cnt, 10) > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: provider has ${gameCount[0].cnt} game(s). Remove all games first.` },
+      { status: 409 },
+    );
+  }
+
+  // Protection 3: no credentials
+  const { rows: credCount } = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*)::text AS cnt FROM gp_credentials WHERE provider_id = $1`,
+    [providerId],
+  );
+  if (parseInt(credCount[0].cnt, 10) > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete: provider has ${credCount[0].cnt} credential(s) configured. Clear credentials first.` },
+      { status: 409 },
+    );
+  }
+
+  // Delete in FK order
+  await pool.query(`DELETE FROM gp_config_audit_log WHERE provider_id = $1`, [providerId]);
+  await pool.query(`DELETE FROM gp_config_history  WHERE provider_id = $1`, [providerId]);
+  await pool.query(`DELETE FROM gp_health_checks   WHERE provider_id = $1`, [providerId]);
+  await pool.query(`DELETE FROM gp_credentials     WHERE provider_id = $1`, [providerId]);
+  await pool.query(`DELETE FROM gp_config          WHERE provider_id = $1`, [providerId]);
+  await pool.query(`DELETE FROM gp_providers       WHERE id = $1`,          [providerId]);
+
+  return NextResponse.json({ ok: true });
+}
