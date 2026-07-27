@@ -23,7 +23,8 @@ type DecryptFn = (ciphertext: string) => string;
  * The existing ProviderManager and gaming.ts singleton are NOT affected.
  */
 export class BrandProviderManager {
-  private readonly cache = new Map<string, IGameProvider>();
+  private readonly cache    = new Map<string, IGameProvider>();
+  private readonly inFlight = new Map<string, Promise<IGameProvider>>();
 
   constructor(
     private readonly brandProviderRepo: BrandProviderRepository,
@@ -47,9 +48,33 @@ export class BrandProviderManager {
    */
   async getAdapter(brandCode: string, providerCode: string): Promise<IGameProvider> {
     const cacheKey = this.key(brandCode, providerCode);
+
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
+    // Deduplicate concurrent requests for the same key
+    const inflight = this.inFlight.get(cacheKey);
+    if (inflight) return inflight;
+
+    const promise = this._loadAdapter(brandCode, providerCode, cacheKey);
+    this.inFlight.set(cacheKey, promise);
+    try {
+      const adapter = await promise;
+      return adapter;
+    } finally {
+      this.inFlight.delete(cacheKey);
+    }
+  }
+
+  /**
+   * Internal: load credentials + config from DB, build adapter, populate cache.
+   * Called only when no cached instance or in-flight promise exists.
+   */
+  private async _loadAdapter(
+    brandCode: string,
+    providerCode: string,
+    cacheKey: string,
+  ): Promise<IGameProvider> {
     const bp = await this.brandProviderRepo.findActive(
       brandCode.toUpperCase(),
       providerCode.toUpperCase(),
@@ -90,12 +115,15 @@ export class BrandProviderManager {
    * Call after credential or config changes so the next request re-loads them.
    */
   invalidate(brandCode: string, providerCode: string): void {
-    this.cache.delete(this.key(brandCode, providerCode));
+    const k = this.key(brandCode, providerCode);
+    this.cache.delete(k);
+    this.inFlight.delete(k);
   }
 
   /** Invalidate all cached adapters. */
   invalidateAll(): void {
     this.cache.clear();
+    this.inFlight.clear();
   }
 
   /** Return the current cache size (for monitoring/debug). */

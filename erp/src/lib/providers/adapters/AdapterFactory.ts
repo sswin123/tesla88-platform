@@ -5,6 +5,16 @@ import type { EventLogger } from '../core/EventLogger';
 import { Kiss918Adapter } from './kiss918/Kiss918Adapter';
 import type { Kiss918Credentials, Kiss918Config } from './kiss918/Kiss918Adapter';
 
+/**
+ * NaN-safe integer parser. Returns `fallback` when `val` is absent or
+ * produces NaN (e.g. "abc", "10abc").
+ */
+function parseIntSafe(val: string | undefined, fallback: number): number {
+  if (!val) return fallback;
+  const n = parseInt(val, 10);
+  return isNaN(n) ? fallback : n;
+}
+
 export interface AdapterDeps {
   wallet: MasterWalletEngine;
   eventLogger: EventLogger;
@@ -48,12 +58,10 @@ export function createAdapter(
         game_icon_url:       config['game_icon_url']        || undefined,
         postfix_id:          config['postfix_id']            ?? '',
         currency:            config['currency']              ?? 'MYR',
-        timeout_ms:          config['timeout_ms']
-                               ? parseInt(config['timeout_ms'], 10) : 10_000,
-        circuit_threshold:   config['circuit_threshold']
-                               ? parseInt(config['circuit_threshold'], 10) : 5,
-        circuit_cooldown_ms: config['circuit_cooldown_ms']
-                               ? parseInt(config['circuit_cooldown_ms'], 10) : 30_000,
+        timeout_ms:          parseIntSafe(config['timeout_ms'],          10_000),
+        circuit_threshold:   parseIntSafe(config['circuit_threshold'],   5),
+        circuit_cooldown_ms: parseIntSafe(config['circuit_cooldown_ms'], 30_000),
+        default_lobby_url:   config['default_lobby_url']    || undefined,
         debug:
           config['debug'] === 'true' ||
           process.env.ENABLE_PROVIDER_DEBUG === 'true',
