@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
   if (status === 'inactive')   { conditions.push('g.is_active = FALSE'); }
   if (status === 'maintenance'){ conditions.push('g.is_maintenance = TRUE'); }
   if (search) {
-    conditions.push(`(g.name ILIKE $${i} OR g.display_name ILIKE $${i})`);
+    conditions.push(`(g.name ILIKE $${i} OR g.display_name ILIKE $${i} OR g.name_zh ILIKE $${i} OR g.name_en ILIKE $${i})`);
     vals.push(`%${search}%`); i++;
   }
 
@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
       g.game_code,
       COALESCE(g.display_name, g.name) AS display_name,
       g.name AS original_name,
+      g.name_zh,
+      g.name_en,
       g.description, g.category, g.subcategory,
       g.game_type, g.sub_type,
       g.icon_url, g.thumbnail_url, g.banner_url,
@@ -126,6 +128,8 @@ export async function POST(req: NextRequest) {
     provider_code:  string;
     game_code:      string;
     name:           string;
+    name_zh?:       string | null;
+    name_en?:       string | null;
     display_name?:  string | null;
     description?:   string | null;
     category?:      string;
@@ -164,20 +168,22 @@ export async function POST(req: NextRequest) {
 
   const { rows } = await pool.query(
     `INSERT INTO gp_games
-       (provider_id, game_code, name, display_name, description,
+       (provider_id, game_code, name, name_zh, name_en, display_name, description,
         category, subcategory, launch_mode, import_mode,
         icon_url, thumbnail_url, banner_url,
         visible, featured, recommended,
         is_hot, is_new, is_active,
         desktop_supported, mobile_supported,
         sort_order, metadata, synced_at, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'MANUAL',$9,$10,$11,$12,$13,$14,$15,$16,TRUE,$17,$18,$19,$20,NOW(),NOW(),NOW())
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'MANUAL',$11,$12,$13,$14,$15,$16,$17,$18,TRUE,$19,$20,$21,$22,NOW(),NOW(),NOW())
      ON CONFLICT (provider_id, game_code) DO NOTHING
      RETURNING id`,
     [
       providerId,
       body.game_code,
       body.name,
+      body.name_zh ?? null,
+      body.name_en ?? null,
       body.display_name ?? null,
       body.description ?? null,
       body.category ?? 'slot',

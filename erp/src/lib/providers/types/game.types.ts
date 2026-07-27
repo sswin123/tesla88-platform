@@ -19,6 +19,8 @@ export interface GameRecord {
   provider_id: number;
   game_code: string;
   name: string;
+  name_zh: string | null;
+  name_en: string | null;
   game_type: GameType;
   sub_type: string | null;
   icon_url: string | null;
@@ -38,6 +40,8 @@ export interface GameRecord {
 export interface GameListItem {
   game_code: string;
   name: string;
+  name_zh?: string | null;
+  name_en?: string | null;
   game_type: GameType;
   sub_type?: string | null;
   icon_url?: string | null;

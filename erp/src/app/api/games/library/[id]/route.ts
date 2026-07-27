@@ -20,6 +20,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const ALLOWED_FIELDS: Record<string, string> = {
     name:             'name',
+    name_zh:          'name_zh',
+    name_en:          'name_en',
     display_name:     'display_name',
     description:      'description',
     category:         'category',

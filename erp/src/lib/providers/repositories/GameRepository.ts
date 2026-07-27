@@ -41,11 +41,13 @@ export class GameRepository implements IGameRepository {
     for (const game of games) {
       const { rowCount, rows } = await pool.query<{ xmax: string }>(
         `INSERT INTO gp_games
-           (provider_id, game_code, name, game_type, sub_type, icon_url, banner_url,
+           (provider_id, game_code, name, name_zh, name_en, game_type, sub_type, icon_url, banner_url,
             is_active, metadata, synced_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
          ON CONFLICT (provider_id, game_code) DO UPDATE
          SET name       = EXCLUDED.name,
+             name_zh    = COALESCE(EXCLUDED.name_zh, gp_games.name_zh),
+             name_en    = COALESCE(EXCLUDED.name_en, gp_games.name_en),
              game_type  = EXCLUDED.game_type,
              sub_type   = EXCLUDED.sub_type,
              icon_url   = EXCLUDED.icon_url,
@@ -59,6 +61,8 @@ export class GameRepository implements IGameRepository {
           providerId,
           game.game_code,
           game.name,
+          game.name_zh ?? null,
+          game.name_en ?? null,
           game.game_type,
           game.sub_type ?? null,
           game.icon_url ?? null,
