@@ -43,6 +43,13 @@ export function MemberCard({
       .catch(() => {});
   }, []);
 
+  // Reset tag state when the member changes so the previous member's
+  // selected/assigned tags never bleed into the newly selected conversation.
+  useEffect(() => {
+    setTags(member.tags ?? []);
+    setSelectedTagId('');
+  }, [member.id]);
+
   async function handleAddTag() {
     if (!selectedTagId) return;
     setAddingTag(true);
