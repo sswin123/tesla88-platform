@@ -8,7 +8,7 @@ import {
   Loader2, ChevronDown, ChevronUp, ShieldCheck, Activity, Wifi, WifiOff,
   Download, Upload, History, RotateCcw, Copy, Check, Lock, Unlock,
   BarChart2, ScrollText, Zap, Filter, Search, ChevronLeft, ChevronRight,
-  Clock, TrendingUp, TrendingDown, AlertTriangle,
+  Clock, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════
@@ -1444,6 +1444,220 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
 }
 
 // ══════════════════════════════════════════════════════════════
+// New Provider Modal
+// ══════════════════════════════════════════════════════════════
+
+const ALL_CAPABILITIES = [
+  'SEAMLESS_WALLET','TRANSFER_WALLET','GAME_SYNC','LOBBY','HISTORY',
+  'JACKPOT','BONUS','FREE_SPIN','FUND_FLOAT','NICKNAME_UPDATE','LOGOUT',
+] as const;
+
+function NewProviderModal({ onCreated, onClose }: { onCreated: (code: string) => void; onClose: () => void }) {
+  const [code,        setCode]        = useState('');
+  const [name,        setName]        = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [walletType,  setWalletType]  = useState<'SEAMLESS' | 'TRANSFER'>('SEAMLESS');
+  const [environment, setEnvironment] = useState<'PRODUCTION' | 'SANDBOX'>('PRODUCTION');
+  const [caps,        setCaps]        = useState<string[]>(['SEAMLESS_WALLET', 'LOBBY']);
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
+
+  function toggleCap(cap: string) {
+    setCaps(prev => prev.includes(cap) ? prev.filter(c => c !== cap) : [...prev, cap]);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const r = await fetch('/api/games/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code.trim().toUpperCase(),
+          name: name.trim(),
+          display_name: displayName.trim() || undefined,
+          wallet_type: walletType,
+          environment,
+          capabilities: caps,
+        }),
+      });
+      const d = await r.json() as { ok?: boolean; code?: string; error?: string };
+      if (!r.ok || !d.ok) { setError(d.error ?? '创建失败'); return; }
+      onCreated(d.code ?? code.toUpperCase());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '网络错误');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">新建 Provider</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <XCircle className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+        <form onSubmit={e => void handleSubmit(e)} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-500 mb-1">Provider Code * <span className="text-slate-400">(如 MEGAH5, JILI)</span></label>
+              <input required value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+                pattern="[A-Z0-9_]{2,30}" title="2-30 uppercase letters, digits, underscores"
+                placeholder="MEGAH5"
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Provider Name *</label>
+              <input required value={name} onChange={e => setName(e.target.value)}
+                placeholder="Mega888 H5"
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Display Name</label>
+              <input value={displayName} onChange={e => setDisplayName(e.target.value)}
+                placeholder="Mega888"
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Wallet Type</label>
+              <select value={walletType} onChange={e => setWalletType(e.target.value as 'SEAMLESS' | 'TRANSFER')}
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="SEAMLESS">SEAMLESS</option>
+                <option value="TRANSFER">TRANSFER</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Environment</label>
+              <select value={environment} onChange={e => setEnvironment(e.target.value as 'PRODUCTION' | 'SANDBOX')}
+                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="PRODUCTION">PRODUCTION</option>
+                <option value="SANDBOX">SANDBOX</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-2">Capabilities</label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_CAPABILITIES.map(cap => (
+                <button key={cap} type="button" onClick={() => toggleCap(cap)}
+                  className={`px-2 py-1 rounded text-xs font-mono transition-colors
+                    ${caps.includes(cap)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                  {cap}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-rose-500">{error}</p>}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              取消
+            </button>
+            <button type="submit" disabled={saving}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {saving ? '创建中…' : '创建 Provider'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// Duplicate Provider Modal
+// ══════════════════════════════════════════════════════════════
+
+function DuplicateModal({ sourceCode, onDuplicated, onClose }: {
+  sourceCode: string;
+  onDuplicated: (newCode: string) => void;
+  onClose: () => void;
+}) {
+  const [newCode, setNewCode] = useState('');
+  const [newName, setNewName] = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/games/settings/${sourceCode}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_code: newCode.toUpperCase(), new_name: newName.trim() || undefined }),
+      });
+      const d = await r.json() as { ok?: boolean; new_code?: string; error?: string };
+      if (!r.ok || !d.ok) { setError(d.error ?? '复制失败'); return; }
+      onDuplicated(d.new_code ?? newCode.toUpperCase());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '网络错误');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            复制 Provider — <span className="font-mono text-blue-600">{sourceCode}</span>
+          </h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+            <XCircle className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+        <form onSubmit={e => void handleSubmit(e)} className="p-6 space-y-4">
+          <p className="text-xs text-slate-500">
+            复制 Provider 的基本信息和配置（gp_config）到新 code。凭证不会复制，需要手动填写。
+          </p>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">新 Provider Code *</label>
+            <input required value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase())}
+              pattern="[A-Z0-9_]{2,30}" title="2-30 uppercase letters, digits, underscores"
+              placeholder="MEGAH5_STAGING"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">新 Provider Name（留空则自动加 "(copy)"）</label>
+            <input value={newName} onChange={e => setNewName(e.target.value)}
+              placeholder="Mega888 H5 Staging"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          {error && <p className="text-xs text-rose-500">{error}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              取消
+            </button>
+            <button type="submit" disabled={saving}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {saving ? '复制中…' : '确认复制'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // Provider Dashboard Card (overview)
 // ══════════════════════════════════════════════════════════════
 
@@ -1495,6 +1709,10 @@ export default function GamingPlatformPage() {
   const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
   const [userRole, setUserRole]     = useState<string>('ADMIN');
   const [listExpanded, setListExpanded] = useState(true);
+  const [showNewModal,  setShowNewModal]  = useState(false);
+  const [duplicating,   setDuplicating]   = useState<string | null>(null);
+  const [deletingCode,  setDeletingCode]  = useState<string | null>(null);
+  const [deletingBusy,  setDeletingBusy]  = useState(false);
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -1520,6 +1738,23 @@ export default function GamingPlatformPage() {
       .catch(() => {});
   }, [loadProviders]);
 
+  async function handleDelete(code: string) {
+    setDeletingBusy(true);
+    try {
+      const r = await fetch(`/api/games/settings/${code}`, { method: 'DELETE' });
+      const d = await r.json() as { ok?: boolean; error?: string };
+      if (!r.ok || !d.ok) { showToast(d.error ?? '删除失败', false); return; }
+      showToast(`已删除 ${code}`, true);
+      setDeletingCode(null);
+      if (selected === code) setSelected(null);
+      void loadProviders();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '网络错误', false);
+    } finally {
+      setDeletingBusy(false);
+    }
+  }
+
   const activeProvider = providers.find(p => p.code === selected);
 
   return (
@@ -1532,9 +1767,18 @@ export default function GamingPlatformPage() {
             统一管理所有游戏提供商配置、凭证、回调日志与运行状态
           </p>
         </div>
-        <button onClick={loadProviders} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
-          <RefreshCw className="w-4 h-4 text-slate-500" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            新建 Provider
+          </button>
+          <button onClick={loadProviders} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <RefreshCw className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1558,7 +1802,25 @@ export default function GamingPlatformPage() {
                 {listExpanded && <span>提供商列表</span>}
               </button>
               {providers.map(p => listExpanded ? (
-                <ProviderCard key={p.code} p={p} isSelected={selected === p.code} onClick={() => setSelected(p.code)} />
+                <div key={p.code} className="relative group">
+                  <ProviderCard p={p} isSelected={selected === p.code} onClick={() => setSelected(p.code)} />
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={e => { e.stopPropagation(); setDuplicating(p.code); }}
+                      title="复制 Provider"
+                      className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 shadow-sm"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setDeletingCode(p.code); }}
+                      title="删除 Provider"
+                      className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 shadow-sm"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <button key={p.code} onClick={() => setSelected(p.code)} title={p.display_name || p.name}
                   className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold
@@ -1583,6 +1845,57 @@ export default function GamingPlatformPage() {
                 选择左侧提供商查看详情
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showNewModal && (
+        <NewProviderModal
+          onCreated={(code) => {
+            setShowNewModal(false);
+            showToast(`Provider "${code}" 已创建，状态 DISABLED`, true);
+            void loadProviders();
+            setSelected(code);
+          }}
+          onClose={() => setShowNewModal(false)}
+        />
+      )}
+
+      {duplicating && (
+        <DuplicateModal
+          sourceCode={duplicating}
+          onDuplicated={(newCode) => {
+            setDuplicating(null);
+            showToast(`已复制为 "${newCode}"（配置已复制，凭证需手动填写）`, true);
+            void loadProviders();
+            setSelected(newCode);
+          }}
+          onClose={() => setDuplicating(null)}
+        />
+      )}
+
+      {deletingCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">确认删除</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              将永久删除 Provider <span className="font-mono font-bold">{deletingCode}</span> 及其所有配置。
+              此操作不可撤销。
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              如果该 Provider 仍有关联游戏，删除将被拒绝。
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeletingCode(null)} disabled={deletingBusy}
+                className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
+                取消
+              </button>
+              <button onClick={() => void handleDelete(deletingCode)} disabled={deletingBusy}
+                className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5">
+                {deletingBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {deletingBusy ? '删除中…' : '确认删除'}
+              </button>
+            </div>
           </div>
         </div>
       )}
