@@ -19,6 +19,8 @@ interface GameRow {
   game_code: string;
   display_name: string;
   original_name: string;
+  name_zh: string | null;
+  name_en: string | null;
   description: string | null;
   category: string;
   subcategory: string | null;
@@ -116,6 +118,8 @@ function EditGameDialog({
   const [gameCode,     setGameCode]     = useState(game?.game_code ?? '');
   const [name,         setName]         = useState(game?.original_name ?? '');
   const [displayName,  setDisplayName]  = useState(game?.display_name !== game?.original_name ? (game?.display_name ?? '') : '');
+  const [nameZh,       setNameZh]       = useState(game?.name_zh ?? '');
+  const [nameEn,       setNameEn]       = useState(game?.name_en ?? '');
   const [description,  setDescription]  = useState(game?.description ?? '');
   const [category,     setCategory]     = useState(game?.category ?? 'slot');
   const [launchMode,   setLaunchMode]   = useState(game?.launch_mode ?? 'DIRECT');
@@ -141,6 +145,7 @@ function EditGameDialog({
     try {
       const data: Record<string, unknown> = {
         name, display_name: displayName || null, description: description || null,
+        name_zh: nameZh.trim() || null, name_en: nameEn.trim() || null,
         category, launch_mode: launchMode,
         icon_url: iconUrl || null, thumbnail_url: thumbnailUrl || null,
         visible, is_active: isActive, is_hot: isHot, is_new: isNew2,
@@ -214,6 +219,27 @@ function EditGameDialog({
                 placeholder="留空则用原始名称"
                 className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
+          </div>
+
+          {/* Chinese Name */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">中文名称 (name_zh)</label>
+            <input
+              value={nameZh}
+              onChange={e => setNameZh(e.target.value)}
+              placeholder="幸运神"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* English Name */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">English Name (name_en)</label>
+            <input
+              value={nameEn}
+              onChange={e => setNameEn(e.target.value)}
+              placeholder="Lucky God"
+              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           <div>
