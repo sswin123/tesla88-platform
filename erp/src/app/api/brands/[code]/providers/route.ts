@@ -102,16 +102,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Validate wallet_type and environment
-  const WALLET_TYPES = ['SEAMLESS', 'TRANSFER'] as const;
-  const ENVIRONMENTS = ['PRODUCTION', 'SANDBOX'] as const;
-
   const walletType = body.wallet_type === 'TRANSFER' ? 'TRANSFER' : 'SEAMLESS';
   const environment = body.environment === 'SANDBOX' ? 'SANDBOX' : 'PRODUCTION';
   const currency = typeof body.currency === 'string' && body.currency.trim()
     ? body.currency.trim().toUpperCase().slice(0, 3)
     : 'MYR';
-
-  void WALLET_TYPES; void ENVIRONMENTS; // referenced in doc only
 
   // Resolve brand
   const { rows: brandRows } = await pool.query<{ id: number }>(

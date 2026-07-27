@@ -395,6 +395,20 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     );
   }
 
+  // Guard 4: cannot delete provider that has brand configurations
+  const { rows: brandRows } = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*)::text AS cnt FROM brand_providers WHERE provider_id = $1`,
+    [providerId],
+  );
+  if (parseInt(brandRows[0].cnt, 10) > 0) {
+    return NextResponse.json(
+      {
+        error: `Cannot delete: provider is used in ${brandRows[0].cnt} brand configuration(s). Remove all brand-provider configurations first.`,
+      },
+      { status: 409 },
+    );
+  }
+
   // Delete in FK order
   await pool.query(`DELETE FROM gp_config_audit_log WHERE provider_id = $1`, [providerId]);
   await pool.query(`DELETE FROM gp_config_history  WHERE provider_id = $1`, [providerId]);

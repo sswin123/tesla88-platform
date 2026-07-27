@@ -215,7 +215,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!key)   return NextResponse.json({ error: 'key is required' },   { status: 400 });
     if (!value) return NextResponse.json({ error: 'value is required' }, { status: 400 });
 
-    const isEncrypted = body.encrypt !== false; // default true
+    const isEncrypted = body.encrypt === true; // default false — callers must explicitly pass encrypt:true for pre-encrypted values
 
     await pool.query(
       `INSERT INTO brand_provider_credentials
