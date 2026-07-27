@@ -154,7 +154,7 @@ const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
 // VERSION MARKER — visible in browser console to confirm new code is deployed.
 // If you do NOT see this line in console, the container is still running old code.
 if (typeof window !== 'undefined') {
-  console.log('[sidebar] VERSION=d61b0f8 loaded — r.ok fix + interval diagnostics active');
+  console.log('[sidebar] VERSION=e3a2f1c loaded — brandLoaded guard: title never uses hardcoded fallback');
 }
 
 // Persistent shared AudioContext.
@@ -218,6 +218,7 @@ export function Sidebar() {
   const [maintenanceOn, setMaintenanceOn] = useState(false);
   const [me, setMe] = useState<MeData>({ isSuperAdmin: false, permissions: [] });
   const [brand, setBrand] = useState<BrandData>({ brand_name: 'ERP Admin', logo_media_id: null });
+  const [brandLoaded, setBrandLoaded] = useState(false);
   const [livechatUnread, setLivechatUnread] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const refreshTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -301,11 +302,13 @@ export function Sidebar() {
     if (pathname.startsWith('/livechat')) setLivechatUnread(0);
   }, [pathname]);
 
-  // Browser title — always uses Brand Center name, never a hardcoded project name.
-  // Listens on visibilitychange so that when the user returns to this tab after a
-  // livechat flash notification the correct title is immediately restored.
-  // Also listens on 'erp:titleassert' dispatched by ConversationList.stopFlash().
+  // Browser title — only runs after Brand Center value is confirmed by /api/public/brand.
+  // Guarded by brandLoaded so the initial 'ERP Admin' fallback never appears in the title;
+  // the server-rendered title from generateMetadata() persists until the brand API resolves.
+  // Listens on visibilitychange and 'erp:titleassert' to restore the correct title after
+  // ConversationList's livechat flash notification overwrites it.
   useEffect(() => {
+    if (!brandLoaded) return;
     const base  = `${brand.brand_name} ERP`;
     const title = pendingCount > 0 ? `(${pendingCount}) ${base}` : base;
     document.title = title;
@@ -317,7 +320,7 @@ export function Sidebar() {
       document.removeEventListener('visibilitychange', reassert);
       window.removeEventListener('erp:titleassert', reassert);
     };
-  }, [pendingCount, brand.brand_name]);
+  }, [pendingCount, brand.brand_name, brandLoaded]);
 
   useEffect(() => {
     loadMe();
@@ -327,10 +330,30 @@ export function Sidebar() {
         if (d?.maintenance_mode) setMaintenanceOn(true);
       })
       .catch(() => {});
-    fetch('/api/public/brand')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b: BrandData | null) => { if (b?.brand_name) setBrand(b); })
-      .catch(() => {});
+
+    // Brand fetch with retry — if the API fails (network error, 500, or empty response),
+    // schedule a retry after 30 s so the title eventually recovers once the brand API
+    // comes back online. brandLoaded stays false until a successful fetch, so the
+    // server-rendered title from generateMetadata() persists during the failure window.
+    let brandRetryTimer: ReturnType<typeof setTimeout> | null = null;
+    const fetchBrand = () => {
+      fetch('/api/public/brand')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b: BrandData | null) => {
+          if (b?.brand_name) {
+            setBrand(b);
+            setBrandLoaded(true);
+          } else {
+            // Non-ok response or missing brand_name — retry after 30 s
+            brandRetryTimer = setTimeout(fetchBrand, 30_000);
+          }
+        })
+        .catch(() => {
+          // Network error or timeout — retry after 30 s
+          brandRetryTimer = setTimeout(fetchBrand, 30_000);
+        });
+    };
+    fetchBrand();
 
     // Fetch initial livechat unread count
     fetch('/api/livechat/unread')
@@ -380,6 +403,7 @@ export function Sidebar() {
     return () => {
       unsubChat();
       unsubTx();
+      if (brandRetryTimer) clearTimeout(brandRetryTimer);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       if (reminderInterval.current) {
         clearInterval(reminderInterval.current);
