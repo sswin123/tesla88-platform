@@ -148,9 +148,7 @@ function isActive(href: string, pathname: string, exact?: boolean): boolean {
   return pathname === href || pathname.startsWith(href + '/');
 }
 
-// Interval (ms) between repeated notification beeps while pending transactions exist.
-// Increase this value to reduce frequency; decrease to alert more aggressively.
-const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
+// Note: NOTIFICATION_REPEAT_INTERVAL_MS removed — now fetched dynamically from /api/settings/notifications
 
 // VERSION MARKER — visible in browser console to confirm new code is deployed.
 // If you do NOT see this line in console, the container is still running old code.
@@ -169,6 +167,8 @@ export function Sidebar() {
   const [pendingCount, setPendingCount] = useState(0);
   const refreshTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reminderInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const notifIntervalMs  = useRef<number>(3000);
+  const pendingCountRef  = useRef<number>(0);
 
   const filteredNavGroups = useMemo(
     () => filterNavGroups(NAV_GROUPS, me?.isSuperAdmin ?? false, me?.permissions ?? []),
@@ -182,6 +182,7 @@ export function Sidebar() {
   // Starts the repeat-beep reminder when pending > 0; stops it when pending reaches 0.
   // Guarantees at most one setInterval exists at any time.
   const handlePendingCountUpdate = useCallback((newCount: number) => {
+    pendingCountRef.current = newCount;
     console.log('[sidebar:pending] handlePendingCountUpdate called, count =', newCount, ', interval running =', !!reminderInterval.current);
     setPendingCount(newCount);
     if (newCount > 0) {
@@ -213,7 +214,7 @@ export function Sidebar() {
               }
             })
             .catch((err) => { console.error('[sidebar:pending] interval fetch error:', err); });
-        }, NOTIFICATION_REPEAT_INTERVAL_MS);
+        }, notifIntervalMs.current);
       }
       // Interval already running — let it continue; don't create a duplicate
     } else {
@@ -314,6 +315,14 @@ export function Sidebar() {
       .then((d: { count: number } | null) => { if (d) handlePendingCountUpdate(d.count ?? 0); })
       .catch(() => {});
 
+    // Fetch notification interval from settings
+    fetch('/api/settings/notifications')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { reminder_interval_ms?: number } | null) => {
+        if (d?.reminder_interval_ms) notifIntervalMs.current = d.reminder_interval_ms;
+      })
+      .catch(() => {});
+
     // SSE: live chat — increment unread + play sound when customer sends a message
     const unsubChat = subscribeSSE('/api/livechat/stream', (e: MessageEvent) => {
       try {
@@ -347,6 +356,23 @@ export function Sidebar() {
       }, 250);
     });
 
+    // Listen for interval changes from Brand Center settings
+    const handleIntervalChange = (e: Event) => {
+      const ms = (e as CustomEvent<number>).detail;
+      if (typeof ms !== 'number' || !Number.isInteger(ms) || ms < 1000 || ms > 10000) return;
+      notifIntervalMs.current = ms;
+      // Restart the reminder interval with new timing if currently running
+      if (reminderInterval.current !== null) {
+        clearInterval(reminderInterval.current);
+        reminderInterval.current = null;
+        // Re-trigger: if still pending, handlePendingCountUpdate will restart the interval
+        if (pendingCountRef.current > 0) {
+          handlePendingCountUpdate(pendingCountRef.current);
+        }
+      }
+    };
+    window.addEventListener('erp:notif-interval-changed', handleIntervalChange);
+
     return () => {
       unsubChat();
       unsubTx();
@@ -356,6 +382,7 @@ export function Sidebar() {
         clearInterval(reminderInterval.current);
         reminderInterval.current = null;
       }
+      window.removeEventListener('erp:notif-interval-changed', handleIntervalChange);
     };
   }, [loadMe, handlePendingCountUpdate]);
 

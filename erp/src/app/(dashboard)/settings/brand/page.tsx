@@ -208,6 +208,8 @@ export default function BrandCenterPage() {
   const [saving, setSaving]       = useState(false);
   const [urlErrors, setUrlErrors] = useState<Partial<Record<UrlErrorKey, string>>>({});
   const [erpConfig, setErpConfig] = useState<ErpConfig>({});
+  const [notifInterval, setNotifInterval] = useState<number>(3000);
+  const [savingNotif,   setSavingNotif]   = useState(false);
   const { toast, show, clear }    = useToast();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -220,6 +222,12 @@ export default function BrandCenterPage() {
     fetch('/api/erp/config')
       .then(r => r.json())
       .then((d: ErpConfig) => setErpConfig(d))
+      .catch(() => {});
+    fetch('/api/settings/notifications')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { reminder_interval_ms?: number } | null) => {
+        if (d?.reminder_interval_ms) setNotifInterval(d.reminder_interval_ms);
+      })
       .catch(() => {});
   }, []);
 
@@ -299,6 +307,27 @@ export default function BrandCenterPage() {
       show('网络错误，保存失败', 'error');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveNotifSettings() {
+    setSavingNotif(true);
+    try {
+      const r = await fetch('/api/settings/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reminder_interval_ms: notifInterval }),
+      });
+      if (r.ok) {
+        show('通知设置已保存', 'success');
+        // 立即通知 sidebar 更新 timer 间隔（无需刷新页面）
+        window.dispatchEvent(new CustomEvent('erp:notif-interval-changed', { detail: notifInterval }));
+      } else {
+        const d = await r.json() as { error?: string };
+        show(d.error ?? '保存失败', 'error');
+      }
+    } finally {
+      setSavingNotif(false);
     }
   }
 
@@ -711,6 +740,40 @@ export default function BrandCenterPage() {
         <p className="text-xs text-gray-500">在 Widget 文字中使用这些变量，发布时自动替换为实际值</p>
         <div className="grid grid-cols-2 gap-2">
           {VARIABLES.map(v => <VarBadge key={v.name} name={v.name} value={v.value} />)}
+        </div>
+      </Section>
+
+      {/* 10. 通知设置 */}
+      <Section title="10. 通知设置">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Transaction Reminder Interval (ms)
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              How often the pending transaction beep repeats. Range: 1000–10000ms.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1000}
+                max={10000}
+                step={100}
+                value={notifInterval}
+                onChange={(e) => setNotifInterval(Number(e.target.value))}
+                className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-xs text-gray-500">ms</span>
+              <button
+                type="button"
+                onClick={() => void saveNotifSettings()}
+                disabled={savingNotif || notifInterval < 1000 || notifInterval > 10000 || !Number.isInteger(notifInterval)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingNotif ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       </Section>
 
