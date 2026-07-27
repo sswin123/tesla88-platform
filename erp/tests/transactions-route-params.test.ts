@@ -36,10 +36,10 @@ beforeEach(() => {
 // ── Test Suite ─────────────────────────────────────────────────────────────────
 
 describe('GET /api/transactions — new params (type=pending + search)', () => {
-  it("type=pending → SQL contains status = 'PENDING'", async () => {
+  it("type=pending → SQL contains status IN ('PENDING','PROCESSING')", async () => {
     await GET(makeReq({ type: 'pending' }));
     const sqls = vi.mocked(pool.query).mock.calls.map(c => c[0] as string);
-    expect(sqls.some(sql => sql.includes("status = 'PENDING'"))).toBe(true);
+    expect(sqls.some(sql => sql.includes("status IN ('PENDING','PROCESSING')"))).toBe(true);
   });
 
   it("type=pending → SQL uses UNION ALL base (contains both 'deposit' and 'withdrawal' literals)", async () => {
@@ -51,10 +51,10 @@ describe('GET /api/transactions — new params (type=pending + search)', () => {
     expect(dataSql).toContain("'withdrawal'");
   });
 
-  it("type=pending + explicit status=APPROVED → status param ignored; SQL only has PENDING", async () => {
+  it("type=pending + explicit status=APPROVED → status param ignored; SQL has IN ('PENDING','PROCESSING') only", async () => {
     await GET(makeReq({ type: 'pending', status: 'APPROVED' }));
     const sqls = vi.mocked(pool.query).mock.calls.map(c => c[0] as string);
-    expect(sqls.some(sql => sql.includes("status = 'PENDING'"))).toBe(true);
+    expect(sqls.some(sql => sql.includes("status IN ('PENDING','PROCESSING')"))).toBe(true);
     expect(sqls.every(sql => !sql.includes("status = 'APPROVED'"))).toBe(true);
   });
 
@@ -79,12 +79,12 @@ describe('GET /api/transactions — new params (type=pending + search)', () => {
     expect(withIlike).toContain('user_id');
   });
 
-  it('type=pending + search=SS10 → SQL has PENDING filter AND ILIKE; params contains %SS10%', async () => {
+  it("type=pending + search=SS10 → SQL has IN ('PENDING','PROCESSING') AND ILIKE; params contains %SS10%", async () => {
     await GET(makeReq({ type: 'pending', search: 'SS10' }));
     const calls = vi.mocked(pool.query).mock.calls;
     const sqls   = calls.map(c => c[0] as string);
     const params  = calls.map(c => c[1] as unknown[]);
-    expect(sqls.some(sql => sql.includes("status = 'PENDING'") && sql.includes('ILIKE'))).toBe(true);
+    expect(sqls.some(sql => sql.includes("status IN ('PENDING','PROCESSING')") && sql.includes('ILIKE'))).toBe(true);
     expect(params.some(p => Array.isArray(p) && p.includes('%SS10%'))).toBe(true);
   });
 
