@@ -138,14 +138,16 @@ export default function MemberDetailPage() {
     setChatLoading(true);
     setChatError('');
     try {
-      const r = await fetch(`/api/livechat/sessions/by-member/${data.member.id}`);
-      if (!r.ok) { setChatError('无法加载聊天记录'); return; }
-      const d = await r.json() as { session_id: number | null };
-      if (d.session_id) {
-        router.push(`/livechat?session=${d.session_id}`);
-      } else {
-        setChatError('该会员暂无聊天记录');
+      const r = await fetch(`/api/livechat/sessions/by-member/${data.member.id}`, {
+        method: 'POST',
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({})) as { error?: string };
+        setChatError(d.error ?? '无法打开聊天');
+        return;
       }
+      const d = await r.json() as { session_id: number };
+      router.push(`/livechat?session=${d.session_id}`);
     } catch {
       setChatError('网络错误，请重试');
     } finally {
