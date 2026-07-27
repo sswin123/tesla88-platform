@@ -35,6 +35,7 @@ export function MemberCard({
   const [allTags, setAllTags] = useState<CustomerTag[]>([]);
   const [selectedTagId, setSelectedTagId] = useState<number | ''>('');
   const [addingTag, setAddingTag] = useState(false);
+  const [tagSearch, setTagSearch] = useState('');
 
   useEffect(() => {
     fetch('/api/livechat/tags')
@@ -48,6 +49,7 @@ export function MemberCard({
   useEffect(() => {
     setTags(member.tags ?? []);
     setSelectedTagId('');
+    setTagSearch('');
   }, [member.id]);
 
   async function handleAddTag() {
@@ -126,30 +128,39 @@ export function MemberCard({
             ))}
           </div>
         )}
-        <div className="flex gap-1">
-          <select
-            value={selectedTagId}
-            onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : '')}
-            className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
-          >
-            <option value="">Add tag…</option>
-            {allTags
-              .filter((t) => !tags.some((ct) => ct.id === t.id))
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-          </select>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs h-7 px-2"
-            onClick={() => void handleAddTag()}
-            disabled={!selectedTagId || addingTag}
-          >
-            Add
-          </Button>
+        <div className="space-y-1">
+          <input
+            type="text"
+            placeholder="Search tags…"
+            value={tagSearch}
+            onChange={(e) => setTagSearch(e.target.value)}
+            className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+          />
+          <div className="flex gap-1">
+            <select
+              value={selectedTagId}
+              onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : '')}
+              className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+              size={1}
+            >
+              <option value="">Add tag…</option>
+              {allTags
+                .filter((t) => !tags.some((ct) => ct.id === t.id))
+                .filter((t) => !tagSearch.trim() || t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                .map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 px-2"
+              onClick={() => { void handleAddTag(); setTagSearch(''); }}
+              disabled={!selectedTagId || addingTag}
+            >
+              Add
+            </Button>
+          </div>
         </div>
       </div>
 

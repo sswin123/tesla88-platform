@@ -56,7 +56,10 @@ export function NotificationSettings({ settings, onChange }: NotificationSetting
                 onChange={() => handleToggle('sound')}
                 className="accent-blue-500"
               />
-              <span>Sound</span>
+              <div>
+                <span className="block">Sound</span>
+                <span className="text-[10px] text-gray-400 leading-tight">Transaction · Live Chat</span>
+              </div>
             </label>
 
             <label className="flex items-center gap-2 mb-2 cursor-pointer">
