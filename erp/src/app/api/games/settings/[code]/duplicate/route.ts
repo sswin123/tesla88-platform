@@ -70,36 +70,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       ? body.new_display_name.trim()
       : newName;
 
-  // Create new provider (status = DISABLED so it is safe to configure before enabling)
-  const { rows: newRows } = await pool.query<{ id: number; code: string }>(
-    `INSERT INTO gp_providers
-       (code, name, display_name, version, priority, status, environment,
-        wallet_type, capabilities, metadata)
-     VALUES ($1,$2,$3,$4,$5,'DISABLED',$6,$7,$8,$9)
-     RETURNING id, code`,
-    [
-      newCode, newName, newDisplayName, src.version,
-      src.priority, src.environment, src.wallet_type,
-      src.capabilities, src.metadata,
-    ],
-  );
-  const newId = newRows[0].id;
-
-  // Copy gp_config rows
+  // Pre-fetch source rows outside the transaction (read-only)
   const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
     `SELECT key, value FROM gp_config WHERE provider_id = $1`,
     [src.id],
   );
-  for (const row of cfgRows) {
-    await pool.query(
-      `INSERT INTO gp_config (provider_id, key, value, updated_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (provider_id, key) DO UPDATE SET value = EXCLUDED.value`,
-      [newId, row.key, row.value],
-    );
-  }
-
-  // Copy gp_credentials rows (key, value, is_encrypted; updated_by = NULL)
   const { rows: credRows } = await pool.query<{
     key: string;
     value: string;
@@ -108,19 +83,61 @@ export async function POST(req: NextRequest, { params }: Params) {
     `SELECT key, value, is_encrypted FROM gp_credentials WHERE provider_id = $1`,
     [src.id],
   );
-  for (const row of credRows) {
-    await pool.query(
-      `INSERT INTO gp_credentials (provider_id, key, value, is_encrypted, updated_by_name)
-       VALUES ($1, $2, $3, $4, 'system (duplicated)')
-       ON CONFLICT (provider_id, key) DO UPDATE
-         SET value = EXCLUDED.value,
-             is_encrypted = EXCLUDED.is_encrypted,
-             updated_by = NULL,
-             updated_by_name = 'system (duplicated)',
-             updated_at = NOW()`,
-      [newId, row.key, row.value, row.is_encrypted],
-    );
-  }
 
-  return NextResponse.json({ ok: true, new_code: newRows[0].code }, { status: 201 });
+  // Wrap all writes in a transaction so a mid-flight failure doesn't leave orphaned rows
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Create new provider (status = DISABLED so it is safe to configure before enabling)
+    const { rows: newRows } = await client.query<{ id: number; code: string }>(
+      `INSERT INTO gp_providers
+         (code, name, display_name, version, priority, status, environment,
+          wallet_type, capabilities, metadata)
+       VALUES ($1,$2,$3,$4,$5,'DISABLED',$6,$7,$8,$9)
+       RETURNING id, code`,
+      [
+        newCode, newName, newDisplayName, src.version,
+        src.priority, src.environment, src.wallet_type,
+        src.capabilities, src.metadata,
+      ],
+    );
+    const newId = newRows[0].id;
+
+    // Copy gp_config rows
+    for (const row of cfgRows) {
+      await client.query(
+        `INSERT INTO gp_config (provider_id, key, value, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (provider_id, key) DO UPDATE SET value = EXCLUDED.value`,
+        [newId, row.key, row.value],
+      );
+    }
+
+    // Copy gp_credentials rows (key, value, is_encrypted; updated_by = NULL)
+    for (const row of credRows) {
+      await client.query(
+        `INSERT INTO gp_credentials (provider_id, key, value, is_encrypted, updated_by_name)
+         VALUES ($1, $2, $3, $4, 'system (duplicated)')
+         ON CONFLICT (provider_id, key) DO UPDATE
+           SET value = EXCLUDED.value,
+               is_encrypted = EXCLUDED.is_encrypted,
+               updated_by = NULL,
+               updated_by_name = 'system (duplicated)',
+               updated_at = NOW()`,
+        [newId, row.key, row.value, row.is_encrypted],
+      );
+    }
+
+    await client.query('COMMIT');
+    return NextResponse.json(
+      { ok: true, new_code: newRows[0].code, copied_credentials: credRows.map(r => r.key) },
+      { status: 201 },
+    );
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
