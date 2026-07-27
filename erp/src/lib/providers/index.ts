@@ -143,6 +143,10 @@ export { SessionRepository } from './repositories/SessionRepository';
 export { EventRepository } from './repositories/EventRepository';
 export { RetryRepository } from './repositories/RetryRepository';
 export { HealthRepository } from './repositories/HealthRepository';
+export { BrandProviderRepository } from './repositories/BrandProviderRepository';
+export type { BrandProviderRecord, RawCredentialRow, RawConfigRow } from './repositories/BrandProviderRepository';
+export { BrandProviderManager } from './core/BrandProviderManager';
+export { createAdapter } from './adapters/AdapterFactory';
 
 // ── Platform Factory ──────────────────────────────────────────────────────────
 
@@ -162,11 +166,15 @@ import { EventRepository } from './repositories/EventRepository';
 import { RetryRepository } from './repositories/RetryRepository';
 import { HealthRepository } from './repositories/HealthRepository';
 import { ProviderRegistry } from './core/ProviderRegistry';
+import { BrandProviderRepository } from './repositories/BrandProviderRepository';
+import { BrandProviderManager } from './core/BrandProviderManager';
 
 /** The fully-wired gaming platform singleton. */
 export interface GamingPlatform {
   /** Main entry point for all game operations. */
   manager: ProviderManager;
+  /** SaaS-aware multi-brand adapter resolver. */
+  brandManager: BrandProviderManager;
   /** Process all Seamless Wallet callbacks. */
   wallet: MasterWalletEngine;
   /** Token validation, IP filtering, credential encryption. */
@@ -210,7 +218,16 @@ export function createGamingPlatform(): GamingPlatform {
   const registry = (manager as unknown as { registry: ProviderRegistry }).registry;
   const retryQueue = new RetryQueue(retryRepo, registry);
 
-  _platform = { manager, wallet, security, retryQueue, promotionHooks, eventLogger };
+  const brandProviderRepo = new BrandProviderRepository();
+  const brandManager = new BrandProviderManager(
+    brandProviderRepo,
+    wallet,
+    eventLogger,
+    providerRepo,
+    (v) => security.decrypt(v),
+  );
+
+  _platform = { manager, brandManager, wallet, security, retryQueue, promotionHooks, eventLogger };
   return _platform;
 }
 
