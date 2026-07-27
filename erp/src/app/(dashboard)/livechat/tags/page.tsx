@@ -201,13 +201,13 @@ export default function TagManagerPage() {
                 <div className="flex flex-col gap-0.5">
                   <button
                     className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
-                    disabled={idx === 0 || movingId !== null}
+                    disabled={idx === 0 || movingId !== null || !!search.trim()}
                     onClick={() => void handleMove(tag, 'up')}
                     title="Move up"
                   >▲</button>
                   <button
                     className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
-                    disabled={idx === sorted.length - 1 || movingId !== null}
+                    disabled={idx === sorted.length - 1 || movingId !== null || !!search.trim()}
                     onClick={() => void handleMove(tag, 'down')}
                     title="Move down"
                   >▼</button>
