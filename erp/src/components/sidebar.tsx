@@ -151,6 +151,12 @@ function isActive(href: string, pathname: string, exact?: boolean): boolean {
 // Increase this value to reduce frequency; decrease to alert more aggressively.
 const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
 
+// VERSION MARKER — visible in browser console to confirm new code is deployed.
+// If you do NOT see this line in console, the container is still running old code.
+if (typeof window !== 'undefined') {
+  console.log('[sidebar] VERSION=d61b0f8 loaded — r.ok fix + interval diagnostics active');
+}
+
 // Persistent shared AudioContext.
 // Creating a new AudioContext inside a setInterval callback (no user gesture) causes
 // the browser to start it in "suspended" state — audio is silently blocked.
