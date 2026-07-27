@@ -41,6 +41,7 @@ import {
   PanelTop,
   KeyRound,
   Handshake,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { subscribeSSE } from '@/lib/sse-manager';
@@ -57,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/transactions', label: 'Transactions', icon: CreditCard, permission: 'deposit.view' },
       { href: '/livechat',    label: 'Live Chat',   icon: MessageSquare,   permission: 'livechat.view' },
       { href: '/livechat/quick-replies', label: 'Quick Replies', icon: Zap, permission: 'livechat.view' },
+      { href: '/livechat/tags', label: 'Tag Management', icon: Tag, permission: 'livechat.manage' },
     ],
   },
   {
