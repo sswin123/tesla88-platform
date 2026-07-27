@@ -301,12 +301,23 @@ export function Sidebar() {
     if (pathname.startsWith('/livechat')) setLivechatUnread(0);
   }, [pathname]);
 
-  // Browser title: show pending count when > 0
+  // Browser title — always uses Brand Center name, never a hardcoded project name.
+  // Listens on visibilitychange so that when the user returns to this tab after a
+  // livechat flash notification the correct title is immediately restored.
+  // Also listens on 'erp:titleassert' dispatched by ConversationList.stopFlash().
   useEffect(() => {
-    document.title = pendingCount > 0
-      ? `(${pendingCount}) Tesla88 ERP`
-      : 'Tesla88 ERP';
-  }, [pendingCount]);
+    const base  = `${brand.brand_name} ERP`;
+    const title = pendingCount > 0 ? `(${pendingCount}) ${base}` : base;
+    document.title = title;
+
+    const reassert = () => { if (!document.hidden) document.title = title; };
+    document.addEventListener('visibilitychange', reassert);
+    window.addEventListener('erp:titleassert', reassert);
+    return () => {
+      document.removeEventListener('visibilitychange', reassert);
+      window.removeEventListener('erp:titleassert', reassert);
+    };
+  }, [pendingCount, brand.brand_name]);
 
   useEffect(() => {
     loadMe();

@@ -93,6 +93,7 @@ export function useNotifications(settings: NotifSettings): void {
       }
       document.title = originalTitle;
       flashing = false;
+      window.dispatchEvent(new CustomEvent('erp:titleassert'));
     }
 
     function startFlash() {

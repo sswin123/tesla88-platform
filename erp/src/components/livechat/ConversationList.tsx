@@ -128,6 +128,9 @@ export function ConversationList({
       if (flashInterval !== null) { clearInterval(flashInterval); flashInterval = null; }
       document.title = originalTitle;
       flashing = false;
+      // Signal the Sidebar to reassert its pending-count + brand title,
+      // overriding the stale originalTitle if pendingCount changed during flash.
+      window.dispatchEvent(new CustomEvent('erp:titleassert'));
     }
     function startFlash() {
       if (flashing || !document.hidden) return;

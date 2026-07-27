@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getBrand();
-  return { title: `${brand.brand_name} — ERP` };
+  return { title: `${brand.brand_name} ERP` };
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
