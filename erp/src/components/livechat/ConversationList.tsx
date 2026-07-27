@@ -6,24 +6,9 @@ import { SessionCard } from './SessionCard';
 import type { SupportSession, LiveChatSSEEvent } from '@/lib/types';
 import { loadNotifSettings, type NotifSettings } from '@/hooks/useNotifications';
 import { subscribeSSE } from '@/lib/sse-manager';
+import { playNotification } from '@/lib/notification-audio';
 import { NotificationSettings } from './NotificationSettings';
 
-// ── Notification helpers (inlined so ConversationList owns its single SSE) ──────
-function _playBeep() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880; osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => { ctx.close(); };
-  } catch { /* ignore */ }
-}
 function _showBrowserNotif() {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   try { new Notification('Live Chat', { body: 'New message from customer' }); } catch { /* ignore */ }
@@ -179,7 +164,7 @@ export function ConversationList({
           // Notifications for customer messages
           if (evt.sender_type === 'USER') {
             const s = notifRef.current;
-            if (s.sound) _playBeep();
+            if (s.sound) playNotification('livechat');
             if (s.browser) _showBrowserNotif();
             if (s.titleFlash) startFlash();
           }

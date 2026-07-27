@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { subscribeSSE } from '@/lib/sse-manager';
+import { playNotification, unlockAudio, preloadAllNotifications } from '@/lib/notification-audio';
 
 type NavItem  = { href: string; label: string; icon: React.ElementType; exact?: boolean; permission?: string };
 type NavGroup = { title?: string; items: NavItem[] };
@@ -154,62 +155,7 @@ const NOTIFICATION_REPEAT_INTERVAL_MS = 5_000;
 // VERSION MARKER — visible in browser console to confirm new code is deployed.
 // If you do NOT see this line in console, the container is still running old code.
 if (typeof window !== 'undefined') {
-  console.log('[sidebar] VERSION=e3a2f1c loaded — brandLoaded guard: title never uses hardcoded fallback');
-}
-
-// Persistent shared AudioContext.
-// Creating a new AudioContext inside a setInterval callback (no user gesture) causes
-// the browser to start it in "suspended" state — audio is silently blocked.
-// Reusing a single context that was created/resumed during a prior user gesture keeps
-// it in "running" state across all subsequent interval beeps.
-let _audioCtx: AudioContext | null = null;
-
-function getAudioCtx(): AudioContext | null {
-  try {
-    const Ctor = window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    if (!_audioCtx || _audioCtx.state === 'closed') {
-      _audioCtx = new Ctor();
-    }
-    return _audioCtx;
-  } catch {
-    return null;
-  }
-}
-
-function playNotifBeep(): void {
-  try {
-    const ctx = getAudioCtx();
-    if (!ctx) { console.log('[sidebar:beep] no AudioContext available'); return; }
-    console.log('[sidebar:beep] AudioContext state =', ctx.state);
-    const scheduleNote = () => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.3);
-      console.log('[sidebar:beep] note scheduled at t=', ctx.currentTime);
-    };
-    if (ctx.state === 'suspended') {
-      console.log('[sidebar:beep] context suspended — calling resume()');
-      void ctx.resume().then(() => {
-        console.log('[sidebar:beep] resume() resolved, state now =', ctx.state);
-        scheduleNote();
-      }).catch((err) => {
-        console.warn('[sidebar:beep] resume() REJECTED:', err);
-      });
-    } else {
-      scheduleNote();
-    }
-  } catch (err) {
-    console.error('[sidebar:beep] exception:', err);
-  }
+  console.log('[sidebar] VERSION=f8b3e2a loaded — notification-audio shared module');
 }
 
 export function Sidebar() {
@@ -242,7 +188,7 @@ export function Sidebar() {
       if (!reminderInterval.current) {
         // First pending item: play immediately then repeat on interval
         console.log('[sidebar:pending] starting reminder interval');
-        playNotifBeep();
+        playNotification('transaction');
         reminderInterval.current = setInterval(() => {
           console.log('[sidebar:pending] interval tick — fetching pending-count...');
           // Fetch count BEFORE playing — ensures we never beep for Processing-only queues.
@@ -263,7 +209,7 @@ export function Sidebar() {
                 clearInterval(reminderInterval.current!);
                 reminderInterval.current = null;
               } else {
-                playNotifBeep();
+                playNotification('transaction');
               }
             })
             .catch((err) => { console.error('[sidebar:pending] interval fetch error:', err); });
@@ -286,15 +232,16 @@ export function Sidebar() {
       .catch(() => {});
   }, []);
 
-  // Warm-up: unlock and resume the shared AudioContext on the first user click.
-  // Ensures subsequent setInterval beeps are not silenced by the browser autoplay policy.
+  // On first user click: unlock AudioContext and preload all sound buffers into cache.
+  // Preloading here means every subsequent playNotification() call is instant —
+  // no fetch/decode latency on the first real notification.
   useEffect(() => {
-    const unlock = () => {
-      const ctx = getAudioCtx();
-      if (ctx?.state === 'suspended') void ctx.resume();
+    const onFirstClick = () => {
+      unlockAudio();
+      preloadAllNotifications();
     };
-    document.addEventListener('click', unlock, { once: true });
-    return () => document.removeEventListener('click', unlock);
+    document.addEventListener('click', onFirstClick, { once: true });
+    return () => document.removeEventListener('click', onFirstClick);
   }, []);
 
   // Auto-reset unread when user is on /livechat
@@ -374,7 +321,7 @@ export function Sidebar() {
         if (evt.type === 'new_message' && evt.sender_type === 'USER') {
           setLivechatUnread((n) => {
             if (window.location.pathname.startsWith('/livechat')) return n;
-            playNotifBeep();
+            playNotification('transaction');
             return n + 1;
           });
         }

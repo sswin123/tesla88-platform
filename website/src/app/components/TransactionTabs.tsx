@@ -9,6 +9,7 @@ interface DepositRow {
   bonus_amount: string | null;
   status: string;
   provider: string | null;
+  reject_reason: string | null;
   created_at: string;
 }
 interface WithdrawRow {
@@ -32,6 +33,7 @@ function toTx(d: DepositRow): TxRecord {
     bonus: d.bonus_amount,
     status: d.status,
     method: d.provider ?? '手动',
+    reject_reason: d.reject_reason,
     created_at: d.created_at,
   };
 }

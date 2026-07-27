@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { isBrowser } from '@/lib/is-browser';
+import { playNotification } from '@/lib/notification-audio';
 
 export interface NotifSettings {
   sound: boolean;
@@ -35,27 +36,6 @@ export function saveNotifSettings(s: NotifSettings): void {
     localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(s));
   } catch {
     // ignore storage errors
-  }
-}
-
-function playBeep(): void {
-  try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => { ctx.close(); };
-  } catch {
-    // ignore audio errors
   }
 }
 
@@ -122,7 +102,7 @@ export function useNotifications(settings: NotifSettings): void {
         if (evt.sender_type !== 'USER') return;
 
         if (settingsRef.current.sound) {
-          playBeep();
+          playNotification('livechat');
         }
         if (settingsRef.current.browser) {
           showBrowserNotif();
