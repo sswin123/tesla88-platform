@@ -332,7 +332,7 @@ export function Sidebar() {
         if (evt.type === 'new_message' && evt.sender_type === 'USER') {
           setLivechatUnread((n) => {
             if (window.location.pathname.startsWith('/livechat')) return n;
-            playNotification('transaction');
+            playNotification('livechat');
             return n + 1;
           });
         }
