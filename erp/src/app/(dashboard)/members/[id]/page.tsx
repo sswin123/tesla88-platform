@@ -69,6 +69,8 @@ export default function MemberDetailPage() {
   const [loadError,    setLoadError]    = useState('');
   const [loading,      setLoading]      = useState(true);
   const [toggling,     setToggling]     = useState(false);
+  const [chatLoading,  setChatLoading]  = useState(false);
+  const [chatError,    setChatError]    = useState('');
   const [remarks,      setRemarks]      = useState('');
   const [savingRemarks,setSavingRemarks]= useState(false);
   const [resetting,    setResetting]    = useState(false);
@@ -130,6 +132,26 @@ export default function MemberDetailPage() {
   }
 
   useEffect(() => { load(); }, [params.id]);
+
+  async function openChat() {
+    if (!data) return;
+    setChatLoading(true);
+    setChatError('');
+    try {
+      const r = await fetch(`/api/livechat/sessions/by-member/${data.member.id}`);
+      if (!r.ok) { setChatError('无法加载聊天记录'); return; }
+      const d = await r.json() as { session_id: number | null };
+      if (d.session_id) {
+        router.push(`/livechat?session=${d.session_id}`);
+      } else {
+        setChatError('该会员暂无聊天记录');
+      }
+    } catch {
+      setChatError('网络错误，请重试');
+    } finally {
+      setChatLoading(false);
+    }
+  }
 
   async function toggleStatus() {
     if (!data) return;
@@ -327,6 +349,9 @@ export default function MemberDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.back()}>← Back</Button>
+          <Button variant="outline" onClick={openChat} disabled={chatLoading}>
+            {chatLoading ? '…' : '💬 Chat'}
+          </Button>
           <Button
             variant={member.status === 'ACTIVE' ? 'destructive' : 'default'}
             onClick={toggleStatus} disabled={toggling}
@@ -335,6 +360,13 @@ export default function MemberDetailPage() {
           </Button>
         </div>
       </div>
+
+      {chatError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 flex items-center justify-between">
+          <span>{chatError}</span>
+          <button onClick={() => setChatError('')} className="ml-3 text-red-400 hover:text-red-600 leading-none">✕</button>
+        </div>
+      )}
 
       {newPassword && (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
