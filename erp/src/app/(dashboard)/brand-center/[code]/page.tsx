@@ -33,6 +33,13 @@ import {
 
 // ─── Completion calculation ──────────────────────────────────────────────────
 
+// NOTE: This page only receives credential_count / config_count integers from
+// the API — not the actual key arrays. We cap each count at the template size
+// to prevent overcounting, but non-template keys stored in the DB (keys that
+// exist but are not in the template) can still cause the count to exceed the
+// number of real template matches. For exact key-set intersection matching,
+// see the Provider Detail page (providers/[providerCode]/page.tsx) which
+// receives the full key arrays from the API.
 function calcCompletion(
   providerCode: string,
   credentialCount: number,
@@ -43,6 +50,7 @@ function calcCompletion(
   const cfgTemplate = CONFIG_TEMPLATES[upper] ?? [];
   const total = credTemplate.length + cfgTemplate.length;
   if (total === 0) return null;
+  // Cap each count at its template length to reduce (but not eliminate) overcounting.
   const filled =
     Math.min(credentialCount, credTemplate.length) +
     Math.min(configCount, cfgTemplate.length);
@@ -133,10 +141,10 @@ function EnableProviderModal({
       .then(r => r.json())
       .then((data: CatalogProvider[]) => {
         const filtered = Array.isArray(data)
-          ? data.filter(p => !enabledCodes.includes(p.code))
+          ? data.filter(p => !enabledCodes.includes(p.code.toUpperCase()))
           : [];
         setCatalog(filtered);
-        if (filtered.length > 0) setSelected(filtered[0].code);
+        if (filtered.length > 0) setSelected(filtered[0].code.toUpperCase());
       })
       .catch(() => setError('Failed to load provider catalog'))
       .finally(() => setCatalogLoading(false));
@@ -152,7 +160,7 @@ function EnableProviderModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider_code: selected,
+          provider_code: selected.toUpperCase(),
           wallet_type: walletType,
           environment: environment,
         }),
@@ -210,7 +218,7 @@ function EnableProviderModal({
               </label>
               <select
                 value={selected}
-                onChange={e => setSelected(e.target.value)}
+                onChange={e => setSelected(e.target.value.toUpperCase())}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {catalog.map(p => (

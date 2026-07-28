@@ -1584,6 +1584,7 @@ export default function BrandProviderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
   const showToast = useCallback(
@@ -1771,6 +1772,17 @@ export default function BrandProviderDetailPage() {
         }}
       />
 
+      {/* Disable Provider Confirmation */}
+      <ConfirmDialog
+        open={showDisableConfirm}
+        title="Disable Provider"
+        description={`This will set ${bp?.provider_code} to DISABLED and stop all player traffic on ${bp?.brand_code}. Are you sure?`}
+        confirmLabel="Disable"
+        confirmVariant="danger"
+        onConfirm={() => { setShowDisableConfirm(false); handleDisable(); }}
+        onCancel={() => setShowDisableConfirm(false)}
+      />
+
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-sm">
@@ -1831,7 +1843,7 @@ export default function BrandProviderDetailPage() {
               <OverflowMenu
                 status={bp.status}
                 onReload={load}
-                onDisable={handleDisable}
+                onDisable={() => setShowDisableConfirm(true)}
                 onRemove={() => setShowRemoveModal(true)}
               />
             </div>
