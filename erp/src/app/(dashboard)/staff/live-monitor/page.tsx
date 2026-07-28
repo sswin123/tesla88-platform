@@ -12,6 +12,7 @@ export default function LiveMonitorPage() {
   const { checking, denied } = usePermissionGuard('staff.livemonitor.view');
   const [initial, setInitial] = useState<StaffMonitorSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function LiveMonitorPage() {
     fetch('/api/staff/monitor')
       .then((r) => (r.ok ? r.json() : { staff: [] }))
       .then((d: { staff: StaffMonitorSnapshot[] }) => setInitial(d.staff))
+      .catch(() => setLoadError(true))
       .finally(() => setLoaded(true));
   }, [checking, denied]);
 
@@ -36,6 +38,10 @@ export default function LiveMonitorPage() {
       <h1 className="text-2xl font-bold">Live Monitor</h1>
       {!loaded ? (
         <p className="text-xs text-gray-400">Loading staff…</p>
+      ) : loadError ? (
+        <div className="flex h-64 items-center justify-center text-red-400 text-sm">
+          Failed to load staff monitor. Refresh to try again.
+        </div>
       ) : (
         <>
           <SummaryCards staff={staff} />
