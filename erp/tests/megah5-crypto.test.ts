@@ -34,13 +34,11 @@ describe('MegaH5Crypto', () => {
     expect(result).toBe(result.toLowerCase());
   });
 
-  it('desEncrypt returns non-empty base64 string', () => {
-    const key = '12345678'; // 8-byte DES key
+  it('desEncrypt produces known ciphertext for known key+plaintext', () => {
+    const key = '12345678';
     const result = crypto.desEncrypt('hello world', key);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-    // Must be valid base64
-    expect(() => Buffer.from(result, 'base64')).not.toThrow();
+    // Pinned value — fails if cipher mode, key/IV handling, or encoding changes
+    expect(result).toBe('CyqS6B+0nOGkMmaqyup7gQ==');
   });
 
   it('desEncrypt is deterministic for same key+plaintext', () => {
