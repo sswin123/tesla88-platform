@@ -36,4 +36,32 @@ describe('mergeStaffStatusUpdate', () => {
     });
     expect(result).toEqual([BASE]);
   });
+
+  it('returns the same array reference unchanged for non status_update events', () => {
+    const rows = [BASE, { ...BASE, id: 2 }];
+    const result = mergeStaffStatusUpdate(rows, {
+      type: 'presence_ping', staff_id: 1, status: 'ONLINE',
+      current_module: 'member', current_page: 'list', last_activity: '2026-07-26T04:05:00.000Z',
+    });
+    expect(result).toBe(rows);
+    expect(result).toEqual(rows);
+  });
+
+  it('marks the row ONLINE when last_activity is well within the 3-minute threshold', () => {
+    const recent = new Date(Date.now() - 5_000).toISOString(); // 5s ago
+    const result = mergeStaffStatusUpdate([BASE], {
+      type: 'status_update', staff_id: 1, status: 'ONLINE',
+      current_module: 'dashboard', current_page: 'view', last_activity: recent,
+    });
+    expect(result[0].display_status).toBe('ONLINE');
+  });
+
+  it('marks the row DISCONNECTED when last_activity is stale (20 minutes old)', () => {
+    const stale = new Date(Date.now() - 20 * 60_000).toISOString(); // 20 min ago
+    const result = mergeStaffStatusUpdate([BASE], {
+      type: 'status_update', staff_id: 1, status: 'ONLINE',
+      current_module: 'dashboard', current_page: 'view', last_activity: stale,
+    });
+    expect(result[0].display_status).toBe('DISCONNECTED');
+  });
 });
