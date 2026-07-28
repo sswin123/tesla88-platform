@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/stats-card';
 import { BarChart } from '@/components/charts/BarChart';
+import { StaffMonitorWidget } from '@/components/staff/StaffMonitorWidget';
 import type { DashboardStats } from '@/lib/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -304,6 +305,9 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+
+      {/* ── Section 7: Staff Monitoring (permission-gated) ─────────────────── */}
+      <StaffMonitorWidget />
 
       {/* ── Bottom: Game Providers ────────────────────────────────────────── */}
       {stats.topGameProviders.length > 0 && (
