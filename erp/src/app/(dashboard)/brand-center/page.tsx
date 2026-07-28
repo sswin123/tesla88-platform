@@ -203,7 +203,13 @@ export default function BrandCenterPage() {
           setPermissionDenied(true);
           return null;
         }
-        return r.ok ? (r.json() as Promise<BrandRow[]>) : null;
+        if (!r.ok) {
+          setToast({ message: `Failed to load brands (HTTP ${r.status})`, ok: false });
+          setBrands([]);
+          setLoading(false);
+          return null;
+        }
+        return r.json() as Promise<BrandRow[]>;
       })
       .then((data) => {
         if (data) setBrands(data);
@@ -290,12 +296,21 @@ export default function BrandCenterPage() {
           action={{ label: 'New Brand', onClick: () => setShowNewModal(true) }}
         />
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={Search}
-          title="No brands match your search"
-          description={`No brands found for "${search}"`}
-          action={{ label: 'Clear search', onClick: () => { setSearch(''); setFilter('all'); } }}
-        />
+        search ? (
+          <EmptyState
+            icon={Search}
+            title="No brands match your search"
+            description={`No brands match "${search}"`}
+            action={{ label: 'Clear search', onClick: () => setSearch('') }}
+          />
+        ) : (
+          <EmptyState
+            icon={Search}
+            title={`No ${filter} brands found`}
+            description={`There are no ${filter} brands to display.`}
+            action={{ label: 'Clear filters', onClick: () => setFilter('all') }}
+          />
+        )
       ) : (
         <div className="grid gap-3">
           {filtered.map((brand) => (
