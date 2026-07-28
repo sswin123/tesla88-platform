@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { getKiss918Adapter } from '@/lib/gaming';
 
 /**
  * POST /api/games/launch  (Internal service API)
@@ -66,18 +65,53 @@ export async function POST(req: NextRequest) {
   const user = userRows[0];
   if (!user) return NextResponse.json({ error: `User ${user_id} not found` }, { status: 404 });
 
-  // ── 3. Get adapter ────────────────────────────────────────────────────────
-  // Only 918KISS is implemented; future providers follow the same pattern.
-  if (upperCode !== '918KISS') {
-    return NextResponse.json({ error: `Adapter for "${upperCode}" not yet implemented` }, { status: 422 });
-  }
+  // ── 3. Get adapter (brand-aware for non-918KISS providers) ───────────────────
+  let adapter: import('@/lib/providers').IGameProvider;
+  let activeBrandCode: string | null = null;
 
-  const adapter = await getKiss918Adapter();
-  if (!adapter) {
-    return NextResponse.json(
-      { error: 'Gaming adapter not initialized. Check provider status and credentials.' },
-      { status: 503 },
+  if (upperCode === '918KISS') {
+    // 918KISS: legacy singleton — reads from gp_credentials (unchanged)
+    const { getKiss918Adapter } = await import('@/lib/gaming');
+    const k918 = await getKiss918Adapter();
+    if (!k918) {
+      return NextResponse.json(
+        { error: 'Gaming adapter not initialized. Check provider status and credentials.' },
+        { status: 503 },
+      );
+    }
+    adapter = k918;
+  } else {
+    // All other providers: brand-aware, reads from brand_provider_credentials
+    const { createGamingPlatform } = await import('@/lib/providers');
+
+    // Find which brand has this provider enabled
+    const { rows: bpRows } = await pool.query<{ brand_code: string }>(
+      `SELECT b.code AS brand_code
+       FROM brand_providers bp
+       JOIN brands b        ON b.id = bp.brand_id
+       JOIN gp_providers p  ON p.id = bp.provider_id
+       WHERE p.code = $1 AND bp.status = 'ACTIVE'
+       LIMIT 1`,
+      [upperCode],
     );
+    if (!bpRows[0]) {
+      return NextResponse.json(
+        { error: `Provider "${upperCode}" has no active brand configuration. Enable it in Brand Center.` },
+        { status: 503 },
+      );
+    }
+    activeBrandCode = bpRows[0].brand_code;
+
+    try {
+      const platform = createGamingPlatform();
+      adapter = await platform.brandManager.getAdapter(activeBrandCode, upperCode);
+    } catch (err) {
+      console.error(`[games/launch] BrandProviderManager.getAdapter failed for ${upperCode}:`, err);
+      return NextResponse.json(
+        { error: `Adapter for "${upperCode}" could not be initialized. Check credentials in Brand Center.` },
+        { status: 503 },
+      );
+    }
   }
 
   // ── 4. Auto-register player if needed ────────────────────────────────────
@@ -94,15 +128,37 @@ export async function POST(req: NextRequest) {
 
   if (!playerRecord) {
     // Build account_id: "u{userId}@{postfix_id}"
-    const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
-      `SELECT key, value FROM gp_config WHERE provider_id = $1 AND key IN ('postfix_id', 'currency')`,
-      [provider.id],
-    );
-    const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
-    const postfix     = cfg['postfix_id'] ?? '';
-    const currency    = cfg['currency'] ?? 'MYR';
-    const accountId   = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
-    const nickname    = user.first_name ?? `Player${user_id}`;
+    // 918KISS: config lives in gp_config (legacy).
+    // All other providers: config lives in brand_provider_config.
+    let postfix: string;
+    let currency: string;
+
+    if (upperCode === '918KISS') {
+      const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
+        `SELECT key, value FROM gp_config WHERE provider_id = $1 AND key IN ('postfix_id', 'currency')`,
+        [provider.id],
+      );
+      const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
+      postfix  = cfg['postfix_id'] ?? '';
+      currency = cfg['currency'] ?? 'MYR';
+    } else {
+      const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
+        `SELECT bpc.key, bpc.value
+         FROM brand_provider_config bpc
+         JOIN brand_providers bp ON bp.id = bpc.brand_provider_id
+         JOIN brands b ON b.id = bp.brand_id
+         JOIN gp_providers p ON p.id = bp.provider_id
+         WHERE b.code = $1 AND p.code = $2
+           AND bpc.key IN ('postfix_id', 'currency')`,
+        [activeBrandCode, upperCode],
+      );
+      const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
+      postfix  = cfg['postfix_id'] ?? '';
+      currency = cfg['currency'] ?? 'MYR';
+    }
+
+    const accountId = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
+    const nickname  = user.first_name ?? `Player${user_id}`;
 
     // Call provider API to create the player account.
     // For H5 LOBBY providers (e.g. 918KISS), the provider auto-registers the player

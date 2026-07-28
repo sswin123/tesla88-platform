@@ -120,6 +120,11 @@ export { BaseProviderAdapter, NotSupportedError, ProviderApiError, ProviderError
 export { Kiss918Adapter } from './adapters/kiss918/Kiss918Adapter';
 export type { Kiss918Credentials, Kiss918Config } from './adapters/kiss918/Kiss918Adapter';
 
+// ── MegaH5 Adapter ────────────────────────────────────────────────────────────
+
+export { MegaH5Adapter } from './adapters/megah5/MegaH5Adapter';
+export type { MegaH5Credentials, MegaH5Config } from './adapters/megah5/types';
+
 // ── Core Services ─────────────────────────────────────────────────────────────
 
 export { ProviderRegistry } from './core/ProviderRegistry';

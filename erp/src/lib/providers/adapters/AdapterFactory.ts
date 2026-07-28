@@ -4,6 +4,8 @@ import type { MasterWalletEngine } from '../core/MasterWalletEngine';
 import type { EventLogger } from '../core/EventLogger';
 import { Kiss918Adapter } from './kiss918/Kiss918Adapter';
 import type { Kiss918Credentials, Kiss918Config } from './kiss918/Kiss918Adapter';
+import { MegaH5Adapter } from './megah5/MegaH5Adapter';
+import type { MegaH5Credentials, MegaH5Config } from './megah5/types';
 
 /**
  * NaN-safe integer parser. Returns `fallback` when `val` is absent or
@@ -67,6 +69,32 @@ export function createAdapter(
           process.env.ENABLE_PROVIDER_DEBUG === 'true',
       };
       return new Kiss918Adapter(
+        creds, cfg, deps.wallet, deps.eventLogger, deps.providerRepo,
+      );
+    }
+
+    case 'MEGAH5': {
+      const creds: MegaH5Credentials = {
+        api_token:      credentials['api_token']      ?? '',
+        operator_token: credentials['operator_token'] ?? '',
+        secret_key:     credentials['secret_key']     ?? '',
+        encrypt_key:    credentials['encrypt_key']    ?? '',
+        md5_key:        credentials['md5_key']        ?? '',
+      };
+      const cfg: MegaH5Config = {
+        api_base_url:    config['api_base_url']    ?? '',
+        h5_api_domain:   config['h5_api_domain']   ?? '',
+        h5_lobby_domain: config['h5_lobby_domain'] ?? '',
+        h5_game_domain:  config['h5_game_domain']  ?? '',
+        postfix_id:      config['postfix_id']       ?? '',
+        currency:        config['currency']         ?? 'MYR',
+        timeout_ms:      parseIntSafe(config['timeout_ms'], 10_000),
+        datafeed_url:    config['datafeed_url']     || undefined,
+        debug:
+          config['debug'] === 'true' ||
+          process.env.ENABLE_PROVIDER_DEBUG === 'true',
+      };
+      return new MegaH5Adapter(
         creds, cfg, deps.wallet, deps.eventLogger, deps.providerRepo,
       );
     }
