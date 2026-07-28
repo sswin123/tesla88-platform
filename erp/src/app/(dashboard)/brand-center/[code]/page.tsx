@@ -27,6 +27,8 @@ import {
   ENVIRONMENTS,
   CREDENTIAL_TEMPLATES,
   CONFIG_TEMPLATES,
+  HEALTH_STATUS,
+  PROVIDER_STATUS,
 } from '@/components/brand-center/constants';
 
 // ─── Completion calculation ──────────────────────────────────────────────────
@@ -90,10 +92,10 @@ type CatalogProvider = {
 
 function healthDotClass(healthStatus: string): string {
   switch (healthStatus) {
-    case 'HEALTHY':  return 'bg-emerald-500';
-    case 'DEGRADED': return 'bg-amber-500';
-    case 'DOWN':     return 'bg-red-500';
-    default:         return 'bg-slate-400';
+    case HEALTH_STATUS.HEALTHY:  return 'bg-emerald-500';
+    case HEALTH_STATUS.DEGRADED: return 'bg-amber-500';
+    case HEALTH_STATUS.DOWN:     return 'bg-red-500';
+    default:                     return 'bg-slate-400';
   }
 }
 
