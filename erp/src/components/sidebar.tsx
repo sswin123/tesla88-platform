@@ -41,7 +41,6 @@ import {
   PanelTop,
   KeyRound,
   Handshake,
-  CalendarClock,
   Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -94,10 +93,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Staff',
     items: [
-      { href: '/settings/staff',       label: 'Staff List',       icon: Users,         permission: 'staff.manage' },
-      { href: '/settings/permissions', label: 'Staff Permission', icon: ShieldCheck,   permission: 'staff.manage' },
-      { href: '/staff/attendance',     label: 'Attendance',       icon: CalendarClock, permission: 'staff.attendance.view' },
-      { href: '/staff/live-monitor',   label: 'Live Monitor',     icon: Eye,           permission: 'staff.livemonitor.view' },
+      { href: '/settings/staff',       label: 'Staff List',       icon: Users,       permission: 'staff.manage' },
+      { href: '/settings/permissions', label: 'Staff Permission', icon: ShieldCheck, permission: 'staff.manage' },
+      { href: '/staff/live-monitor',   label: 'Live Monitor',     icon: Eye,         permission: 'staff.livemonitor.view' },
     ],
   },
   {
