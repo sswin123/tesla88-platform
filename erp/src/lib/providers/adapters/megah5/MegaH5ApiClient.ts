@@ -127,7 +127,10 @@ export class MegaH5ApiClient {
   async healthCheck(): Promise<{ latencyMs: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.HEALTH}`;
     const body = JSON.stringify({ accessToken: this.creds.api_token });
-    const { latencyMs } = await this.post<BaseResponse>(url, body);
+    const { data, latencyMs } = await this.post<BaseResponse>(url, body);
+    if (data.statusCode !== 0) {
+      throw new Error(`MEGAH5 HealthCheck error ${data.statusCode}: ${data.errMsg}`);
+    }
     return { latencyMs };
   }
 

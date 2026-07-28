@@ -3,7 +3,7 @@ import pool from '@/lib/db';
 
 function proxyUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith('https://')) {
     return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
   }
   return url;
