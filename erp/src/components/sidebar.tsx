@@ -41,13 +41,16 @@ import {
   PanelTop,
   KeyRound,
   Handshake,
+  CalendarClock,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useHeartbeat } from '@/hooks/useHeartbeat';
 
 type NavItem  = { href: string; label: string; icon: React.ElementType; exact?: boolean; permission?: string };
 type NavGroup = { title?: string; items: NavItem[] };
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { href: '/',            label: 'Dashboard',   icon: LayoutDashboard, exact: true, permission: 'dashboard.view' },
@@ -89,6 +92,15 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: 'Staff',
+    items: [
+      { href: '/settings/staff',       label: 'Staff List',       icon: Users,         permission: 'staff.manage' },
+      { href: '/settings/permissions', label: 'Staff Permission', icon: ShieldCheck,   permission: 'staff.manage' },
+      { href: '/staff/attendance',     label: 'Attendance',       icon: CalendarClock, permission: 'staff.attendance.view' },
+      { href: '/staff/live-monitor',   label: 'Live Monitor',     icon: Eye,           permission: 'staff.livemonitor.view' },
+    ],
+  },
+  {
     title: 'Website',
     items: [
       { href: '/website-builder',                        label: 'Website Builder',  icon: Layout,             permission: 'website.builder.manage' },
@@ -114,10 +126,8 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     items: [
-      { href: '/settings/staff',       label: 'Staff Manager',    icon: Users,      permission: 'staff.manage' },
-      { href: '/settings/permissions', label: 'Staff Permissions',icon: ShieldCheck,permission: 'staff.manage' },
-      { href: '/settings',             label: 'Settings',          icon: Settings, exact: true, permission: 'website.settings' },
-      { href: '/maintenance',          label: 'Maintenance',       icon: Wrench,    permission: 'maintenance.view' },
+      { href: '/settings',    label: 'Settings',    icon: Settings, exact: true, permission: 'website.settings' },
+      { href: '/maintenance', label: 'Maintenance', icon: Wrench,   permission: 'maintenance.view' },
     ],
   },
 ];
@@ -166,6 +176,7 @@ function playNotifBeep(): void {
 }
 
 export function Sidebar() {
+  useHeartbeat();
   const pathname = usePathname();
   const router   = useRouter();
   const [maintenanceOn, setMaintenanceOn] = useState(false);
