@@ -1,6 +1,7 @@
 // erp/tests/megah5-crypto.test.ts
 import { describe, it, expect } from 'vitest';
 import { MEGAH5_CODE, MEGAH5_NAME, OPERATOR_ERROR, H5_PATH, API_PATH } from '@/lib/providers/adapters/megah5/constants';
+import { MegaH5Crypto } from '@/lib/providers/adapters/megah5/MegaH5Crypto';
 
 describe('megah5/constants', () => {
   it('exports correct provider code', () => {
@@ -20,5 +21,50 @@ describe('megah5/constants', () => {
 
   it('API_PATH.CREATE_PLAYER is defined', () => {
     expect(API_PATH.CREATE_PLAYER).toBe('/operator/v2/CreatePlayer');
+  });
+});
+
+describe('MegaH5Crypto', () => {
+  const crypto = new MegaH5Crypto();
+
+  it('md5Hex returns lowercase 32-char hex', () => {
+    const result = crypto.md5Hex('hello');
+    expect(result).toBe('5d41402abc4b2a76b9719d911017c592');
+    expect(result).toHaveLength(32);
+    expect(result).toBe(result.toLowerCase());
+  });
+
+  it('desEncrypt returns non-empty base64 string', () => {
+    const key = '12345678'; // 8-byte DES key
+    const result = crypto.desEncrypt('hello world', key);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+    // Must be valid base64
+    expect(() => Buffer.from(result, 'base64')).not.toThrow();
+  });
+
+  it('desEncrypt is deterministic for same key+plaintext', () => {
+    const key = 'testkey1';
+    const out1 = crypto.desEncrypt('test payload', key);
+    const out2 = crypto.desEncrypt('test payload', key);
+    expect(out1).toBe(out2);
+  });
+
+  it('buildLoginPayload returns q and s fields', () => {
+    const result = crypto.buildLoginPayload({
+      accountId:   'u1@testpostfix',
+      currency:    'MYR',
+      nickname:    'Player1',
+      language:    2,
+      secretKey:   'secret123',
+      encryptKey:  'enckey12',
+      md5Key:      'md5keyxx',
+      accessToken: 'acc_token',
+    });
+    expect(result).toHaveProperty('q');
+    expect(result).toHaveProperty('s');
+    expect(typeof result.q).toBe('string');
+    expect(typeof result.s).toBe('string');
+    expect(result.s).toHaveLength(32); // MD5 is always 32 hex chars
   });
 });
