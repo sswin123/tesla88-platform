@@ -42,6 +42,7 @@ import {
   KeyRound,
   Handshake,
   Tag,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { subscribeSSE } from '@/lib/sse-manager';
@@ -81,6 +82,12 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/providers',                    label: 'Legacy Providers',   icon: SlidersHorizontal, permission: 'game.manage' },
       { href: '/provider-settings',            label: 'Provider Callbacks', icon: Activity,          permission: 'game.manage' },
       { href: '/provider-playground',          label: 'API Playground',     icon: Zap,               permission: 'game.manage' },
+    ],
+  },
+  {
+    title: 'Brand Center',
+    items: [
+      { href: '/brand-center', label: 'Brands', icon: Store, permission: 'game.manage' },
     ],
   },
   {
