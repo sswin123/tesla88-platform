@@ -22,6 +22,8 @@ import {
   AlertTriangle,
   XCircle,
   HelpCircle,
+  Zap,
+  Power,
 } from 'lucide-react';
 
 import {
@@ -126,6 +128,99 @@ function CompletionPill({ percent }: { percent: number | null }) {
     <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
       ⚠ {percent}%
     </span>
+  );
+}
+
+// ─── LaunchReadyCard ─────────────────────────────────────────────────────────
+
+interface LaunchReadyCardProps {
+  bp: BrandProviderDetail;
+  credCount: number;
+  cfgCount: number;
+  onEnable: () => void;
+  enabling: boolean;
+}
+
+function LaunchReadyCard({ bp, credCount, cfgCount, onEnable, enabling }: LaunchReadyCardProps) {
+  const isActive  = bp.status === PROVIDER_STATUS.ACTIVE;
+  const hasCreds  = credCount > 0;
+  const hasCfg    = cfgCount > 0;
+  const healthOk  = bp.health_status === HEALTH_STATUS.HEALTHY;
+  const allReady  = isActive && hasCreds && hasCfg && healthOk;
+
+  const checks: { label: string; ok: boolean; hint: string }[] = [
+    { label: 'Credentials configured', ok: hasCreds,  hint: 'Add at least one credential in the Credentials tab' },
+    { label: 'Configuration set',      ok: hasCfg,    hint: 'Add at least one config key in the Configuration tab' },
+    { label: 'Connection test passed', ok: healthOk,  hint: 'Run a connection test in the Health tab' },
+    { label: 'Status = ACTIVE',        ok: isActive,  hint: 'Change Status to ACTIVE in the General tab' },
+  ];
+
+  return (
+    <div className={`rounded-xl border p-4 ${
+      allReady
+        ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
+        : 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20'
+    }`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Zap size={14} className={allReady ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} />
+          <span className={`text-sm font-semibold ${allReady ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+            {allReady ? 'Launch Ready' : 'Not Ready to Launch'}
+          </span>
+        </div>
+        {!isActive && (
+          <button
+            onClick={onEnable}
+            disabled={enabling}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            {enabling ? <RefreshCw size={11} className="animate-spin" /> : <Power size={11} />}
+            Enable Now
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {checks.map(c => (
+          <div key={c.label} className="flex items-start gap-2">
+            {c.ok
+              ? <CheckCircle size={13} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+              : <XCircle    size={13} className="text-red-400     flex-shrink-0 mt-0.5" />}
+            <div>
+              <span className="text-xs text-slate-700 dark:text-slate-300">{c.label}</span>
+              {!c.ok && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 leading-tight">{c.hint}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── DisabledBanner ───────────────────────────────────────────────────────────
+
+function DisabledBanner({ providerCode, onEnable, enabling }: { providerCode: string; onEnable: () => void; enabling: boolean }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30">
+      <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+          Provider is DISABLED — players cannot launch {providerCode} games
+        </p>
+        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+          Change Status to <strong>ACTIVE</strong> in the General tab, or click Enable Now to activate immediately.
+        </p>
+      </div>
+      <button
+        onClick={onEnable}
+        disabled={enabling}
+        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+      >
+        {enabling ? <RefreshCw size={11} className="animate-spin" /> : <Power size={11} />}
+        Enable Now
+      </button>
+    </div>
   );
 }
 
@@ -1411,6 +1506,7 @@ function AuditTab() {
 interface OverflowMenuProps {
   status: string;
   onReload: () => void;
+  onEnable: () => void;
   onDisable: () => void;
   onRemove: () => void;
 }
@@ -1418,6 +1514,7 @@ interface OverflowMenuProps {
 function OverflowMenu({
   status,
   onReload,
+  onEnable,
   onDisable,
   onRemove,
 }: OverflowMenuProps) {
@@ -1456,6 +1553,18 @@ function OverflowMenu({
           >
             Reload
           </button>
+
+          {status !== PROVIDER_STATUS.ACTIVE && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onEnable();
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors font-medium"
+            >
+              Enable Provider
+            </button>
+          )}
 
           {status === PROVIDER_STATUS.ACTIVE && (
             <button
@@ -1585,6 +1694,7 @@ export default function BrandProviderDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
   const showToast = useCallback(
@@ -1629,6 +1739,17 @@ export default function BrandProviderDetailPage() {
     load();
   }, [load]);
 
+  // Warn before hard navigation / tab close when provider is still DISABLED
+  useEffect(() => {
+    if (!bp || bp.status !== PROVIDER_STATUS.DISABLED) return;
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [bp]);
+
   async function handleSaveGeneral(fields: {
     status: string;
     wallet_type: string;
@@ -1650,6 +1771,28 @@ export default function BrandProviderDetailPage() {
     }
     showToast('Settings saved', 'success');
     load();
+  }
+
+  async function handleEnable() {
+    setEnabling(true);
+    try {
+      const res = await fetch(`/api/brands/${code}/providers/${providerCode}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'settings', status: PROVIDER_STATUS.ACTIVE }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast(data.error ?? 'Failed to enable provider', 'error');
+        return;
+      }
+      showToast('Provider enabled — players can now launch games', 'success');
+      load();
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    } finally {
+      setEnabling(false);
+    }
   }
 
   async function handleDisable() {
@@ -1759,6 +1902,17 @@ export default function BrandProviderDetailPage() {
         </div>
       )}
 
+      {/* DISABLED warning banner */}
+      {bp.status === PROVIDER_STATUS.DISABLED && (
+        <div className="mb-4">
+          <DisabledBanner
+            providerCode={providerCode}
+            onEnable={handleEnable}
+            enabling={enabling}
+          />
+        </div>
+      )}
+
       {/* Remove Provider Dialog */}
       <RemoveProviderModal
         open={showRemoveModal}
@@ -1843,12 +1997,22 @@ export default function BrandProviderDetailPage() {
               <OverflowMenu
                 status={bp.status}
                 onReload={load}
+                onEnable={handleEnable}
                 onDisable={() => setShowDisableConfirm(true)}
                 onRemove={() => setShowRemoveModal(true)}
               />
             </div>
           </div>
         </div>
+
+        {/* Launch Ready checklist */}
+        <LaunchReadyCard
+          bp={bp}
+          credCount={credentials.length}
+          cfgCount={config.length}
+          onEnable={handleEnable}
+          enabling={enabling}
+        />
 
         {/* Tab bar + Content */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">

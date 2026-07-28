@@ -117,9 +117,16 @@ export async function POST(req: NextRequest) {
         ? 'no brand_providers record found at all'
         : `record found but status=${debugRows.map(r => `${r.brand_code}:${r.bp_status}`).join(', ')}`;
       console.warn(`[games/launch] Resolution failed for "${upperCode}": ${statusSummary}`);
+
+      const hasRecord    = debugRows.length > 0;
+      const currentStatus = hasRecord ? debugRows[0].bp_status : null;
+      const userMessage   = hasRecord
+        ? `Provider "${upperCode}" is ${currentStatus} — go to Brand Center › ${debugRows[0].brand_code} › ${upperCode} and set Status to ACTIVE.`
+        : `Provider "${upperCode}" has no brand configuration. Enable it in Brand Center first.`;
+
       return NextResponse.json(
         {
-          error: `Provider "${upperCode}" has no active brand configuration. Enable it in Brand Center.`,
+          error: userMessage,
           debug: { provider_code: upperCode, brand_providers_found: debugRows.length, status_summary: statusSummary },
         },
         { status: 503 },
