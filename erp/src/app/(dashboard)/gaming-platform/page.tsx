@@ -1380,6 +1380,9 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
         {tab === 'settings' && (
           <div className="space-y-3">
             <SectionHead title="Configuration Keys" sub="点击任意行右侧「编辑」按钮修改，保存后立即写入数据库" />
+            <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
+              Legacy · 918KISS Production
+            </span>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {Object.entries(CONFIG_LABELS).map(([key, label]) => (
                 <InlineEdit
@@ -1400,6 +1403,9 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
         {/* ── Credentials (SuperAdmin only) ── */}
         {tab === 'credentials' && isCredAdmin && (
           <div className="space-y-4">
+            <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
+              Legacy · 918KISS Production
+            </span>
             <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-300">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               凭证值经过掩码处理，API 从不返回明文。更新值将立即覆盖数据库记录，请保存副本。
