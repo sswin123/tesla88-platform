@@ -17,6 +17,7 @@ import {
   Plus,
   X,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 
 import {
@@ -133,7 +134,6 @@ interface GeneralTabProps {
     environment: string;
     currency: string;
   }) => Promise<void>;
-  onReload: () => void;
 }
 
 function GeneralTab({ bp, onSave }: GeneralTabProps) {
@@ -376,6 +376,8 @@ interface CredentialRowProps {
   onCancelEdit: () => void;
   onUpdate: (key: string, value: string, encrypt: boolean) => Promise<void>;
   onRemove: (key: string) => void;
+  openOverflowKey: string | null;
+  setOpenOverflowKey: (key: string | null) => void;
 }
 
 function CredentialRow({
@@ -385,7 +387,22 @@ function CredentialRow({
   onCancelEdit,
   onUpdate,
   onRemove,
+  openOverflowKey,
+  setOpenOverflowKey,
 }: CredentialRowProps) {
+  const overflowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openOverflowKey !== cred.key) return;
+    function handleMousedown(e: MouseEvent) {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setOpenOverflowKey(null);
+      }
+    }
+    document.addEventListener('mousedown', handleMousedown);
+    return () => document.removeEventListener('mousedown', handleMousedown);
+  }, [openOverflowKey, cred.key, setOpenOverflowKey]);
+
   if (editingKey === cred.key) {
     return (
       <InlineEditForm
@@ -432,12 +449,34 @@ function CredentialRow({
         >
           Edit
         </button>
-        <button
-          onClick={() => onRemove(cred.key)}
-          className="px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-        >
-          Remove
-        </button>
+
+        {/* Overflow menu */}
+        <div ref={overflowRef} className="relative">
+          <button
+            onClick={() =>
+              setOpenOverflowKey(openOverflowKey === cred.key ? null : cred.key)
+            }
+            className="p-1 rounded text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="More options"
+          >
+            <MoreHorizontal size={14} />
+          </button>
+
+          {openOverflowKey === cred.key && (
+            <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1">
+              <button
+                onClick={() => {
+                  setOpenOverflowKey(null);
+                  onRemove(cred.key);
+                }}
+                className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 size={12} />
+                Remove credential
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -592,6 +631,7 @@ function CredentialsTab({
   const [removing, setRemoving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [prefillKey, setPrefillKey] = useState<string | undefined>(undefined);
+  const [openOverflowKey, setOpenOverflowKey] = useState<string | null>(null);
 
   const templateKeys = CREDENTIAL_TEMPLATES[providerCode.toUpperCase()] ?? [];
   const credKeySet = new Set(credentials.map(c => c.key));
@@ -668,6 +708,8 @@ function CredentialsTab({
         showToast('Credential cleared (key retained with placeholder value).', 'success');
         onReload();
       }
+    } catch {
+      showToast('Network error. Please try again.', 'error');
     } finally {
       setRemoving(false);
       setRemoveKey(null);
@@ -687,7 +729,7 @@ function CredentialsTab({
       <ConfirmDialog
         open={!!removeKey}
         title="Clear Credential"
-        description={`Clear the value for "${removeKey}"? The key will remain but its value will be emptied. This cannot be undone.`}
+        description={`Clear the value for "${removeKey}"? The key will be retained with a placeholder value \`[CLEARED]\`. This cannot be undone.`}
         confirmLabel="Clear"
         confirmVariant="danger"
         onConfirm={handleRemoveConfirm}
@@ -738,6 +780,8 @@ function CredentialsTab({
               onCancelEdit={() => setEditingKey(null)}
               onUpdate={handleUpdate}
               onRemove={k => setRemoveKey(k)}
+              openOverflowKey={openOverflowKey}
+              setOpenOverflowKey={setOpenOverflowKey}
             />
           ))
         )}
@@ -1056,25 +1100,29 @@ export default function BrandProviderDetailPage() {
   }
 
   async function handleDisable() {
-    const res = await fetch(
-      `/api/brands/${code}/providers/${providerCode}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'settings',
-          status: PROVIDER_STATUS.DISABLED,
-        }),
-      },
-    );
-    if (!res.ok) {
-      const data =
-        (await res.json().catch(() => ({}))) as { error?: string };
-      showToast(data.error ?? 'Failed to disable provider', 'error');
-      return;
+    try {
+      const res = await fetch(
+        `/api/brands/${code}/providers/${providerCode}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'settings',
+            status: PROVIDER_STATUS.DISABLED,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const data =
+          (await res.json().catch(() => ({}))) as { error?: string };
+        showToast(data.error ?? 'Failed to disable provider', 'error');
+        return;
+      }
+      showToast('Provider disabled', 'success');
+      load();
+    } catch {
+      showToast('Network error. Please try again.', 'error');
     }
-    showToast('Provider disabled', 'success');
-    load();
   }
 
   if (loading) return <LoadingState message="Loading provider…" />;
@@ -1108,7 +1156,6 @@ export default function BrandProviderDetailPage() {
           <GeneralTab
             bp={bp!}
             onSave={handleSaveGeneral}
-            onReload={load}
           />
         );
       case 'credentials':
