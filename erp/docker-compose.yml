@@ -35,4 +35,4 @@ volumes:
 
 networks:
   sswin88:
-    name: sswin88
+    external: true
