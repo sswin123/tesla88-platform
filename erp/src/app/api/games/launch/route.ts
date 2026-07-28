@@ -85,18 +85,43 @@ export async function POST(req: NextRequest) {
     const { createGamingPlatform } = await import('@/lib/providers');
 
     // Find which brand has this provider enabled
-    const { rows: bpRows } = await pool.query<{ brand_code: string }>(
-      `SELECT b.code AS brand_code
+    // Debug: first query without status filter to see what actually exists
+    const { rows: debugRows } = await pool.query<{
+      brand_id: number; brand_code: string; bp_id: number; bp_status: string; provider_code: string;
+    }>(
+      `SELECT b.id AS brand_id, b.code AS brand_code, bp.id AS bp_id,
+              bp.status AS bp_status, p.code AS provider_code
        FROM brand_providers bp
-       JOIN brands b        ON b.id = bp.brand_id
-       JOIN gp_providers p  ON p.id = bp.provider_id
-       WHERE p.code = $1 AND bp.status = 'ACTIVE'
-       LIMIT 1`,
+       JOIN brands b       ON b.id = bp.brand_id
+       JOIN gp_providers p ON p.id = bp.provider_id
+       WHERE p.code = $1`,
       [upperCode],
     );
+    console.log(`[games/launch] DEBUG brand_providers lookup for provider_code="${upperCode}":`, {
+      query_condition: `p.code = '${upperCode}'`,
+      rows_found: debugRows.length,
+      records: debugRows.map(r => ({
+        brand_id:      r.brand_id,
+        brand_code:    r.brand_code,
+        bp_id:         r.bp_id,
+        bp_status:     r.bp_status,
+        provider_code: r.provider_code,
+      })),
+    });
+
+    const bpRows = debugRows.filter(r => r.bp_status === 'ACTIVE');
+    console.log(`[games/launch] DEBUG ACTIVE records: ${bpRows.length}/${debugRows.length}`);
+
     if (!bpRows[0]) {
+      const statusSummary = debugRows.length === 0
+        ? 'no brand_providers record found at all'
+        : `record found but status=${debugRows.map(r => `${r.brand_code}:${r.bp_status}`).join(', ')}`;
+      console.warn(`[games/launch] Resolution failed for "${upperCode}": ${statusSummary}`);
       return NextResponse.json(
-        { error: `Provider "${upperCode}" has no active brand configuration. Enable it in Brand Center.` },
+        {
+          error: `Provider "${upperCode}" has no active brand configuration. Enable it in Brand Center.`,
+          debug: { provider_code: upperCode, brand_providers_found: debugRows.length, status_summary: statusSummary },
+        },
         { status: 503 },
       );
     }
