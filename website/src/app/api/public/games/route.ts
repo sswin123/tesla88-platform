@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
+function proxyUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 export interface PublicGame {
   id: number;
   provider_code: string;
@@ -90,7 +98,14 @@ export async function GET(req: NextRequest) {
       [...vals, limit, offset],
     );
 
-    return NextResponse.json(rows, {
+    const proxied = rows.map(r => ({
+      ...r,
+      icon_url:      proxyUrl(r.icon_url),
+      thumbnail_url: proxyUrl(r.thumbnail_url),
+      banner_url:    proxyUrl(r.banner_url),
+    }));
+
+    return NextResponse.json(proxied, {
       headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
     });
   } catch {

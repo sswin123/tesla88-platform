@@ -33,6 +33,14 @@ function mediaUrl(id: number | null): string | null {
   return id ? `/api/public/media/${id}` : null;
 }
 
+function proxyUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 function iconData(r: {
   icon_type?: string;
   icon_emoji?: string | null;
@@ -81,8 +89,8 @@ async function getGpProviderCards(): Promise<{ cards: PublicLobbyCard[]; codes: 
       provider_code:  r.code,
       category_code:  r.website_category ?? 'slot',
       category_name:  r.website_category ?? 'slot',
-      thumbnail_url:  r.website_logo_url ?? null,
-      banner_url:     r.website_banner_url ?? null,
+      thumbnail_url:  proxyUrl(r.website_logo_url),
+      banner_url:     proxyUrl(r.website_banner_url),
       is_hot:         r.website_is_hot ?? false,
       is_new:         r.website_is_new ?? false,
       is_maintenance: r.website_maintenance ?? false,
