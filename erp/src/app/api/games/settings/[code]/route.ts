@@ -135,11 +135,44 @@ export async function GET(req: NextRequest, { params }: Params) {
     [provider.id],
   );
 
+  // Brand-provider summary (for non-legacy providers managed via brand_provider_credentials)
+  const { rows: bpRows } = await pool.query<{
+    bp_id: number; brand_code: string; bp_status: string; cred_count: string; cfg_count: string;
+  }>(
+    `SELECT bp.id AS bp_id, b.code AS brand_code, bp.status AS bp_status,
+            (SELECT COUNT(*) FROM brand_provider_credentials c WHERE c.brand_provider_id = bp.id)::text AS cred_count,
+            (SELECT COUNT(*) FROM brand_provider_config     cf WHERE cf.brand_provider_id = bp.id)::text AS cfg_count
+     FROM brand_providers bp
+     JOIN brands b ON b.id = bp.brand_id
+     WHERE bp.provider_id = $1
+     ORDER BY bp.status = 'ACTIVE' DESC, bp.id ASC
+     LIMIT 1`,
+    [provider.id],
+  );
+
+  // Game count and last sync timestamp from gp_games
+  const { rows: gameRows } = await pool.query<{ game_count: string; last_sync_at: string | null }>(
+    `SELECT COUNT(*)::text AS game_count, MAX(updated_at)::text AS last_sync_at
+     FROM gp_games WHERE provider_id = $1 AND is_active = TRUE`,
+    [provider.id],
+  );
+
+  const brandConfig = bpRows[0] ? {
+    brand_provider_id: bpRows[0].bp_id,
+    brand_code:        bpRows[0].brand_code,
+    status:            bpRows[0].bp_status,
+    cred_count:        parseInt(bpRows[0].cred_count, 10),
+    cfg_count:         parseInt(bpRows[0].cfg_count, 10),
+    game_count:        parseInt(gameRows[0]?.game_count ?? '0', 10),
+    last_sync_at:      gameRows[0]?.last_sync_at ?? null,
+  } : null;
+
   return NextResponse.json({
     provider,
     config: cfgRows,
     credentials: credRows,
     recent_audit: auditRows,
+    brand_config: brandConfig,
   });
 }
 

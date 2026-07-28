@@ -40,7 +40,19 @@ interface GpProvider {
 interface ConfigRow   { key: string; value: string; updated_at: string; updated_by_name: string | null }
 interface CredRow     { key: string; masked_value: string; is_encrypted: boolean; updated_at: string; updated_by_name: string | null }
 interface AuditEntry  { action: string; field_key: string | null; old_value_hint: string | null; new_value_hint: string | null; admin_username: string; ip_address: string; created_at: string }
-interface ProviderDetail { provider: GpProvider; config: ConfigRow[]; credentials: CredRow[]; recent_audit: AuditEntry[] }
+interface BrandConfig {
+  brand_provider_id: number;
+  brand_code: string;
+  status: string;       // ACTIVE | DISABLED | MAINTENANCE | TESTING
+  cred_count: number;
+  cfg_count: number;
+  game_count: number;
+  last_sync_at: string | null;
+}
+interface BrandCredRow { key: string; masked_value: string; is_encrypted: boolean; updated_at: string; updated_by_name: string | null }
+interface BrandCfgRow  { key: string; value: string; updated_at: string; updated_by_name: string | null }
+
+interface ProviderDetail { provider: GpProvider; config: ConfigRow[]; credentials: CredRow[]; recent_audit: AuditEntry[]; brand_config: BrandConfig | null }
 
 type UrlState = 'ok' | 'configured' | 'error';
 
@@ -149,6 +161,232 @@ function StatCard({ label, value, sub, trend }: { label: string; value: string |
         {trend === 'down' && <TrendingDown  className="w-4 h-4 text-rose-500   mb-0.5" />}
       </div>
       {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+// ── ProviderStatusDashboard ─────────────────────────────────────────────────
+// Clean status overview matching the user's mockup:
+//   🟢 Enabled  🟢 Connected  🟢 Launch Ready  🟢 X Games Synced
+
+interface ProviderStatusDashboardProps {
+  provider: GpProvider;
+  brandConfig: BrandConfig | null;
+  onEnable: () => void;
+  onDisable: () => void;
+  enablingStatus: boolean;
+}
+
+function ProviderStatusDashboard({ provider, brandConfig, onEnable, onDisable, enablingStatus }: ProviderStatusDashboardProps) {
+  const isEnabled     = brandConfig?.status === 'ACTIVE';
+  const isConnected   = provider.health_status === 'HEALTHY';
+  const hasCreds      = (brandConfig?.cred_count ?? 0) > 0;
+  const hasCfg        = (brandConfig?.cfg_count  ?? 0) > 0;
+  const isLaunchReady = isEnabled && isConnected && hasCreds && hasCfg;
+  const gameCount     = brandConfig?.game_count ?? 0;
+  const lastSync      = brandConfig?.last_sync_at;
+
+  function StatusRow({ ok, label, sub }: { ok: boolean; label: string; sub?: string }) {
+    return (
+      <div className="flex items-center gap-3 py-2">
+        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${ok ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+        <div>
+          <span className={`text-sm font-medium ${ok ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>{label}</span>
+          {sub && <p className="text-xs text-slate-400 dark:text-slate-500 leading-none mt-0.5">{sub}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
+      <StatusRow ok={isEnabled}     label="Enabled"      sub={!isEnabled ? (brandConfig ? `Status: ${brandConfig.status}` : 'Not configured for any brand') : undefined} />
+      <StatusRow ok={isConnected}   label="Connected"    sub={!isConnected ? `Health: ${provider.health_status}` : undefined} />
+      <StatusRow ok={isLaunchReady} label="Launch Ready" sub={!isLaunchReady ? (!hasCreds ? 'Credentials missing' : !hasCfg ? 'Configuration missing' : !isEnabled ? 'Enable provider first' : 'Run a Connection Test') : undefined} />
+      <StatusRow
+        ok={gameCount > 0}
+        label={gameCount > 0 ? `${gameCount.toLocaleString()} Games Synced` : 'Games Not Synced'}
+        sub={gameCount > 0 && lastSync ? `Last Sync: ${fmtDate(lastSync)}` : undefined}
+      />
+
+      <div className="pt-3 flex gap-2 flex-wrap">
+        {!isEnabled ? (
+          <button
+            onClick={onEnable}
+            disabled={enablingStatus}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            {enablingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            Enable Provider
+          </button>
+        ) : (
+          <button
+            onClick={onDisable}
+            disabled={enablingStatus}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {enablingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            Disable
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── BrandCredField ───────────────────────────────────────────────────────────
+// Credential input field for brand_provider_credentials (non-918KISS providers)
+
+function BrandCredField({ label, masked, onUpdate }: {
+  label: string;
+  masked: string;
+  onUpdate: (v: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal]         = useState('');
+  const [saving, setSaving]   = useState(false);
+
+  async function save() {
+    if (!val.trim()) return;
+    setSaving(true);
+    try { await onUpdate(val.trim()); setEditing(false); setVal(''); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="group p-3 rounded-lg border border-slate-100 dark:border-slate-700/60 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
+      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</div>
+      {editing ? (
+        <div className="space-y-1.5">
+          <input
+            autoFocus
+            type="password"
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            placeholder="Enter new value…"
+            className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          />
+          <div className="flex gap-1">
+            <button onClick={save} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
+            </button>
+            <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-mono text-slate-700 dark:text-slate-300">{masked}</span>
+          <button
+            onClick={() => setEditing(true)}
+            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+          >Edit</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── BrandCredsPanel ──────────────────────────────────────────────────────────
+// Renders credential or config list from brand_provider_credentials/config
+
+interface BrandCredsPanelProps {
+  code: string;
+  type: 'credential' | 'config';
+  loading: boolean;
+  data: { credentials: BrandCredRow[]; config: BrandCfgRow[] } | null;
+  onLoad: () => void;
+  onSaveCred: (key: string, value: string) => Promise<void>;
+  onSaveCfg:  (key: string, value: string) => Promise<void>;
+  onToast: (m: string, ok: boolean) => void;
+}
+
+function BrandCredsPanel({ type, loading, data, onLoad, onSaveCred, onSaveCfg }: BrandCredsPanelProps) {
+  // Load on first render
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!loaded.current) { loaded.current = true; onLoad(); }
+  }, [onLoad]);
+
+  if (loading || !data) {
+    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+  }
+
+  if (type === 'credential') {
+    return (
+      <div className="space-y-3">
+        <SectionHead title="Credentials" sub="Stored in brand_provider_credentials. Values are masked — enter a new value to update." />
+        {data.credentials.length === 0 && (
+          <div className="text-sm text-slate-400 italic p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl">No credentials configured yet.</div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {data.credentials.map(r => (
+            <BrandCredField key={r.key} label={r.key} masked={r.masked_value} onUpdate={v => onSaveCred(r.key, v)} />
+          ))}
+        </div>
+        {/* Add new key */}
+        <AddKeyForm onSave={onSaveCred} placeholder="e.g. api_token" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <SectionHead title="Configuration" sub="Stored in brand_provider_config. Non-secret values — displayed in plain text." />
+      {data.config.length === 0 && (
+        <div className="text-sm text-slate-400 italic p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl">No configuration keys set yet.</div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {data.config.map(r => (
+          <InlineEdit key={r.key} label={r.key} value={r.value} updatedBy={r.updated_by_name} onSave={v => onSaveCfg(r.key, v)} />
+        ))}
+      </div>
+      <AddKeyForm onSave={onSaveCfg} placeholder="e.g. api_base_url" valueLabel="Value" />
+    </div>
+  );
+}
+
+function AddKeyForm({ onSave, placeholder, valueLabel = 'Value' }: {
+  onSave: (k: string, v: string) => Promise<void>;
+  placeholder?: string;
+  valueLabel?: string;
+}) {
+  const [open, setOpen]   = useState(false);
+  const [key, setKey]     = useState('');
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!key.trim() || !value.trim()) return;
+    setSaving(true);
+    try { await onSave(key.trim(), value.trim()); setKey(''); setValue(''); setOpen(false); }
+    finally { setSaving(false); }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1">
+        <Plus className="w-3.5 h-3.5" /> Add new key
+      </button>
+    );
+  }
+  return (
+    <div className="flex gap-2 items-end flex-wrap p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+      <div className="flex-1 min-w-32">
+        <div className="text-xs text-slate-500 mb-0.5">Key</div>
+        <input value={key} onChange={e => setKey(e.target.value)} placeholder={placeholder}
+          className="w-full text-sm font-mono border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div className="flex-1 min-w-40">
+        <div className="text-xs text-slate-500 mb-0.5">{valueLabel}</div>
+        <input value={value} onChange={e => setValue(e.target.value)} type="text"
+          className="w-full text-sm font-mono border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+      </div>
+      <div className="flex gap-1">
+        <button onClick={save} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
+        </button>
+        <button onClick={() => { setOpen(false); setKey(''); setValue(''); }} className="px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+      </div>
     </div>
   );
 }
@@ -1059,6 +1297,9 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const [statusBusy, setStatusBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing]     = useState(false);
+  const [enablingStatus, setEnablingStatus] = useState(false);
+  const [brandCreds, setBrandCreds] = useState<{ credentials: BrandCredRow[]; config: BrandCfgRow[] } | null>(null);
+  const [brandCredsLoading, setBrandCredsLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     total: number;
     gp_games: { inserted: number; updated: number; deactivated: number };
@@ -1145,6 +1386,62 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
     await reload();
   }
 
+  async function loadBrandCreds() {
+    if (brandCreds) return; // already loaded
+    setBrandCredsLoading(true);
+    try {
+      const r = await fetch(`/api/games/settings/${code}/brand-creds`);
+      if (r.ok) {
+        const d = await r.json() as { credentials: BrandCredRow[]; config: BrandCfgRow[] };
+        setBrandCreds(d);
+      }
+    } finally {
+      setBrandCredsLoading(false);
+    }
+  }
+
+  async function patchBrandCred(key: string, value: string) {
+    const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'credential', key, value }),
+    });
+    const d = await r.json() as { ok?: boolean; error?: string };
+    if (!d.ok) throw new Error(d.error ?? 'Save failed');
+    onToast(`Credential saved: ${key}`, true);
+    setBrandCreds(null); // invalidate, will reload on next tab visit
+    await reload();
+  }
+
+  async function patchBrandConfig(key: string, value: string) {
+    const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'config', key, value }),
+    });
+    const d = await r.json() as { ok?: boolean; error?: string };
+    if (!d.ok) throw new Error(d.error ?? 'Save failed');
+    onToast(`Config saved: ${key}`, true);
+    setBrandCreds(null);
+    await reload();
+  }
+
+  async function setBrandStatus(status: string) {
+    setEnablingStatus(true);
+    try {
+      const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'status', status }),
+      });
+      const d = await r.json() as { ok?: boolean; error?: string };
+      if (!d.ok) throw new Error(d.error ?? 'Status update failed');
+      onToast(status === 'ACTIVE' ? 'Provider enabled — players can now launch games' : `Provider ${status.toLowerCase()}`, true);
+      await reload();
+    } catch (e) {
+      onToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, false);
+    } finally {
+      setEnablingStatus(false);
+    }
+  }
+
   async function handleSyncGames() {
     setSyncing(true);
     setSyncResult(null);
@@ -1199,14 +1496,15 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   const { provider, config, credentials } = detail;
-  const cfgMap  = Object.fromEntries(config.map(r => [r.key, r]));
-  const credMap = Object.fromEntries(credentials.map(r => [r.key, r]));
+  const isLegacy = provider.code.toUpperCase() === '918KISS' || provider.code.toUpperCase() === 'KISS918';
+  const cfgMap   = Object.fromEntries(config.map(r => [r.key, r]));
+  const credMap  = Object.fromEntries(credentials.map(r => [r.key, r]));
 
   const TAB_META: { id: Tab; label: string; icon: typeof Activity }[] = [
     { id: 'overview',     label: '概览',     icon: Activity },
     { id: 'website',      label: '网站展示',  icon: TrendingUp },
-    { id: 'settings',     label: '配置',     icon: Zap },
-    { id: 'credentials',  label: '凭证',     icon: ShieldCheck },
+    { id: 'settings',     label: isLegacy ? '配置 (Legacy)' : '配置',    icon: Zap },
+    { id: 'credentials',  label: isLegacy ? '凭证 (Legacy)' : '凭证',    icon: ShieldCheck },
     { id: 'statistics',   label: '统计',     icon: BarChart2 },
     { id: 'logs',         label: '回调日志',  icon: ScrollText },
     { id: 'history',      label: '版本历史',  icon: History },
@@ -1275,7 +1573,19 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
         {/* ── Overview ── */}
         {tab === 'overview' && (
           <div className="space-y-6">
-            {/* Status controls */}
+            {/* Status Dashboard — new providers (non-918KISS) */}
+            {!isLegacy && (
+              <ProviderStatusDashboard
+                provider={provider}
+                brandConfig={detail.brand_config}
+                onEnable={() => setBrandStatus('ACTIVE')}
+                onDisable={() => setBrandStatus('DISABLED')}
+                enablingStatus={enablingStatus}
+              />
+            )}
+
+            {/* Status controls — legacy 918KISS only */}
+            {isLegacy && (
             <div>
               <SectionHead title="Provider Status" />
               <div className="flex flex-wrap gap-2">
@@ -1291,6 +1601,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
                 ))}
               </div>
             </div>
+            )}
 
             {/* Health info */}
             <div>
@@ -1376,61 +1687,76 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
           <WebsiteDisplayTab provider={provider} patchWebsite={patchWebsite} onToast={onToast} />
         )}
 
-        {/* ── Settings ── */}
+        {/* ── Settings / Configuration ── */}
         {tab === 'settings' && (
-          <div className="space-y-3">
-            <SectionHead title="Configuration Keys" sub="点击任意行右侧「编辑」按钮修改，保存后立即写入数据库" />
-            <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
-              Legacy · 918KISS Production
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {Object.entries(CONFIG_LABELS).map(([key, label]) => (
-                <InlineEdit
-                  key={key}
-                  label={label}
-                  value={cfgMap[key]?.value ?? ''}
-                  updatedBy={cfgMap[key]?.updated_by_name}
-                  onSave={v => patchConfig(key, v)}
-                />
-              ))}
-              {config.filter(r => !CONFIG_LABELS[r.key]).map(r => (
-                <InlineEdit key={r.key} label={r.key} value={r.value} updatedBy={r.updated_by_name} onSave={v => patchConfig(r.key, v)} />
-              ))}
+          isLegacy ? (
+            <div className="space-y-3">
+              <SectionHead title="Configuration Keys" sub="点击任意行右侧「编辑」按钮修改，保存后立即写入数据库" />
+              <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                Legacy · 918KISS Production
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {Object.entries(CONFIG_LABELS).map(([key, label]) => (
+                  <InlineEdit key={key} label={label} value={cfgMap[key]?.value ?? ''} updatedBy={cfgMap[key]?.updated_by_name} onSave={v => patchConfig(key, v)} />
+                ))}
+                {config.filter(r => !CONFIG_LABELS[r.key]).map(r => (
+                  <InlineEdit key={r.key} label={r.key} value={r.value} updatedBy={r.updated_by_name} onSave={v => patchConfig(r.key, v)} />
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            // Non-legacy: read/write brand_provider_config
+            <BrandCredsPanel
+              code={code}
+              type="config"
+              loading={brandCredsLoading}
+              data={brandCreds}
+              onLoad={() => { void loadBrandCreds(); }}
+              onSaveCred={patchBrandCred}
+              onSaveCfg={patchBrandConfig}
+              onToast={onToast}
+            />
+          )
         )}
 
-        {/* ── Credentials (SuperAdmin only) ── */}
+        {/* ── Credentials ── */}
         {tab === 'credentials' && isCredAdmin && (
-          <div className="space-y-4">
-            <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
-              Legacy · 918KISS Production
-            </span>
-            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              凭证值经过掩码处理，API 从不返回明文。更新值将立即覆盖数据库记录，请保存副本。
+          isLegacy ? (
+            <div className="space-y-4">
+              <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                Legacy · 918KISS Production
+              </span>
+              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                凭证值经过掩码处理，API 从不返回明文。更新值将立即覆盖数据库记录，请保存副本。
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(CRED_LABELS).map(([key, label]) => {
+                  const row = credMap[key];
+                  return (
+                    <CredField key={key} label={label} masked={row?.masked_value ?? '— 未设置 —'} isEncrypted={row?.is_encrypted ?? false}
+                      updatedBy={row?.updated_by_name} updatedAt={row?.updated_at ?? ''} onUpdate={v => patchCredential(key, v)} />
+                  );
+                })}
+                {credentials.filter(r => !CRED_LABELS[r.key]).map(r => (
+                  <CredField key={r.key} label={r.key} masked={r.masked_value} isEncrypted={r.is_encrypted}
+                    updatedBy={r.updated_by_name} updatedAt={r.updated_at} onUpdate={v => patchCredential(r.key, v)} />
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {Object.entries(CRED_LABELS).map(([key, label]) => {
-                const row = credMap[key];
-                return (
-                  <CredField
-                    key={key}
-                    label={label}
-                    masked={row?.masked_value ?? '— 未设置 —'}
-                    isEncrypted={row?.is_encrypted ?? false}
-                    updatedBy={row?.updated_by_name}
-                    updatedAt={row?.updated_at ?? ''}
-                    onUpdate={v => patchCredential(key, v)}
-                  />
-                );
-              })}
-              {credentials.filter(r => !CRED_LABELS[r.key]).map(r => (
-                <CredField key={r.key} label={r.key} masked={r.masked_value} isEncrypted={r.is_encrypted}
-                  updatedBy={r.updated_by_name} updatedAt={r.updated_at} onUpdate={v => patchCredential(r.key, v)} />
-              ))}
-            </div>
-          </div>
+          ) : (
+            // Non-legacy: read/write brand_provider_credentials
+            <BrandCredsPanel
+              code={code}
+              type="credential"
+              loading={brandCredsLoading}
+              data={brandCreds}
+              onLoad={() => { void loadBrandCreds(); }}
+              onSaveCred={patchBrandCred}
+              onSaveCfg={patchBrandConfig}
+              onToast={onToast}
+            />
+          )
         )}
 
         {/* ── Statistics ── */}
