@@ -655,7 +655,7 @@ function CredentialsTab({
           body: JSON.stringify({
             type: 'credential',
             key: removeKey,
-            value: '',
+            value: '[CLEARED]',
             encrypt: false,
           }),
         },
@@ -665,7 +665,7 @@ function CredentialsTab({
           (await res.json().catch(() => ({}))) as { error?: string };
         showToast(data.error ?? 'Failed to clear credential', 'error');
       } else {
-        showToast('Credential cleared (key retained).', 'success');
+        showToast('Credential cleared (key retained with placeholder value).', 'success');
         onReload();
       }
     } finally {
