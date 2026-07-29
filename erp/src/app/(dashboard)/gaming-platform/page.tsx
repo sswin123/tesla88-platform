@@ -1258,8 +1258,9 @@ const CATEGORY_OPTIONS = [
 ];
 
 const LAUNCH_MODE_OPTIONS = [
-  { value: 'LOBBY',  label: 'LOBBY — 进入 H5 大厅（918KISS 类型）' },
-  { value: 'DIRECT', label: 'DIRECT — 直接启动游戏（需游戏列表）' },
+  { value: 'LOBBY',          label: 'LOBBY — 进入 H5 大厅（918KISS 类型）' },
+  { value: 'DIRECT',         label: 'DIRECT — 直接启动游戏（需游戏列表）' },
+  { value: 'MEGAAPP_DIALOG', label: 'MEGAAPP_DIALOG — 显示 MEGA888 凭证弹窗' },
 ];
 
 const DISPLAY_MODE_OPTIONS = [
@@ -1447,6 +1448,12 @@ function WebsiteDisplayTab({
           <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
             <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span>DIRECT 模式：网站展示该 Provider 的游戏列表，玩家点击具体游戏后传入 game_code 启动。需在 Games Library 维护游戏。</span>
+          </div>
+        )}
+        {launchMode === 'MEGAAPP_DIALOG' && (
+          <div className="mt-2 flex items-start gap-2 text-xs text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 rounded-lg px-3 py-2">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>MEGAAPP_DIALOG 模式：玩家点击后显示 MEGA888 账号密码弹窗，引导下载 APP 并登录。适用于 MEGA888 Transfer Wallet 接入。</span>
           </div>
         )}
       </div>

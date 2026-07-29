@@ -315,7 +315,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.type === 'website' && body.website) {
     const ws = body.website;
     const ALLOWED_CATEGORIES    = ['slot', 'live', 'sport', 'fishing'];
-    const ALLOWED_LAUNCH_MODES  = ['LOBBY', 'DIRECT'];
+    const ALLOWED_LAUNCH_MODES  = ['LOBBY', 'DIRECT', 'MEGAAPP_DIALOG'];
     const ALLOWED_DISPLAY_MODES = ['PROVIDER_CARD', 'GAME_LIST', 'BOTH'];
 
     if (ws.website_category && !ALLOWED_CATEGORIES.includes(ws.website_category)) {
