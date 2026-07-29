@@ -92,6 +92,23 @@ export default function MemberDetailPage() {
   // Bot username (for referral link)
   const [botUsername, setBotUsername] = useState('YourBot');
 
+  // Provider Accounts (MEGAAPP / Transfer Wallet)
+  interface ProviderAccount {
+    provider_code: string;
+    provider_name: string;
+    provider_login_id: string;
+    provider_user_id: number | null;
+    wallet_type: string;
+    password: string | null;
+    created_at: string;
+    updated_at: string;
+  }
+  const [providerAccounts, setProviderAccounts]   = useState<ProviderAccount[] | null>(null);
+  const [providerAccLoading, setProviderAccLoading] = useState(false);
+  const [syncingProvider, setSyncingProvider]     = useState<string | null>(null);
+  const [syncResult, setSyncResult]               = useState<Record<string, string>>({});
+  const [showPasswords, setShowPasswords]         = useState<Record<string, boolean>>({});
+
   // Wallet Center
   const [walletSummary,    setWalletSummary]    = useState<WalletSummary | null>(null);
   const [walletLoading,    setWalletLoading]    = useState(true);
@@ -108,6 +125,20 @@ export default function MemberDetailPage() {
     }
   }, []);
 
+  async function loadProviderAccounts(uid: number) {
+    setProviderAccLoading(true);
+    try {
+      const r = await fetch(`/api/members/${uid}/provider-accounts`);
+      if (r.ok) {
+        const d = await r.json() as { accounts: ProviderAccount[] };
+        setProviderAccounts(d.accounts);
+      }
+      // 401 = no permission, leave null (card hidden)
+    } catch { /* silent */ } finally {
+      setProviderAccLoading(false);
+    }
+  }
+
   async function load() {
     const [r, botR] = await Promise.all([
       fetch(`/api/members/${params.id}`),
@@ -118,6 +149,7 @@ export default function MemberDetailPage() {
       setData(d);
       setRemarks(((d.member as unknown) as Record<string, unknown>).remarks as string ?? '');
       void loadWallet(d.member.id);
+      void loadProviderAccounts(d.member.id);
     } else {
       const d = await r.json().catch(() => ({})) as { error?: string };
       if (r.status === 401) setLoadError('权限不足，请重新登录');
@@ -257,6 +289,29 @@ export default function MemberDetailPage() {
     if (r.ok) { setData(p => p ? { ...p, accounts: p.accounts.filter(a => a.provider !== provider) } : null); }
     else { const d = await r.json().catch(() => ({})) as { error?: string }; alert(d.error ?? '移除失败'); }
     setRemovingGame(null);
+  }
+
+  async function syncProviderWallet(providerCode: string, memberId: number) {
+    setSyncingProvider(providerCode);
+    setSyncResult(p => ({ ...p, [providerCode]: '' }));
+    try {
+      const r = await fetch(`/api/members/${memberId}/provider-accounts/${providerCode}/sync`, { method: 'POST' });
+      const d = await r.json() as { ok?: boolean; returned?: number; balance_before?: number; balance_after?: number; error?: string };
+      if (r.ok && d.ok) {
+        const msg = d.returned && d.returned > 0
+          ? `✅ 已提回 RM${d.returned.toFixed(2)} (余额 RM${d.balance_before?.toFixed(2)} → RM${d.balance_after?.toFixed(2)})`
+          : `✅ MEGA 钱包余额为零，无需提回`;
+        setSyncResult(p => ({ ...p, [providerCode]: msg }));
+        // Refresh wallet summary
+        void loadWallet(memberId);
+      } else {
+        setSyncResult(p => ({ ...p, [providerCode]: `❌ ${d.error ?? '同步失败'}` }));
+      }
+    } catch {
+      setSyncResult(p => ({ ...p, [providerCode]: '❌ 网络错误' }));
+    } finally {
+      setSyncingProvider(null);
+    }
   }
 
   if (loading) return <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>;
@@ -463,6 +518,96 @@ export default function MemberDetailPage() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Provider Accounts (MEGAAPP / Transfer Wallet) */}
+          {providerAccounts !== null && (
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Provider Accounts</CardTitle>
+                  <button
+                    onClick={() => void loadProviderAccounts(member.id)}
+                    disabled={providerAccLoading}
+                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                  >
+                    {providerAccLoading ? '刷新中…' : '↻ 刷新'}
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {providerAccounts.length === 0 ? (
+                  <p className="text-sm text-gray-400">该会员暂无 Provider 账号</p>
+                ) : (
+                  <div className="space-y-3">
+                    {providerAccounts.map(acc => (
+                      <div key={acc.provider_code} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm space-y-2">
+                        {/* Header row */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800">{acc.provider_name}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-mono">{acc.provider_code}</span>
+                            {acc.wallet_type === 'TRANSFER' && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Transfer Wallet</span>
+                            )}
+                          </div>
+                          {acc.wallet_type === 'TRANSFER' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void syncProviderWallet(acc.provider_code, member.id)}
+                              disabled={syncingProvider === acc.provider_code}
+                              className="text-xs h-7 px-2"
+                            >
+                              {syncingProvider === acc.provider_code ? '同步中…' : '↺ Sync Wallet'}
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Detail rows */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div className="text-gray-500">Login ID</div>
+                          <div className="font-mono">{acc.provider_login_id}</div>
+                          {acc.provider_user_id !== null && (
+                            <>
+                              <div className="text-gray-500">Provider UID</div>
+                              <div className="font-mono">{acc.provider_user_id}</div>
+                            </>
+                          )}
+                          <div className="text-gray-500">Password</div>
+                          <div className="flex items-center gap-1">
+                            {acc.password !== null ? (
+                              <>
+                                <span className="font-mono">
+                                  {showPasswords[acc.provider_code] ? acc.password : '••••••••'}
+                                </span>
+                                <button
+                                  onClick={() => setShowPasswords(p => ({ ...p, [acc.provider_code]: !p[acc.provider_code] }))}
+                                  className="text-gray-400 hover:text-gray-700 text-[10px] underline ml-1"
+                                >
+                                  {showPasswords[acc.provider_code] ? '隐藏' : '查看'}
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 italic">无权查看</span>
+                            )}
+                          </div>
+                          <div className="text-gray-500">创建时间</div>
+                          <div>{new Date(acc.created_at).toLocaleString()}</div>
+                          <div className="text-gray-500">最后更新</div>
+                          <div>{new Date(acc.updated_at).toLocaleString()}</div>
+                        </div>
+
+                        {/* Sync result message */}
+                        {syncResult[acc.provider_code] && (
+                          <p className="text-xs mt-1 text-gray-600">{syncResult[acc.provider_code]}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

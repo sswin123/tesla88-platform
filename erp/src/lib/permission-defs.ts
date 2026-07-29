@@ -120,6 +120,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    module: 'Game Accounts',
+    permissions: [
+      { key: 'member.provider_account.view',          label: 'View Member Provider Accounts (login IDs, status)' },
+      { key: 'member.provider_account.view_password', label: 'View Provider Account Password (sensitive)' },
+      { key: 'member.provider_account.sync',          label: 'Sync Transfer Wallet (pull MEGA balance back to main wallet)' },
+    ],
+  },
+  {
     module: 'Others',
     permissions: [
       { key: 'risk.view',         label: 'Risk Center' },
