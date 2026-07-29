@@ -44,12 +44,19 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
   }
   console.log(`[megaapp-callback] body len=${rawBody.length} preview="${rawBody.slice(0, 300)}"`);
 
+  // MEGA888 sends the payload as URL-encoded form data: json={...}
+  // Fall back to treating body as raw JSON if no json= prefix is found.
+  let jsonStr = rawBody;
+  if (rawBody.startsWith('json=')) {
+    jsonStr = decodeURIComponent(rawBody.slice('json='.length));
+  }
+
   // Parse JSON-RPC envelope
   let envelope: { jsonrpc?: string; id?: string; method?: string; params?: Record<string, unknown> };
   try {
-    envelope = JSON.parse(rawBody) as typeof envelope;
+    envelope = JSON.parse(jsonStr) as typeof envelope;
   } catch (err) {
-    console.error('[megaapp-callback] JSON parse failed:', err, '| raw=', rawBody.slice(0, 200));
+    console.error('[megaapp-callback] JSON parse failed:', err, '| jsonStr=', jsonStr.slice(0, 200));
     return NextResponse.json(
       { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Invalid JSON' } },
     );
