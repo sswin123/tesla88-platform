@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MegaAppDialogProps {
   loginId:             string;
@@ -26,7 +26,6 @@ function CopyButton({ text }: { text: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      // clipboard unavailable — try fallback
       const el = document.createElement('textarea');
       el.value = text;
       el.style.position = 'fixed';
@@ -50,7 +49,7 @@ function CopyButton({ text }: { text: string }) {
         minWidth:   '52px',
       }}
     >
-      {copied ? '✓' : 'Copy'}
+      {copied ? '✓' : 'SALIN'}
     </button>
   );
 }
@@ -64,6 +63,8 @@ export function MegaAppDialog({
   onClose,
 }: MegaAppDialogProps) {
   const downloadUrl = detectDownloadUrl(downloadUrlAndroid, downloadUrlIos);
+  const [showDownloadHint, setShowDownloadHint] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Close on Escape key
   useEffect(() => {
@@ -76,8 +77,20 @@ export function MegaAppDialog({
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
+
+  // Try opening the deep link; if app is not installed the browser stays on this page
+  const handlePlay = () => {
+    window.location.href = launchUrl;
+    // After 2.2s, if we're still here (page didn't navigate away), the app isn't installed
+    timerRef.current = setTimeout(() => {
+      setShowDownloadHint(true);
+    }, 2200);
+  };
 
   return (
     <div
@@ -132,22 +145,19 @@ export function MegaAppDialog({
         </div>
 
         {/* Credential rows */}
-        <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col gap-3 mb-5">
           {/* Username */}
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-xl"
             style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
           >
             <div className="flex-1 min-w-0">
-              <p
-                className="text-xs mb-0.5"
-                style={{ color: 'var(--text-muted, #888)' }}
-              >
+              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
                 Username
               </p>
               <p
                 className="text-sm font-semibold truncate"
-                style={{ color: 'var(--text-base, #fff)', fontVariantNumeric: 'tabular-nums' }}
+                style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
               >
                 {loginId}
               </p>
@@ -161,15 +171,12 @@ export function MegaAppDialog({
             style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
           >
             <div className="flex-1 min-w-0">
-              <p
-                className="text-xs mb-0.5"
-                style={{ color: 'var(--text-muted, #888)' }}
-              >
-                Password
+              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
+                Kata Laluan
               </p>
               <p
                 className="text-sm font-semibold truncate"
-                style={{ color: 'var(--text-base, #fff)', fontVariantNumeric: 'tabular-nums' }}
+                style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
               >
                 {password}
               </p>
@@ -178,9 +185,35 @@ export function MegaAppDialog({
           </div>
         </div>
 
+        {/* Download hint — shown after deeplink fails */}
+        {showDownloadHint && (
+          <div
+            className="mb-4 px-4 py-3 rounded-xl text-xs text-center"
+            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', lineHeight: 1.6 }}
+          >
+            未检测到 MEGA888 APP。
+            {downloadUrl ? (
+              <>
+                {' '}请先
+                <a
+                  href={downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#f59e0b', fontWeight: 700, textDecoration: 'underline' }}
+                >
+                  下载 APP
+                </a>
+                后再登录。
+              </>
+            ) : (
+              ' 请先下载 MEGA888 APP 后再点击游戏。'
+            )}
+          </div>
+        )}
+
         {/* Action buttons */}
-        <div className={`flex gap-3 ${!downloadUrl ? 'justify-center' : ''}`}>
-          {downloadUrl && (
+        <div className="flex gap-3">
+          {downloadUrl ? (
             <a
               href={downloadUrl}
               target="_blank"
@@ -192,21 +225,31 @@ export function MegaAppDialog({
                 display:    'block',
               }}
             >
-              下载 APP
+              Muat Turun
             </a>
+          ) : (
+            <button
+              onClick={() => setShowDownloadHint(true)}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold text-center transition-opacity hover:opacity-80"
+              style={{
+                background: 'var(--bg-surface2, rgba(255,255,255,0.1))',
+                color:      'var(--text-muted, #aaa)',
+              }}
+            >
+              Muat Turun
+            </button>
           )}
-          <a
-            href={launchUrl}
+          <button
+            onClick={handlePlay}
             className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
             style={{
-              background:  'var(--brand-primary, #7c3aed)',
-              color:       '#fff',
-              boxShadow:   '0 4px 20px color-mix(in srgb, var(--brand-primary, #7c3aed) 35%, transparent)',
-              display:     'block',
+              background: 'transparent',
+              color:      'var(--text-base, #fff)',
+              border:     '2px solid var(--text-base, rgba(255,255,255,0.6))',
             }}
           >
-            立即游戏
-          </a>
+            Main Sekarang
+          </button>
         </div>
       </div>
     </div>
