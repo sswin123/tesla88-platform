@@ -12,6 +12,8 @@ export interface MegaH5Credentials {
   encrypt_key: string;
   /** Md5EncryptKey used in H5 Login MD5 signature. key = 'md5_key' */
   md5_key: string;
+  /** Field delimiter in QS string (e.g. "|" or "&"). key = 'delimiter' */
+  delimiter: string;
 }
 
 /** Configuration loaded from brand_provider_config. */
