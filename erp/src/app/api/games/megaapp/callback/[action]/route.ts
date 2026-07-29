@@ -110,10 +110,11 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
     });
   }
 
-  // If login succeeded, push the player's main wallet balance into MEGA888.
-  // This runs on every login — the user may open the app directly without going
-  // through our website launch route, so the topUp must live here too.
-  // Positive transfers (topUp) succeed even while the player is online.
+  // If login succeeded, sync wallets:
+  // 1. autoWithdrawAll — pull any remaining MEGA balance back to main wallet
+  // 2. topUp — push the current main wallet balance into MEGA
+  // This runs on every app login so balances stay consistent even when the
+  // player exits and re-enters without going through the website launch route.
   if (!result['error']) {
     const loginId = String(rpcParams['loginId'] ?? '');
     try {
@@ -126,6 +127,21 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
       const userId = paRows[0]?.user_id;
 
       if (userId) {
+        // Step 1: pull any leftover MEGA balance back to main wallet
+        try {
+          const returned = await adapter.autoWithdrawAll(loginId);
+          if (returned > 0) {
+            await pool.query(
+              `UPDATE users SET total_deposit = total_deposit + $1 WHERE id = $2`,
+              [returned, userId],
+            );
+            console.log(`[megaapp-callback] autoWithdraw ok: userId=${userId} returned=${returned} loginId=${loginId}`);
+          }
+        } catch (err) {
+          console.warn('[megaapp-callback] autoWithdraw failed (non-fatal):', (err instanceof Error ? err.message : String(err)));
+        }
+
+        // Step 2: read fresh main wallet balance and push to MEGA
         const { rows: balRows } = await pool.query<{ available_balance: string }>(
           `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
           [userId],
