@@ -8,8 +8,9 @@ import {
   Loader2, ChevronDown, ChevronUp, ShieldCheck, Activity, Wifi, WifiOff,
   Download, Upload, History, RotateCcw, Copy, Check, Lock, Unlock,
   BarChart2, ScrollText, Zap, Filter, Search, ChevronLeft, ChevronRight,
-  Clock, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
+  Clock, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2, PackageSearch,
 } from 'lucide-react';
+import { getProviderSchema, type ProviderSchema, type SchemaField } from '@/lib/provider-schemas';
 
 // ══════════════════════════════════════════════════════════════
 // Types
@@ -116,7 +117,7 @@ const HEALTH_CFG: Record<string, { color: string; icon: typeof CheckCircle }> = 
   UNKNOWN: { color: 'text-slate-400',   icon: AlertCircle },
 };
 
-const TABS = ['overview', 'website', 'settings', 'credentials', 'logs', 'statistics', 'history', 'audit'] as const;
+const TABS = ['overview', 'website', 'settings', 'credentials', 'connection_test', 'statistics', 'logs', 'history', 'audit'] as const;
 type Tab = typeof TABS[number];
 
 const ALL_STATUSES: string[] = ['ACTIVE', 'TESTING', 'DISABLED', 'MAINTENANCE'];
@@ -386,6 +387,195 @@ function AddKeyForm({ onSave, placeholder, valueLabel = 'Value' }: {
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
         </button>
         <button onClick={() => { setOpen(false); setKey(''); setValue(''); }} className="px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// Schema-driven field components
+// ══════════════════════════════════════════════════════════════
+
+function SchemaStubNotice({ schema }: { schema: ProviderSchema | null }) {
+  const name = schema?.displayName ?? 'this provider';
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+      <PackageSearch className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+      <div>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+          Schema not defined for {name}
+        </p>
+        <p className="text-xs text-slate-400 mt-1 max-w-xs">
+          The adapter for this provider is not yet implemented. Configuration and credentials will be available once the adapter is released.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Schema-driven configuration field (text / url / number / select / boolean)
+function SchemaConfigField({ field, value, updatedBy, onSave }: {
+  field: SchemaField;
+  value: string;
+  updatedBy?: string | null;
+  onSave: (v: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setVal(value), [value]);
+
+  async function save() {
+    setSaving(true);
+    try { await onSave(val); setEditing(false); } finally { setSaving(false); }
+  }
+
+  // Select type: inline dropdown, no separate edit mode
+  if (field.type === 'select') {
+    return (
+      <div className="p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+          {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
+        </div>
+        <select
+          value={val || ''}
+          onChange={e => { setVal(e.target.value); void onSave(e.target.value); }}
+          className="w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        >
+          <option value="">— select —</option>
+          {field.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {updatedBy && <div className="text-[10px] text-slate-400 mt-1">by {updatedBy}</div>}
+        {field.description && <div className="text-[10px] text-slate-400 mt-0.5">{field.description}</div>}
+      </div>
+    );
+  }
+
+  // Text / URL / Number: inline edit
+  return (
+    <div className="group flex items-start gap-2 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">
+          {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
+        </div>
+        {editing ? (
+          <input
+            autoFocus
+            type={field.type === 'number' ? 'number' : 'text'}
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            placeholder={field.placeholder}
+            min={field.min}
+            max={field.max}
+            className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          />
+        ) : (
+          <div className="text-sm font-mono text-slate-800 dark:text-slate-200 truncate">
+            {val || <span className="text-slate-400 italic text-xs">— not set —</span>}
+          </div>
+        )}
+        {updatedBy && <div className="text-[10px] text-slate-400 mt-0.5">by {updatedBy}</div>}
+        {field.description && !editing && <div className="text-[10px] text-slate-400 mt-0.5">{field.description}</div>}
+      </div>
+      <div className="shrink-0 mt-4">
+        {editing ? (
+          <div className="flex gap-1">
+            <button onClick={() => void save()} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              {saving ? <Spinner /> : <Save className="w-3 h-3" />} 保存
+            </button>
+            <button onClick={() => { setEditing(false); setVal(value); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">取消</button>
+          </div>
+        ) : (
+          <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">
+            编辑
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Schema-driven configuration panel (replaces BrandCredsPanel for non-legacy config)
+function SchemaConfigPanel({ schema, loading, data, onLoad, onSaveCfg }: {
+  schema: ProviderSchema | null;
+  loading: boolean;
+  data: { credentials: BrandCredRow[]; config: BrandCfgRow[] } | null;
+  onLoad: () => void;
+  onSaveCfg: (key: string, value: string) => Promise<void>;
+}) {
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!loaded.current) { loaded.current = true; onLoad(); }
+  }, [onLoad]);
+
+  if (loading || !data) {
+    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+  }
+
+  if (!schema || schema.isStub) return <SchemaStubNotice schema={schema} />;
+
+  const cfgMap = Object.fromEntries(data.config.map(r => [r.key, r]));
+
+  return (
+    <div className="space-y-3">
+      <SectionHead title="Configuration" sub="点击任意行右侧「编辑」按钮修改，保存后立即写入数据库" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {schema.config.map(field => (
+          <SchemaConfigField
+            key={field.key}
+            field={field}
+            value={cfgMap[field.key]?.value ?? ''}
+            updatedBy={cfgMap[field.key]?.updated_by_name}
+            onSave={v => onSaveCfg(field.key, v)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Schema-driven credentials panel (replaces BrandCredsPanel for non-legacy credentials)
+function SchemaCredsPanel({ schema, loading, data, onLoad, onSaveCred }: {
+  schema: ProviderSchema | null;
+  loading: boolean;
+  data: { credentials: BrandCredRow[]; config: BrandCfgRow[] } | null;
+  onLoad: () => void;
+  onSaveCred: (key: string, value: string) => Promise<void>;
+}) {
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (!loaded.current) { loaded.current = true; onLoad(); }
+  }, [onLoad]);
+
+  if (loading || !data) {
+    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+  }
+
+  if (!schema || schema.isStub) return <SchemaStubNotice schema={schema} />;
+
+  const credMap = Object.fromEntries(data.credentials.map(r => [r.key, r]));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-700 dark:text-amber-300">
+        <AlertTriangle className="w-4 h-4 shrink-0" />
+        凭证值经过掩码处理，API 从不返回明文。更新值将立即覆盖数据库记录，请保存副本。
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {schema.credentials.map(field => {
+          const row = credMap[field.key];
+          return (
+            <CredField
+              key={field.key}
+              label={field.label}
+              masked={row?.masked_value ?? '— 未设置 —'}
+              isEncrypted={row?.is_encrypted ?? false}
+              updatedBy={row?.updated_by_name}
+              updatedAt={row?.updated_at ?? ''}
+              onUpdate={v => onSaveCred(field.key, v)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -1499,16 +1689,18 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const isLegacy = provider.code.toUpperCase() === '918KISS' || provider.code.toUpperCase() === 'KISS918';
   const cfgMap   = Object.fromEntries(config.map(r => [r.key, r]));
   const credMap  = Object.fromEntries(credentials.map(r => [r.key, r]));
+  const providerSchema = isLegacy ? null : getProviderSchema(provider.code);
 
   const TAB_META: { id: Tab; label: string; icon: typeof Activity }[] = [
-    { id: 'overview',     label: '概览',     icon: Activity },
-    { id: 'website',      label: '网站展示',  icon: TrendingUp },
-    { id: 'settings',     label: isLegacy ? '配置 (Legacy)' : '配置',    icon: Zap },
-    { id: 'credentials',  label: isLegacy ? '凭证 (Legacy)' : '凭证',    icon: ShieldCheck },
-    { id: 'statistics',   label: '统计',     icon: BarChart2 },
-    { id: 'logs',         label: '回调日志',  icon: ScrollText },
-    { id: 'history',      label: '版本历史',  icon: History },
-    { id: 'audit',        label: '审计',     icon: Filter },
+    { id: 'overview',         label: '概览',        icon: Activity },
+    { id: 'website',          label: '网站展示',     icon: TrendingUp },
+    { id: 'settings',         label: '配置',         icon: Zap },
+    { id: 'credentials',      label: '凭证',         icon: ShieldCheck },
+    { id: 'connection_test',  label: '连接测试',     icon: Wifi },
+    { id: 'statistics',       label: '统计',         icon: BarChart2 },
+    { id: 'logs',             label: '回调日志',     icon: ScrollText },
+    { id: 'history',          label: '版本历史',     icon: History },
+    { id: 'audit',            label: '审计',         icon: Filter },
   ];
 
   return (
@@ -1623,12 +1815,6 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
               </div>
             </div>
 
-            {/* Connection Test */}
-            <div>
-              <SectionHead title="Connection Test" sub="服务端发起的连通性测试，不经过浏览器" />
-              <ConnectionTestPanel code={code} onToast={onToast} />
-            </div>
-
             {/* Game Sync — conditional on GAME_SYNC capability */}
             <div>
               <SectionHead title="游戏目录同步" sub="从 Provider API 拉取游戏列表，写入 gp_games 内部目录（不影响网站展示）" />
@@ -1705,16 +1891,12 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
               </div>
             </div>
           ) : (
-            // Non-legacy: read/write brand_provider_config
-            <BrandCredsPanel
-              code={code}
-              type="config"
+            <SchemaConfigPanel
+              schema={providerSchema}
               loading={brandCredsLoading}
               data={brandCreds}
               onLoad={() => { void loadBrandCreds(); }}
-              onSaveCred={patchBrandCred}
               onSaveCfg={patchBrandConfig}
-              onToast={onToast}
             />
           )
         )}
@@ -1745,18 +1927,22 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
               </div>
             </div>
           ) : (
-            // Non-legacy: read/write brand_provider_credentials
-            <BrandCredsPanel
-              code={code}
-              type="credential"
+            <SchemaCredsPanel
+              schema={providerSchema}
               loading={brandCredsLoading}
               data={brandCreds}
               onLoad={() => { void loadBrandCreds(); }}
               onSaveCred={patchBrandCred}
-              onSaveCfg={patchBrandConfig}
-              onToast={onToast}
             />
           )
+        )}
+
+        {/* ── Connection Test ── */}
+        {tab === 'connection_test' && (
+          <div className="space-y-3">
+            <SectionHead title="Connection Test" sub="服务端发起的连通性测试，不经过浏览器" />
+            <ConnectionTestPanel code={code} onToast={onToast} />
+          </div>
         )}
 
         {/* ── Statistics ── */}
