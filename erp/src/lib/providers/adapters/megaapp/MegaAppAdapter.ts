@@ -205,7 +205,9 @@ export class MegaAppAdapter extends BaseProviderAdapter {
       throw new ProviderError(this.code, 400, 'topUp amount must be positive');
     }
     const loginId = params.provider_player_id;
-    const balance = await this.api.balanceTransfer(loginId, params.amount, params.reference_id);
+    // Do NOT pass bizId — MEGA requires it to be a long (integer), but our
+    // reference_id is a string with letters which MEGA rejects.
+    const balance = await this.api.balanceTransfer(loginId, params.amount);
     return { order_id: params.reference_id, balance };
   }
 
@@ -218,8 +220,7 @@ export class MegaAppAdapter extends BaseProviderAdapter {
       throw new ProviderError(this.code, 400, 'withdraw amount must be positive');
     }
     const loginId = params.provider_player_id;
-    // Negative amount = withdraw from MEGA
-    const balance = await this.api.balanceTransfer(loginId, -params.amount, params.reference_id);
+    const balance = await this.api.balanceTransfer(loginId, -params.amount);
     return { order_id: params.reference_id, balance };
   }
 
@@ -227,8 +228,9 @@ export class MegaAppAdapter extends BaseProviderAdapter {
    * Automatically withdraw ALL balance from the player's MEGA account.
    * Returns the amount transferred out.
    */
-  async autoWithdrawAll(loginId: string, bizId?: string): Promise<number> {
-    return this.api.autoTransferOut(loginId, bizId);
+  async autoWithdrawAll(loginId: string): Promise<number> {
+    // Do NOT pass bizId — same reason as topUp (must be a long, not a string)
+    return this.api.autoTransferOut(loginId);
   }
 
   /**
