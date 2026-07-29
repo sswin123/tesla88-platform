@@ -94,7 +94,7 @@ export function MegaAppDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
       role="dialog"
       aria-modal="true"
       aria-label="MEGA888 游戏凭证"
@@ -107,16 +107,11 @@ export function MegaAppDialog({
         aria-hidden="true"
       />
 
-      {/* Sheet */}
+      {/* Dialog */}
       <div
-        className="relative w-full sm:max-w-sm mx-0 sm:mx-4 rounded-t-3xl sm:rounded-3xl px-6 pt-6 pb-8"
-        style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', zIndex: 1 }}
+        className="relative w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 overflow-y-auto"
+        style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', zIndex: 1, maxHeight: '90dvh' }}
       >
-        {/* Drag handle (mobile) */}
-        <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full sm:hidden"
-          style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.12))' }}
-        />
 
         {/* Close button */}
         <button
