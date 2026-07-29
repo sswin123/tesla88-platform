@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { isBrowser } from '@/lib/is-browser';
+import { MegaAppDialog } from '@/app/components/MegaAppDialog';
+
+interface MegaAppDialogState {
+  loginId:            string;
+  password:           string;
+  launchUrl:          string;
+  downloadUrlAndroid: string | null;
+  downloadUrlIos:     string | null;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -452,8 +461,9 @@ interface CardProps {
 }
 
 function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) {
-  const [hovered,  setHovered]  = useState(false);
-  const [launching, setLaunching] = useState(false);
+  const [hovered,       setHovered]       = useState(false);
+  const [launching,     setLaunching]     = useState(false);
+  const [megaAppDialog, setMegaAppDialog] = useState<MegaAppDialogState | null>(null);
 
   async function handleLaunch(e: React.MouseEvent) {
     e.preventDefault();
@@ -476,7 +486,42 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         window.location.href = '/login';
         return;
       }
-      const d = await r.json() as { launch_url?: string; error?: string };
+      const d = await r.json() as {
+        launch_url?: string; launch_mode?: string;
+        session_token?: string | null; error?: string;
+      };
+
+      if (d.launch_mode === 'MEGAAPP_DIALOG' && d.launch_url) {
+        let loginId = '';
+        let password = '';
+        let downloadUrlAndroid: string | null = null;
+        let downloadUrlIos: string | null = null;
+
+        if (d.session_token) {
+          try {
+            const tok = JSON.parse(d.session_token) as Record<string, unknown>;
+            loginId            = String(tok['login_id']             ?? '');
+            password           = String(tok['password']             ?? '');
+            downloadUrlAndroid = tok['download_url_android'] ? String(tok['download_url_android']) : null;
+            downloadUrlIos     = tok['download_url_ios']     ? String(tok['download_url_ios'])     : null;
+          } catch { /* fall through to URL parse */ }
+        }
+
+        if ((!loginId || !password) && d.launch_url) {
+          try {
+            const qs = d.launch_url.replace(/^[^?]*\?/, '');
+            const p  = new URLSearchParams(qs);
+            loginId  = p.get('account')  ?? '';
+            password = p.get('password') ?? '';
+          } catch { /* ignore */ }
+        }
+
+        if (loginId && password) {
+          setMegaAppDialog({ loginId, password, launchUrl: d.launch_url, downloadUrlAndroid, downloadUrlIos });
+          return;
+        }
+      }
+
       if (d.launch_url) {
         window.location.href = d.launch_url;
       } else {
@@ -565,6 +610,17 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
   };
 
   return (
+    <>
+    {megaAppDialog && (
+      <MegaAppDialog
+        loginId={megaAppDialog.loginId}
+        password={megaAppDialog.password}
+        launchUrl={megaAppDialog.launchUrl}
+        downloadUrlAndroid={megaAppDialog.downloadUrlAndroid}
+        downloadUrlIos={megaAppDialog.downloadUrlIos}
+        onClose={() => setMegaAppDialog(null)}
+      />
+    )}
     <div
       onClick={e => { void handleLaunch(e); }}
       onMouseEnter={() => setHovered(true)}
@@ -691,6 +747,7 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         )}
       </div>
     </div>
+    </>
   );
 }
 
