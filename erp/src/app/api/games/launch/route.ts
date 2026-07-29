@@ -251,21 +251,14 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 5. Launch ─────────────────────────────────────────────────────────────
+  let launchResult: import('@/lib/providers').LaunchResult;
   try {
-    const result = await adapter.launch({
+    launchResult = await adapter.launch({
       user_id,
       provider_id: provider.id,
       game_code:   game_code ?? null,
       language:    2,           // Mandarin
       lobby_return_url: lobby_return_url || '',
-    });
-
-    return NextResponse.json({
-      ok:            true,
-      launch_url:    result.launch_url,
-      session_token: result.session_token ?? null,
-      provider_code: upperCode,
-      launch_mode:   provider.website_launch_mode ?? 'LOBBY',
     });
   } catch (err) {
     console.error('[games/launch] adapter.launch failed:', err);
@@ -274,4 +267,68 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
+
+  // ── 6. Transfer Wallet: sync balance on launch ────────────────────────────
+  // For TRANSFER wallet providers (e.g. MEGAAPP), move the player's main
+  // wallet balance into the game provider on each launch.
+  // First pull any leftover provider balance back (previous session),
+  // then push the current main wallet balance out to the provider.
+  if (adapter.walletType === 'TRANSFER' && playerRecord?.provider_player_id) {
+    const loginId = playerRecord.provider_player_id;
+
+    // Step A: withdraw any leftover balance from the previous session back to main wallet.
+    if (adapter.autoWithdrawAll) {
+      try {
+        const returned = await adapter.autoWithdrawAll(loginId, `MEGARET-${user_id}-${Date.now()}`);
+        if (returned > 0) {
+          await pool.query(
+            `UPDATE users SET available_balance = available_balance + $1 WHERE id = $2`,
+            [returned, user_id],
+          );
+          console.log(`[games/launch] TRANSFER auto-withdraw: userId=${user_id} returned=${returned}`);
+        }
+      } catch (err) {
+        console.warn('[games/launch] TRANSFER auto-withdraw failed (non-fatal):', err);
+      }
+    }
+
+    // Step B: read current main wallet balance and push it to the provider.
+    const { rows: balRows } = await pool.query<{ available_balance: string }>(
+      `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
+      [user_id],
+    );
+    const balance = parseFloat(balRows[0]?.available_balance ?? '0');
+
+    if (balance > 0 && adapter.topUp) {
+      const refId = `MEGAUP-${user_id}-${Date.now()}`;
+      try {
+        await adapter.topUp({
+          provider_player_id: loginId,
+          amount:             balance,
+          reference_id:       refId,
+          currency:           'MYR',
+        });
+        // Atomic deduct — if balance changed between read and update, skip silently.
+        const { rowCount } = await pool.query(
+          `UPDATE users SET available_balance = available_balance - $1
+           WHERE id = $2 AND available_balance >= $1`,
+          [balance, user_id],
+        );
+        if (rowCount && rowCount > 0) {
+          console.log(`[games/launch] TRANSFER topUp: userId=${user_id} amount=${balance} loginId=${loginId}`);
+        }
+      } catch (err) {
+        console.error('[games/launch] TRANSFER topUp failed:', err);
+        // Non-fatal — player can still launch and play with any existing provider balance.
+      }
+    }
+  }
+
+  return NextResponse.json({
+    ok:            true,
+    launch_url:    launchResult.launch_url,
+    session_token: launchResult.session_token ?? null,
+    provider_code: upperCode,
+    launch_mode:   provider.website_launch_mode ?? 'LOBBY',
+  });
 }
