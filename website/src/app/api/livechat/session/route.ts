@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (member) {
     // Authenticated member flow (unchanged)
     const existing = await pool.query(
-      `SELECT id, status, created_at FROM support_sessions
+      `SELECT id, status, created_at, muted_until FROM support_sessions
        WHERE user_id = $1 AND status IN ('OPEN','ACTIVE') ORDER BY created_at DESC LIMIT 1`,
       [member.sub]
     );
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     const created = await pool.query(
       `INSERT INTO support_sessions (user_id, status, source, last_message_at) VALUES ($1, 'OPEN', 'website', NOW())
-       RETURNING id, status, created_at`,
+       RETURNING id, status, created_at, muted_until`,
       [member.sub]
     );
     return NextResponse.json(created.rows[0], { status: 201 });
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (guestId) {
     // Find existing open/active session for this guest
     const existing = await pool.query(
-      `SELECT id, status, created_at FROM support_sessions
+      `SELECT id, status, created_at, muted_until FROM support_sessions
        WHERE guest_id = $1 AND status IN ('OPEN','ACTIVE') ORDER BY created_at DESC LIMIT 1`,
       [guestId]
     );
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   const created = await pool.query(
     `INSERT INTO support_sessions (user_id, guest_id, status, source, last_message_at)
      VALUES (NULL, $1, 'OPEN', 'website_guest', NOW())
-     RETURNING id, status, created_at`,
+     RETURNING id, status, created_at, muted_until`,
     [guestId]
   );
 

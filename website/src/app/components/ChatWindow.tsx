@@ -1,6 +1,36 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { ChatMessage, ChatSession } from '@/lib/types';
+
+function MuteCountdown({ mutedUntil }: { mutedUntil: Date }) {
+  const [secsLeft, setSecsLeft] = useState(() =>
+    Math.max(0, Math.ceil((mutedUntil.getTime() - Date.now()) / 1000))
+  );
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSecsLeft(Math.max(0, Math.ceil((mutedUntil.getTime() - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [mutedUntil]);
+  const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0');
+  const ss = String(secsLeft % 60).padStart(2, '0');
+  return (
+    <div
+      className="mx-3 mb-2 px-4 py-3 rounded-xl text-center text-sm"
+      style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}
+    >
+      <p className="font-medium mb-0.5" style={{ color: '#fbbf24' }}>
+        Sila tunggu sebentar.
+      </p>
+      <p className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+        Anda boleh menghantar mesej semula dalam:
+      </p>
+      <p className="text-2xl font-bold font-mono" style={{ color: '#fbbf24', letterSpacing: '0.05em' }}>
+        ⏱ {mm}:{ss}
+      </p>
+    </div>
+  );
+}
 
 type UploadResult = { file_id: string; message_type: string };
 
@@ -41,7 +71,7 @@ function ReplyQuote({ content, senderType, isSelf }: {
         className="font-semibold text-[10px] mb-0.5"
         style={isSelf ? { color: 'rgba(255,255,255,0.6)' } : { color: 'var(--brand-primary)' }}
       >
-        {senderType === 'AGENT' ? '客服' : '您'}
+        {senderType === 'AGENT' ? '客服' : senderType === 'SYSTEM' ? '系统' : '您'}
       </p>
       <p
         className="line-clamp-2 leading-tight"
@@ -139,6 +169,19 @@ function UserBubble({ msg }: { msg: ChatMessage }) {
   );
 }
 
+function SystemBubble({ msg }: { msg: ChatMessage }) {
+  return (
+    <div className="flex justify-center">
+      <span
+        className="inline-block max-w-[85%] text-center text-xs px-3 py-1.5 rounded-full"
+        style={{ background: 'var(--bg-surface3)', color: 'var(--text-muted)' }}
+      >
+        {msg.content}
+      </span>
+    </div>
+  );
+}
+
 function AgentBubble({ msg }: { msg: ChatMessage }) {
   const isMedia = msg.message_type === 'PHOTO' || msg.message_type === 'VIDEO';
   const hasReply = !!msg.reply_to_content;
@@ -164,29 +207,49 @@ function AgentBubble({ msg }: { msg: ChatMessage }) {
 }
 
 export default function ChatWindow({ brandName }: Props) {
-  const [session, setSession]     = useState<ChatSession | null>(null);
-  const [messages, setMessages]   = useState<ChatMessage[]>([]);
-  const [input, setInput]         = useState('');
-  const [sending, setSending]     = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [uploading, setUploading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [session, setSession]       = useState<ChatSession | null>(null);
+  const [messages, setMessages]     = useState<ChatMessage[]>([]);
+  const [input, setInput]           = useState('');
+  const [sending, setSending]       = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState('');
+  const [uploading, setUploading]   = useState(false);
+  const [mutedUntil, setMutedUntil] = useState<Date | null>(null);
+  const bottomRef    = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isMuted = useMemo(() => mutedUntil !== null && mutedUntil > new Date(), [mutedUntil]);
 
   /* Auto-scroll on new messages */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  /* Poll mute status every 5 s so admin unmute is reflected in real time */
+  useEffect(() => {
+    if (!session || session.status === 'CLOSED') return;
+    const t = setInterval(async () => {
+      const r = await fetch('/api/livechat/session').catch(() => null);
+      if (!r?.ok) return;
+      const s = await r.json() as ChatSession & { muted_until?: string | null };
+      const mu = s.muted_until && new Date(s.muted_until) > new Date()
+        ? new Date(s.muted_until) : null;
+      setMutedUntil(mu);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [session]);
+
   /* Bootstrap: get/create session, load history, connect SSE */
   useEffect(() => {
     let es: EventSource | null = null;
 
     fetch('/api/livechat/session')
-      .then(r => r.ok ? r.json() as Promise<ChatSession> : Promise.reject())
+      .then(r => r.ok ? r.json() as Promise<ChatSession & { muted_until?: string | null }> : Promise.reject())
       .then(async (s) => {
         setSession(s);
+        if (s.muted_until && new Date(s.muted_until) > new Date()) {
+          setMutedUntil(new Date(s.muted_until));
+        }
         setLoading(false);
 
         const msgs = await fetch(`/api/livechat/messages?session_id=${s.id}`)
@@ -250,6 +313,10 @@ export default function ChatWindow({ brandName }: Props) {
     setSending(false);
     if (!res.ok) {
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({})) as { muted_until?: string };
+        if (body.muted_until) { setMutedUntil(new Date(body.muted_until)); return; }
+      }
       setError('消息发送失败，请重试');
     } else {
       /* Replace temp id with real DB id so SSE dedup works correctly */
@@ -294,6 +361,10 @@ export default function ChatWindow({ brandName }: Props) {
     setUploading(false);
     if (!msgRes.ok) {
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+      if (msgRes.status === 403) {
+        const body = await msgRes.json().catch(() => ({})) as { muted_until?: string };
+        if (body.muted_until) { setMutedUntil(new Date(body.muted_until)); return; }
+      }
       setError('消息发送失败，请重试');
     } else {
       const data = await msgRes.json() as { ok: boolean; id: number; created_at: string };
@@ -399,9 +470,11 @@ export default function ChatWindow({ brandName }: Props) {
 
         {/* Message list */}
         {messages.map(m =>
-          m.sender_type === 'USER'
-            ? <UserBubble key={m.id} msg={m} />
-            : <AgentBubble key={m.id} msg={m} />
+          m.sender_type === 'SYSTEM'
+            ? <SystemBubble key={m.id} msg={m} />
+            : m.sender_type === 'USER'
+              ? <UserBubble key={m.id} msg={m} />
+              : <AgentBubble key={m.id} msg={m} />
         )}
 
         {/* Session closed notice */}
@@ -429,6 +502,9 @@ export default function ChatWindow({ brandName }: Props) {
         </div>
       )}
 
+      {/* ── Mute countdown ───────────────────────────────────── */}
+      {isMuted && mutedUntil && <MuteCountdown mutedUntil={mutedUntil} />}
+
       {/* ── Input area ───────────────────────────────────────── */}
       <form
         onSubmit={sendMessage}
@@ -450,7 +526,7 @@ export default function ChatWindow({ brandName }: Props) {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={loading || isClosed || !session || uploading || sending}
+          disabled={loading || isClosed || !session || uploading || sending || isMuted}
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
           style={{ background: 'var(--bg-surface3)', border: '1px solid var(--border-mid)' }}
           aria-label="发送图片/视频"
@@ -471,8 +547,8 @@ export default function ChatWindow({ brandName }: Props) {
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder={isClosed ? '会话已结束' : '输入消息…'}
-          disabled={loading || isClosed || !session}
+          placeholder={isClosed ? '会话已结束' : isMuted ? 'Sila tunggu…' : '输入消息…'}
+          disabled={loading || isClosed || !session || isMuted}
           maxLength={1000}
           className="flex-1 px-3.5 py-2.5 rounded-xl text-sm"
           style={{
@@ -486,7 +562,7 @@ export default function ChatWindow({ brandName }: Props) {
         />
         <button
           type="submit"
-          disabled={!input.trim() || loading || isClosed || !session || sending}
+          disabled={!input.trim() || loading || isClosed || !session || sending || isMuted}
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-opacity disabled:opacity-40"
           style={{ background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))' }}
           aria-label="发送"

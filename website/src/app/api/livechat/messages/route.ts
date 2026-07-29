@@ -4,6 +4,54 @@ import { getMember } from '@/lib/member-auth';
 
 const GUEST_COOKIE = 'guest_chat_id';
 
+// Fires at most once per session, right after that session's first message is
+// inserted. Uses an atomic conditional UPDATE as the "already sent" guard so
+// concurrent requests can't both pass the check (no SELECT-then-INSERT race).
+// Guard + settings check + insert run as one transaction so a mid-way failure
+// can't leave the guard "spent" with no SYSTEM message actually sent. Never
+// throws — a failure here must not turn the customer's own message send into
+// an error response, since that message was already committed separately.
+async function maybeSendAutoReply(sessionId: number): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const guard = await client.query(
+      `UPDATE support_sessions SET auto_reply_sent_at = NOW()
+       WHERE id = $1 AND auto_reply_sent_at IS NULL
+       RETURNING id`,
+      [sessionId]
+    );
+    if (guard.rows.length === 0) {
+      await client.query('ROLLBACK'); // not this session's first message
+      return;
+    }
+
+    const settings = await client.query<{ key: string; value: string }>(
+      `SELECT key, value FROM system_settings WHERE key IN ('auto_reply_enabled', 'auto_reply_message')`
+    );
+    const enabled = settings.rows.find(r => r.key === 'auto_reply_enabled')?.value === 'true';
+    const message = settings.rows.find(r => r.key === 'auto_reply_message')?.value?.trim();
+    if (!enabled || !message) {
+      await client.query('COMMIT'); // guard stays consumed — this was genuinely the first message
+      return;
+    }
+
+    await client.query(
+      `INSERT INTO support_messages (session_id, sender_type, message_type, content)
+       VALUES ($1, 'SYSTEM', 'TEXT', $2)`,
+      [sessionId, message]
+    );
+    await client.query('UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1', [sessionId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[livechat] auto-reply failed:', err);
+  } finally {
+    client.release();
+  }
+}
+
 export async function GET(req: NextRequest) {
   const member = await getMember();
   const guestId = req.cookies?.get(GUEST_COOKIE)?.value;
@@ -68,8 +116,9 @@ export async function POST(req: NextRequest) {
     `SELECT muted_until FROM support_sessions WHERE id = $1`,
     [body.session_id]
   );
-  if (muteCheck.rows[0]?.muted_until && new Date(muteCheck.rows[0].muted_until) > new Date()) {
-    return NextResponse.json({ error: '您发送太频繁，请稍后再试。' }, { status: 403 });
+  const mutedUntil = muteCheck.rows[0]?.muted_until;
+  if (mutedUntil && new Date(mutedUntil) > new Date()) {
+    return NextResponse.json({ error: 'muted', muted_until: mutedUntil }, { status: 403 });
   }
 
   const msg = await pool.query(
@@ -78,5 +127,6 @@ export async function POST(req: NextRequest) {
     [body.session_id, msgType, body.content, body.caption ?? null]
   );
   await pool.query('UPDATE support_sessions SET last_message_at = NOW() WHERE id = $1', [body.session_id]);
+  await maybeSendAutoReply(body.session_id);
   return NextResponse.json({ ok: true, id: msg.rows[0].id as number, created_at: msg.rows[0].created_at as string }, { status: 201 });
 }
