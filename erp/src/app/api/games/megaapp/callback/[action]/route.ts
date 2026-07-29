@@ -20,6 +20,9 @@ type Params = { params: Promise<{ action: string }> };
 
 export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
   const { action } = await params;
+  const ct = request.headers.get('content-type') ?? '(none)';
+
+  console.log(`[megaapp-callback] POST action="${action}" content-type="${ct}"`);
 
   // Only the login callback is supported
   if (action.toLowerCase() !== 'login') {
@@ -29,11 +32,24 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
     );
   }
 
+  // Read raw body first so we can log it before parsing
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch (err) {
+    console.error('[megaapp-callback] failed to read body:', err);
+    return NextResponse.json(
+      { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Cannot read body' } },
+    );
+  }
+  console.log(`[megaapp-callback] body len=${rawBody.length} preview="${rawBody.slice(0, 300)}"`);
+
   // Parse JSON-RPC envelope
   let envelope: { jsonrpc?: string; id?: string; method?: string; params?: Record<string, unknown> };
   try {
-    envelope = await request.json() as typeof envelope;
-  } catch {
+    envelope = JSON.parse(rawBody) as typeof envelope;
+  } catch (err) {
+    console.error('[megaapp-callback] JSON parse failed:', err, '| raw=', rawBody.slice(0, 200));
     return NextResponse.json(
       { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Invalid JSON' } },
     );
