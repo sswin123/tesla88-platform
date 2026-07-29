@@ -8,6 +8,9 @@ import { requirePermission } from '@/lib/require_permission';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { createGamingPlatform } from '@/lib/providers';
 import type { MegaAppAdapter } from '@/lib/providers/adapters/megaapp/MegaAppAdapter';
+import { adjustWallet } from '@/lib/services/wallet';
+
+const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 
 type Params = { params: Promise<{ id: string; code: string }> };
 
@@ -97,18 +100,32 @@ export async function POST(_req: NextRequest, { params }: Params) {
     }
   }
 
+  // Credit returned amount via adjustWallet (writes wallet_transactions record)
+  let balanceAfter = balanceBefore;
   if (returned > 0) {
-    await pool.query(
-      `UPDATE users SET total_deposit = total_deposit + $1 WHERE id = $2`,
-      [returned, uid],
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const wtRow = await adjustWallet(client, {
+        userId:          uid,
+        type:            'PAYMENT_GATEWAY',
+        direction:       'C',
+        amount:          returned,
+        gateway:         upperCode,
+        referenceNumber: `${upperCode}WD-ADMIN-${uid}-${Date.now()}`,
+        remark:          `[${upperCode}] Admin Sync — transfer out from provider`,
+        operatorAdminId: payload.sub, // admin who triggered the sync
+      });
+      await client.query('COMMIT');
+      balanceAfter = parseFloat(wtRow.balance_after);
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      console.error(`[provider-accounts/sync] adjustWallet failed userId=${uid}:`, e);
+      return NextResponse.json({ error: 'Failed to credit wallet' }, { status: 500 });
+    } finally {
+      client.release();
+    }
   }
-
-  const { rows: walletAfter } = await pool.query<{ available_balance: string }>(
-    `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
-    [uid],
-  );
-  const balanceAfter = parseFloat(walletAfter[0]?.available_balance ?? '0');
 
   await logAudit({
     admin_id:    payload.sub,

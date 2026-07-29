@@ -15,6 +15,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createGamingPlatform } from '@/lib/providers';
 import type { MegaAppAdapter } from '@/lib/providers/adapters/megaapp/MegaAppAdapter';
 import pool from '@/lib/db';
+import { adjustWallet } from '@/lib/services/wallet';
+
+// System admin ID used as operator for automated game wallet changes.
+// Set GAME_SYSTEM_ADMIN_ID env var to override (defaults to 1 = super-admin).
+const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 
 type Params = { params: Promise<{ action: string }> };
 
@@ -131,15 +136,34 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
       const userId = paRows[0]?.user_id;
 
       if (userId) {
+        const ts = Date.now();
+
         // Step 1: pull any leftover MEGA balance back to main wallet
+        // Records a wallet_transactions row (PAYMENT_GATEWAY / Credit)
         try {
           const returned = await adapter.autoWithdrawAll(loginId);
           if (returned > 0) {
-            await pool.query(
-              `UPDATE users SET total_deposit = total_deposit + $1 WHERE id = $2`,
-              [returned, userId],
-            );
-            console.log(`[megaapp-callback] autoWithdraw ok: userId=${userId} returned=${returned} loginId=${loginId}`);
+            const wdClient = await pool.connect();
+            try {
+              await wdClient.query('BEGIN');
+              await adjustWallet(wdClient, {
+                userId,
+                type:            'PAYMENT_GATEWAY',
+                direction:       'C',
+                amount:          returned,
+                gateway:         'MEGAAPP',
+                referenceNumber: `MEGAWD-${userId}-${ts}`,
+                remark:          `[MEGAAPP] Transfer Out — auto withdraw from MEGA`,
+                operatorAdminId: SYSTEM_ADMIN_ID,
+              });
+              await wdClient.query('COMMIT');
+              console.log(`[megaapp-callback] autoWithdraw ok: userId=${userId} returned=${returned} loginId=${loginId}`);
+            } catch (e) {
+              await wdClient.query('ROLLBACK').catch(() => undefined);
+              throw e;
+            } finally {
+              wdClient.release();
+            }
           }
         } catch (err) {
           console.warn('[megaapp-callback] autoWithdraw failed (non-fatal):', (err instanceof Error ? err.message : String(err)));
@@ -153,19 +177,35 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
         const balance = parseFloat(balRows[0]?.available_balance ?? '0');
 
         if (balance > 0) {
-          // Step 3: DEDUCT from main wallet FIRST (atomic balance check)
-          // This prevents double-credit: if two concurrent sessions both try
-          // to topUp, only the first deduction succeeds; the second sees 0
-          // available and skips topUp entirely.
-          const { rowCount: deductCount } = await pool.query(
-            `UPDATE users SET total_withdraw = total_withdraw + $1
-             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
-            [balance, userId],
-          );
+          // Step 3: DEDUCT from main wallet FIRST using adjustWallet (atomic + FOR UPDATE lock)
+          // adjustWallet throws "Insufficient balance" if balance changed since we read it —
+          // the throw is caught below and topUp is skipped, preventing double-deduction.
+          const refId = `MEGAUP-${userId}-${ts}`;
+          let deductOk = false;
+          const deductClient = await pool.connect();
+          try {
+            await deductClient.query('BEGIN');
+            await adjustWallet(deductClient, {
+              userId,
+              type:            'PAYMENT_GATEWAY',
+              direction:       'D',
+              amount:          balance,
+              gateway:         'MEGAAPP',
+              referenceNumber: refId,
+              remark:          `[MEGAAPP] Transfer In — top up to MEGA`,
+              operatorAdminId: SYSTEM_ADMIN_ID,
+            });
+            await deductClient.query('COMMIT');
+            deductOk = true;
+          } catch (err) {
+            await deductClient.query('ROLLBACK').catch(() => undefined);
+            console.warn(`[megaapp-callback] deduction failed (balance insufficient or concurrent): userId=${userId} balance=${balance}:`, err instanceof Error ? err.message : String(err));
+          } finally {
+            deductClient.release();
+          }
 
-          if (deductCount && deductCount > 0) {
-            // Step 4: Now topUp to MEGA (retry on distributed lock error 37153)
-            const refId = `MEGAUP-${userId}-${Date.now()}`;
+          if (deductOk) {
+            // Step 4: topUp to MEGA (retry on distributed lock error 37153)
             let topUpOk = false;
             try {
               for (let attempt = 0; attempt < 3; attempt++) {
@@ -183,19 +223,34 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                 }
               }
             } catch (err) {
-              // topUp failed: roll back the deduction so wallet isn't stuck at 0
-              console.error(`[megaapp-callback] topUp failed, rolling back deduction userId=${userId} amount=${balance}:`, err instanceof Error ? err.message : String(err));
-              await pool.query(
-                `UPDATE users SET total_withdraw = total_withdraw - $1 WHERE id = $2`,
-                [balance, userId],
-              );
+              // Step 5: topUp failed — roll back the deduction via a correction credit
+              const errMsg = err instanceof Error ? err.message : String(err);
+              console.error(`[megaapp-callback] topUp failed, rolling back deduction userId=${userId} amount=${balance}: ${errMsg}`);
+              const rbClient = await pool.connect();
+              try {
+                await rbClient.query('BEGIN');
+                await adjustWallet(rbClient, {
+                  userId,
+                  type:            'CORRECTION',
+                  direction:       'C',
+                  amount:          balance,
+                  gateway:         'MEGAAPP',
+                  referenceNumber: `MEGAUP-ROLLBACK-${userId}-${ts}`,
+                  remark:          `[MEGAAPP] Transfer In Rollback — top up failed: ${errMsg.slice(0, 80)}`,
+                  operatorAdminId: SYSTEM_ADMIN_ID,
+                });
+                await rbClient.query('COMMIT');
+              } catch (rbErr) {
+                await rbClient.query('ROLLBACK').catch(() => undefined);
+                console.error(`[megaapp-callback] CRITICAL: rollback also failed userId=${userId} amount=${balance}:`, rbErr instanceof Error ? rbErr.message : String(rbErr));
+              } finally {
+                rbClient.release();
+              }
             }
 
             if (topUpOk) {
               console.log(`[megaapp-callback] topUp ok: userId=${userId} amount=${balance} loginId=${loginId}`);
             }
-          } else {
-            console.warn(`[megaapp-callback] deduction skipped (balance insufficient after autoWithdraw): userId=${userId} balance=${balance}`);
           }
         }
       }
