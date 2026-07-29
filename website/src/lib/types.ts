@@ -61,7 +61,7 @@ export interface ApkVersion {
 
 export interface ChatMessage {
   id: number;
-  sender_type: 'USER' | 'AGENT';
+  sender_type: 'USER' | 'AGENT' | 'SYSTEM';
   message_type: string;
   content: string | null;
   caption: string | null;
