@@ -99,9 +99,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
   }
 
   // Delegate to adapter
+  let result: Record<string, unknown>;
   try {
-    const result = await adapter.handleLoginCallback(rpcId, rpcParams);
-    return NextResponse.json(result);
+    result = await adapter.handleLoginCallback(rpcId, rpcParams);
   } catch (err) {
     console.error('[megaapp-callback] handleLoginCallback threw:', err);
     return NextResponse.json({
@@ -109,4 +109,47 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
       error: { code: '37101', message: 'API调用异常' },
     });
   }
+
+  // If login succeeded, push the player's main wallet balance into MEGA888.
+  // This runs on every login — the user may open the app directly without going
+  // through our website launch route, so the topUp must live here too.
+  // Positive transfers (topUp) succeed even while the player is online.
+  if (!result['error']) {
+    const loginId = String(rpcParams['loginId'] ?? '');
+    try {
+      // Find the platform user by loginId
+      const { rows: paRows } = await pool.query<{ user_id: number }>(
+        `SELECT user_id FROM provider_accounts
+         WHERE provider_code = 'MEGAAPP' AND provider_login_id = $1 LIMIT 1`,
+        [loginId],
+      );
+      const userId = paRows[0]?.user_id;
+
+      if (userId) {
+        const { rows: balRows } = await pool.query<{ available_balance: string }>(
+          `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
+          [userId],
+        );
+        const balance = parseFloat(balRows[0]?.available_balance ?? '0');
+
+        if (balance > 0) {
+          const refId = `MEGAUP-${userId}-${Date.now()}`;
+          await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
+          const { rowCount } = await pool.query(
+            `UPDATE users SET available_balance = available_balance - $1
+             WHERE id = $2 AND available_balance >= $1`,
+            [balance, userId],
+          );
+          if (rowCount && rowCount > 0) {
+            console.log(`[megaapp-callback] topUp ok: userId=${userId} amount=${balance} loginId=${loginId}`);
+          }
+        }
+      }
+    } catch (err) {
+      // Non-fatal: player can still play with existing MEGA balance
+      console.error('[megaapp-callback] topUp failed:', err);
+    }
+  }
+
+  return NextResponse.json(result);
 }
