@@ -85,6 +85,13 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // MEGA888 App login callback — called by MEGA888 servers, not ERP users.
+  // Security is handled inside the handler via MD5 digest verification.
+  if (pathname.startsWith('/api/games/megaapp/callback/')) {
+    console.log(`[middleware] PASS-THROUGH: ${pathname} — MEGA888 callback, no auth required`);
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     // API routes must return JSON — never HTML redirect
