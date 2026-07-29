@@ -167,6 +167,14 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     const loginId  = row.provider_login_id;
     const password = row.provider_password;
 
+    // Fetch download URL from MEGA API — agent-specific, no manual config needed
+    // Falls back to ERP config values if the API call fails
+    let downloadUrl: string | null = this.cfg.download_url_android ?? null;
+    try {
+      const apiUrl = await this.api.getAppDownloadUrl();
+      if (apiUrl) downloadUrl = apiUrl;
+    } catch { /* use fallback */ }
+
     const launchUrl = [
       `${MEGAAPP_DEEPLINK_SCHEME}://?account=${encodeURIComponent(loginId)}`,
       `&password=${encodeURIComponent(password)}`,
@@ -178,9 +186,9 @@ export class MegaAppAdapter extends BaseProviderAdapter {
         login_id:             loginId,
         password,
         provider_code:        MEGAAPP_CODE,
-        download_url_android: this.cfg.download_url_android ?? null,
-        download_url_ios:     this.cfg.download_url_ios     ?? null,
-        apk_name:             this.cfg.apk_name             ?? 'MEGA888',
+        download_url_android: downloadUrl,
+        download_url_ios:     this.cfg.download_url_ios ?? downloadUrl,
+        apk_name:             this.cfg.apk_name         ?? 'MEGA888',
       }),
       session_id:    0,
     };

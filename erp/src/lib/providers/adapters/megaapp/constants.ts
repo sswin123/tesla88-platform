@@ -11,6 +11,7 @@ export const MEGAAPP_METHOD = {
   BALANCE_TRANSFER:   'open.mega.balance.transfer',
   AUTO_TRANSFER_OUT:  'open.mega.balance.auto.transfer.out',
   TRANSFER_QUERY:     'open.mega.balance.transfer.query',
+  APP_DOWNLOAD_URL:   'open.mega.app.url.download',
 } as const;
 
 /**

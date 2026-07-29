@@ -84,6 +84,20 @@ export class MegaAppApiClient {
     });
   }
 
+  /**
+   * open.mega.app.url.download — digest = MD5(random+sn+secretCode)
+   * Returns the agent-specific APK / app download URL.
+   */
+  async getAppDownloadUrl(): Promise<string> {
+    const random = this.signer.random();
+    return this.rpcRaw<string>(MEGAAPP_METHOD.APP_DOWNLOAD_URL, {
+      sn:           this.creds.sn,
+      agentLoginId: this.creds.agent_login_id,
+      random,
+      digest:       this.signer.digestBasic(random, this.creds.sn),
+    });
+  }
+
   /** open.mega.user.logout — digest = MD5(random+sn+loginId+secretCode) */
   async logout(loginId: string): Promise<boolean> {
     const random = this.signer.random();
