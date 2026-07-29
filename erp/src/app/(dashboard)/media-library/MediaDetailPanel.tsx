@@ -221,6 +221,44 @@ export function MediaDetailPanel({
           }
         </div>
 
+        {/* Image URL — shown for image/GIF media */}
+        {isImage && (
+          <div className="space-y-2">
+            <Label className="text-xs text-gray-500">Image URL</Label>
+            {[
+              {
+                label: 'ERP Public URL',
+                url: `https://erp.apidemo.club/api/public/media/${item.id}`,
+              },
+              {
+                label: 'Website URL',
+                url: `https://apidemo.club/api/public/image-proxy?url=${encodeURIComponent(`https://erp.apidemo.club/api/public/media/${item.id}`)}`,
+              },
+            ].map(({ label, url }) => (
+              <div key={label} className="space-y-0.5">
+                <div className="text-xs text-gray-400">{label}</div>
+                <div className="flex items-center gap-1">
+                  <input
+                    readOnly
+                    value={url}
+                    className="flex-1 h-6 text-xs bg-gray-50 border rounded px-1.5 text-gray-600 min-w-0"
+                  />
+                  <button
+                    onClick={() => {
+                      void navigator.clipboard.writeText(url);
+                      setActionMsg(`已复制 ${label}`);
+                      setTimeout(() => setActionMsg(''), 1500);
+                    }}
+                    className="flex-shrink-0 h-6 px-2 text-xs rounded border bg-white hover:bg-gray-50 text-gray-600"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Action feedback */}
         {actionMsg && (
           <p className="text-xs text-gray-600 bg-gray-50 rounded p-2 border">{actionMsg}</p>

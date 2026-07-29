@@ -277,9 +277,10 @@ export async function POST(req: NextRequest) {
     const loginId = playerRecord.provider_player_id;
 
     // Step A: withdraw any leftover balance from the previous session back to main wallet.
-    if (adapter.autoWithdrawAll) {
+    const autoWithdrawFn = (adapter as { autoWithdrawAll?: (id: string, biz: string) => Promise<number> }).autoWithdrawAll;
+    if (autoWithdrawFn) {
       try {
-        const returned = await adapter.autoWithdrawAll(loginId, `MEGARET-${user_id}-${Date.now()}`);
+        const returned = await autoWithdrawFn.call(adapter, loginId, `MEGARET-${user_id}-${Date.now()}`);
         if (returned > 0) {
           await pool.query(
             `UPDATE users SET available_balance = available_balance + $1 WHERE id = $2`,
