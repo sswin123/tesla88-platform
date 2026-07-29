@@ -1,6 +1,15 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
+import { MegaAppDialog } from './MegaAppDialog';
+
+interface MegaAppDialogState {
+  loginId:            string;
+  password:           string;
+  launchUrl:          string;
+  downloadUrlAndroid: string | null;
+  downloadUrlIos:     string | null;
+}
 
 const TABS = [
   { key: 'HOT',     label: '🔥 热门' },
@@ -61,8 +70,9 @@ export default function GameLobby() {
   const [tab, setTab]             = useState<TabKey>('HOT');
   const [providers, setProviders] = useState<PublicGameProvider[] | null>(null);
   const [launching, setLaunching] = useState<string | null>(null); // provider_code being launched
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isLoggedIn, setIsLoggedIn]   = useState(false);
+  const [authChecked, setAuthChecked]   = useState(false);
+  const [isLoggedIn, setIsLoggedIn]     = useState(false);
+  const [megaAppDialog, setMegaAppDialog] = useState<MegaAppDialogState | null>(null);
 
   useEffect(() => {
     fetch('/api/public/game-providers')
@@ -100,6 +110,7 @@ export default function GameLobby() {
 
       const data = await res.json() as {
         launch_url?: string; launch_mode?: string;
+        session_token?: string | null;
         error?: string; code?: string;
       };
 
@@ -113,7 +124,29 @@ export default function GameLobby() {
         return;
       }
 
-      // Redirect player into H5 Lobby / game
+      // MEGA888 App: show credential dialog instead of navigating
+      if (data.launch_mode === 'MEGAAPP_DIALOG' && data.session_token) {
+        try {
+          const tok = JSON.parse(data.session_token) as {
+            login_id:             string;
+            password:             string;
+            download_url_android?: string | null;
+            download_url_ios?:     string | null;
+          };
+          setMegaAppDialog({
+            loginId:            tok.login_id,
+            password:           tok.password,
+            launchUrl:          data.launch_url,
+            downloadUrlAndroid: tok.download_url_android ?? null,
+            downloadUrlIos:     tok.download_url_ios     ?? null,
+          });
+          return;
+        } catch {
+          // Malformed token — fall through to normal redirect
+        }
+      }
+
+      // Default: redirect into H5 Lobby / game
       window.location.href = data.launch_url;
     } catch {
       alert('网络错误，请稍后再试');
@@ -125,6 +158,17 @@ export default function GameLobby() {
   const cards: CardItem[] = providers === null ? [] : toCards(providers, tab);
 
   return (
+    <>
+    {megaAppDialog && (
+      <MegaAppDialog
+        loginId={megaAppDialog.loginId}
+        password={megaAppDialog.password}
+        launchUrl={megaAppDialog.launchUrl}
+        downloadUrlAndroid={megaAppDialog.downloadUrlAndroid}
+        downloadUrlIos={megaAppDialog.downloadUrlIos}
+        onClose={() => setMegaAppDialog(null)}
+      />
+    )}
     <section>
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-base)' }}>
@@ -285,5 +329,6 @@ export default function GameLobby() {
         </div>
       )}
     </section>
+    </>
   );
 }

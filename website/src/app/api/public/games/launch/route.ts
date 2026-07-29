@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await erpRes.json() as {
-    ok?: boolean; launch_url?: string; launch_mode?: string; error?: string;
+    ok?: boolean; launch_url?: string; launch_mode?: string;
+    session_token?: string | null; error?: string;
   };
 
   if (!erpRes.ok || !data.launch_url) {
@@ -66,7 +67,8 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    launch_url:  data.launch_url,
-    launch_mode: data.launch_mode ?? 'LOBBY',
+    launch_url:    data.launch_url,
+    launch_mode:   data.launch_mode   ?? 'LOBBY',
+    session_token: data.session_token ?? null,
   });
 }

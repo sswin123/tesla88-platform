@@ -6,6 +6,8 @@ import { Kiss918Adapter } from './kiss918/Kiss918Adapter';
 import type { Kiss918Credentials, Kiss918Config } from './kiss918/Kiss918Adapter';
 import { MegaH5Adapter } from './megah5/MegaH5Adapter';
 import type { MegaH5Credentials, MegaH5Config } from './megah5/types';
+import { MegaAppAdapter } from './megaapp/MegaAppAdapter';
+import type { MegaAppCredentials, MegaAppConfig } from './megaapp/types';
 
 /**
  * NaN-safe integer parser. Returns `fallback` when `val` is absent or
@@ -80,6 +82,7 @@ export function createAdapter(
         secret_key:     credentials['secret_key']     ?? '',
         encrypt_key:    credentials['encrypt_key']    ?? '',
         md5_key:        credentials['md5_key']        ?? '',
+        delimiter:      credentials['delimiter']      ?? '|',
       };
       const cfg: MegaH5Config = {
         api_base_url:    config['api_base_url']    ?? '',
@@ -95,6 +98,30 @@ export function createAdapter(
           process.env.ENABLE_PROVIDER_DEBUG === 'true',
       };
       return new MegaH5Adapter(
+        creds, cfg, deps.wallet, deps.eventLogger, deps.providerRepo,
+      );
+    }
+
+    case 'MEGAAPP': {
+      const creds: MegaAppCredentials = {
+        secret_code:    credentials['secret_code']    ?? '',
+        sn:             credentials['sn']             ?? '',
+        agent_login_id: credentials['agent_login_id'] ?? '',
+      };
+      const cfg: MegaAppConfig = {
+        api_base_url:          config['api_base_url']          ?? '',
+        currency:              config['currency']               ?? 'MYR',
+        timeout_ms:            parseIntSafe(config['timeout_ms'],      15_000),
+        password_length:       parseIntSafe(config['password_length'], 10),
+        download_url_android:  config['download_url_android']  || undefined,
+        download_url_ios:      config['download_url_ios']      || undefined,
+        apk_version:           config['apk_version']           || undefined,
+        apk_name:              config['apk_name']              || undefined,
+        debug:
+          config['debug'] === 'true' ||
+          process.env.ENABLE_PROVIDER_DEBUG === 'true',
+      };
+      return new MegaAppAdapter(
         creds, cfg, deps.wallet, deps.eventLogger, deps.providerRepo,
       );
     }

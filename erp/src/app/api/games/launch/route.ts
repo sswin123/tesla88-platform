@@ -261,10 +261,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      ok:           true,
-      launch_url:   result.launch_url,
+      ok:            true,
+      launch_url:    result.launch_url,
+      session_token: result.session_token ?? null,
       provider_code: upperCode,
-      launch_mode:  provider.website_launch_mode ?? 'LOBBY',
+      launch_mode:   provider.website_launch_mode ?? 'LOBBY',
     });
   } catch (err) {
     console.error('[games/launch] adapter.launch failed:', err);
