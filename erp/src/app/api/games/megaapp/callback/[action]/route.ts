@@ -111,10 +111,14 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
   }
 
   // If login succeeded, sync wallets:
-  // 1. autoWithdrawAll — pull any remaining MEGA balance back to main wallet
-  // 2. topUp — push the current main wallet balance into MEGA
+  // 1. autoWithdrawAll — pull any leftover MEGA balance back to main wallet
+  // 2. Atomically DEDUCT from main wallet first, THEN topUp to MEGA
+  //    (deduct-first prevents double-credit if topUp fails after deduction)
+  //    If topUp fails, the deduction is rolled back.
   // This runs on every app login so balances stay consistent even when the
   // player exits and re-enters without going through the website launch route.
+  // NOTE: The launch route does NOT sync wallets — callback is the single
+  // authoritative sync point, eliminating the launch ↔ callback race condition.
   if (!result['error']) {
     const loginId = String(rpcParams['loginId'] ?? '');
     try {
@@ -141,7 +145,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
           console.warn('[megaapp-callback] autoWithdraw failed (non-fatal):', (err instanceof Error ? err.message : String(err)));
         }
 
-        // Step 2: read fresh main wallet balance and push to MEGA
+        // Step 2: read fresh main wallet balance
         const { rows: balRows } = await pool.query<{ available_balance: string }>(
           `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
           [userId],
@@ -149,39 +153,55 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
         const balance = parseFloat(balRows[0]?.available_balance ?? '0');
 
         if (balance > 0) {
-          const refId = `MEGAUP-${userId}-${Date.now()}`;
-          // Retry up to 3 times: MEGA may hold a distributed lock (error 37153)
-          // briefly after autoWithdrawAll, so back off and retry.
-          let topUpOk = false;
-          for (let attempt = 0; attempt < 3; attempt++) {
+          // Step 3: DEDUCT from main wallet FIRST (atomic balance check)
+          // This prevents double-credit: if two concurrent sessions both try
+          // to topUp, only the first deduction succeeds; the second sees 0
+          // available and skips topUp entirely.
+          const { rowCount: deductCount } = await pool.query(
+            `UPDATE users SET total_withdraw = total_withdraw + $1
+             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
+            [balance, userId],
+          );
+
+          if (deductCount && deductCount > 0) {
+            // Step 4: Now topUp to MEGA (retry on distributed lock error 37153)
+            const refId = `MEGAUP-${userId}-${Date.now()}`;
+            let topUpOk = false;
             try {
-              await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
-              topUpOk = true;
-              break;
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              if (msg.includes('37153') && attempt < 2) {
-                await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
-                continue;
+              for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                  await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
+                  topUpOk = true;
+                  break;
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  if (msg.includes('37153') && attempt < 2) {
+                    await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+                    continue;
+                  }
+                  throw err;
+                }
               }
-              throw err;
+            } catch (err) {
+              // topUp failed: roll back the deduction so wallet isn't stuck at 0
+              console.error(`[megaapp-callback] topUp failed, rolling back deduction userId=${userId} amount=${balance}:`, err instanceof Error ? err.message : String(err));
+              await pool.query(
+                `UPDATE users SET total_withdraw = total_withdraw - $1 WHERE id = $2`,
+                [balance, userId],
+              );
             }
-          }
-          if (topUpOk) {
-            const { rowCount } = await pool.query(
-              `UPDATE users SET total_withdraw = total_withdraw + $1
-               WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
-              [balance, userId],
-            );
-            if (rowCount && rowCount > 0) {
+
+            if (topUpOk) {
               console.log(`[megaapp-callback] topUp ok: userId=${userId} amount=${balance} loginId=${loginId}`);
             }
+          } else {
+            console.warn(`[megaapp-callback] deduction skipped (balance insufficient after autoWithdraw): userId=${userId} balance=${balance}`);
           }
         }
       }
     } catch (err) {
       // Non-fatal: player can still play with existing MEGA balance
-      console.error('[megaapp-callback] topUp failed:', err);
+      console.error('[megaapp-callback] wallet sync failed:', err);
     }
   }
 

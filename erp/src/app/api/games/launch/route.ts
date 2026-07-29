@@ -268,88 +268,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 6. Transfer Wallet: sync balance on launch ────────────────────────────
-  // For TRANSFER wallet providers (e.g. MEGAAPP), move the player's main
-  // wallet balance into the game provider on each launch.
-  // First pull any leftover provider balance back (previous session),
-  // then push the current main wallet balance out to the provider.
-  if (adapter.walletType === 'TRANSFER') {
-    // gp_players.provider_player_id may be null for existing players whose record
-    // predates this code. Fall back to provider_accounts which is always populated
-    // by adapter.launch() whenever the player can log in.
-    let transferLoginId = playerRecord?.provider_player_id ?? null;
-    if (!transferLoginId) {
-      const { rows: paRows } = await pool.query<{ provider_login_id: string }>(
-        `SELECT pa.provider_login_id FROM provider_accounts pa
-         WHERE pa.user_id = $1 AND pa.provider_code = $2 LIMIT 1`,
-        [user_id, upperCode],
-      );
-      transferLoginId = paRows[0]?.provider_login_id ?? null;
-      if (transferLoginId) {
-        console.log(`[games/launch] TRANSFER loginId from provider_accounts: ${transferLoginId}`);
-      }
-    }
-
-    if (transferLoginId) {
-      // Force logout first — MEGA888 rejects balance transfers while player is online.
-      try {
-        await adapter.logout(transferLoginId, 'MYR');
-        console.log(`[games/launch] TRANSFER logout ok: loginId=${transferLoginId}`);
-      } catch (err) {
-        console.warn('[games/launch] TRANSFER logout failed (non-fatal):', err);
-      }
-
-      // Step A: withdraw any leftover balance from the previous session back to main wallet.
-      const autoWithdrawFn = (adapter as { autoWithdrawAll?: (id: string) => Promise<number> }).autoWithdrawAll;
-      if (autoWithdrawFn) {
-        try {
-          const returned = await autoWithdrawFn.call(adapter, transferLoginId);
-          if (returned > 0) {
-            await pool.query(
-              `UPDATE users SET total_deposit = total_deposit + $1 WHERE id = $2`,
-              [returned, user_id],
-            );
-            console.log(`[games/launch] TRANSFER auto-withdraw: userId=${user_id} returned=${returned}`);
-          }
-        } catch (err) {
-          console.warn('[games/launch] TRANSFER auto-withdraw failed (non-fatal):', err);
-        }
-      }
-
-      // Step B: read current main wallet balance and push it to the provider.
-      const { rows: balRows } = await pool.query<{ available_balance: string }>(
-        `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
-        [user_id],
-      );
-      const balance = parseFloat(balRows[0]?.available_balance ?? '0');
-
-      if (balance > 0 && adapter.topUp) {
-        const refId = `MEGAUP-${user_id}-${Date.now()}`;
-        try {
-          await adapter.topUp({
-            provider_player_id: transferLoginId,
-            amount:             balance,
-            reference_id:       refId,
-            currency:           'MYR',
-          });
-          // Atomic deduct — if balance changed between read and update, skip silently.
-          const { rowCount } = await pool.query(
-            `UPDATE users SET total_withdraw = total_withdraw + $1
-             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
-            [balance, user_id],
-          );
-          if (rowCount && rowCount > 0) {
-            console.log(`[games/launch] TRANSFER topUp: userId=${user_id} amount=${balance} loginId=${transferLoginId}`);
-          }
-        } catch (err) {
-          console.error('[games/launch] TRANSFER topUp failed:', err);
-          // Non-fatal — player can still launch and play with any existing provider balance.
-        }
-      }
-    } else {
-      console.warn(`[games/launch] TRANSFER skipped: no loginId found for userId=${user_id} provider=${upperCode}`);
-    }
-  }
+  // ── 6. Transfer Wallet note ───────────────────────────────────────────────
+  // For TRANSFER wallet providers (e.g. MEGAAPP), wallet sync is handled
+  // exclusively in the MEGA login callback route, NOT here.
+  //
+  // Doing wallet sync in both launch and callback created a race condition:
+  // both could run concurrently (launch generates deeplink → player opens app
+  // almost immediately), causing double topUp and phantom balance doubling.
+  //
+  // The callback fires on every MEGA app login and is the single authoritative
+  // sync point (autoWithdrawAll → deduct-first → topUp → rollback on failure).
 
   return NextResponse.json({
     ok:            true,
