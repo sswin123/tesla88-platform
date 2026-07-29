@@ -150,14 +150,32 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
 
         if (balance > 0) {
           const refId = `MEGAUP-${userId}-${Date.now()}`;
-          await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
-          const { rowCount } = await pool.query(
-            `UPDATE users SET total_withdraw = total_withdraw + $1
-             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
-            [balance, userId],
-          );
-          if (rowCount && rowCount > 0) {
-            console.log(`[megaapp-callback] topUp ok: userId=${userId} amount=${balance} loginId=${loginId}`);
+          // Retry up to 3 times: MEGA may hold a distributed lock (error 37153)
+          // briefly after autoWithdrawAll, so back off and retry.
+          let topUpOk = false;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
+              topUpOk = true;
+              break;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              if (msg.includes('37153') && attempt < 2) {
+                await new Promise(r => setTimeout(r, 3000 * (attempt + 1)));
+                continue;
+              }
+              throw err;
+            }
+          }
+          if (topUpOk) {
+            const { rowCount } = await pool.query(
+              `UPDATE users SET total_withdraw = total_withdraw + $1
+               WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
+              [balance, userId],
+            );
+            if (rowCount && rowCount > 0) {
+              console.log(`[megaapp-callback] topUp ok: userId=${userId} amount=${balance} loginId=${loginId}`);
+            }
           }
         }
       }
