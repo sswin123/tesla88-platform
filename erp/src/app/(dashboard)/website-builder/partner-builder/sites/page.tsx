@@ -29,6 +29,13 @@ export default function PartnerSiteListPage() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [duplicating, setDuplicating] = useState<number | null>(null);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+
+  useEffect(() => {
+    fetch('/api/erp/config').then(r => r.json()).then((cfg: { website_url?: string }) => {
+      setWebsiteUrl((cfg.website_url ?? '').replace(/\/$/, ''));
+    }).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -215,7 +222,7 @@ export default function PartnerSiteListPage() {
                   </button>
                   {site.status === 'PUBLISHED' && (
                     <a
-                      href={`/p/${site.slug}`}
+                      href={`${websiteUrl}/p/${site.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"

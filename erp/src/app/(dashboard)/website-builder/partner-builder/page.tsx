@@ -30,8 +30,13 @@ export default function PartnerBuilderDashboard() {
   const [sites, setSites] = useState<Site[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, published: 0, draft: 0, templates: 0, themes: 0 });
   const [loading, setLoading] = useState(true);
+  const [websiteUrl, setWebsiteUrl] = useState('');
 
   useEffect(() => {
+    fetch('/api/erp/config').then(r => r.json()).then((cfg: { website_url?: string }) => {
+      setWebsiteUrl((cfg.website_url ?? '').replace(/\/$/, ''));
+    }).catch(() => {});
+
     Promise.all([
       fetch('/api/partner-builder/sites').then(r => r.json()),
       fetch('/api/partner-builder/templates').then(r => r.json()),
@@ -203,7 +208,7 @@ export default function PartnerBuilderDashboard() {
                   </Link>
                   {site.status === 'PUBLISHED' && (
                     <a
-                      href={`/p/${site.slug}`}
+                      href={`${websiteUrl}/p/${site.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors"

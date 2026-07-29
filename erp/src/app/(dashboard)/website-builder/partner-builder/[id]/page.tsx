@@ -70,6 +70,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
 
   /* Local editable copy of site fields */
   const [draft, setDraft] = useState<Partial<Site>>({});
+  const [websiteUrl, setWebsiteUrl] = useState('');
 
   const toast = (type: 'ok' | 'err', text: string) => {
     setMsg({ type, text });
@@ -98,6 +99,12 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
   }, [siteId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetch('/api/erp/config').then(r => r.json()).then((cfg: { website_url?: string }) => {
+      setWebsiteUrl((cfg.website_url ?? '').replace(/\/$/, ''));
+    }).catch(() => {});
+  }, []);
 
   /* ── Save general/template/theme/SEO ── */
   async function saveSite() {
@@ -295,7 +302,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-semibold text-zinc-200 truncate">{site.name}</h1>
-          <span className="text-xs text-zinc-500">/p/{site.slug}</span>
+          <span className="text-xs text-zinc-500">{websiteUrl}/p/{site.slug}</span>
         </div>
 
         {/* Status badge */}
@@ -309,7 +316,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
 
         {site.status === 'published' && (
           <a
-            href={`/p/${site.slug}`}
+            href={`${websiteUrl}/p/${site.slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -611,7 +618,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
                   </div>
                   <p className="text-xs text-zinc-400 mt-1">
                     {site.status === 'published'
-                      ? `Public URL: /p/${site.slug}`
+                      ? `${websiteUrl}/p/${site.slug}`
                       : 'Save your changes and publish to make this site live.'}
                   </p>
                 </div>
@@ -629,7 +636,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
 
                 {site.status === 'published' && (
                   <a
-                    href={`/p/${site.slug}`}
+                    href={`${websiteUrl}/p/${site.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm font-medium transition-colors"
