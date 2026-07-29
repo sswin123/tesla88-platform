@@ -136,8 +136,8 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
           const refId = `MEGAUP-${userId}-${Date.now()}`;
           await adapter.topUp({ provider_player_id: loginId, amount: balance, reference_id: refId, currency: 'MYR' });
           const { rowCount } = await pool.query(
-            `UPDATE users SET available_balance = available_balance - $1
-             WHERE id = $2 AND available_balance >= $1`,
+            `UPDATE users SET total_withdraw = total_withdraw + $1
+             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
             [balance, userId],
           );
           if (rowCount && rowCount > 0) {

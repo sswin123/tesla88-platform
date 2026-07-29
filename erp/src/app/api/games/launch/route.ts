@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
           const returned = await autoWithdrawFn.call(adapter, transferLoginId);
           if (returned > 0) {
             await pool.query(
-              `UPDATE users SET available_balance = available_balance + $1 WHERE id = $2`,
+              `UPDATE users SET total_deposit = total_deposit + $1 WHERE id = $2`,
               [returned, user_id],
             );
             console.log(`[games/launch] TRANSFER auto-withdraw: userId=${user_id} returned=${returned}`);
@@ -334,8 +334,8 @@ export async function POST(req: NextRequest) {
           });
           // Atomic deduct — if balance changed between read and update, skip silently.
           const { rowCount } = await pool.query(
-            `UPDATE users SET available_balance = available_balance - $1
-             WHERE id = $2 AND available_balance >= $1`,
+            `UPDATE users SET total_withdraw = total_withdraw + $1
+             WHERE id = $2 AND (total_deposit - total_withdraw) >= $1`,
             [balance, user_id],
           );
           if (rowCount && rowCount > 0) {
