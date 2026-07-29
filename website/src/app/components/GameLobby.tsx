@@ -125,24 +125,42 @@ export default function GameLobby() {
       }
 
       // MEGA888 App: show credential dialog instead of navigating
-      if (data.launch_mode === 'MEGAAPP_DIALOG' && data.session_token) {
-        try {
-          const tok = JSON.parse(data.session_token) as {
-            login_id:             string;
-            password:             string;
-            download_url_android?: string | null;
-            download_url_ios?:     string | null;
-          };
+      if (data.launch_mode === 'MEGAAPP_DIALOG') {
+        let loginId = '';
+        let password = '';
+        let downloadUrlAndroid: string | null = null;
+        let downloadUrlIos: string | null = null;
+
+        // Primary: parse session_token JSON
+        if (data.session_token) {
+          try {
+            const tok = JSON.parse(data.session_token) as Record<string, unknown>;
+            loginId            = String(tok['login_id']             ?? '');
+            password           = String(tok['password']             ?? '');
+            downloadUrlAndroid = tok['download_url_android'] ? String(tok['download_url_android']) : null;
+            downloadUrlIos     = tok['download_url_ios']     ? String(tok['download_url_ios'])     : null;
+          } catch { /* fall through to URL parse */ }
+        }
+
+        // Fallback: parse loginId + password from deeplink URL params
+        if ((!loginId || !password) && data.launch_url) {
+          try {
+            const qs = data.launch_url.replace(/^[^?]*\?/, '');
+            const p  = new URLSearchParams(qs);
+            loginId  = p.get('account')  ?? '';
+            password = p.get('password') ?? '';
+          } catch { /* ignore */ }
+        }
+
+        if (loginId && password) {
           setMegaAppDialog({
-            loginId:            tok.login_id,
-            password:           tok.password,
-            launchUrl:          data.launch_url,
-            downloadUrlAndroid: tok.download_url_android ?? null,
-            downloadUrlIos:     tok.download_url_ios     ?? null,
+            loginId,
+            password,
+            launchUrl:          data.launch_url ?? '',
+            downloadUrlAndroid,
+            downloadUrlIos,
           });
           return;
-        } catch {
-          // Malformed token — fall through to normal redirect
         }
       }
 
