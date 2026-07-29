@@ -62,13 +62,6 @@ export default function WithdrawSummary({ amount, bankName, bankAccount, onConfi
         </div>
       </div>
 
-      <div
-        className="text-xs px-4 py-3 rounded-xl"
-        style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}
-      >
-        提款申请将在 1-3 个工作日内处理，请确保银行账号正确
-      </div>
-
       <div className="flex gap-3">
         <button
           onClick={onBack}

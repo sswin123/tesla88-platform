@@ -148,19 +148,10 @@ export default function WithdrawForm() {
         <p className="text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
           流水号：<span className="font-mono font-bold" style={{ color: 'var(--text-base)' }}>#{successId}</span>
         </p>
-        <p className="text-xs mb-4" style={{ color: 'var(--text-faint)' }}>
-          我们将在 1-3 个工作日内处理您的提款申请
-        </p>
-        <div className="flex gap-2 justify-center">
-          <a href="/history" className="casino-btn-outline px-4 text-sm">
+        <div className="flex justify-center mt-4">
+          <a href="/history" className="casino-btn-outline px-6 text-sm">
             查看记录
           </a>
-          <button
-            onClick={() => { setStep('form'); setAmount(''); setSuccessId(null); }}
-            className="casino-btn-primary px-4 text-sm"
-          >
-            再次提款
-          </button>
         </div>
       </div>
     );
