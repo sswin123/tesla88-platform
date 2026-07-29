@@ -291,6 +291,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (transferLoginId) {
+      // Force logout first — MEGA888 rejects balance transfers while player is online.
+      try {
+        await adapter.logout(transferLoginId, 'MYR');
+        console.log(`[games/launch] TRANSFER logout ok: loginId=${transferLoginId}`);
+      } catch (err) {
+        console.warn('[games/launch] TRANSFER logout failed (non-fatal):', err);
+      }
+
       // Step A: withdraw any leftover balance from the previous session back to main wallet.
       const autoWithdrawFn = (adapter as { autoWithdrawAll?: (id: string, biz: string) => Promise<number> }).autoWithdrawAll;
       if (autoWithdrawFn) {
