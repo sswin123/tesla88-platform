@@ -1,8 +1,10 @@
-// erp/src/app/api/games/megaapp/callback/[action]/route.ts
+// POST /api/mega/callback
 //
-// MEGA calls this endpoint when a player logs into the MEGA888 native app.
-// Method: open.operator.user.login
-// URL configured in MEGA admin: https://yoursite.com/api/games/megaapp/callback/login
+// MEGA888 calls this URL when a player logs into the native app.
+// Configured in MEGA agent management portal as the operator login callback.
+//
+// Handles JSON-RPC 2.0 method: open.operator.user.login
+// Body format: json={...} (URL-encoded) or raw JSON
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createGamingPlatform } from '@/lib/providers';
@@ -15,60 +17,53 @@ import { ActivityLogService } from '@/lib/services/activity-log';
 const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 const txRepo = new TransactionRepository();
 
-type Params = { params: Promise<{ action: string }> };
-
-export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
-  const { action } = await params;
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const ct = request.headers.get('content-type') ?? '(none)';
   const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown';
 
   console.log(`\n${'='.repeat(60)}`);
-  console.log(`[megaapp-callback] ▶ RECEIVED POST action="${action}" content-type="${ct}" ip=${ip}`);
+  console.log(`[mega/callback] ▶ RECEIVED POST content-type="${ct}" ip=${ip}`);
   console.log(`${'='.repeat(60)}`);
 
-  if (action.toLowerCase() !== 'login') {
-    console.warn(`[megaapp-callback] ✗ unknown action="${action}"`);
-    return NextResponse.json(
-      { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Unknown action' } },
-    );
-  }
-
+  // Read raw body
   let rawBody: string;
   try {
     rawBody = await request.text();
   } catch (err) {
-    console.error('[megaapp-callback] ✗ failed to read body:', err);
+    console.error('[mega/callback] ✗ failed to read body:', err);
     return NextResponse.json(
       { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Cannot read body' } },
     );
   }
 
-  console.log(`[megaapp-callback] RAW BODY (len=${rawBody.length}):`);
+  console.log(`[mega/callback] RAW BODY (len=${rawBody.length}):`);
   console.log(rawBody.slice(0, 1000));
 
+  // MEGA sends payload as URL-encoded: json={...}
   let jsonStr = rawBody;
   if (rawBody.startsWith('json=')) {
     jsonStr = decodeURIComponent(rawBody.slice('json='.length));
-    console.log(`[megaapp-callback] decoded from form: ${jsonStr.slice(0, 500)}`);
+    console.log(`[mega/callback] decoded from form: ${jsonStr.slice(0, 500)}`);
   }
 
   let envelope: { jsonrpc?: string; id?: string; method?: string; params?: Record<string, unknown> };
   try {
     envelope = JSON.parse(jsonStr) as typeof envelope;
   } catch (err) {
-    console.error('[megaapp-callback] ✗ JSON parse failed:', err, '| jsonStr=', jsonStr.slice(0, 200));
+    console.error('[mega/callback] ✗ JSON parse failed:', err, '| raw=', jsonStr.slice(0, 200));
     return NextResponse.json(
       { jsonrpc: '2.0', id: null, result: null, error: { code: '700', message: 'Invalid JSON' } },
     );
   }
 
-  const rpcId     = envelope.id   ?? '';
+  const rpcId     = envelope.id     ?? '';
   const rpcMethod = envelope.method ?? '';
   const rpcParams = envelope.params ?? {};
 
-  console.log(`[megaapp-callback] PARSED: rpcId="${rpcId}" method="${rpcMethod}"`);
-  console.log(`[megaapp-callback] PARAMS: loginId="${rpcParams['loginId']}" sn="${rpcParams['sn']}" random="${String(rpcParams['random'] ?? '').slice(0, 8)}..."`);
+  console.log(`[mega/callback] rpcId="${rpcId}" method="${rpcMethod}"`);
+  console.log(`[mega/callback] loginId="${rpcParams['loginId']}" sn="${rpcParams['sn']}"`);
 
+  // Find active MEGAAPP brand
   const { rows: bpRows } = await pool.query<{ brand_code: string }>(
     `SELECT b.code AS brand_code
      FROM brand_providers bp
@@ -79,47 +74,51 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
   );
 
   if (!bpRows[0]) {
-    console.warn('[megaapp-callback] ✗ no active MEGAAPP brand found in brand_providers');
+    console.warn('[mega/callback] ✗ no active MEGAAPP brand found');
     return NextResponse.json({
       jsonrpc: '2.0', id: rpcId, result: null,
       error: { code: '21118', message: '系统正在维护中，请联系客服' },
     });
   }
-  console.log(`[megaapp-callback] brand_code="${bpRows[0].brand_code}"`);
+  console.log(`[mega/callback] brand_code="${bpRows[0].brand_code}"`);
 
+  // Load adapter
   let adapter: MegaAppAdapter;
   try {
     const platform = createGamingPlatform();
     adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, 'MEGAAPP') as MegaAppAdapter;
-    console.log(`[megaapp-callback] ✓ adapter loaded`);
+    console.log(`[mega/callback] ✓ adapter loaded`);
   } catch (err) {
-    console.error('[megaapp-callback] ✗ failed to load adapter:', err);
+    console.error('[mega/callback] ✗ failed to load adapter:', err);
     return NextResponse.json({
       jsonrpc: '2.0', id: rpcId, result: null,
       error: { code: '21118', message: '系统维护中' },
     });
   }
 
+  // Verify digest + password via adapter
   let result: Record<string, unknown>;
   try {
     result = await adapter.handleLoginCallback(rpcId, rpcParams);
-    console.log(`[megaapp-callback] handleLoginCallback result:`, JSON.stringify(result));
+    console.log(`[mega/callback] handleLoginCallback result:`, JSON.stringify(result));
   } catch (err) {
-    console.error('[megaapp-callback] ✗ handleLoginCallback threw:', err);
+    console.error('[mega/callback] ✗ handleLoginCallback threw:', err);
     return NextResponse.json({
       jsonrpc: '2.0', id: rpcId, result: null,
       error: { code: '37101', message: 'API调用异常' },
     });
   }
 
+  // Check login success via result.result.success field
   const loginSuccess = (result['result'] as Record<string, unknown> | null)?.['success'] === '1';
-  console.log(`[megaapp-callback] login success=${loginSuccess}`);
+  console.log(`[mega/callback] login success=${loginSuccess}`);
 
   if (loginSuccess) {
     const loginId = String(rpcParams['loginId'] ?? '');
-    console.log(`[megaapp-callback] ── WALLET SYNC START loginId="${loginId}" ──`);
+    console.log(`[mega/callback] ── WALLET SYNC START loginId="${loginId}" ──`);
 
     try {
+      // Find internal userId + public_id from loginId
       const { rows: paRows } = await pool.query<{ user_id: number; user_public_id: string }>(
         `SELECT pa.user_id, u.public_id AS user_public_id
          FROM provider_accounts pa
@@ -127,33 +126,32 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
          WHERE pa.provider_code = 'MEGAAPP' AND pa.provider_login_id = $1 LIMIT 1`,
         [loginId],
       );
-      const userId       = paRows[0]?.user_id;
-      const userPublicId = paRows[0]?.user_public_id ?? '';
+      const userId        = paRows[0]?.user_id;
+      const userPublicId  = paRows[0]?.user_public_id ?? '';
 
       if (!userId) {
-        console.error(`[megaapp-callback] ✗ CRITICAL: no provider_accounts record for loginId="${loginId}" — wallet sync SKIPPED`);
+        console.error(`[mega/callback] ✗ CRITICAL: no provider_accounts record for loginId="${loginId}" — wallet sync SKIPPED`);
       } else {
-        console.log(`[megaapp-callback] ✓ found userId=${userId}`);
+        console.log(`[mega/callback] ✓ found userId=${userId}`);
         const ts = Date.now();
 
         // ── Step 1: autoWithdrawAll (Transfer Out) ──────────────────────────
-        console.log(`[megaapp-callback] calling autoWithdrawAll(loginId="${loginId}")`);
+        console.log(`[mega/callback] calling autoWithdrawAll(loginId="${loginId}")`);
         let returned = 0;
         try {
           returned = await adapter.autoWithdrawAll(loginId);
-          console.log(`[megaapp-callback] autoWithdrawAll result: returned=${returned}`);
+          console.log(`[mega/callback] autoWithdrawAll returned=${returned}`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           if (msg.includes('37123')) {
-            console.log(`[megaapp-callback] autoWithdrawAll: MEGA wallet already empty (37123) — OK`);
+            console.log(`[mega/callback] autoWithdrawAll: MEGA wallet already empty (37123)`);
           } else {
-            console.warn(`[megaapp-callback] autoWithdrawAll error (non-fatal, continuing): ${msg}`);
+            console.warn(`[mega/callback] autoWithdrawAll failed (non-fatal): ${msg}`);
           }
         }
 
         if (returned > 0) {
           const wdRefId = `MEGAAPPWD-${userId}-${ts}`;
-          console.log(`[megaapp-callback] crediting ${returned} back to main wallet (Transfer Out)`);
           const wdClient = await pool.connect();
           try {
             await wdClient.query('BEGIN');
@@ -170,8 +168,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
             await wdClient.query('COMMIT');
             const balBefore = parseFloat(wtRow.balance_before);
             const balAfter  = parseFloat(wtRow.balance_after);
-            console.log(`[megaapp-callback] ✓ Transfer Out complete: balance ${balBefore} → ${balAfter}`);
+            console.log(`[mega/callback] ✓ Transfer Out: balance ${balBefore} → ${balAfter}`);
 
+            // provider_transactions (FUND_RETURN = Transfer Out)
             await txRepo.create({
               provider:       'MEGAAPP',
               transaction_id: wtRow.id,
@@ -185,8 +184,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
               before_balance: balBefore,
               after_balance:  balAfter,
               metadata:       { trigger: 'LOGIN_CALLBACK' },
-            }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
+            }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
+            // activity log
             await ActivityLogService.log({
               member_id:      userId,
               category:       'BALANCE',
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
             });
           } catch (e) {
             await wdClient.query('ROLLBACK').catch(() => undefined);
-            console.error(`[megaapp-callback] ✗ adjustWallet (Transfer Out) failed:`, e);
+            console.error(`[mega/callback] ✗ adjustWallet Transfer Out failed:`, e);
           } finally {
             wdClient.release();
           }
@@ -219,17 +219,17 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
           [userId],
         );
         const balance = parseFloat(balRows[0]?.available_balance ?? '0');
-        console.log(`[megaapp-callback] current main wallet available_balance=${balance}`);
+        console.log(`[mega/callback] main wallet available_balance=${balance}`);
 
         if (balance <= 0) {
-          console.log(`[megaapp-callback] balance=${balance} ≤ 0 — no Transfer In needed`);
+          console.log(`[mega/callback] balance=${balance} ≤ 0 — no Transfer In needed`);
         } else {
-          // ── Step 3: deduct from main wallet first ───────────────────────
+          // ── Step 3: deduct from main wallet first (deduct-first pattern) ──
           const refId = `MEGAAPPUP-${userId}-${ts}`;
           let deductOk = false;
           let deductWtRow: Awaited<ReturnType<typeof adjustWallet>> | null = null;
 
-          console.log(`[megaapp-callback] DEDUCTING ${balance} from main wallet (Transfer In step 1/2)`);
+          console.log(`[mega/callback] DEDUCTING ${balance} from main wallet`);
           const deductClient = await pool.connect();
           try {
             await deductClient.query('BEGIN');
@@ -247,8 +247,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
             deductOk = true;
             const balBefore = parseFloat(deductWtRow.balance_before);
             const balAfter  = parseFloat(deductWtRow.balance_after);
-            console.log(`[megaapp-callback] ✓ deduction complete: balance ${balBefore} → ${balAfter}`);
+            console.log(`[mega/callback] ✓ deduction OK: balance ${balBefore} → ${balAfter}`);
 
+            // provider_transactions (FUND_REQUEST = Transfer In deduction step)
             await txRepo.create({
               provider:       'MEGAAPP',
               transaction_id: deductWtRow.id,
@@ -262,27 +263,25 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
               before_balance: balBefore,
               after_balance:  balAfter,
               metadata:       { trigger: 'LOGIN_CALLBACK', step: 'DEDUCT' },
-            }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
+            }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
           } catch (err) {
             await deductClient.query('ROLLBACK').catch(() => undefined);
-            const errMsg = err instanceof Error ? err.message : String(err);
-            console.error(`[megaapp-callback] ✗ deduction FAILED (concurrent or insufficient): ${errMsg}`);
+            console.error(`[mega/callback] ✗ deduction FAILED: ${err instanceof Error ? err.message : String(err)}`);
           } finally {
             deductClient.release();
           }
 
           if (deductOk && deductWtRow) {
-            // ── Step 4: topUp to MEGA ────────────────────────────────────
+            // ── Step 4: topUp to MEGA (retry on 37153) ─────────────────────
             let topUpOk = false;
-            let topUpError = '';
             const deductBalBefore = parseFloat(deductWtRow.balance_before);
             const deductBalAfter  = parseFloat(deductWtRow.balance_after);
 
-            console.log(`[megaapp-callback] calling topUp: loginId="${loginId}" amount=${balance} refId="${refId}" currency=MYR`);
+            console.log(`[mega/callback] calling topUp: loginId="${loginId}" amount=${balance} refId="${refId}"`);
             try {
               for (let attempt = 1; attempt <= 3; attempt++) {
                 try {
-                  console.log(`[megaapp-callback] topUp attempt ${attempt}/3 ...`);
+                  console.log(`[mega/callback] topUp attempt ${attempt}/3 ...`);
                   const topUpResult = await adapter.topUp({
                     provider_player_id: loginId,
                     amount:             balance,
@@ -290,8 +289,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                     currency:           'MYR',
                   });
                   topUpOk = true;
-                  console.log(`[megaapp-callback] ✓ topUp SUCCESS: MEGA balance after=${topUpResult.balance}`);
+                  console.log(`[mega/callback] ✓ topUp SUCCESS: MEGA balance after=${topUpResult.balance}`);
 
+                  // Update provider_transactions to SUCCESS
                   await txRepo.create({
                     provider:       'MEGAAPP',
                     transaction_id: randomUUID(),
@@ -305,8 +305,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                     before_balance: deductBalBefore,
                     after_balance:  topUpResult.balance,
                     metadata:       { trigger: 'LOGIN_CALLBACK', step: 'TOPUP', mega_balance: topUpResult.balance },
-                  }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
+                  }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
+                  // Activity log — Transfer In success
                   await ActivityLogService.log({
                     member_id:      userId,
                     category:       'BALANCE',
@@ -328,20 +329,19 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                   break;
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : String(err);
-                  console.error(`[megaapp-callback] topUp attempt ${attempt} FAILED: ${msg}`);
+                  console.error(`[mega/callback] topUp attempt ${attempt} FAILED: ${msg}`);
                   if (msg.includes('37153') && attempt < 3) {
                     const delay = 3000 * attempt;
-                    console.log(`[megaapp-callback] 37153 distributed lock — retrying in ${delay}ms`);
+                    console.log(`[mega/callback] 37153 — retrying in ${delay}ms`);
                     await new Promise(r => setTimeout(r, delay));
                     continue;
                   }
-                  topUpError = msg;
                   throw err;
                 }
               }
             } catch (err) {
-              const errMsg = topUpError || (err instanceof Error ? err.message : String(err));
-              console.error(`[megaapp-callback] ✗ topUp FAILED after all retries — rolling back userId=${userId} amount=${balance}`);
+              const errMsg = err instanceof Error ? err.message : String(err);
+              console.error(`[mega/callback] ✗ topUp FAILED, rolling back. userId=${userId} amount=${balance}: ${errMsg}`);
 
               const rbClient = await pool.connect();
               try {
@@ -359,8 +359,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                 await rbClient.query('COMMIT');
                 const rbBalBefore = parseFloat(rbWtRow.balance_before);
                 const rbBalAfter  = parseFloat(rbWtRow.balance_after);
-                console.log(`[megaapp-callback] ✓ rollback complete: balance restored to ${rbBalAfter}`);
+                console.log(`[mega/callback] ✓ rollback OK: balance restored to ${rbBalAfter}`);
 
+                // provider_transactions — Rollback
                 await txRepo.create({
                   provider:       'MEGAAPP',
                   transaction_id: rbWtRow.id,
@@ -375,8 +376,9 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                   after_balance:  rbBalAfter,
                   error_message:  errMsg.slice(0, 255),
                   metadata:       { trigger: 'LOGIN_CALLBACK', original_ref: refId },
-                }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
+                }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
+                // Activity log — Rollback
                 await ActivityLogService.log({
                   member_id:      userId,
                   category:       'BALANCE',
@@ -397,15 +399,15 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
                 });
               } catch (rbErr) {
                 await rbClient.query('ROLLBACK').catch(() => undefined);
-                console.error(`[megaapp-callback] ✗✗ CRITICAL: rollback ALSO FAILED userId=${userId} amount=${balance}`);
-                console.error(`[megaapp-callback] MANUAL INTERVENTION REQUIRED: userId=${userId} is missing ${balance} MYR`);
+                console.error(`[mega/callback] ✗✗ CRITICAL: rollback FAILED userId=${userId} amount=${balance}:`, rbErr instanceof Error ? rbErr.message : String(rbErr));
+                console.error(`[mega/callback] MANUAL INTERVENTION REQUIRED: userId=${userId} missing ${balance} MYR`);
 
                 await ActivityLogService.log({
                   member_id:      userId,
                   category:       'BALANCE',
                   action:         'Rollback',
                   title:          'MEGA888(APP) — Rollback FAILED (CRITICAL)',
-                  description:    `CRITICAL: RM ${balance.toFixed(2)} lost — topUp failed AND rollback failed.`,
+                  description:    `CRITICAL: RM ${balance.toFixed(2)} lost — topUp failed AND rollback failed. Manual intervention required.`,
                   amount:         balance,
                   operator_type:  'SYSTEM',
                   source:         'API',
@@ -419,19 +421,19 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
             }
 
             if (!topUpOk) {
-              console.warn(`[megaapp-callback] Transfer In FAILED: userId=${userId} amount=${balance} refId=${refId}`);
+              console.warn(`[mega/callback] Transfer In FAILED: userId=${userId} amount=${balance}`);
             }
           }
         }
 
-        console.log(`[megaapp-callback] ── WALLET SYNC END userId=${userId} ──`);
+        console.log(`[mega/callback] ── WALLET SYNC END userId=${userId} ──`);
       }
     } catch (err) {
-      console.error('[megaapp-callback] ✗ wallet sync outer error (non-fatal):', err);
+      console.error('[mega/callback] ✗ wallet sync outer error (non-fatal):', err);
     }
   }
 
-  console.log(`[megaapp-callback] ◀ RETURNING response to MEGA:`, JSON.stringify(result));
+  console.log(`[mega/callback] ◀ RETURNING:`, JSON.stringify(result));
   console.log(`${'='.repeat(60)}\n`);
 
   return NextResponse.json(result);

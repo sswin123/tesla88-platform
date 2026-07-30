@@ -238,8 +238,20 @@ export class MegaAppApiClient {
       params,
     });
 
+    // Always log API request — essential for diagnosing Transfer Wallet issues.
+    // Set debug=true in ERP Brand Config to see full param details.
     if (this.cfg.debug) {
-      console.log(`[MEGAAPP] → ${method}`, JSON.stringify(params));
+      console.log(`[MEGAAPP API] → REQUEST method="${method}" url="${this.apiUrl}"`);
+      console.log(`[MEGAAPP API] → PARAMS:`, JSON.stringify(params));
+      console.log(`[MEGAAPP API] → BODY:`, body);
+    } else {
+      // Minimal log even without debug: method + key identifiers
+      const logParams: Record<string, unknown> = {};
+      if ('loginId'  in params) logParams['loginId']  = params['loginId'];
+      if ('amount'   in params) logParams['amount']   = params['amount'];
+      if ('bizId'    in params) logParams['bizId']    = params['bizId'];
+      if ('sn'       in params) logParams['sn']       = params['sn'];
+      console.log(`[MEGAAPP API] → ${method}`, JSON.stringify(logParams));
     }
 
     const controller = new AbortController();
@@ -258,20 +270,30 @@ export class MegaAppApiClient {
       clearTimeout(timer);
       const ms  = Date.now() - start;
       const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[MEGAAPP API] ✗ HTTP request FAILED to "${this.apiUrl}" after ${ms}ms: ${msg}`);
       throw new Error(`MEGAAPP HTTP request to ${this.apiUrl} failed after ${ms}ms: ${msg}`);
     }
     clearTimeout(timer);
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      console.error(`[MEGAAPP API] ✗ HTTP ${res.status} from "${this.apiUrl}": ${text.slice(0, 200)}`);
       throw new Error(`MEGAAPP HTTP ${res.status} from ${this.apiUrl}: ${text.slice(0, 200)}`);
     }
 
     const envelope = (await res.json()) as RpcResponse<T>;
+    const ms = Date.now() - start;
 
     if (this.cfg.debug) {
-      const ms = Date.now() - start;
-      console.log(`[MEGAAPP] ← ${method} (${ms}ms)`, JSON.stringify(envelope).slice(0, 500));
+      console.log(`[MEGAAPP API] ← RESPONSE method="${method}" (${ms}ms):`);
+      console.log(JSON.stringify(envelope));
+    } else {
+      // Always log errors and compact success info
+      if (envelope.error) {
+        console.error(`[MEGAAPP API] ✗ ${method} ERROR (${ms}ms): code=${envelope.error.code} msg="${envelope.error.message}"${envelope.error.reason ? ` reason="${envelope.error.reason}"` : ''}`);
+      } else {
+        console.log(`[MEGAAPP API] ✓ ${method} OK (${ms}ms) result=${JSON.stringify(envelope.result).slice(0, 200)}`);
+      }
     }
 
     return envelope;
