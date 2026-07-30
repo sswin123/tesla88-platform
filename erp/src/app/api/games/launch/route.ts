@@ -275,14 +275,103 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 6. Transfer In: move wallet balance → provider (TRANSFER wallet only) ──
-  // Login Callback and Refresh Wallet only do Transfer Out (MEGA→wallet).
-  // Transfer In (wallet→MEGA) is triggered exclusively here, on Play Button.
+  // ── 6. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
+  // Architecture:
+  //   Step A — autoWithdrawAll: recover any remaining provider balance → wallet
+  //   Step B — Transfer In: move ALL wallet balance → provider
+  // Login Callback: authentication only, never touches wallet.
+  // Refresh Button: Transfer Out only (member-wallet-sync route).
   if (provider.wallet_type === 'TRANSFER') {
     const loginId = playerRecord.provider_player_id;
     if (!loginId) {
-      console.warn(`[games/launch] Transfer In skipped: no provider_player_id for userId=${user_id}`);
+      console.warn(`[games/launch] Transfer Wallet skipped: no provider_player_id for userId=${user_id}`);
     } else {
+      const ts = Date.now();
+
+      type XferAdapter = {
+        topUp:            (p: { provider_player_id: string; amount: number; reference_id: string; currency: string }) => Promise<{ balance: number }>;
+        autoWithdrawAll?: (loginId: string) => Promise<number>;
+      };
+      const xferAdapter = adapter as unknown as XferAdapter;
+
+      // ── Step A: autoWithdrawAll — recover any remaining provider balance ───
+      let recovered = 0;
+      try {
+        if (typeof xferAdapter.autoWithdrawAll === 'function') {
+          recovered = await xferAdapter.autoWithdrawAll(loginId);
+          console.log(`[games/launch] autoWithdrawAll returned=${recovered}`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('37123')) {
+          console.log(`[games/launch] provider wallet already empty (37123) — OK`);
+        } else {
+          console.warn(`[games/launch] autoWithdrawAll error (non-fatal): ${msg}`);
+        }
+      }
+
+      if (recovered > 0) {
+        const wdRefId  = `${upperCode}WD-PLAY-${user_id}-${ts}`;
+        const wdClient = await pool.connect();
+        try {
+          await wdClient.query('BEGIN');
+          const wtRow = await adjustWallet(wdClient, {
+            userId:          user_id,
+            type:            'PAYMENT_GATEWAY',
+            direction:       'C',
+            amount:          recovered,
+            gateway:         upperCode,
+            referenceNumber: wdRefId,
+            remark:          `[${upperCode}] Transfer Out (before Play)`,
+            operatorAdminId: SYSTEM_ADMIN_ID,
+          });
+          await wdClient.query('COMMIT');
+          const wdBefore = parseFloat(wtRow.balance_before);
+          const wdAfter  = parseFloat(wtRow.balance_after);
+          console.log(`[games/launch] ✓ recovered ${recovered}: wallet ${wdBefore} → ${wdAfter}`);
+
+          await txRepo.create({
+            provider:       upperCode,
+            transaction_id: wtRow.id,
+            reference_id:   wdRefId,
+            type:           'FUND_RETURN',
+            status:         'SUCCESS',
+            user_id:        user_id,
+            user_public_id: playerRecord.provider_account_id,
+            amount:         recovered,
+            currency:       'MYR',
+            before_balance: wdBefore,
+            after_balance:  wdAfter,
+            metadata:       { trigger: 'PLAY_BUTTON', step: 'AUTO_WITHDRAW' },
+          }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
+
+          await ActivityLogService.log({
+            member_id:      user_id,
+            category:       'BALANCE',
+            action:         'Transfer Out',
+            title:          `${provider.display_name} — Transfer Out (before Play)`,
+            description:    `Recovered RM ${recovered.toFixed(2)} from ${provider.display_name} before Transfer In`,
+            amount:         recovered,
+            balance_before: wdBefore,
+            balance_after:  wdAfter,
+            reference_type: 'wallet_transaction',
+            reference_id:   parseInt(wtRow.id, 10) || null,
+            operator_type:  'MEMBER',
+            operator_id:    user_id,
+            source:         'WEBSITE',
+            level:          'INFO',
+            remark:         `[${upperCode}] Transfer Out via Play Button`,
+            metadata:       { provider_code: upperCode, recovered, ref_id: wdRefId },
+          });
+        } catch (e) {
+          await wdClient.query('ROLLBACK').catch(() => undefined);
+          console.error(`[games/launch] ✗ credit (after autoWithdrawAll) failed:`, e);
+        } finally {
+          wdClient.release();
+        }
+      }
+
+      // ── Step B: read fresh balance (includes any recovered amount) ─────────
       const { rows: balRows } = await pool.query<{ available_balance: string }>(
         `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
         [user_id],
@@ -291,7 +380,6 @@ export async function POST(req: NextRequest) {
       console.log(`[games/launch] Transfer In: userId=${user_id} balance=${balance} loginId="${loginId}"`);
 
       if (balance > 0) {
-        const ts    = Date.now();
         const refId = `${upperCode}UP-${user_id}-${ts}`;
         let deductOk  = false;
         let deductWtRow: Awaited<ReturnType<typeof adjustWallet>> | null = null;
@@ -341,9 +429,6 @@ export async function POST(req: NextRequest) {
           const deductBalAfter  = parseFloat(deductWtRow.balance_after);
           let topUpOk    = false;
           let topUpError = '';
-
-          type XferAdapter = { topUp: (p: { provider_player_id: string; amount: number; reference_id: string; currency: string }) => Promise<{ balance: number }> };
-          const xferAdapter = adapter as unknown as XferAdapter;
 
           try {
             for (let attempt = 1; attempt <= 3; attempt++) {
