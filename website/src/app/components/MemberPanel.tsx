@@ -152,7 +152,7 @@ export default function MemberPanel() {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-1.5 rounded-full transition-colors"
+            className="p-3 rounded-full transition-colors"
             style={{ color: 'var(--text-muted)' }}
             title="Refresh balance"
             aria-label="Refresh balance"
