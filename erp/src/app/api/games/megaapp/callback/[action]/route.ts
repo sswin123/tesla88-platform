@@ -117,7 +117,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
 
   if (loginSuccess) {
     const loginId = String(rpcParams['loginId'] ?? '');
-    console.log(`[megaapp-callback] ── WALLET SYNC START loginId="${loginId}" ──`);
+    console.log(`[megaapp-callback] ── TRANSFER OUT START loginId="${loginId}" ──`);
 
     try {
       const { rows: paRows } = await pool.query<{ user_id: number; user_public_id: string }>(
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
       const userPublicId = paRows[0]?.user_public_id ?? '';
 
       if (!userId) {
-        console.error(`[megaapp-callback] ✗ CRITICAL: no provider_accounts record for loginId="${loginId}" — wallet sync SKIPPED`);
+        console.error(`[megaapp-callback] ✗ CRITICAL: no provider_accounts record for loginId="${loginId}" — Transfer Out SKIPPED`);
       } else {
         console.log(`[megaapp-callback] ✓ found userId=${userId}`);
         const ts = Date.now();
@@ -213,218 +213,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
           }
         }
 
-        // ── Step 2: read fresh balance ──────────────────────────────────────
-        const { rows: balRows } = await pool.query<{ available_balance: string }>(
-          `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
-          [userId],
-        );
-        const balance = parseFloat(balRows[0]?.available_balance ?? '0');
-        console.log(`[megaapp-callback] current main wallet available_balance=${balance}`);
-
-        if (balance <= 0) {
-          console.log(`[megaapp-callback] balance=${balance} ≤ 0 — no Transfer In needed`);
-        } else {
-          // ── Step 3: deduct from main wallet first ───────────────────────
-          const refId = `MEGAAPPUP-${userId}-${ts}`;
-          let deductOk = false;
-          let deductWtRow: Awaited<ReturnType<typeof adjustWallet>> | null = null;
-
-          console.log(`[megaapp-callback] DEDUCTING ${balance} from main wallet (Transfer In step 1/2)`);
-          const deductClient = await pool.connect();
-          try {
-            await deductClient.query('BEGIN');
-            deductWtRow = await adjustWallet(deductClient, {
-              userId,
-              type:            'PAYMENT_GATEWAY',
-              direction:       'D',
-              amount:          balance,
-              gateway:         'MEGAAPP',
-              referenceNumber: refId,
-              remark:          '[MEGAAPP] Transfer In',
-              operatorAdminId: SYSTEM_ADMIN_ID,
-            });
-            await deductClient.query('COMMIT');
-            deductOk = true;
-            const balBefore = parseFloat(deductWtRow.balance_before);
-            const balAfter  = parseFloat(deductWtRow.balance_after);
-            console.log(`[megaapp-callback] ✓ deduction complete: balance ${balBefore} → ${balAfter}`);
-
-            await txRepo.create({
-              provider:       'MEGAAPP',
-              transaction_id: deductWtRow.id,
-              reference_id:   refId,
-              type:           'FUND_REQUEST',
-              status:         'PENDING',
-              user_id:        userId,
-              user_public_id: userPublicId,
-              amount:         balance,
-              currency:       'MYR',
-              before_balance: balBefore,
-              after_balance:  balAfter,
-              metadata:       { trigger: 'LOGIN_CALLBACK', step: 'DEDUCT' },
-            }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
-          } catch (err) {
-            await deductClient.query('ROLLBACK').catch(() => undefined);
-            const errMsg = err instanceof Error ? err.message : String(err);
-            console.error(`[megaapp-callback] ✗ deduction FAILED (concurrent or insufficient): ${errMsg}`);
-          } finally {
-            deductClient.release();
-          }
-
-          if (deductOk && deductWtRow) {
-            // ── Step 4: topUp to MEGA ────────────────────────────────────
-            let topUpOk = false;
-            let topUpError = '';
-            const deductBalBefore = parseFloat(deductWtRow.balance_before);
-            const deductBalAfter  = parseFloat(deductWtRow.balance_after);
-
-            console.log(`[megaapp-callback] calling topUp: loginId="${loginId}" amount=${balance} refId="${refId}" currency=MYR`);
-            try {
-              for (let attempt = 1; attempt <= 3; attempt++) {
-                try {
-                  console.log(`[megaapp-callback] topUp attempt ${attempt}/3 ...`);
-                  const topUpResult = await adapter.topUp({
-                    provider_player_id: loginId,
-                    amount:             balance,
-                    reference_id:       refId,
-                    currency:           'MYR',
-                  });
-                  topUpOk = true;
-                  console.log(`[megaapp-callback] ✓ topUp SUCCESS: MEGA balance after=${topUpResult.balance}`);
-
-                  await txRepo.create({
-                    provider:       'MEGAAPP',
-                    transaction_id: randomUUID(),
-                    reference_id:   refId,
-                    type:           'FUND_REQUEST',
-                    status:         'SUCCESS',
-                    user_id:        userId,
-                    user_public_id: userPublicId,
-                    amount:         balance,
-                    currency:       'MYR',
-                    before_balance: deductBalBefore,
-                    after_balance:  topUpResult.balance,
-                    metadata:       { trigger: 'LOGIN_CALLBACK', step: 'TOPUP', mega_balance: topUpResult.balance },
-                  }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
-
-                  await ActivityLogService.log({
-                    member_id:      userId,
-                    category:       'BALANCE',
-                    action:         'Transfer In',
-                    title:          'MEGA888(APP) — Transfer In',
-                    description:    `Transferred RM ${balance.toFixed(2)} to MEGA888(APP) on login`,
-                    amount:         balance,
-                    balance_before: deductBalBefore,
-                    balance_after:  deductBalAfter,
-                    reference_type: 'wallet_transaction',
-                    reference_id:   parseInt(deductWtRow.id, 10) || null,
-                    operator_type:  'SYSTEM',
-                    operator_id:    SYSTEM_ADMIN_ID,
-                    source:         'API',
-                    level:          'INFO',
-                    remark:         '[MEGAAPP] Transfer In',
-                    metadata:       { provider_code: 'MEGAAPP', amount: balance, ref_id: refId, mega_balance_after: topUpResult.balance },
-                  });
-                  break;
-                } catch (err) {
-                  const msg = err instanceof Error ? err.message : String(err);
-                  console.error(`[megaapp-callback] topUp attempt ${attempt} FAILED: ${msg}`);
-                  if (msg.includes('37153') && attempt < 3) {
-                    const delay = 3000 * attempt;
-                    console.log(`[megaapp-callback] 37153 distributed lock — retrying in ${delay}ms`);
-                    await new Promise(r => setTimeout(r, delay));
-                    continue;
-                  }
-                  topUpError = msg;
-                  throw err;
-                }
-              }
-            } catch (err) {
-              const errMsg = topUpError || (err instanceof Error ? err.message : String(err));
-              console.error(`[megaapp-callback] ✗ topUp FAILED after all retries — rolling back userId=${userId} amount=${balance}`);
-
-              const rbClient = await pool.connect();
-              try {
-                await rbClient.query('BEGIN');
-                const rbWtRow = await adjustWallet(rbClient, {
-                  userId,
-                  type:            'CORRECTION',
-                  direction:       'C',
-                  amount:          balance,
-                  gateway:         'MEGAAPP',
-                  referenceNumber: `MEGAAPPUP-ROLLBACK-${userId}-${ts}`,
-                  remark:          '[MEGAAPP] Rollback',
-                  operatorAdminId: SYSTEM_ADMIN_ID,
-                });
-                await rbClient.query('COMMIT');
-                const rbBalBefore = parseFloat(rbWtRow.balance_before);
-                const rbBalAfter  = parseFloat(rbWtRow.balance_after);
-                console.log(`[megaapp-callback] ✓ rollback complete: balance restored to ${rbBalAfter}`);
-
-                await txRepo.create({
-                  provider:       'MEGAAPP',
-                  transaction_id: rbWtRow.id,
-                  reference_id:   `MEGAAPPUP-ROLLBACK-${userId}-${ts}`,
-                  type:           'ROLLBACK',
-                  status:         'SUCCESS',
-                  user_id:        userId,
-                  user_public_id: userPublicId,
-                  amount:         balance,
-                  currency:       'MYR',
-                  before_balance: rbBalBefore,
-                  after_balance:  rbBalAfter,
-                  error_message:  errMsg.slice(0, 255),
-                  metadata:       { trigger: 'LOGIN_CALLBACK', original_ref: refId },
-                }).catch(e => console.warn('[megaapp-callback] provider_transactions write failed:', e));
-
-                await ActivityLogService.log({
-                  member_id:      userId,
-                  category:       'BALANCE',
-                  action:         'Rollback',
-                  title:          'MEGA888(APP) — Transfer In Rollback',
-                  description:    `RM ${balance.toFixed(2)} restored after topUp failure: ${errMsg.slice(0, 100)}`,
-                  amount:         balance,
-                  balance_before: rbBalBefore,
-                  balance_after:  rbBalAfter,
-                  reference_type: 'wallet_transaction',
-                  reference_id:   parseInt(rbWtRow.id, 10) || null,
-                  operator_type:  'SYSTEM',
-                  operator_id:    SYSTEM_ADMIN_ID,
-                  source:         'API',
-                  level:          'WARNING',
-                  remark:         '[MEGAAPP] Rollback',
-                  metadata:       { provider_code: 'MEGAAPP', amount: balance, error: errMsg.slice(0, 255) },
-                });
-              } catch (rbErr) {
-                await rbClient.query('ROLLBACK').catch(() => undefined);
-                console.error(`[megaapp-callback] ✗✗ CRITICAL: rollback ALSO FAILED userId=${userId} amount=${balance}`);
-                console.error(`[megaapp-callback] MANUAL INTERVENTION REQUIRED: userId=${userId} is missing ${balance} MYR`);
-
-                await ActivityLogService.log({
-                  member_id:      userId,
-                  category:       'BALANCE',
-                  action:         'Rollback',
-                  title:          'MEGA888(APP) — Rollback FAILED (CRITICAL)',
-                  description:    `CRITICAL: RM ${balance.toFixed(2)} lost — topUp failed AND rollback failed.`,
-                  amount:         balance,
-                  operator_type:  'SYSTEM',
-                  source:         'API',
-                  level:          'CRITICAL',
-                  remark:         '[MEGAAPP] Rollback — CRITICAL FAILURE',
-                  metadata:       { provider_code: 'MEGAAPP', amount: balance, topup_error: errMsg.slice(0, 255) },
-                });
-              } finally {
-                rbClient.release();
-              }
-            }
-
-            if (!topUpOk) {
-              console.warn(`[megaapp-callback] Transfer In FAILED: userId=${userId} amount=${balance} refId=${refId}`);
-            }
-          }
-        }
-
-        console.log(`[megaapp-callback] ── WALLET SYNC END userId=${userId} ──`);
+        console.log(`[megaapp-callback] ── TRANSFER OUT END userId=${userId} ──`);
       }
     } catch (err) {
       console.error('[megaapp-callback] ✗ wallet sync outer error (non-fatal):', err);

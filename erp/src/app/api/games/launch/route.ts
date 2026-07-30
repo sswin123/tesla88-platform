@@ -1,5 +1,12 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { adjustWallet } from '@/lib/services/wallet';
+import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
+import { ActivityLogService } from '@/lib/services/activity-log';
+
+const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
+const txRepo = new TransactionRepository();
 
 /**
  * POST /api/games/launch  (Internal service API)
@@ -41,9 +48,9 @@ export async function POST(req: NextRequest) {
   // ── 1. Load provider record ───────────────────────────────────────────────
   const { rows: provRows } = await pool.query<{
     id: number; code: string; display_name: string;
-    status: string; website_launch_mode: string;
+    status: string; website_launch_mode: string; wallet_type: string;
   }>(
-    `SELECT id, code, display_name, status, website_launch_mode
+    `SELECT id, code, display_name, status, website_launch_mode, wallet_type
      FROM gp_providers WHERE code = $1 LIMIT 1`,
     [upperCode],
   );
@@ -268,16 +275,187 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 6. Transfer Wallet note ───────────────────────────────────────────────
-  // For TRANSFER wallet providers (e.g. MEGAAPP), wallet sync is handled
-  // exclusively in the MEGA login callback route, NOT here.
-  //
-  // Doing wallet sync in both launch and callback created a race condition:
-  // both could run concurrently (launch generates deeplink → player opens app
-  // almost immediately), causing double topUp and phantom balance doubling.
-  //
-  // The callback fires on every MEGA app login and is the single authoritative
-  // sync point (autoWithdrawAll → deduct-first → topUp → rollback on failure).
+  // ── 6. Transfer In: move wallet balance → provider (TRANSFER wallet only) ──
+  // Login Callback and Refresh Wallet only do Transfer Out (MEGA→wallet).
+  // Transfer In (wallet→MEGA) is triggered exclusively here, on Play Button.
+  if (provider.wallet_type === 'TRANSFER') {
+    const loginId = playerRecord.provider_player_id;
+    if (!loginId) {
+      console.warn(`[games/launch] Transfer In skipped: no provider_player_id for userId=${user_id}`);
+    } else {
+      const { rows: balRows } = await pool.query<{ available_balance: string }>(
+        `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
+        [user_id],
+      );
+      const balance = parseFloat(balRows[0]?.available_balance ?? '0');
+      console.log(`[games/launch] Transfer In: userId=${user_id} balance=${balance} loginId="${loginId}"`);
+
+      if (balance > 0) {
+        const ts    = Date.now();
+        const refId = `${upperCode}UP-${user_id}-${ts}`;
+        let deductOk  = false;
+        let deductWtRow: Awaited<ReturnType<typeof adjustWallet>> | null = null;
+
+        const deductClient = await pool.connect();
+        try {
+          await deductClient.query('BEGIN');
+          deductWtRow = await adjustWallet(deductClient, {
+            userId:          user_id,
+            type:            'PAYMENT_GATEWAY',
+            direction:       'D',
+            amount:          balance,
+            gateway:         upperCode,
+            referenceNumber: refId,
+            remark:          `[${upperCode}] Transfer In`,
+            operatorAdminId: SYSTEM_ADMIN_ID,
+          });
+          await deductClient.query('COMMIT');
+          deductOk = true;
+          const balBefore = parseFloat(deductWtRow.balance_before);
+          const balAfter  = parseFloat(deductWtRow.balance_after);
+          console.log(`[games/launch] ✓ deduction: ${balBefore} → ${balAfter}`);
+
+          await txRepo.create({
+            provider:       upperCode,
+            transaction_id: deductWtRow.id,
+            reference_id:   refId,
+            type:           'FUND_REQUEST',
+            status:         'PENDING',
+            user_id:        user_id,
+            user_public_id: playerRecord.provider_account_id,
+            amount:         balance,
+            currency:       'MYR',
+            before_balance: balBefore,
+            after_balance:  balAfter,
+            metadata:       { trigger: 'PLAY_BUTTON', step: 'DEDUCT' },
+          }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
+        } catch (err) {
+          await deductClient.query('ROLLBACK').catch(() => undefined);
+          console.error(`[games/launch] ✗ deduction failed:`, err);
+        } finally {
+          deductClient.release();
+        }
+
+        if (deductOk && deductWtRow) {
+          const deductBalBefore = parseFloat(deductWtRow.balance_before);
+          const deductBalAfter  = parseFloat(deductWtRow.balance_after);
+          let topUpOk    = false;
+          let topUpError = '';
+
+          type XferAdapter = { topUp: (p: { provider_player_id: string; amount: number; reference_id: string; currency: string }) => Promise<{ balance: number }> };
+          const xferAdapter = adapter as unknown as XferAdapter;
+
+          try {
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                console.log(`[games/launch] topUp attempt ${attempt}/3 loginId="${loginId}" amount=${balance}`);
+                const topUpResult = await xferAdapter.topUp({
+                  provider_player_id: loginId,
+                  amount:             balance,
+                  reference_id:       refId,
+                  currency:           'MYR',
+                });
+                topUpOk = true;
+                console.log(`[games/launch] ✓ topUp SUCCESS: provider balance=${topUpResult.balance}`);
+
+                await txRepo.create({
+                  provider:       upperCode,
+                  transaction_id: randomUUID(),
+                  reference_id:   refId,
+                  type:           'FUND_REQUEST',
+                  status:         'SUCCESS',
+                  user_id:        user_id,
+                  user_public_id: playerRecord.provider_account_id,
+                  amount:         balance,
+                  currency:       'MYR',
+                  before_balance: deductBalBefore,
+                  after_balance:  topUpResult.balance,
+                  metadata:       { trigger: 'PLAY_BUTTON', step: 'TOPUP', provider_balance: topUpResult.balance },
+                }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
+
+                await ActivityLogService.log({
+                  member_id:      user_id,
+                  category:       'BALANCE',
+                  action:         'Transfer In',
+                  title:          `${provider.display_name} — Transfer In`,
+                  description:    `Transferred RM ${balance.toFixed(2)} to ${provider.display_name}`,
+                  amount:         balance,
+                  balance_before: deductBalBefore,
+                  balance_after:  deductBalAfter,
+                  reference_type: 'wallet_transaction',
+                  reference_id:   parseInt(deductWtRow.id, 10) || null,
+                  operator_type:  'MEMBER',
+                  operator_id:    user_id,
+                  source:         'WEBSITE',
+                  level:          'INFO',
+                  remark:         `[${upperCode}] Transfer In via Play Button`,
+                  metadata:       { provider_code: upperCode, amount: balance, ref_id: refId },
+                });
+                break;
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error(`[games/launch] topUp attempt ${attempt} FAILED: ${msg}`);
+                if (msg.includes('37153') && attempt < 3) {
+                  await new Promise(r => setTimeout(r, 3000 * attempt));
+                  continue;
+                }
+                topUpError = msg;
+                throw err;
+              }
+            }
+          } catch (err) {
+            const errMsg = topUpError || (err instanceof Error ? err.message : String(err));
+            console.error(`[games/launch] ✗ topUp FAILED — rolling back userId=${user_id} amount=${balance}`);
+
+            const rbClient = await pool.connect();
+            try {
+              await rbClient.query('BEGIN');
+              const rbWtRow = await adjustWallet(rbClient, {
+                userId:          user_id,
+                type:            'CORRECTION',
+                direction:       'C',
+                amount:          balance,
+                gateway:         upperCode,
+                referenceNumber: `${upperCode}UP-ROLLBACK-${user_id}-${ts}`,
+                remark:          `[${upperCode}] Rollback`,
+                operatorAdminId: SYSTEM_ADMIN_ID,
+              });
+              await rbClient.query('COMMIT');
+              console.log(`[games/launch] ✓ rollback complete: balance restored to ${parseFloat(rbWtRow.balance_after)}`);
+
+              await ActivityLogService.log({
+                member_id:      user_id,
+                category:       'BALANCE',
+                action:         'Rollback',
+                title:          `${provider.display_name} — Transfer In Rollback`,
+                description:    `RM ${balance.toFixed(2)} restored after topUp failure: ${errMsg.slice(0, 100)}`,
+                amount:         balance,
+                balance_before: parseFloat(rbWtRow.balance_before),
+                balance_after:  parseFloat(rbWtRow.balance_after),
+                reference_type: 'wallet_transaction',
+                reference_id:   parseInt(rbWtRow.id, 10) || null,
+                operator_type:  'SYSTEM',
+                operator_id:    SYSTEM_ADMIN_ID,
+                source:         'WEBSITE',
+                level:          'WARNING',
+                remark:         `[${upperCode}] Rollback`,
+                metadata:       { provider_code: upperCode, amount: balance, error: errMsg.slice(0, 255) },
+              });
+            } catch (rbErr) {
+              await rbClient.query('ROLLBACK').catch(() => undefined);
+              console.error(`[games/launch] ✗✗ CRITICAL: rollback FAILED userId=${user_id} — MANUAL INTERVENTION REQUIRED: missing ${balance} MYR`);
+            } finally {
+              rbClient.release();
+            }
+          }
+
+          if (!topUpOk) {
+            console.warn(`[games/launch] Transfer In FAILED: userId=${user_id} amount=${balance} refId=${refId}`);
+          }
+        }
+      }
+    }
+  }
 
   return NextResponse.json({
     ok:            true,

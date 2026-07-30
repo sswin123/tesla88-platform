@@ -40,7 +40,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
-      signal:  AbortSignal.timeout(10_000),
+      signal:  AbortSignal.timeout(30_000),
     });
   } catch (err) {
     console.error('[mega-callback-proxy] ERP unreachable:', err);
