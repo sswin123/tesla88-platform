@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { verifyMemberJWT, COOKIE_NAME } from '@/lib/auth';
+import { incSSE, decSSE } from '@/lib/sse-metrics';
 
 const GUEST_COOKIE = 'guest_chat_id';
 
@@ -48,7 +49,14 @@ export async function GET(req: NextRequest) {
       const send = (data: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
+      incSSE();
+
       send({ type: 'connected' });
+
+      // SSE comment ping every 25s — keeps Cloudflare/nginx proxy from timing out on silent connections
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(encoder.encode(': ping\n\n')); } catch { /* stream already closed */ }
+      }, 25000);
 
       const interval = setInterval(async () => {
         try {
@@ -66,16 +74,22 @@ export async function GET(req: NextRequest) {
           if (sess.rows[0]?.status === 'CLOSED') {
             send({ type: 'session_closed' });
             clearInterval(interval);
+            clearInterval(heartbeat);
+            decSSE();
             controller.close();
           }
         } catch {
           clearInterval(interval);
+          clearInterval(heartbeat);
+          decSSE();
           controller.close();
         }
       }, 3000);
 
       req.signal.addEventListener('abort', () => {
         clearInterval(interval);
+        clearInterval(heartbeat);
+        decSSE();
         controller.close();
       });
     },

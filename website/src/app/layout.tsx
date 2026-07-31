@@ -21,20 +21,39 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+let _headerConfigCache: HeaderConfig | null | '__unset__' = '__unset__';
+let _headerConfigAt = 0;
+
 async function getHeaderConfig(): Promise<HeaderConfig | null> {
+  if (_headerConfigCache !== '__unset__' && Date.now() - _headerConfigAt < 30_000) {
+    console.log('[layout] getHeaderConfig: cache hit');
+    return _headerConfigCache;
+  }
+  const _t = Date.now();
   try {
     const res = await pool.query<{ value: string }>(
       "SELECT value FROM system_settings WHERE key = 'header_config'"
     );
+    console.log(`[layout] getHeaderConfig DB: ${Date.now() - _t}ms`);
     const raw = res.rows[0]?.value;
-    if (!raw) return null;
-    return parseHeaderConfig(raw);
-  } catch {
+    _headerConfigCache = raw ? parseHeaderConfig(raw) : null;
+    _headerConfigAt = Date.now();
+    return _headerConfigCache;
+  } catch (e) {
+    console.error(`[layout] getHeaderConfig DB error: ${Date.now() - _t}ms`, e);
     return null;
   }
 }
 
+let _announcementsCache: PublicAnnouncement[] = [];
+let _announcementsAt = 0;
+
 async function getActiveAnnouncements(): Promise<PublicAnnouncement[]> {
+  if (Date.now() - _announcementsAt < 30_000) {
+    console.log('[layout] getActiveAnnouncements: cache hit');
+    return _announcementsCache;
+  }
+  const _t = Date.now();
   try {
     const res = await pool.query<PublicAnnouncement>(
       `SELECT id, title, message, type, link_url, display_order
@@ -44,8 +63,12 @@ async function getActiveAnnouncements(): Promise<PublicAnnouncement[]> {
          AND (end_at   IS NULL OR end_at   >  NOW())
        ORDER BY display_order ASC, id ASC`
     );
-    return res.rows;
-  } catch {
+    console.log(`[layout] getActiveAnnouncements DB: ${Date.now() - _t}ms`);
+    _announcementsCache = res.rows;
+    _announcementsAt = Date.now();
+    return _announcementsCache;
+  } catch (e) {
+    console.error(`[layout] getActiveAnnouncements DB error: ${Date.now() - _t}ms`, e);
     return [];
   }
 }
@@ -81,8 +104,14 @@ const HEADER_H_MAP: Record<string, string> = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const _t0 = Date.now();
+  const _rid = Math.random().toString(36).slice(2, 8);
+  console.log(`[layout:${_rid}] start`);
+
   /* Partner pages (/p/*) get a bare layout — no casino chrome */
   const h = await headers();
+  console.log(`[layout:${_rid}] headers(): +${Date.now() - _t0}ms`);
+
   if (h.get('x-is-partner-page') === '1') {
     return (
       <html lang="en">
@@ -91,11 +120,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     );
   }
 
+  const _t1 = Date.now();
   const [brand, announcements, headerConfig] = await Promise.all([
-    getBrand(),
-    getActiveAnnouncements(),
-    getHeaderConfig(),
+    getBrand().then(r        => { console.log(`[layout:${_rid}] getBrand: +${Date.now() - _t1}ms`);           return r; }),
+    getActiveAnnouncements().then(r => { console.log(`[layout:${_rid}] getAnnouncements: +${Date.now() - _t1}ms`); return r; }),
+    getHeaderConfig().then(r => { console.log(`[layout:${_rid}] getHeaderConfig: +${Date.now() - _t1}ms`);    return r; }),
   ]);
+  console.log(`[layout:${_rid}] Promise.all done: +${Date.now() - _t0}ms total`);
 
   const headerH = HEADER_H_MAP[brand.logo_size ?? 'medium'] ?? '60px';
 

@@ -59,7 +59,7 @@ export const BRAND_FALLBACK: PublicBrand = {
 
 let _cache: PublicBrand | null = null;
 let _cacheAt = 0;
-const TTL_MS = 2_000; // 2s — near-instant theme updates after ERP save
+const TTL_MS = 30_000; // 30s — matches layout.tsx cache windows
 
 export function invalidateBrandCache(): void {
   _cache = null;
@@ -111,11 +111,18 @@ const QUERY_V1 = `
 `;
 
 export async function getBrand(): Promise<PublicBrand> {
-  if (_cache && Date.now() - _cacheAt < TTL_MS) return _cache;
+  if (_cache && Date.now() - _cacheAt < TTL_MS) {
+    console.log('[brand] getBrand: cache hit');
+    return _cache;
+  }
+
+  const _bt0 = Date.now();
+  console.log('[brand] getBrand: querying DB');
 
   // Try with Migration 032 (design system columns)
   try {
     const r = await pool.query<PublicBrand>(QUERY_V3);
+    console.log(`[brand] getBrand QUERY_V3: ${Date.now() - _bt0}ms`);
     const row = r.rows[0];
     if (row) {
       // Ensure design_overrides is an object (DB returns JSONB as object already)
@@ -128,22 +135,26 @@ export async function getBrand(): Promise<PublicBrand> {
     }
     _cacheAt = Date.now();
     return _cache;
-  } catch {
+  } catch (e) {
+    console.warn(`[brand] getBrand QUERY_V3 failed: ${Date.now() - _bt0}ms`, e);
     // Migration 032 not applied — try V2
   }
 
   // Try with Migration 024 color columns
   try {
     const r = await pool.query<PublicBrand>(QUERY_V2);
+    console.log(`[brand] getBrand QUERY_V2: ${Date.now() - _bt0}ms`);
     _cache = r.rows[0]
       ? { ...r.rows[0], design_preset: 'classic_purple', design_overrides: {}, support_phone: null }
       : BRAND_FALLBACK;
     _cacheAt = Date.now();
     return _cache;
-  } catch {
+  } catch (e) {
+    console.warn(`[brand] getBrand QUERY_V2 failed: ${Date.now() - _bt0}ms`, e);
     // Migration 024 not yet applied — fallback query without color columns
     try {
       const r = await pool.query(QUERY_V1);
+      console.log(`[brand] getBrand QUERY_V1: ${Date.now() - _bt0}ms`);
       if (!r.rows[0]) {
         _cache = BRAND_FALLBACK;
         _cacheAt = Date.now();

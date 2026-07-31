@@ -46,7 +46,15 @@ interface HomepageSection {
 
 // ─── Data fetching ─────────────────────────────────────────────────────────────
 
+let _sectionsCache: HomepageSection[] = [];
+let _sectionsCacheAt = 0;
+
 async function getHomepageSections(): Promise<HomepageSection[]> {
+  if (Date.now() - _sectionsCacheAt < 30_000) {
+    console.log(`[page] getHomepageSections: cache hit (${_sectionsCache.length} sections)`);
+    return _sectionsCache;
+  }
+  const _t = Date.now();
   try {
     const { rows } = await pool.query<HomepageSection>(
       `SELECT id, section_type, name, config, display_order
@@ -56,8 +64,12 @@ async function getHomepageSections(): Promise<HomepageSection[]> {
          AND (end_at   IS NULL OR end_at   >  NOW())
        ORDER BY display_order ASC, id ASC`
     );
-    return rows;
-  } catch {
+    console.log(`[page] getHomepageSections DB: ${Date.now() - _t}ms (${rows.length} sections)`);
+    _sectionsCache = rows;
+    _sectionsCacheAt = Date.now();
+    return _sectionsCache;
+  } catch (e) {
+    console.error(`[page] getHomepageSections DB error: ${Date.now() - _t}ms`, e);
     return [];
   }
 }
@@ -165,7 +177,9 @@ function renderSection(section: HomepageSection): React.ReactNode {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
+  const _pt0 = Date.now();
   const sections = await getHomepageSections();
+  console.log(`[page] getHomepageSections: ${Date.now() - _pt0}ms (${sections.length} sections)`);
 
   // Collect overlay sections (rendered outside the normal scroll flow)
   const popups   = sections.filter(s => s.section_type === 'notice_popup');

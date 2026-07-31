@@ -242,10 +242,12 @@ export default function ChatWindow({ brandName }: Props) {
   /* Bootstrap: get/create session, load history, connect SSE */
   useEffect(() => {
     let es: EventSource | null = null;
+    let mounted = true;
 
     fetch('/api/livechat/session')
       .then(r => r.ok ? r.json() as Promise<ChatSession & { muted_until?: string | null }> : Promise.reject())
       .then(async (s) => {
+        if (!mounted) return;
         setSession(s);
         if (s.muted_until && new Date(s.muted_until) > new Date()) {
           setMutedUntil(new Date(s.muted_until));
@@ -254,6 +256,7 @@ export default function ChatWindow({ brandName }: Props) {
 
         const msgs = await fetch(`/api/livechat/messages?session_id=${s.id}`)
           .then(r => r.ok ? r.json() as Promise<ChatMessage[]> : Promise.resolve([]));
+        if (!mounted) return;
         setMessages(msgs);
 
         if (s.status === 'CLOSED') return;
@@ -277,11 +280,15 @@ export default function ChatWindow({ brandName }: Props) {
         es.onerror = () => { /* SSE will auto-reconnect */ };
       })
       .catch(() => {
+        if (!mounted) return;
         setError('无法连接客服，请刷新页面重试');
         setLoading(false);
       });
 
-    return () => { es?.close(); };
+    return () => {
+      mounted = false;
+      es?.close();
+    };
   }, []);
 
   const sendMessage = useCallback(async (e: React.FormEvent) => {

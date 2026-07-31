@@ -233,6 +233,8 @@ export async function getSessionWithDetails(id: number): Promise<{
   if (!sessionRows[0]) return null;
   const row = sessionRows[0];
   const isGuest = row.user_id === null;
+  // user_id set but LEFT JOIN returned no user fields → the user row was deleted or corrupted
+  const userMissing = !isGuest && row.first_name === null && row.member_status === null;
 
   // Build the base session object
   const session: SupportSession = {
@@ -258,8 +260,8 @@ export async function getSessionWithDetails(id: number): Promise<{
     muted_until: row.muted_until ?? null,
   };
 
-  if (isGuest) {
-    // Guest session: only fetch messages for this specific session
+  if (isGuest || userMissing) {
+    // Guest session OR member session whose user row no longer exists in the DB
     const messageRows = await pool.query<SupportMessage>(
       `SELECT id, session_id, sender_type, message_type, content, caption,
               file_name, file_size, user_msg_id, group_msg_id, created_at,
@@ -270,9 +272,34 @@ export async function getSessionWithDetails(id: number): Promise<{
        LIMIT 100`,
       [id]
     );
-    const member: MemberCardData = {
+    const member: MemberCardData = isGuest ? {
       id: 0,
       first_name: row.guest_id ?? 'Guest Visitor',
+      telegram_id: '',
+      telegram_username: null,
+      phone: '',
+      status: 'ACTIVE' as const,
+      created_at: row.created_at,
+      last_seen_at: null,
+      total_deposit: '0.00',
+      total_withdraw: '0.00',
+      total_bonus: '0.00',
+      net_deposit: '0.00',
+      last_deposit_at: null,
+      last_deposit_amount: null,
+      last_withdrawal_at: null,
+      last_withdrawal_amount: null,
+      bank_name: '',
+      bank_account: '',
+      bank_holder_name: '',
+      game_accounts: [],
+      current_promotion: null,
+      previous_sessions: [],
+      tags: [],
+    } : {
+      // User record missing (deleted / WAL data loss) — safe placeholder to prevent UI crash
+      id: row.user_id as number,
+      first_name: `User #${row.user_id as number}`,
       telegram_id: '',
       telegram_username: null,
       phone: '',

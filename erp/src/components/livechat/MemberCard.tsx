@@ -102,9 +102,9 @@ export function MemberCard({
       {/* Avatar + name */}
       <div className="flex flex-col items-center gap-2 border-b p-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 text-2xl font-bold text-white">
-          {member.first_name.slice(0, 2).toUpperCase()}
+          {(member.first_name ?? '?').slice(0, 2).toUpperCase()}
         </div>
-        <p className="font-semibold">{member.first_name}</p>
+        <p className="font-semibold">{member.first_name ?? '—'}</p>
         {member.telegram_username && (
           <p className="text-xs text-gray-400">@{member.telegram_username}</p>
         )}
@@ -176,7 +176,7 @@ export function MemberCard({
         )}
         <Row label="Telegram ID" value={member.telegram_id} />
         <Row label="Phone" value={member.phone} />
-        <Row label="Joined" value={new Date(member.created_at).toLocaleDateString()} />
+        <Row label="Joined" value={member.created_at ? new Date(member.created_at).toLocaleDateString() : '—'} />
         {member.last_seen_at && (
           <Row label="Last Seen" value={new Date(member.last_seen_at).toLocaleDateString()} />
         )}
