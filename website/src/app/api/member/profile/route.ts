@@ -3,6 +3,10 @@ import pool from '@/lib/db';
 import { getMember } from '@/lib/member-auth';
 import { hashPassword } from '@/lib/auth';
 
+// Warn once per server process — avoid flooding logs on every request when
+// migration 063 hasn't been applied yet.
+let _fallbackWarnEmitted = false;
+
 export async function GET() {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +28,10 @@ export async function GET() {
       // Migration 063 (pending_withdrawal + available_balance columns) has not been applied
       // yet on this environment. Fall back to computing the balance manually so the
       // profile endpoint stays functional while the migration is pending.
-      console.warn('[member/profile] available_balance/pending_withdrawal columns missing — using fallback query (apply migration 063 to fix)');
+      if (!_fallbackWarnEmitted) {
+        _fallbackWarnEmitted = true;
+        console.warn('[member/profile] available_balance/pending_withdrawal columns missing — using fallback query. Apply migration 063 (063_pending_withdrawal.sql) to resolve.');
+      }
       try {
         res = await pool.query(
           `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
