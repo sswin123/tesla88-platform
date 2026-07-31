@@ -254,9 +254,13 @@ export function Sidebar() {
     return () => document.removeEventListener('click', onFirstClick);
   }, []);
 
-  // Auto-reset unread when user is on /livechat
+  // Auto-reset unread when user navigates to /livechat.
+  // Clears local badge state AND persists to DB so badge stays gone after refresh.
   useEffect(() => {
-    if (pathname.startsWith('/livechat')) setLivechatUnread(0);
+    if (pathname.startsWith('/livechat')) {
+      setLivechatUnread(0);
+      fetch('/api/livechat/unread', { method: 'POST' }).catch(() => {});
+    }
   }, [pathname]);
 
   // Browser title — only runs after Brand Center value is confirmed by /api/public/brand.
