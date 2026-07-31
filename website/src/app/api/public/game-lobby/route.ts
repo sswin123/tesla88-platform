@@ -202,13 +202,19 @@ async function getProviderCards(): Promise<PublicLobbyCard[]> {
 // Prevents thundering-herd pool exhaustion: each concurrent page load was
 // independently running 2-3 pool.query() calls with no caching, saturating
 // the pool (max=20) under moderate traffic.
-const _lobbyCache = new Map<string, { data: PublicLobbyCard[]; at: number }>();
+//
+// Source is normalised to the exact three valid values so the Map is bounded
+// to exactly 3 entries and cannot be inflated by arbitrary query parameters.
+type LobbySource = 'platform' | 'games' | 'mixed';
+const VALID_SOURCES = new Set<string>(['platform', 'games', 'mixed']);
+const _lobbyCache = new Map<LobbySource, { data: PublicLobbyCard[]; at: number }>();
 const LOBBY_CACHE_TTL_MS = 10_000; // 10 seconds
 
 // ── GET /api/public/game-lobby?source=platform|games|mixed ───────────────────
 
 export async function GET(req: NextRequest) {
-  const source = req.nextUrl.searchParams.get('source') ?? 'platform';
+  const raw    = req.nextUrl.searchParams.get('source') ?? 'platform';
+  const source: LobbySource = VALID_SOURCES.has(raw) ? (raw as LobbySource) : 'platform';
 
   const cached = _lobbyCache.get(source);
   if (cached && Date.now() - cached.at < LOBBY_CACHE_TTL_MS) {
@@ -222,13 +228,12 @@ export async function GET(req: NextRequest) {
       cards = await getProviderCards();
     } else if (source === 'games') {
       cards = await getGameCards();
-    } else if (source === 'mixed') {
+    } else {
+      // 'mixed'
       const [gameCards, providerCards] = await Promise.all([getGameCards(), getProviderCards()]);
       const providersWithGames = new Set(gameCards.map(g => g.provider_id).filter(Boolean));
       const remainingProviders = providerCards.filter(p => !providersWithGames.has(p.provider_id));
       cards = [...gameCards, ...remainingProviders].sort((a, b) => a.display_order - b.display_order);
-    } else {
-      cards = await getProviderCards();
     }
 
     _lobbyCache.set(source, { data: cards, at: Date.now() });
