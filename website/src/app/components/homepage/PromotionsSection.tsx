@@ -3,13 +3,26 @@ import pool from '@/lib/db';
 import PromoBanner from '../PromoBanner';
 import type { PublicPromotion } from '@/lib/types';
 
+// 30-second module-level cache — matches the TTL used by getBrand / getHeaderConfig.
+// PromotionsSection is an SSR Server Component rendered on every homepage request
+// (dynamic = 'force-dynamic'), so without caching it runs 2 pool.query() calls
+// per render, contributing to pool exhaustion under concurrent traffic.
+let _promoCache:    PublicPromotion[] | null = null;
+let _currencyCache: string | null = null;
+let _promoCacheAt = 0;
+const PROMO_TTL_MS = 30_000;
+
 async function getCurrencySymbol(): Promise<string> {
+  if (_currencyCache !== null && Date.now() - _promoCacheAt < PROMO_TTL_MS) {
+    return _currencyCache;
+  }
   try {
     const { rows } = await pool.query<{ key: string; value: string }>(
       "SELECT key, value FROM system_settings WHERE key IN ('currency_symbol', 'website_currency')"
     );
     const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
-    return map['currency_symbol'] ?? map['website_currency'] ?? 'RM';
+    _currencyCache = map['currency_symbol'] ?? map['website_currency'] ?? 'RM';
+    return _currencyCache;
   } catch {
     return 'RM';
   }
@@ -23,6 +36,9 @@ interface PromotionsConfig {
 }
 
 async function getPromotions(limit: number): Promise<PublicPromotion[]> {
+  if (_promoCache !== null && Date.now() - _promoCacheAt < PROMO_TTL_MS) {
+    return _promoCache;
+  }
   try {
     const { rows } = await pool.query<PublicPromotion>(
       `SELECT id, name, description, promotion_type, bonus_type, bonus_value,
@@ -33,6 +49,8 @@ async function getPromotions(limit: number): Promise<PublicPromotion[]> {
        LIMIT $1`,
       [limit]
     );
+    _promoCache  = rows;
+    _promoCacheAt = Date.now();
     return rows;
   } catch {
     return [];

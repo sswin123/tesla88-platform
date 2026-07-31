@@ -24,11 +24,17 @@ export interface PublicGameProvider {
  */
 function proxied(url: string | null): string | null {
   if (!url) return null;
-  if (url.startsWith('https://') || url.startsWith('http://')) {
+  if (url.startsWith('https://')) {
     return `/api/public/image-proxy?url=${encodeURIComponent(url)}`;
   }
   return url;
 }
+
+// 10-second module-level cache — prevents 2 simultaneous pool.query() calls
+// on every GameLobby mount from exhausting the connection pool under traffic.
+let _cache: PublicGameProvider[] | null = null;
+let _cacheAt = 0;
+const CACHE_TTL_MS = 10_000;
 
 /**
  * GET /api/public/game-providers
@@ -41,6 +47,10 @@ function proxied(url: string | null): string | null {
  * gp_providers always wins if both tables have the same provider_code.
  */
 export async function GET() {
+  if (_cache && Date.now() - _cacheAt < CACHE_TTL_MS) {
+    return NextResponse.json(_cache);
+  }
+
   try {
     // ── 1. ERP-managed providers ───────────────────────────────────────────
     const gpRes = await pool.query<{
@@ -117,6 +127,8 @@ export async function GET() {
       }
     }
 
+    _cache = merged;
+    _cacheAt = Date.now();
     return NextResponse.json(merged);
   } catch {
     return NextResponse.json([], { status: 200 });
