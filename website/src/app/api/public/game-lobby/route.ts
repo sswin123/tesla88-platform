@@ -198,10 +198,22 @@ async function getProviderCards(): Promise<PublicLobbyCard[]> {
   return [...gpCards, ...legacyCards].sort((a, b) => a.display_order - b.display_order);
 }
 
+// ── Server-side cache (per source) ────────────────────────────────────────────
+// Prevents thundering-herd pool exhaustion: each concurrent page load was
+// independently running 2-3 pool.query() calls with no caching, saturating
+// the pool (max=20) under moderate traffic.
+const _lobbyCache = new Map<string, { data: PublicLobbyCard[]; at: number }>();
+const LOBBY_CACHE_TTL_MS = 10_000; // 10 seconds
+
 // ── GET /api/public/game-lobby?source=platform|games|mixed ───────────────────
 
 export async function GET(req: NextRequest) {
   const source = req.nextUrl.searchParams.get('source') ?? 'platform';
+
+  const cached = _lobbyCache.get(source);
+  if (cached && Date.now() - cached.at < LOBBY_CACHE_TTL_MS) {
+    return NextResponse.json(cached.data, { headers: { 'Cache-Control': 'no-store' } });
+  }
 
   try {
     let cards: PublicLobbyCard[] = [];
@@ -219,6 +231,7 @@ export async function GET(req: NextRequest) {
       cards = await getProviderCards();
     }
 
+    _lobbyCache.set(source, { data: cards, at: Date.now() });
     return NextResponse.json(cards, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     console.error('GET /api/public/game-lobby', err);
