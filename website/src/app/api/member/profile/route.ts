@@ -7,15 +7,45 @@ export async function GET() {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const res = await pool.query(
-    `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
-            status, total_deposit, total_withdraw, total_bonus, net_deposit,
-            available_balance, pending_withdrawal,
-            referral_code, referred_by, created_at, last_seen_at,
-            (SELECT COUNT(*)::int FROM users r WHERE r.referred_by = u.id) AS referral_count
-     FROM users u WHERE u.id = $1`,
-    [member.sub]
-  );
+  let res;
+  try {
+    res = await pool.query(
+      `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
+              status, total_deposit, total_withdraw, total_bonus, net_deposit,
+              available_balance, pending_withdrawal,
+              referral_code, referred_by, created_at, last_seen_at,
+              (SELECT COUNT(*)::int FROM users r WHERE r.referred_by = u.id) AS referral_count
+       FROM users u WHERE u.id = $1`,
+      [member.sub]
+    );
+  } catch (e) {
+    const pgCode = (e as { code?: string }).code;
+    if (pgCode === '42703') {
+      // Migration 063 (pending_withdrawal + available_balance columns) has not been applied
+      // yet on this environment. Fall back to computing the balance manually so the
+      // profile endpoint stays functional while the migration is pending.
+      console.warn('[member/profile] available_balance/pending_withdrawal columns missing — using fallback query (apply migration 063 to fix)');
+      try {
+        res = await pool.query(
+          `SELECT id, public_id, first_name, phone, bank_name, bank_account, bank_holder_name,
+                  status, total_deposit, total_withdraw, total_bonus, net_deposit,
+                  (total_deposit - total_withdraw)::numeric(15,2) AS available_balance,
+                  0::numeric(15,2)                                AS pending_withdrawal,
+                  referral_code, referred_by, created_at, last_seen_at,
+                  (SELECT COUNT(*)::int FROM users r WHERE r.referred_by = u.id) AS referral_count
+           FROM users u WHERE u.id = $1`,
+          [member.sub]
+        );
+      } catch (fallbackErr) {
+        console.error('[member/profile] fallback query failed:', fallbackErr);
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      }
+    } else {
+      console.error('[member/profile] DB query failed:', e);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+  }
+
   if (res.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
 
   const profile = res.rows[0] as Record<string, unknown>;

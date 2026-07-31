@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMember } from '@/lib/contexts/MemberContext';
+import { useWalletRefresh, type SyncItem } from '@/lib/hooks/useWalletRefresh';
 import type { MemberProfile } from '@/lib/types';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 interface ButtonConfig {
   media_id: number | null;
@@ -56,7 +58,7 @@ function CardBackground({ config }: { config: MemberZoneConfig }) {
           {isVideo ? (
             <video src={config.bg_media_url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ display: 'block' }} />
           ) : (
-            <img src={config.bg_media_url} alt="" className="w-full h-full object-cover object-center" style={{ display: 'block' }} />
+            <img src={getProxyImageUrl(config.bg_media_url) ?? config.bg_media_url} alt="" className="w-full h-full object-cover object-center" style={{ display: 'block' }} />
           )}
         </div>
       )}
@@ -105,7 +107,7 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
           {loginEnabled && (
             config.login_button?.media_url ? (
               <Link href={config.login_button.url || '/login'} className="flex-1">
-                <img src={config.login_button.media_url} alt={config.login_button.text || 'Login'} className="w-full h-10 object-cover rounded-xl" />
+                <img src={getProxyImageUrl(config.login_button.media_url) ?? config.login_button.media_url} alt={config.login_button.text || 'Login'} className="w-full h-10 object-cover rounded-xl" />
               </Link>
             ) : (
               <Link href={config.login_button?.url || '/login'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl" style={{ background: 'var(--brand-primary)', color: '#fff' }}>
@@ -116,7 +118,7 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
           {registerEnabled && (
             config.register_button?.media_url ? (
               <Link href={config.register_button.url || '/register'} className="flex-1">
-                <img src={config.register_button.media_url} alt={config.register_button.text || 'Register'} className="w-full h-10 object-cover rounded-xl" />
+                <img src={getProxyImageUrl(config.register_button.media_url) ?? config.register_button.media_url} alt={config.register_button.text || 'Register'} className="w-full h-10 object-cover rounded-xl" />
               </Link>
             ) : (
               <Link href={config.register_button?.url || '/register'} className="flex-1 text-center py-2 text-sm font-semibold rounded-xl border" style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}>
@@ -133,14 +135,14 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
 // ─── Wallet Card ──────────────────────────────────────────────────────────────
 
 function WalletCard({
-  profile, config, settings, onRefresh, refreshing, toast,
+  profile, config, settings, onRefresh, refreshing, syncResults,
 }: {
   profile: MemberProfile;
   config: MemberZoneConfig;
   settings: WebsiteSettings;
   onRefresh: () => void;
   refreshing: boolean;
-  toast: string;
+  syncResults: SyncItem[] | null;
 }) {
   const currency    = settings.website_currency || 'RM';
   const minDeposit  = parseFloat(settings.deposit_min_amount  || '30');
@@ -203,7 +205,31 @@ function WalletCard({
             </button>
           </div>
 
-          {toast && <p className="text-xs mt-1" style={{ color: '#f87171' }}>{toast}</p>}
+          {/* Wallet sync summary — shown after refresh if any TRANSFER provider was checked */}
+          {syncResults && (() => {
+            const transferItems = syncResults.filter(r => r.wallet_type === 'TRANSFER');
+            if (transferItems.length === 0) return null;
+            if (transferItems.every(r => r.status === 'empty')) {
+              return (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
+                  No Balance To Recover
+                </p>
+              );
+            }
+            return transferItems.map(r => (
+              <p key={r.provider_code} className="text-xs mt-1" style={{
+                color: r.status === 'synced' ? '#16a34a'
+                     : r.status === 'error'  ? '#dc2626'
+                     : 'var(--text-faint)',
+              }}>
+                {r.provider_name}:{' '}
+                {r.status === 'synced'  ? `+${fmt(r.returned, currency)} recovered` :
+                 r.status === 'empty'   ? 'No Balance To Recover' :
+                 r.status === 'skipped' ? 'Not Required' :
+                 r.error ?? 'Sync error'}
+              </p>
+            ));
+          })()}
 
           {pendingWd > 0 && (
             <p className="text-xs mt-1" style={{ color: '#ca8a04' }}>
@@ -245,7 +271,7 @@ function WalletCard({
           {depositEnabled && (
             config.deposit_button?.media_url ? (
               <Link href="/deposit">
-                <img src={config.deposit_button.media_url} alt={config.deposit_button.text || 'Deposit'} className="w-full h-12 object-cover rounded-xl" />
+                <img src={getProxyImageUrl(config.deposit_button.media_url) ?? config.deposit_button.media_url} alt={config.deposit_button.text || 'Deposit'} className="w-full h-12 object-cover rounded-xl" />
               </Link>
             ) : (
               <Link href="/deposit" className="text-center py-2 text-sm font-semibold rounded-xl transition-colors" style={{ background: 'var(--brand-primary)', color: '#fff' }}>
@@ -256,7 +282,7 @@ function WalletCard({
           {withdrawEnabled && (
             config.withdraw_button?.media_url ? (
               <Link href="/withdraw">
-                <img src={config.withdraw_button.media_url} alt={config.withdraw_button.text || 'Withdraw'} className="w-full h-12 object-cover rounded-xl" />
+                <img src={getProxyImageUrl(config.withdraw_button.media_url) ?? config.withdraw_button.media_url} alt={config.withdraw_button.text || 'Withdraw'} className="w-full h-12 object-cover rounded-xl" />
               </Link>
             ) : (
               <Link href="/withdraw" className="text-center py-2 text-sm font-semibold rounded-xl border transition-colors" style={{ borderColor: 'var(--brand-primary)', color: 'var(--brand-primary)' }}>
@@ -274,9 +300,8 @@ function WalletCard({
 
 export default function MemberZoneSection({ config }: { config: MemberZoneConfig }) {
   const { profile, loading, refreshProfile } = useMember();
-  const [settings,  setSettings]  = useState<WebsiteSettings>({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [toast,      setToast]      = useState('');
+  const { refreshing, syncResults, handleRefresh } = useWalletRefresh();
+  const [settings, setSettings] = useState<WebsiteSettings>({});
   const autoRefreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -286,7 +311,7 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
       .catch(() => {});
   }, []);
 
-  // Auto-refresh timer — calls context refreshProfile so all components update together
+  // Auto-refresh timer — silently refreshes profile only (no sync, not user-initiated)
   useEffect(() => {
     const intervalSec = config.auto_refresh ?? 0;
     if (autoRefreshInterval.current) clearInterval(autoRefreshInterval.current);
@@ -299,19 +324,6 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
       if (autoRefreshInterval.current) clearInterval(autoRefreshInterval.current);
     };
   }, [config.auto_refresh, refreshProfile]);
-
-  async function handleRefresh() {
-    if (refreshing) return;
-    setRefreshing(true);
-    setToast('');
-    try {
-      await refreshProfile();
-    } catch {
-      setToast('Unable to refresh balance. Please try again.');
-      setTimeout(() => setToast(''), 3000);
-    }
-    setRefreshing(false);
-  }
 
   if (loading) {
     return (
@@ -339,7 +351,7 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
         settings={settings}
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        toast={toast}
+        syncResults={syncResults}
       />
     </>
   );

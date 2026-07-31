@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useMember } from '@/lib/contexts/MemberContext';
+import { useWalletRefresh, type SyncItem } from '@/lib/hooks/useWalletRefresh';
 
 type PublicSettings = {
   website_currency?: string;
@@ -8,17 +9,6 @@ type PublicSettings = {
   withdraw_min_amount?: string;
   website_registration?: string;
   website_decimal_places?: string;
-};
-
-type SyncItem = {
-  provider_code:  string;
-  provider_name:  string;
-  wallet_type:    string;
-  returned:       number;
-  balance_before: number;
-  balance_after:  number;
-  status:         'synced' | 'empty' | 'skipped' | 'error';
-  error?:         string;
 };
 
 function useFmt(currency: string, decimals: number) {
@@ -29,10 +19,9 @@ function useFmt(currency: string, decimals: number) {
 }
 
 export default function MemberPanel() {
-  const { profile, loading, refreshProfile } = useMember();
+  const { profile, loading } = useMember();
+  const { refreshing, syncResults, handleRefresh } = useWalletRefresh();
   const [pub, setPub] = useState<PublicSettings>({});
-  const [refreshing, setRefreshing] = useState(false);
-  const [syncResults, setSyncResults] = useState<SyncItem[] | null>(null);
 
   useEffect(() => {
     fetch('/api/public/settings')
@@ -44,24 +33,6 @@ export default function MemberPanel() {
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
-  }
-
-  async function handleRefresh() {
-    setRefreshing(true);
-    setSyncResults(null);
-    try {
-      const res = await fetch('/api/member/wallet/sync', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json() as { synced?: SyncItem[] };
-        if (data.synced && data.synced.length > 0) {
-          setSyncResults(data.synced);
-          // Notify other components (e.g. game accounts panel, activity log) that wallet was synced
-          window.dispatchEvent(new CustomEvent('wallet-synced', { detail: { synced: data.synced } }));
-        }
-      }
-    } catch { /* sync failure is non-fatal — balance refresh still runs */ }
-    await refreshProfile();
-    setRefreshing(false);
   }
 
   const currency = pub.website_currency         ?? 'RM';
