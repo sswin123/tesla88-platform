@@ -105,6 +105,8 @@ export async function checkPhonePolicy(
   const count = countQ.rows[0]?.cnt ?? 0;
   const max = policy.phone_max_accounts;
 
+  console.log(`[checkPhonePolicy] phone=${phone} count=${count} max=${max} isNaN=${Number.isNaN(max)} security=${policy.security_enabled} phoneCheck=${policy.phone_check_enabled}`);
+
   if (max === 0 || count < max) return { allowed: true, whitelist: false, count, max };
   return { allowed: false, whitelist: false, count, max, reason: '该手机号已注册' };
 }

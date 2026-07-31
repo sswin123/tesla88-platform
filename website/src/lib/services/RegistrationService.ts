@@ -114,7 +114,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
   // ── Phone policy ───────────────────────────────────────────────────────────
   const phoneCheck = await checkPhonePolicy(phone, undefined, brand_name);
   if (!phoneCheck.allowed && !ignore_duplicate) {
-    console.log(`[RegistrationService] Phone blocked: ${phone} (count=${phoneCheck.count})`);
+    console.log(`[RegistrationService] BLOCKED line=119 phone=${phone} count=${phoneCheck.count} max=${phoneCheck.max}`);
     await logRegistrationEvent({ event_type: 'PHONE_DUPLICATE_BLOCKED', phone, ip_address, brand_name, data: { source: register_source, count: phoneCheck.count } });
     return fail(phoneCheck.reason ?? '该手机号已注册', 'PHONE_DUPLICATE', 409);
   }
@@ -153,6 +153,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
   if (existingRow.rows.length > 0 && allow_upgrade) {
     const user = existingRow.rows[0];
     if (user.website_password_hash) {
+      console.log(`[RegistrationService] BLOCKED line=156 phone=${phone} user_id=${user.id} (has web password)`);
       return fail('该手机号已注册，请直接登录', 'PHONE_DUPLICATE', 409);
     }
     await pool.query(
@@ -165,6 +166,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
   }
 
   if (existingRow.rows.length > 0 && !ignore_duplicate) {
+    console.log(`[RegistrationService] BLOCKED line=168 phone=${phone} existingRow user_id=${existingRow.rows[0]?.id}`);
     return fail('该手机号已注册', 'PHONE_DUPLICATE', 409);
   }
 
