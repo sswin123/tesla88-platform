@@ -316,11 +316,18 @@ export function Sidebar() {
     };
     fetchBrand();
 
-    // Fetch initial livechat unread count
-    fetch('/api/livechat/unread')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count: number } | null) => { if (d?.count) setLivechatUnread(d.count); })
-      .catch(() => {});
+    // Fetch initial livechat unread count.
+    // Skip if already on /livechat: the pathname effect fires on mount and calls
+    // POST /api/livechat/unread (DB reset) + setLivechatUnread(0) synchronously.
+    // Fetching here races with that POST — the GET resolves before the POST resets
+    // the DB, writes the stale count back, and the badge gets stuck at the old value
+    // for the rest of the session.
+    if (!window.location.pathname.startsWith('/livechat')) {
+      fetch('/api/livechat/unread')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { count: number } | null) => { if (d !== null) setLivechatUnread(d.count ?? 0); })
+        .catch(() => {});
+    }
 
     // Fetch initial transactions pending count and start reminder if needed
     fetch('/api/transactions/pending-count')
