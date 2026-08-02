@@ -184,6 +184,7 @@ export class ProviderRuntimeBuilder {
       }
       bpRow = rows[0];
       step('read_brand_provider', 'ok', Date.now() - t, `bpId=${bpRow.id} status=${bpRow.status}`);
+      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] brand_providers found bpId=${bpRow.id} status=${bpRow.status}`);
     } catch (err) {
       step('read_brand_provider', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));
@@ -202,6 +203,7 @@ export class ProviderRuntimeBuilder {
       for (const r of cfgRows) config[r.key] = r.value;
       configCount = cfgRows.length;
       step('load_config', 'ok', Date.now() - t, `${configCount} keys: [${Object.keys(config).join(', ')}]`);
+      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] TABLE=brand_provider_config rows=${configCount} keys=[${Object.keys(config).join(',')}]`);
     } catch (err) {
       step('load_config', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));
@@ -238,6 +240,7 @@ export class ProviderRuntimeBuilder {
       const detail = `${credCount} keys: [${Object.keys(credentials).join(', ')}]`
         + (decryptErrors.length ? ` decrypt_errors=[${decryptErrors.map(e => e.key).join(', ')}]` : '');
       step('load_credentials', decryptErrors.length > 0 ? 'failed' : 'ok', Date.now() - t, detail);
+      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] TABLE=brand_provider_credentials rows=${credCount} keys=[${Object.keys(credentials).join(',')}] decrypt_errors=${decryptErrors.length}`);
     } catch (err) {
       step('load_credentials', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));

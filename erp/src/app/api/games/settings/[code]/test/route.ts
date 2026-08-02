@@ -286,11 +286,13 @@ export async function POST(_req: NextRequest, { params }: Params) {
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const provider = provRows[0];
+  console.log(`[DEBUG gp-test][${upperCode}] provider_id=${provider.id}`);
 
   const { rows: cfgRows }  = await pool.query<{ key: string; value: string }>(
     `SELECT key, value FROM gp_config WHERE provider_id = $1`, [provider.id],
   );
   const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
+  console.log(`[DEBUG gp-test][${upperCode}] TABLE=gp_config rows=${cfgRows.length} keys=[${Object.keys(cfg).join(',')}]`);
 
   const { rows: credRows } = await pool.query<{
     key: string; value: string; is_encrypted: boolean;
@@ -301,6 +303,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const decryptedCreds = Object.fromEntries(
     credRows.map(r => [r.key, safeDecrypt(r.value, r.is_encrypted)]),
   );
+  console.log(`[DEBUG gp-test][${upperCode}] TABLE=gp_credentials rows=${credRows.length} keys=[${Object.keys(creds).join(',')}]`);
 
   // ── URL checks ────────────────────────────────────────────────────────────
   const startAll = Date.now();
