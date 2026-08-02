@@ -49,7 +49,7 @@ function CopyButton({ text }: { text: string }) {
         minWidth:   '52px',
       }}
     >
-      {copied ? '✓' : 'SALIN'}
+      {copied ? '✓' : 'COPY'}
     </button>
   );
 }
@@ -63,8 +63,10 @@ export function MegaAppDialog({
   onClose,
 }: MegaAppDialogProps) {
   const downloadUrl = detectDownloadUrl(downloadUrlAndroid, downloadUrlIos);
-  const [showDownloadHint, setShowDownloadHint] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [launching, setLaunching]           = useState(false);
+  const [showAppNotDetected, setShowAppNotDetected] = useState(false);
+  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leftRef   = useRef(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -73,7 +75,7 @@ export function MegaAppDialog({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Prevent scroll while open
+  // Prevent scroll while open; clear timer on unmount
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -83,170 +85,220 @@ export function MegaAppDialog({
     };
   }, []);
 
-  // Try opening the deep link; if app is not installed the browser stays on this page
   const handlePlay = () => {
+    if (launching) return;
+    setLaunching(true);
+    leftRef.current = false;
+
+    const markLeft = () => { leftRef.current = true; };
+    const onVisChange = () => {
+      if (document.visibilityState === 'hidden') leftRef.current = true;
+    };
+
+    window.addEventListener('pagehide',         markLeft,    { once: true });
+    window.addEventListener('blur',             markLeft,    { once: true });
+    window.addEventListener('visibilitychange', onVisChange);
+
     window.location.href = launchUrl;
-    // After 2.2s, if we're still here (page didn't navigate away), the app isn't installed
+
     timerRef.current = setTimeout(() => {
-      setShowDownloadHint(true);
-    }, 2200);
+      window.removeEventListener('pagehide',         markLeft);
+      window.removeEventListener('blur',             markLeft);
+      window.removeEventListener('visibilitychange', onVisChange);
+      setLaunching(false);
+
+      if (!leftRef.current) {
+        // App did not open — show "not detected" modal and auto-redirect to download
+        setShowAppNotDetected(true);
+        if (downloadUrl) {
+          setTimeout(() => { window.location.href = downloadUrl; }, 3000);
+        }
+      }
+    }, 1200);
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="MEGA888 游戏凭证"
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'rgba(0,0,0,0.72)' }}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Dialog */}
-      <div
-        className="relative w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 overflow-y-auto"
-        style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', zIndex: 1, maxHeight: '90dvh' }}
-      >
-
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-opacity hover:opacity-70"
-          style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.1))', color: 'var(--text-muted, #888)' }}
-          aria-label="关闭"
+    <>
+      {/* "App not detected" overlay — z-[60] sits above the main dialog (z-50) */}
+      {showAppNotDetected && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="App not detected"
         >
-          ✕
-        </button>
-
-        {/* Title */}
-        <div className="text-center mb-5">
-          <h3
-            className="text-xl font-bold mb-1"
-            style={{ color: 'var(--text-base, #fff)' }}
-          >
-            MEGA888
-          </h3>
-          <p
-            className="text-xs"
-            style={{ color: 'var(--text-muted, #888)' }}
-          >
-            Sila Muat Turun MEGA888 Untuk Main
-          </p>
-        </div>
-
-        {/* Credential rows */}
-        <div className="flex flex-col gap-3 mb-5">
-          {/* Username */}
           <div
-            className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.82)' }}
+            onClick={() => setShowAppNotDetected(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center"
+            style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
           >
-            <div className="flex-1 min-w-0">
-              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
-                Username
-              </p>
-              <p
-                className="text-sm font-semibold truncate"
-                style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
+            <div className="text-4xl mb-3">📱</div>
+            <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>
+              MEGA888 App not detected.
+            </h4>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-muted, #aaa)', lineHeight: 1.6 }}>
+              Please download the app first.
+            </p>
+            {downloadUrl && (
+              <a
+                href={downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full py-3 rounded-xl text-sm font-bold mb-2"
+                style={{ background: 'var(--brand-primary)', color: '#fff' }}
               >
-                {loginId}
-              </p>
-            </div>
-            <CopyButton text={loginId} />
-          </div>
-
-          {/* Password */}
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
-          >
-            <div className="flex-1 min-w-0">
-              <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
-                Kata Laluan
-              </p>
-              <p
-                className="text-sm font-semibold truncate"
-                style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
-              >
-                {password}
-              </p>
-            </div>
-            <CopyButton text={password} />
-          </div>
-        </div>
-
-        {/* Download hint — shown after deeplink fails */}
-        {showDownloadHint && (
-          <div
-            className="mb-4 px-4 py-3 rounded-xl text-xs text-center"
-            style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', lineHeight: 1.6 }}
-          >
-            未检测到 MEGA888 APP。
-            {downloadUrl ? (
-              <>
-                {' '}请先
-                <a
-                  href={downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#f59e0b', fontWeight: 700, textDecoration: 'underline' }}
-                >
-                  下载 APP
-                </a>
-                后再登录。
-              </>
-            ) : (
-              ' 请先下载 MEGA888 APP 后再点击游戏。'
+                Muat Turun Sekarang
+              </a>
             )}
-          </div>
-        )}
-
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          {downloadUrl ? (
-            <a
-              href={downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 py-3 rounded-xl text-sm font-semibold text-center transition-opacity hover:opacity-80"
-              style={{
-                background: 'var(--bg-surface2, rgba(255,255,255,0.1))',
-                color:      'var(--text-base, #fff)',
-                display:    'block',
-              }}
-            >
-              Muat Turun
-            </a>
-          ) : (
             <button
-              onClick={() => setShowDownloadHint(true)}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold text-center transition-opacity hover:opacity-80"
+              onClick={() => setShowAppNotDetected(false)}
+              className="text-xs mt-1"
+              style={{ color: 'var(--text-faint, #666)' }}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main credential dialog */}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center px-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="MEGA888 游戏凭证"
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+
+        {/* Dialog */}
+        <div
+          className="relative w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 overflow-y-auto"
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', zIndex: 1, maxHeight: '90dvh' }}
+        >
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-sm transition-opacity hover:opacity-70"
+            style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.1))', color: 'var(--text-muted, #888)' }}
+            aria-label="关闭"
+          >
+            ✕
+          </button>
+
+          {/* Title */}
+          <div className="text-center mb-5">
+            <h3
+              className="text-xl font-bold mb-1"
+              style={{ color: 'var(--text-base, #fff)' }}
+            >
+              MEGA888
+            </h3>
+            <p
+              className="text-xs"
+              style={{ color: 'var(--text-muted, #888)' }}
+            >
+              Sila Muat Turun MEGA888 Untuk Main
+            </p>
+          </div>
+
+          {/* Credential rows */}
+          <div className="flex flex-col gap-3 mb-5">
+            {/* Username */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
+                  Login ID
+                </p>
+                <p
+                  className="text-sm font-semibold truncate"
+                  style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {loginId}
+                </p>
+              </div>
+              <CopyButton text={loginId} />
+            </div>
+
+            {/* Password */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
+                  Password
+                </p>
+                <p
+                  className="text-sm font-semibold truncate"
+                  style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {password}
+                </p>
+              </div>
+              <CopyButton text={password} />
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            {downloadUrl ? (
+              <a
+                href={downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-center transition-opacity hover:opacity-80"
+                style={{
+                  background: 'var(--bg-surface2, rgba(255,255,255,0.1))',
+                  color:      'var(--text-base, #fff)',
+                  display:    'block',
+                }}
+              >
+                Muat Turun
+              </a>
+            ) : (
+              <span
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-center"
+                style={{
+                  background: 'var(--bg-surface2, rgba(255,255,255,0.06))',
+                  color:      'var(--text-faint, #666)',
+                }}
+              >
+                Muat Turun
+              </span>
+            )}
+            <button
+              onClick={handlePlay}
+              disabled={launching}
+              className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
               style={{
-                background: 'var(--bg-surface2, rgba(255,255,255,0.1))',
-                color:      'var(--text-muted, #aaa)',
+                background: 'transparent',
+                color:      launching ? 'var(--text-muted, #aaa)' : 'var(--text-base, #fff)',
+                border:     launching
+                  ? '2px solid var(--bg-surface2, rgba(255,255,255,0.2))'
+                  : '2px solid var(--text-base, rgba(255,255,255,0.6))',
+                cursor: launching ? 'not-allowed' : 'pointer',
               }}
             >
-              Muat Turun
+              {launching ? '…' : 'Main Sekarang'}
             </button>
-          )}
-          <button
-            onClick={handlePlay}
-            className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
-            style={{
-              background: 'transparent',
-              color:      'var(--text-base, #fff)',
-              border:     '2px solid var(--text-base, rgba(255,255,255,0.6))',
-            }}
-          >
-            Main Sekarang
-          </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

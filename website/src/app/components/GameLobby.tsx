@@ -73,6 +73,7 @@ export default function GameLobby() {
   const [authChecked, setAuthChecked]   = useState(false);
   const [isLoggedIn, setIsLoggedIn]     = useState(false);
   const [megaAppDialog, setMegaAppDialog] = useState<MegaAppDialogState | null>(null);
+  const [megaAppError,  setMegaAppError]  = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/public/game-providers')
@@ -120,12 +121,18 @@ export default function GameLobby() {
       }
 
       if (!res.ok || !data.launch_url) {
-        alert(data.error ?? '启动失败，请稍后再试');
+        if (card.provider_code === 'MEGAAPP') {
+          setMegaAppError(data.error ?? 'Unable to launch MEGA888. Please try again later.');
+        } else {
+          alert(data.error ?? '启动失败，请稍后再试');
+        }
         return;
       }
 
-      // MEGA888 App: show credential dialog instead of navigating
-      if (data.launch_mode === 'MEGAAPP_DIALOG') {
+      // MEGA888 App: show credential dialog instead of navigating.
+      // Detection is by provider_code, not launch_mode, because the DB schema only
+      // supports LOBBY/DIRECT and ERP returns launch_mode='LOBBY' for MEGAAPP.
+      if (card.provider_code === 'MEGAAPP') {
         let loginId = '';
         let password = '';
         let downloadUrlAndroid: string | null = null;
@@ -167,7 +174,11 @@ export default function GameLobby() {
       // Default: redirect into H5 Lobby / game
       window.location.href = data.launch_url;
     } catch {
-      alert('网络错误，请稍后再试');
+      if (card.provider_code === 'MEGAAPP') {
+        setMegaAppError('Unable to launch MEGA888. Please try again later.');
+      } else {
+        alert('网络错误，请稍后再试');
+      }
     } finally {
       setLaunching(null);
     }
@@ -186,6 +197,39 @@ export default function GameLobby() {
         downloadUrlIos={megaAppDialog.downloadUrlIos}
         onClose={() => setMegaAppDialog(null)}
       />
+    )}
+    {megaAppError && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center px-4"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => setMegaAppError(null)}
+          aria-hidden="true"
+        />
+        <div
+          className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center"
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+        >
+          <div className="text-3xl mb-3">⚠️</div>
+          <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>
+            Unable to launch MEGA888.
+          </h4>
+          <p className="text-sm mb-5" style={{ color: 'var(--text-muted, #aaa)', lineHeight: 1.6 }}>
+            Please try again later.
+          </p>
+          <button
+            onClick={() => setMegaAppError(null)}
+            className="px-6 py-2.5 rounded-xl text-sm font-bold"
+            style={{ background: 'var(--brand-primary)', color: '#fff' }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
     )}
     <section>
       <div className="flex items-center justify-between mb-2">
