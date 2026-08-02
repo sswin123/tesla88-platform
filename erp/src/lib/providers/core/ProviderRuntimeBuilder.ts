@@ -43,6 +43,9 @@ export interface ProviderRawRow {
   health_checked_at: string | null;
   last_success_at: string | null;
   last_failed_at: string | null;
+  gp_provider_id: number;
+  gp_display_name: string;
+  gp_website_launch_mode: string;
 }
 
 export interface DecryptError {
@@ -68,6 +71,12 @@ export interface RuntimeBuildResult {
   bpHealthCheckedAt: string | null;
   bpLastSuccessAt: string | null;
   bpLastFailedAt: string | null;
+
+  // ── Provider metadata (from gp_providers via JOIN) ──────────────────────────
+  /** gp_providers.id — use as FK for gp_players; never query gp_providers separately. */
+  gpProviderId: number;
+  gpDisplayName: string;
+  gpWebsiteLaunchMode: string;
 
   // ── Configuration ───────────────────────────────────────────────────────────
   /** Raw key→value from brand_provider_config (not decrypted — config is plain text). */
@@ -138,6 +147,7 @@ export class ProviderRuntimeBuilder {
       bpId: -1, bpStatus: 'UNKNOWN', bpEnvironment: 'UNKNOWN',
       bpWalletType: 'UNKNOWN', bpCurrency: 'MYR', bpHealthStatus: 'UNKNOWN',
       bpHealthCheckedAt: null, bpLastSuccessAt: null, bpLastFailedAt: null,
+      gpProviderId: -1, gpDisplayName: '', gpWebsiteLaunchMode: 'LOBBY',
       config: {}, configCount: 0,
       requiredConfigKeys: AdapterRegistry.getRequiredConfig(provider),
       missingConfigKeys: AdapterRegistry.getRequiredConfig(provider),
@@ -168,7 +178,10 @@ export class ProviderRuntimeBuilder {
                 bp.health_status,
                 bp.health_checked_at,
                 bp.last_success_at,
-                bp.last_failed_at
+                bp.last_failed_at,
+                p.id                   AS gp_provider_id,
+                p.display_name         AS gp_display_name,
+                p.website_launch_mode  AS gp_website_launch_mode
          FROM brand_providers  bp
          JOIN brands           b  ON b.id  = bp.brand_id
          JOIN gp_providers     p  ON p.id  = bp.provider_id
@@ -183,8 +196,7 @@ export class ProviderRuntimeBuilder {
         return empty(`Brand provider not found: ${brand}:${provider}`);
       }
       bpRow = rows[0];
-      step('read_brand_provider', 'ok', Date.now() - t, `bpId=${bpRow.id} status=${bpRow.status}`);
-      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] brand_providers found bpId=${bpRow.id} status=${bpRow.status}`);
+      step('read_brand_provider', 'ok', Date.now() - t, `bpId=${bpRow.id} status=${bpRow.status} gpId=${bpRow.gp_provider_id}`);
     } catch (err) {
       step('read_brand_provider', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));
@@ -203,7 +215,6 @@ export class ProviderRuntimeBuilder {
       for (const r of cfgRows) config[r.key] = r.value;
       configCount = cfgRows.length;
       step('load_config', 'ok', Date.now() - t, `${configCount} keys: [${Object.keys(config).join(', ')}]`);
-      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] TABLE=brand_provider_config rows=${configCount} keys=[${Object.keys(config).join(',')}]`);
     } catch (err) {
       step('load_config', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));
@@ -240,7 +251,6 @@ export class ProviderRuntimeBuilder {
       const detail = `${credCount} keys: [${Object.keys(credentials).join(', ')}]`
         + (decryptErrors.length ? ` decrypt_errors=[${decryptErrors.map(e => e.key).join(', ')}]` : '');
       step('load_credentials', decryptErrors.length > 0 ? 'failed' : 'ok', Date.now() - t, detail);
-      console.log(`[DEBUG ProviderRuntimeBuilder][${brand}:${provider}] TABLE=brand_provider_credentials rows=${credCount} keys=[${Object.keys(credentials).join(',')}] decrypt_errors=${decryptErrors.length}`);
     } catch (err) {
       step('load_credentials', 'failed', Date.now() - t,
         err instanceof Error ? err.message : String(err));
@@ -269,7 +279,8 @@ export class ProviderRuntimeBuilder {
       step('build_adapter', 'skipped', 0, adapterError);
     } else {
       try {
-        adapter = AdapterRegistry.create(provider, credentials, config, deps);
+        adapter = AdapterRegistry.create(provider, credentials, config,
+          { ...deps, gpProviderId: bpRow.gp_provider_id });
         adapterBuilt = true;
         step('build_adapter', 'ok', Date.now() - t, `version=${adapterVersion}`);
       } catch (err) {
@@ -308,6 +319,9 @@ export class ProviderRuntimeBuilder {
       bpHealthCheckedAt: bpRow.health_checked_at,
       bpLastSuccessAt:   bpRow.last_success_at,
       bpLastFailedAt:    bpRow.last_failed_at,
+      gpProviderId:      bpRow.gp_provider_id,
+      gpDisplayName:     bpRow.gp_display_name,
+      gpWebsiteLaunchMode: bpRow.gp_website_launch_mode,
       config,
       configCount,
       requiredConfigKeys,

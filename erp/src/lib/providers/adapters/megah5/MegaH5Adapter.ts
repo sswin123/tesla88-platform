@@ -34,7 +34,7 @@ export class MegaH5Adapter extends BaseProviderAdapter {
   private readonly formatter: MegaH5CallbackFormatter;
   private readonly currency:  string;
 
-  private providerId: number | null = null;
+  private readonly providerId: number;
 
   constructor(
     private readonly creds:        MegaH5Credentials,
@@ -42,8 +42,10 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     private readonly wallet:       MasterWalletEngine,
     private readonly eventLogger:  EventLogger,
     private readonly providerRepo: IProviderRepository,
+    gpProviderId: number,
   ) {
     super();
+    this.providerId = gpProviderId;
     this.currency  = cfg.currency ?? 'MYR';
     this.api       = new MegaH5ApiClient(creds, cfg);
     this.parser    = new MegaH5CallbackParser();
@@ -427,30 +429,17 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     const userId = this.extractUserIdFromAccountId(accountId);
     if (userId != null) return String(userId);
 
-    // Fallback: look up by provider_player_id
+    // Fallback: look up gp_players by provider_player_id (only when providerId is known)
     const pid = body.playerID;
-    if (pid != null) {
-      const provId = await this.getProviderId();
+    if (pid != null && this.providerId > 0) {
       const { default: pool } = await import('@/lib/db');
       const { rows } = await pool.query<{ user_id: number }>(
         `SELECT user_id FROM gp_players WHERE provider_id=$1 AND provider_player_id=$2 LIMIT 1`,
-        [provId, String(pid)],
+        [this.providerId, String(pid)],
       );
       if (rows[0]) return String(rows[0].user_id);
     }
     return undefined;
-  }
-
-  private async getProviderId(): Promise<number> {
-    if (this.providerId) return this.providerId;
-    const { default: pool } = await import('@/lib/db');
-    const { rows } = await pool.query<{ id: number }>(
-      `SELECT id FROM gp_providers WHERE code=$1 LIMIT 1`,
-      [this.code],
-    );
-    this.providerId = rows[0]?.id ?? null;
-    if (!this.providerId) throw new Error(`gp_providers row not found for code=${this.code}`);
-    return this.providerId;
   }
 
   private systemErrorAuth(): AuthenticateResponse {

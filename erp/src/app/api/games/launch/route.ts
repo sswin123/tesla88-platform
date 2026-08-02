@@ -22,9 +22,9 @@ const txRepo = new TransactionRepository();
  * Response:
  *   { ok: true, launch_url, provider_code, launch_mode }
  *
- * Player auto-registration:
- *   If this is the first time the member launches this provider, we
- *   register them on the provider side and create a gp_players record.
+ * Runtime source: ProviderRuntimeBuilder is the single source of truth for
+ * all provider adapters, credentials, config, and metadata.
+ * Exception: 918KISS remains on the legacy path until Phase 2.
  */
 export async function POST(req: NextRequest) {
   // ── Service-to-service auth ──────────────────────────────────────────────
@@ -45,26 +45,7 @@ export async function POST(req: NextRequest) {
 
   const upperCode = provider_code.toUpperCase();
 
-  // ── 1. Load provider record ───────────────────────────────────────────────
-  const { rows: provRows } = await pool.query<{
-    id: number; code: string; display_name: string;
-    status: string; website_launch_mode: string; wallet_type: string;
-  }>(
-    `SELECT id, code, display_name, status, website_launch_mode, wallet_type
-     FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
-  );
-  const provider = provRows[0];
-  if (!provider) return NextResponse.json({ error: `Provider "${upperCode}" not found` }, { status: 404 });
-
-  if (provider.status !== 'ACTIVE' && provider.status !== 'TESTING') {
-    return NextResponse.json(
-      { error: `Provider "${upperCode}" is ${provider.status} — cannot launch` },
-      { status: 503 },
-    );
-  }
-
-  // ── 2. Load user info ─────────────────────────────────────────────────────
+  // ── 1. Load user ──────────────────────────────────────────────────────────
   const { rows: userRows } = await pool.query<{ id: number; first_name: string; phone: string | null }>(
     `SELECT id, first_name, phone FROM users WHERE id = $1 LIMIT 1`,
     [user_id],
@@ -72,12 +53,42 @@ export async function POST(req: NextRequest) {
   const user = userRows[0];
   if (!user) return NextResponse.json({ error: `User ${user_id} not found` }, { status: 404 });
 
-  // ── 3. Get adapter (brand-aware for non-918KISS providers) ───────────────────
+  // ── 2. Load provider + adapter ────────────────────────────────────────────
+  // All variables populated by whichever branch runs (918KISS legacy vs brand framework).
   let adapter: import('@/lib/providers').IGameProvider;
   let activeBrandCode: string | null = null;
+  let gpProviderId: number;
+  let gpDisplayName: string;
+  let gpWebsiteLaunchMode: string;
+  let walletType: string;
+  let runtimeConfig: Record<string, string> = {};
 
   if (upperCode === '918KISS') {
-    // 918KISS: legacy singleton — reads from gp_credentials (unchanged)
+    // ── Legacy path — reads gp_providers + gp_credentials via lib/gaming.ts ──
+    // Phase 2 will migrate 918KISS to the brand framework.
+    const { rows: provRows } = await pool.query<{
+      id: number; display_name: string; status: string; website_launch_mode: string; wallet_type: string;
+    }>(
+      `SELECT id, display_name, status, website_launch_mode, wallet_type
+       FROM gp_providers WHERE code = $1 LIMIT 1`,
+      [upperCode],
+    );
+    const prov918 = provRows[0];
+    if (!prov918) {
+      return NextResponse.json({ error: `Provider "918KISS" not found` }, { status: 404 });
+    }
+    if (prov918.status !== 'ACTIVE' && prov918.status !== 'TESTING') {
+      return NextResponse.json(
+        { error: `Provider "918KISS" is ${prov918.status} — cannot launch` },
+        { status: 503 },
+      );
+    }
+
+    gpProviderId        = prov918.id;
+    gpDisplayName       = prov918.display_name;
+    gpWebsiteLaunchMode = prov918.website_launch_mode;
+    walletType          = prov918.wallet_type;
+
     const { getKiss918Adapter } = await import('@/lib/gaming');
     const k918 = await getKiss918Adapter();
     if (!k918) {
@@ -87,80 +98,78 @@ export async function POST(req: NextRequest) {
       );
     }
     adapter = k918;
-  } else {
-    // All other providers: brand-aware, reads from brand_provider_credentials
-    const { createGamingPlatform } = await import('@/lib/providers');
 
-    // Find which brand has this provider enabled
-    // Debug: first query without status filter to see what actually exists
-    const { rows: debugRows } = await pool.query<{
-      brand_id: number; brand_code: string; bp_id: number; bp_status: string; provider_code: string;
-    }>(
-      `SELECT b.id AS brand_id, b.code AS brand_code, bp.id AS bp_id,
-              bp.status AS bp_status, p.code AS provider_code
+  } else {
+    // ── Brand framework path — ProviderRuntimeBuilder is the single runtime source ──
+
+    // Find which brand has this provider configured (ACTIVE or TESTING status).
+    const { rows: bpFindRows } = await pool.query<{ brand_code: string }>(
+      `SELECT b.code AS brand_code
        FROM brand_providers bp
-       JOIN brands b       ON b.id = bp.brand_id
+       JOIN brands      b ON b.id  = bp.brand_id
        JOIN gp_providers p ON p.id = bp.provider_id
-       WHERE p.code = $1`,
+       WHERE UPPER(p.code) = $1
+         AND bp.status IN ('ACTIVE', 'TESTING')
+       ORDER BY (bp.status = 'ACTIVE') DESC, bp.id ASC
+       LIMIT 1`,
       [upperCode],
     );
-    console.log(`[games/launch] DEBUG brand_providers lookup for provider_code="${upperCode}":`, {
-      query_condition: `p.code = '${upperCode}'`,
-      rows_found: debugRows.length,
-      records: debugRows.map(r => ({
-        brand_id:      r.brand_id,
-        brand_code:    r.brand_code,
-        bp_id:         r.bp_id,
-        bp_status:     r.bp_status,
-        provider_code: r.provider_code,
-      })),
-    });
 
-    const bpRows = debugRows.filter(r => r.bp_status === 'ACTIVE');
-    console.log(`[games/launch] DEBUG ACTIVE records: ${bpRows.length}/${debugRows.length}`);
-
-    if (!bpRows[0]) {
-      const statusSummary = debugRows.length === 0
-        ? 'no brand_providers record found at all'
-        : `record found but status=${debugRows.map(r => `${r.brand_code}:${r.bp_status}`).join(', ')}`;
-      console.warn(`[games/launch] Resolution failed for "${upperCode}": ${statusSummary}`);
-
-      const hasRecord    = debugRows.length > 0;
-      const currentStatus = hasRecord ? debugRows[0].bp_status : null;
-      const userMessage   = hasRecord
-        ? `Provider "${upperCode}" is ${currentStatus} — go to Brand Center › ${debugRows[0].brand_code} › ${upperCode} and set Status to ACTIVE.`
+    if (!bpFindRows[0]) {
+      // Fetch any record (regardless of status) for a more specific error message.
+      const { rows: anyRows } = await pool.query<{ brand_code: string; bp_status: string }>(
+        `SELECT b.code AS brand_code, bp.status AS bp_status
+         FROM brand_providers bp
+         JOIN brands      b ON b.id  = bp.brand_id
+         JOIN gp_providers p ON p.id = bp.provider_id
+         WHERE UPPER(p.code) = $1
+         ORDER BY bp.id ASC LIMIT 1`,
+        [upperCode],
+      );
+      const errMsg = anyRows[0]
+        ? `Provider "${upperCode}" is ${anyRows[0].bp_status} — go to Brand Center › ${anyRows[0].brand_code} › ${upperCode} and set Status to ACTIVE.`
         : `Provider "${upperCode}" has no brand configuration. Enable it in Brand Center first.`;
+      return NextResponse.json({ error: errMsg }, { status: 503 });
+    }
 
+    activeBrandCode = bpFindRows[0].brand_code;
+
+    const { createGamingPlatform, ProviderRepository } = await import('@/lib/providers');
+    const { ProviderRuntimeBuilder } = await import('@/lib/providers/core/ProviderRuntimeBuilder');
+    const platform     = createGamingPlatform();
+    const providerRepo = new ProviderRepository();
+
+    const result = await ProviderRuntimeBuilder.build(
+      activeBrandCode,
+      upperCode,
+      (v) => platform.security.decrypt(v),
+      { wallet: platform.wallet, eventLogger: platform.eventLogger, providerRepo },
+      false,
+    );
+
+    if (!result.found || !result.adapterBuilt || !result.adapter) {
       return NextResponse.json(
-        {
-          error: userMessage,
-          debug: { provider_code: upperCode, brand_providers_found: debugRows.length, status_summary: statusSummary },
-        },
+        { error: `Provider "${upperCode}" could not be initialized. Check credentials in Brand Center.` },
         { status: 503 },
       );
     }
-    activeBrandCode = bpRows[0].brand_code;
 
-    try {
-      const platform = createGamingPlatform();
-      adapter = await platform.brandManager.getAdapter(activeBrandCode, upperCode);
-    } catch (err) {
-      console.error(`[games/launch] BrandProviderManager.getAdapter failed for ${upperCode}:`, err);
-      return NextResponse.json(
-        { error: `Adapter for "${upperCode}" could not be initialized. Check credentials in Brand Center.` },
-        { status: 503 },
-      );
-    }
+    gpProviderId        = result.gpProviderId;
+    gpDisplayName       = result.gpDisplayName;
+    gpWebsiteLaunchMode = result.gpWebsiteLaunchMode;
+    walletType          = result.bpWalletType;
+    runtimeConfig       = result.config;
+    adapter             = result.adapter;
   }
 
-  // ── 4. Auto-register player if needed ────────────────────────────────────
+  // ── 3. Auto-register player if needed ────────────────────────────────────
   const { rows: playerRows } = await pool.query<{
     id: number; provider_player_id: string | null; provider_account_id: string;
     currency: string; is_registered: boolean;
   }>(
     `SELECT id, provider_player_id, provider_account_id, currency, is_registered
      FROM gp_players WHERE provider_id = $1 AND user_id = $2 LIMIT 1`,
-    [provider.id, user_id],
+    [gpProviderId, user_id],
   );
 
   let playerRecord = playerRows[0];
@@ -168,32 +177,21 @@ export async function POST(req: NextRequest) {
   if (!playerRecord) {
     // Build account_id: "u{userId}@{postfix_id}"
     // 918KISS: config lives in gp_config (legacy).
-    // All other providers: config lives in brand_provider_config.
+    // All other providers: config comes from ProviderRuntimeBuilder result.
     let postfix: string;
     let currency: string;
 
     if (upperCode === '918KISS') {
       const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
         `SELECT key, value FROM gp_config WHERE provider_id = $1 AND key IN ('postfix_id', 'currency')`,
-        [provider.id],
+        [gpProviderId],
       );
       const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
       postfix  = cfg['postfix_id'] ?? '';
       currency = cfg['currency'] ?? 'MYR';
     } else {
-      const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
-        `SELECT bpc.key, bpc.value
-         FROM brand_provider_config bpc
-         JOIN brand_providers bp ON bp.id = bpc.brand_provider_id
-         JOIN brands b ON b.id = bp.brand_id
-         JOIN gp_providers p ON p.id = bp.provider_id
-         WHERE b.code = $1 AND p.code = $2
-           AND bpc.key IN ('postfix_id', 'currency')`,
-        [activeBrandCode, upperCode],
-      );
-      const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
-      postfix  = cfg['postfix_id'] ?? '';
-      currency = cfg['currency'] ?? 'MYR';
+      postfix  = runtimeConfig['postfix_id'] ?? '';
+      currency = runtimeConfig['currency'] ?? 'MYR';
     }
 
     const accountId = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
@@ -239,7 +237,7 @@ export async function POST(req: NextRequest) {
              registered_at      = NOW(),
              updated_at         = NOW()
        RETURNING id, provider_player_id, provider_account_id, currency, is_registered`,
-      [provider.id, user_id, providerPlayerId, accountId, currency],
+      [gpProviderId, user_id, providerPlayerId, accountId, currency],
     );
     playerRecord = inserted[0];
   } else if (!playerRecord.is_registered || !playerRecord.provider_player_id) {
@@ -257,12 +255,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 5. Launch ─────────────────────────────────────────────────────────────
+  // ── 4. Launch ─────────────────────────────────────────────────────────────
   let launchResult: import('@/lib/providers').LaunchResult;
   try {
     launchResult = await adapter.launch({
       user_id,
-      provider_id: provider.id,
+      provider_id: gpProviderId,
       game_code:   game_code ?? null,
       language:    2,           // Mandarin
       lobby_return_url: lobby_return_url || '',
@@ -275,13 +273,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 6. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
+  // ── 5. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
   // Architecture:
   //   Step A — autoWithdrawAll: recover any remaining provider balance → wallet
   //   Step B — Transfer In: move ALL wallet balance → provider
   // Login Callback: authentication only, never touches wallet.
   // Refresh Button: Transfer Out only (member-wallet-sync route).
-  if (provider.wallet_type === 'TRANSFER') {
+  if (walletType === 'TRANSFER') {
     const loginId = playerRecord.provider_player_id;
     if (!loginId) {
       console.warn(`[games/launch] Transfer Wallet skipped: no provider_player_id for userId=${user_id}`);
@@ -349,8 +347,8 @@ export async function POST(req: NextRequest) {
             member_id:      user_id,
             category:       'BALANCE',
             action:         'Transfer Out',
-            title:          `${provider.display_name} — Transfer Out (before Play)`,
-            description:    `Recovered RM ${recovered.toFixed(2)} from ${provider.display_name} before Transfer In`,
+            title:          `${gpDisplayName} — Transfer Out (before Play)`,
+            description:    `Recovered RM ${recovered.toFixed(2)} from ${gpDisplayName} before Transfer In`,
             amount:         recovered,
             balance_before: wdBefore,
             balance_after:  wdAfter,
@@ -462,8 +460,8 @@ export async function POST(req: NextRequest) {
                   member_id:      user_id,
                   category:       'BALANCE',
                   action:         'Transfer In',
-                  title:          `${provider.display_name} — Transfer In`,
-                  description:    `Transferred RM ${balance.toFixed(2)} to ${provider.display_name}`,
+                  title:          `${gpDisplayName} — Transfer In`,
+                  description:    `Transferred RM ${balance.toFixed(2)} to ${gpDisplayName}`,
                   amount:         balance,
                   balance_before: deductBalBefore,
                   balance_after:  deductBalAfter,
@@ -512,7 +510,7 @@ export async function POST(req: NextRequest) {
                 member_id:      user_id,
                 category:       'BALANCE',
                 action:         'Rollback',
-                title:          `${provider.display_name} — Transfer In Rollback`,
+                title:          `${gpDisplayName} — Transfer In Rollback`,
                 description:    `RM ${balance.toFixed(2)} restored after topUp failure: ${errMsg.slice(0, 100)}`,
                 amount:         balance,
                 balance_before: parseFloat(rbWtRow.balance_before),
@@ -528,7 +526,7 @@ export async function POST(req: NextRequest) {
               });
             } catch (rbErr) {
               await rbClient.query('ROLLBACK').catch(() => undefined);
-              console.error(`[games/launch] ✗✗ CRITICAL: rollback FAILED userId=${user_id} — MANUAL INTERVENTION REQUIRED: missing ${balance} MYR`);
+              console.error(`[games/launch] ✗✗ CRITICAL: rollback FAILED userId=${user_id} amount=${balance} — MANUAL INTERVENTION REQUIRED: missing ${balance} MYR`);
             } finally {
               rbClient.release();
             }
@@ -547,6 +545,6 @@ export async function POST(req: NextRequest) {
     launch_url:    launchResult.launch_url,
     session_token: launchResult.session_token ?? null,
     provider_code: upperCode,
-    launch_mode:   provider.website_launch_mode ?? 'LOBBY',
+    launch_mode:   gpWebsiteLaunchMode ?? 'LOBBY',
   });
 }

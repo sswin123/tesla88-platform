@@ -4,6 +4,8 @@ export interface AdapterDeps {
   wallet:        import('../core/MasterWalletEngine').MasterWalletEngine;
   eventLogger:   import('../core/EventLogger').EventLogger;
   providerRepo:  import('../interfaces/IProviderRepository').IProviderRepository;
+  /** gp_providers.id — injected by ProviderRuntimeBuilder so adapters never query gp_providers. */
+  gpProviderId?: number;
 }
 
 type AdapterFactoryFn = (
