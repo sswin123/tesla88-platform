@@ -132,9 +132,12 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     const userId = params.user_id;
 
     let row = await this.findProviderAccount(userId);
+    console.log("[MEGA] STEP1", { userId, row });
 
     if (!row) {
-      // First launch: look up gp_players to get the existing provider record
+      // No provider_accounts row — attempt to recreate from gp_players.
+      // Historical records (pre-recovery) stored loginId in provider_account_id;
+      // new registrations store it in provider_player_id. Accept both.
       const { default: pool } = await import('@/lib/db');
       const { rows: gpRows } = await pool.query<{
         provider_player_id: string | null;
@@ -145,11 +148,22 @@ export class MegaAppAdapter extends BaseProviderAdapter {
          WHERE provider_id = $1 AND user_id = $2 LIMIT 1`,
         [params.provider_id, userId],
       );
+      console.log("[MEGA] STEP2", { provider_id: params.provider_id, userId, gpRows });
 
-      if (gpRows[0]?.provider_player_id) {
-        // gp_players has loginId but provider_accounts was not yet created
-        const loginId  = gpRows[0].provider_player_id;
+      const gp      = gpRows[0];
+      const loginId =
+        gp?.provider_player_id?.trim()  ||
+        gp?.provider_account_id?.trim() ||
+        null;
+      console.log("[MEGA] STEP3", {
+        provider_player_id:  gp?.provider_player_id,
+        provider_account_id: gp?.provider_account_id,
+        loginId,
+      });
+
+      if (loginId) {
         const password = this.signer.generatePassword(this.cfg.password_length || 10);
+        console.log("[MEGA] STEP4", { loginId, userId });
         await this.upsertProviderAccount({
           provider_code:     MEGAAPP_CODE,
           user_id:           userId,
@@ -157,6 +171,7 @@ export class MegaAppAdapter extends BaseProviderAdapter {
           provider_password: password,
         });
         row = await this.findProviderAccount(userId);
+        console.log("[MEGA] STEP5", { row });
       }
     }
 
