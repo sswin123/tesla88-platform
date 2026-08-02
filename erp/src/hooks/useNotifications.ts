@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { isBrowser } from '@/lib/is-browser';
 import { playNotification } from '@/lib/notification-audio';
+import { subscribeSSE } from '@/lib/sse-manager';
 
 export interface NotifSettings {
   sound: boolean;
@@ -49,9 +50,6 @@ function showBrowserNotif(): void {
   }
 }
 
-// WARNING: This hook is unused. Do NOT call useNotifications() — it opens a raw
-// EventSource('/api/livechat/stream') which bypasses the SSE dedup manager and
-// adds a third connection. Migrate to subscribeSSE() (lib/sse-manager.ts) before use.
 export function useNotifications(settings: NotifSettings): void {
   const settingsRef = useRef(settings);
 
@@ -59,8 +57,6 @@ export function useNotifications(settings: NotifSettings): void {
 
   useEffect(() => {
     if (!isBrowser) return;
-
-    const es = new EventSource('/api/livechat/stream');
 
     let flashInterval: ReturnType<typeof setInterval> | null = null;
     let originalTitle = document.title;
@@ -89,40 +85,25 @@ export function useNotifications(settings: NotifSettings): void {
     }
 
     function handleVisibilityChange() {
-      if (!document.hidden) {
-        stopFlash();
-      }
+      if (!document.hidden) stopFlash();
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    es.onmessage = (e: MessageEvent) => {
+    const unsub = subscribeSSE('/api/livechat/stream', (e: MessageEvent) => {
       try {
         const evt = JSON.parse(e.data as string) as { sender_type?: string };
         if (evt.sender_type !== 'USER') return;
-
-        if (settingsRef.current.sound) {
-          playNotification('livechat');
-        }
-        if (settingsRef.current.browser) {
-          showBrowserNotif();
-        }
-        if (settingsRef.current.titleFlash) {
-          startFlash();
-        }
-      } catch {
-        // ignore parse errors
-      }
-    };
-
-    es.onerror = () => {
-      // EventSource auto-reconnects; no action needed
-    };
+        if (settingsRef.current.sound)       playNotification('livechat');
+        if (settingsRef.current.browser)     showBrowserNotif();
+        if (settingsRef.current.titleFlash)  startFlash();
+      } catch { /* ignore parse errors */ }
+    });
 
     return () => {
-      es.close();
+      unsub();
       stopFlash();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []); // empty deps — EventSource opens once; reads settingsRef at event time
+  }, []); // empty deps — subscribeSSE opens once; reads settingsRef at event time
 }

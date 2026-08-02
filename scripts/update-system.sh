@@ -88,45 +88,11 @@ log_step "Step 3 / 8 — Detect Services"
 load_env
 "${SCRIPT_DIR}/gen-env.sh"
 
-# ── COMPOSE_FILE: production → staging → development ─────────────────────────
-if   [[ -f "${PROJECT_ROOT}/docker-compose.production.yml" ]]; then
-  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.production.yml"
-elif [[ -f "${PROJECT_ROOT}/docker-compose.staging.yml" ]]; then
-  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.staging.yml"
-else
-  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
-fi
-log_info "Compose file: ${COMPOSE_FILE##*/}"
+# lib.sh already set COMPOSE_FILE; detect_services() populates DB_SERVICE, HAS_*_SVC
+detect_services
 
-# ── Enumerate all services from COMPOSE_FILE ─────────────────────────────────
-SVCS="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-         config --services 2>/dev/null || true)"
-log_info "Services:     $(echo "${SVCS}" | tr '\n' ' ')"
-
-# ── DB service: postgres (production) → db (development) ─────────────────────
-if echo "${SVCS}" | grep -qx 'postgres'; then
-  DB_SERVICE="postgres"
-elif echo "${SVCS}" | grep -qx 'db'; then
-  DB_SERVICE="db"
-else
-  die "No database service found in ${COMPOSE_FILE##*/} (expected 'postgres' or 'db')."
-fi
-log_info "DB service:   ${DB_SERVICE}"
-
-# ── Application service flags ─────────────────────────────────────────────────
-HAS_ERP_SVC=false;  HAS_WEBSITE_SVC=false;  HAS_TELEGRAM_SVC=false
-HAS_REDIS_SVC=false; HAS_NGINX_SVC=false
-
-if echo "${SVCS}" | grep -qx 'erp';         then HAS_ERP_SVC=true;      fi
-if echo "${SVCS}" | grep -qx 'website';      then HAS_WEBSITE_SVC=true;  fi
-if echo "${SVCS}" | grep -qx 'telegram-bot'; then HAS_TELEGRAM_SVC=true; fi
-if echo "${SVCS}" | grep -qx 'redis';        then HAS_REDIS_SVC=true;    fi
-if echo "${SVCS}" | grep -qx 'nginx';        then HAS_NGINX_SVC=true;    fi
-
-# ── Dev-mode sub-project compose files (fallback when not in production compose) ──
-HAS_ERP_COMPOSE=false; HAS_WEBSITE_COMPOSE=false
-if [[ -f "${ERP_DIR}/docker-compose.yml" ]];     then HAS_ERP_COMPOSE=true;     fi
-if [[ -f "${WEBSITE_DIR}/docker-compose.yml" ]]; then HAS_WEBSITE_COMPOSE=true; fi
+[[ -n "${DB_SERVICE}" ]] \
+  || die "No database service found in ${COMPOSE_FILE##*/} (expected 'postgres' or 'db')."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4 — Database backup
@@ -169,157 +135,87 @@ log_step "Step 5 / 8 — Database Migrations"
   || die "Migration FAILED — restore from: ${BACKUP_FILE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 6 — Rebuild + restart containers
+# Step 6 — Orphan cleanup + Rebuild + restart containers
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 6 / 8 — Rebuild Services"
 
-# All production commands use COMPOSE_FILE explicitly.
-# Dev fallback uses sub-project compose files.
+# ── Orphan cleanup ────────────────────────────────────────────────────────────
+# Remove containers that belong to old service names (app, db) that are no
+# longer defined in the active compose file. --remove-orphans is passed on
+# every `up` call below, so Docker Compose handles this automatically.
+log_info "Checking for orphan containers…"
+ORPHANS="$(dc ps -a --format '{{.Name}}' 2>/dev/null \
+  | grep -vE '^(postgres|redis|erp|website|telegram-bot|nginx|migrate|certgen)' \
+  | grep -v '^$' || true)"
+if [[ -n "$ORPHANS" ]]; then
+  log_warn "Found stale containers — will remove: $(echo "${ORPHANS}" | tr '\n' ' ')"
+fi
+# --remove-orphans on the next `up` commands will remove them automatically.
+
+# All production `up` commands include --remove-orphans so stale containers
+# (e.g. old 'app', 'db' from docker-compose.yml) are removed each run.
 
 if $HAS_ERP_SVC; then
   log_info "Building ERP…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build erp
+  dc build erp
   log_info "Restarting ERP…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps erp
+  dc up -d --no-deps --remove-orphans erp
 elif $HAS_ERP_COMPOSE; then
   log_info "Building ERP (sub-project)…"
-  docker compose -f "${ERP_DIR}/docker-compose.yml" --project-directory "${ERP_DIR}" build
-  docker compose -f "${ERP_DIR}/docker-compose.yml" --project-directory "${ERP_DIR}" up -d
+  erp_dc build
+  erp_dc up -d
 fi
 
 if $HAS_WEBSITE_SVC; then
   log_info "Building Website…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build website
+  dc build website
   log_info "Restarting Website…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps website
+  dc up -d --no-deps --remove-orphans website
 elif $HAS_WEBSITE_COMPOSE; then
   log_info "Building Website (sub-project)…"
-  docker compose -f "${WEBSITE_DIR}/docker-compose.yml" --project-directory "${WEBSITE_DIR}" build
-  docker compose -f "${WEBSITE_DIR}/docker-compose.yml" --project-directory "${WEBSITE_DIR}" up -d
+  website_dc build
+  website_dc up -d
 fi
 
 if $HAS_TELEGRAM_SVC; then
   log_info "Building Telegram Bot…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build telegram-bot
+  dc build telegram-bot
   log_info "Restarting Telegram Bot…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps telegram-bot
+  dc up -d --no-deps --remove-orphans telegram-bot
 fi
 
 if $HAS_NGINX_SVC; then
   log_info "Restarting Nginx…"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps nginx
+  dc up -d --no-deps --remove-orphans nginx
 fi
+
+# Final orphan sweep after all services are up
+dc up -d --remove-orphans 2>/dev/null | grep -i orphan | sed 's/^/  /' || true
 
 log_success "All containers rebuilt and restarted."
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 7 — Health checks
+# Step 7 — Health Checks (via Health Check Framework from lib.sh)
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 7 / 8 — Health Checks"
 
-health_errors=0
+# Register checks in dependency order
+# (Infrastructure first, then application services, then edge/proxy)
+[[ -n "${DB_SERVICE}" ]]  && hc_register "Postgres"     hc_postgres
+$HAS_REDIS_SVC            && hc_register "Redis"         hc_redis
+$HAS_ERP_SVC              && hc_register "ERP"           hc_erp
+$HAS_WEBSITE_SVC          && hc_register "Website"       hc_website
+$HAS_TELEGRAM_SVC         && hc_register "Telegram Bot"  hc_telegram
+$HAS_NGINX_SVC            && hc_register "Nginx"         hc_nginx
 
-# Returns 0 if service container is running, 1 otherwise
-_svc_running() {
-  local svc="$1"
-  local cid
-  cid="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-           ps -q "${svc}" 2>/dev/null | head -1 || true)"
-  [[ -n "${cid}" ]] && \
-    [[ "$(docker inspect --format '{{.State.Status}}' "${cid}" 2>/dev/null)" == "running" ]]
-}
+# Run all registered checks
+health_failures=0
+hc_run_all || health_failures=$?
 
-check_container() {
-  local label="$1" svc="$2"
-  if _svc_running "${svc}"; then
-    log_success "  ${label}: container running"
-  else
-    log_error   "  ${label}: container NOT running"
-    health_errors=$((health_errors + 1))
-  fi
-}
-
-# HTTP check inside a container (no host-port dependency).
-# Uses curl if available, falls back to wget.
-check_http_in_container() {
-  local label="$1" svc="$2" url="$3"
-  local ok=false
-  if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-       exec -T "${svc}" sh -c \
-       "curl -sf --connect-timeout 5 --max-time 8 '${url}' -o /dev/null" \
-       &>/dev/null; then
-    ok=true
-  elif docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-       exec -T "${svc}" sh -c \
-       "wget -q --spider --timeout=8 '${url}'" \
-       &>/dev/null; then
-    ok=true
-  fi
-  if $ok; then
-    log_success "  ${label}: ${url} ✓"
-  else
-    log_error   "  ${label}: ${url} FAILED"
-    health_errors=$((health_errors + 1))
-  fi
-}
-
-# Database: pg_isready (runs inside the DB container)
-if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-     exec -T "${DB_SERVICE}" pg_isready \
-     -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" &>/dev/null; then
-  log_success "  Database (${DB_SERVICE}): pg_isready ✓"
-else
-  log_error   "  Database (${DB_SERVICE}): pg_isready FAILED"
-  health_errors=$((health_errors + 1))
+if [[ $health_failures -gt 0 ]]; then
+  die "${health_failures} health check(s) failed — see output above."
 fi
-
-# Redis
-if $HAS_REDIS_SVC; then
-  check_container "Redis" redis
-fi
-
-# ERP: check inside container on port 3000 (Nginx sits in front on host)
-if $HAS_ERP_SVC; then
-  sleep 5
-  check_http_in_container "ERP" erp "http://localhost:3000/api/maintenance/health"
-fi
-
-# Website: check inside container on port 3000
-if $HAS_WEBSITE_SVC; then
-  local elapsed=0
-  log_info "  Waiting for Website…"
-  while [[ $elapsed -lt 60 ]]; do
-    if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-         exec -T website sh -c \
-         "curl -sf --connect-timeout 5 --max-time 8 'http://localhost:3000/api/health' -o /dev/null \
-          || wget -q --spider --timeout=8 'http://localhost:3000/api/health'" \
-         &>/dev/null; then
-      log_success "  Website: http://localhost:3000/api/health ✓"
-      break
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-    log_info "  ${elapsed}s — waiting for Website…"
-  done
-  if [[ $elapsed -ge 60 ]]; then
-    log_error "  Website: did not become healthy within 60s"
-    health_errors=$((health_errors + 1))
-  fi
-fi
-
-# Telegram Bot
-if $HAS_TELEGRAM_SVC; then
-  check_container "Telegram Bot" telegram-bot
-fi
-
-# Nginx
-if $HAS_NGINX_SVC; then
-  check_container "Nginx" nginx
-fi
-
-if [[ $health_errors -gt 0 ]]; then
-  die "${health_errors} health check(s) failed."
-fi
+log_success "All health checks passed."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 8 — Summary

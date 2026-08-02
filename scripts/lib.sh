@@ -202,6 +202,206 @@ wait_http() {
   die "${label} did not become healthy within ${max_wait}s"
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Health Check Framework
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Usage in update-system.sh (or any deploy script):
+#
+#   hc_register "ERP"  hc_erp
+#   hc_register "DB"   hc_postgres
+#   hc_run_all         # returns number of failures; 0 = all passed
+#
+# Each hc_* function should return 0 (pass) or 1 (fail).
+# hc_run_all logs each result and accumulates failure count.
+#
+# Built-in checks (call after detect_services):
+#   hc_postgres   — pg_isready inside DB container
+#   hc_redis      — redis-cli PING inside redis container
+#   hc_erp        — Docker healthy + HTTP /api/maintenance/health
+#   hc_website    — Docker healthy + HTTP /api/health
+#   hc_telegram   — Docker healthy (container-level only)
+#   hc_nginx      — Docker healthy
+#
+# To add a new service in the future:
+#   hc_myservice() { hc_docker_healthy "MyService" myservice 60; }
+#   hc_register "MyService" hc_myservice
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Registry: ordered list of "label:function" pairs
+_HC_REGISTRY=()
+
+hc_register() {
+  local label="$1" fn="$2"
+  _HC_REGISTRY+=("${label}:${fn}")
+}
+
+# Run all registered checks; return number of failures.
+hc_run_all() {
+  local -i failures=0
+  for entry in "${_HC_REGISTRY[@]}"; do
+    local label="${entry%%:*}"
+    local fn="${entry##*:}"
+    if "${fn}"; then
+      : # already logged inside the function
+    else
+      log_error "  [FAIL] ${label}"
+      failures=$((failures + 1))
+    fi
+  done
+  return "${failures}"
+}
+
+# ── Low-level primitives ──────────────────────────────────────────────────────
+
+# Get the container ID for a compose service (empty string if not found).
+_hc_cid() {
+  dc ps -q "${1}" 2>/dev/null | head -1
+}
+
+# Wait until `docker inspect Health.Status` equals "healthy".
+# Services without a healthcheck are considered ready once their container is running.
+# Returns 0 on success, 1 on timeout or unhealthy.
+hc_docker_healthy() {
+  local label="$1" svc="$2" max_wait="${3:-150}"
+  local interval=5 elapsed=0
+  log_info "  [${label}] waiting for Docker health (max ${max_wait}s)…"
+  while [[ $elapsed -lt $max_wait ]]; do
+    local cid
+    cid=$(_hc_cid "${svc}")
+    if [[ -z "$cid" ]]; then
+      sleep "$interval"; elapsed=$((elapsed + interval))
+      log_info "    ${elapsed}s — container not yet started"
+      continue
+    fi
+
+    local health_status container_status
+    health_status=$(docker inspect \
+      --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+      "$cid" 2>/dev/null)
+    container_status=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)
+
+    case "$health_status" in
+      healthy)
+        log_success "  [${label}] Docker healthy ✓  (${elapsed}s)"
+        return 0
+        ;;
+      unhealthy)
+        log_error "  [${label}] Docker UNHEALTHY after ${elapsed}s"
+        # Print last healthcheck log for diagnosis
+        docker inspect --format \
+          '{{range .State.Health.Log}}exit={{.ExitCode}} {{.Output}}{{end}}' \
+          "$cid" 2>/dev/null | tail -c 500 >&2 || true
+        return 1
+        ;;
+      none)
+        # No healthcheck defined — accept if container is running
+        if [[ "$container_status" == "running" ]]; then
+          log_success "  [${label}] running (no healthcheck) ✓"
+          return 0
+        fi
+        ;;
+    esac
+
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+    log_info "    ${elapsed}s — health=${health_status} state=${container_status}"
+  done
+
+  log_error "  [${label}] did not reach healthy within ${max_wait}s"
+  return 1
+}
+
+# HTTP probe executed from the HOST (not inside the container).
+# Uses host-mapped port; meant for the final "is the API responding?" check.
+hc_http_host() {
+  local label="$1" url="$2" max_wait="${3:-30}"
+  local interval=5 elapsed=0
+  log_info "  [${label}] HTTP probe: ${url} (max ${max_wait}s)…"
+  while [[ $elapsed -lt $max_wait ]]; do
+    local code
+    code=$(http_status "$url")
+    if [[ "$code" =~ ^2 ]]; then
+      log_success "  [${label}] HTTP ${code} ✓  (${elapsed}s)"
+      return 0
+    fi
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+    log_info "    ${elapsed}s — HTTP ${code}"
+  done
+  log_error "  [${label}] HTTP never returned 2xx within ${max_wait}s"
+  return 1
+}
+
+# HTTP probe from INSIDE the container (avoids host-port dependency).
+hc_http_container() {
+  local label="$1" svc="$2" url="$3" max_wait="${4:-30}"
+  local interval=5 elapsed=0
+  log_info "  [${label}] in-container probe: ${url} (max ${max_wait}s)…"
+  while [[ $elapsed -lt $max_wait ]]; do
+    if dc exec -T "${svc}" sh -c \
+        "curl -sf --connect-timeout 4 --max-time 7 '${url}' -o /dev/null 2>/dev/null \
+         || wget -q --spider --timeout=7 '${url}' 2>/dev/null" &>/dev/null; then
+      log_success "  [${label}] ${url} ✓  (${elapsed}s)"
+      return 0
+    fi
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+    log_info "    ${elapsed}s — not ready yet"
+  done
+  log_error "  [${label}] in-container probe failed within ${max_wait}s"
+  return 1
+}
+
+# ── Built-in service checks ───────────────────────────────────────────────────
+
+hc_postgres() {
+  [[ -n "${DB_SERVICE}" ]] || { log_warn "  [Postgres] DB_SERVICE not set — skipping"; return 0; }
+  local cid
+  cid=$(_hc_cid "${DB_SERVICE}")
+  [[ -n "$cid" ]] || { log_error "  [Postgres] container not found"; return 1; }
+  if dc exec -T "${DB_SERVICE}" \
+       pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" &>/dev/null; then
+    log_success "  [Postgres] pg_isready ✓"
+    return 0
+  fi
+  log_error "  [Postgres] pg_isready FAILED"
+  return 1
+}
+
+hc_redis() {
+  local cid
+  cid=$(_hc_cid redis)
+  [[ -n "$cid" ]] || { log_error "  [Redis] container not found"; return 1; }
+  if dc exec -T redis redis-cli ping 2>/dev/null | grep -q PONG; then
+    log_success "  [Redis] PONG ✓"
+    return 0
+  fi
+  log_error "  [Redis] PING failed"
+  return 1
+}
+
+hc_erp() {
+  # Step 1: wait for Docker healthcheck to pass (Next.js compilation can take 60-120s)
+  hc_docker_healthy "ERP" erp 150 || return 1
+  # Step 2: confirm the API health endpoint returns 2xx (inside container)
+  hc_http_container "ERP API" erp "http://localhost:3000/api/maintenance/health" 30
+}
+
+hc_website() {
+  hc_docker_healthy "Website" website 150 || return 1
+  hc_http_container "Website API" website "http://localhost:3000/api/health" 30
+}
+
+hc_telegram() {
+  hc_docker_healthy "Telegram Bot" telegram-bot 60
+}
+
+hc_nginx() {
+  hc_docker_healthy "Nginx" nginx 30
+}
+
 # ── Require Docker (Compose V2) ───────────────────────────────────────────────
 require_docker() {
   command -v docker &>/dev/null \
