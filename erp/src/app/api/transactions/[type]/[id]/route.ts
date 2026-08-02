@@ -87,6 +87,9 @@ async function handleDeposit(id: number) {
      WHERE dr.id = $1`,
 
     // Level 3: Minimal fallback — no processing columns (pre-migration 065)
+    // NOTE: receipt_file_id exists in base schema (migration 000) so is always readable.
+    //       receipt_media_id may not exist yet; return NULL so DepositReceiptCard falls
+    //       back gracefully to the Telegram file_id path instead of crashing.
     `SELECT
        dr.id, 'deposit'::text AS type, dr.user_id,
        dr.deposit_amount, dr.bonus_amount, dr.credit_amount, dr.payment_bank,
@@ -103,7 +106,7 @@ async function handleDeposit(id: number) {
        NULL::int  AS receiving_bank_qr_media_id,
        NULL::text AS processing_by_name,
        NULL::int  AS receipt_media_id,
-       NULL::text AS receipt_file_id
+       dr.receipt_file_id
      FROM deposit_requests dr
      JOIN users u ON u.id = dr.user_id
      LEFT JOIN promotions p ON p.id = dr.promotion_id
@@ -127,11 +130,12 @@ async function handleDeposit(id: number) {
 
 async function handleWithdrawal(id: number) {
   const queries = [
-    // Level 1: Full query — processing columns + turnover (migration 065)
+    // Level 1: Full query — processing columns + turnover (migration 065) + member receipt (migration 090)
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
        wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
+       wr.member_receipt_media_id,
        wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
        wr.processing_by, wr.processing_at, wr.approved_by, wr.approved_at, wr.rejected_by, wr.rejected_at,
        u.first_name, u.phone, u.public_id, u.available_balance,
@@ -151,10 +155,12 @@ async function handleWithdrawal(id: number) {
      WHERE wr.id = $1`,
 
     // Level 2: Processing columns present but no available_balance (pre-migration 063)
+    // member_receipt_media_id included — added in same migration 090 as deposit's receipt_media_id
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
        wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
+       wr.member_receipt_media_id,
        wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
        wr.processing_by, wr.processing_at, wr.approved_by, wr.approved_at, wr.rejected_by, wr.rejected_at,
        u.first_name, u.phone, u.public_id,
@@ -172,6 +178,7 @@ async function handleWithdrawal(id: number) {
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
        wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
+       NULL::int AS member_receipt_media_id,
        wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
        NULL::int AS processing_by, NULL::timestamptz AS processing_at,
        NULL::int AS approved_by, NULL::timestamptz AS approved_at,

@@ -15,9 +15,11 @@ export interface TxRecord {
 function StatusDot({ status }: { status: string }) {
   const norm = status === 'PAID' ? 'APPROVED' : status;
   const map: Record<string, { color: string; label: string }> = {
-    PENDING:  { color: '#eab308', label: '待审核' },
-    APPROVED: { color: '#22c55e', label: '已批准' },
-    REJECTED: { color: '#ef4444', label: '已拒绝' },
+    PENDING:          { color: '#eab308', label: '待审核' },
+    PROCESSING:       { color: '#3b82f6', label: '处理中' },
+    AWAITING_RECEIPT: { color: '#8b5cf6', label: '出款中' },
+    APPROVED:         { color: '#22c55e', label: '已批准' },
+    REJECTED:         { color: '#ef4444', label: '已拒绝' },
   };
   const cfg = map[norm] ?? { color: 'var(--text-muted)', label: norm };
   return (

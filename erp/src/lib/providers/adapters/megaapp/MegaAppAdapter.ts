@@ -1,4 +1,9 @@
 // erp/src/lib/providers/adapters/megaapp/MegaAppAdapter.ts
+
+// Module-level download URL cache — static for the process lifetime.
+// The APK URL is agent-specific and never changes between launches.
+let _downloadUrlCache: string | null = null;
+
 import { BaseProviderAdapter, NotSupportedError, ProviderError } from '../base/BaseProviderAdapter';
 import { PROVIDER_CAPABILITY } from '../../types/capability.types';
 import {
@@ -133,25 +138,36 @@ export class MegaAppAdapter extends BaseProviderAdapter {
    *   session_token — JSON { login_id, password } for dialog display
    *
    * Auto-creates a provider account if none exists (first launch).
+   * Optimised: account lookup + download URL fetched in parallel; DB writes
+   * parallelised; second findProviderAccount eliminated.
    */
   async launch(params: LaunchParams): Promise<LaunchResult> {
+    const t0 = Date.now();
     const userId = params.user_id;
 
-    let row = await this.findProviderAccount(userId);
-    console.log("[MEGA] STEP1", { userId, row });
+    // Fetch download URL (cached after first call) in parallel with account lookup —
+    // both are always needed regardless of which path we take below.
+    const [row0, downloadUrl] = await Promise.all([
+      this.findProviderAccount(userId),
+      this._getDownloadUrl(),
+    ]);
+    console.log(`[MEGA] launch step1 parallel(findAccount+downloadUrl) ${Date.now() - t0}ms`, { userId, found: !!row0 });
 
-    // If the stored provider_login_id is an ERP internal ID (u{n}@...) it was
-    // saved by the old wrong compatibility fix. Treat as no account — re-register.
+    let row: ProviderAccountRow | null = row0;
+
+    // Discard stale ERP-internal IDs saved by the old compatibility fix.
     if (row && this._isErpInternalId(row.provider_login_id)) {
-      console.log('[MEGA] STEP1b: provider_login_id is ERP internal ID, forcing re-registration', {
+      console.log('[MEGA] step1b: invalid provider_login_id (ERP-internal), forcing re-registration', {
         userId, bad_login_id: row.provider_login_id,
       });
       row = null;
     }
 
     if (!row) {
-      // No valid provider_accounts row — check gp_players for an existing MEGA loginId.
       const { default: pool } = await import('@/lib/db');
+
+      // Check gp_players for an existing MEGA loginId.
+      const t1 = Date.now();
       const { rows: gpRows } = await pool.query<{
         provider_player_id:  string | null;
         provider_account_id: string;
@@ -161,68 +177,64 @@ export class MegaAppAdapter extends BaseProviderAdapter {
          WHERE provider_id = $1 AND user_id = $2 LIMIT 1`,
         [params.provider_id, userId],
       );
-      console.log("[MEGA] STEP2", { provider_id: params.provider_id, userId, gpRows });
+      console.log(`[MEGA] launch step2 gp_players ${Date.now() - t1}ms`, { userId, found: gpRows.length > 0 });
 
       const gp = gpRows[0];
 
-      // provider_account_id is ALWAYS the ERP internal ID (u{userId}@{postfix}) — NEVER use as MEGA loginId.
-      // Only provider_player_id can hold the MEGA-assigned numeric loginId (e.g. "3555383").
+      // provider_account_id is ALWAYS the ERP internal ID (u{userId}@{postfix}).
+      // Only provider_player_id can hold the MEGA-assigned numeric loginId.
       const existingMegaLoginId =
         (gp?.provider_player_id?.trim() && !this._isErpInternalId(gp.provider_player_id.trim()))
           ? gp.provider_player_id.trim()
           : null;
 
-      console.log("[MEGA] STEP3", {
-        provider_player_id:       gp?.provider_player_id,
-        provider_account_id:      gp?.provider_account_id,
-        existingMegaLoginId,
-        pid_is_erp_internal:      gp?.provider_player_id ? this._isErpInternalId(gp.provider_player_id) : 'null',
-      });
-
       if (existingMegaLoginId) {
-        // Found a valid MEGA numeric loginId in gp_players → recreate provider_accounts entry.
+        // Found a valid MEGA loginId in gp_players → recreate provider_accounts entry.
         const password = this._resolvePassword();
-        console.log("[MEGA] STEP4 (existing loginId)", { existingMegaLoginId, userId });
+        const t2 = Date.now();
         await this.upsertProviderAccount({
           provider_code:     MEGAAPP_CODE,
           user_id:           userId,
           provider_login_id: existingMegaLoginId,
           provider_password: password,
         });
-        row = await this.findProviderAccount(userId);
-        console.log("[MEGA] STEP5", { row });
+        console.log(`[MEGA] launch step3a upsertAccount ${Date.now() - t2}ms`, { existingMegaLoginId });
+        // Construct row from known values — no need to re-fetch from DB.
+        row = this._makeRow(userId, existingMegaLoginId, password);
       } else {
-        // No valid MEGA loginId on record — this user never had a successful MEGA
-        // account creation (provider_player_id = NULL or was ERP internal ID).
-        // provider_account_id is ERP-internal format so there is no old MEGA account
-        // to recover. Create a new one now.
+        // No valid MEGA loginId on record — create a new account.
         const reason = gp
           ? (gp.provider_player_id ? 'provider_player_id is ERP-internal format' : 'provider_player_id=NULL')
           : 'no gp_players record';
-        console.log("[MEGA] STEP4 (new registration)", { userId, reason });
+        console.log('[MEGA] launch step3b: new registration', { userId, reason });
 
-        const nickname       = `Player${userId}`;
+        const nickname = `Player${userId}`;
+        const t2 = Date.now();
         const { loginId: megaLoginId } = await this.api.createMember(nickname);
-        console.log("[MEGA] createMember result", { megaLoginId });
+        console.log(`[MEGA] launch step3b createMember ${Date.now() - t2}ms`, { megaLoginId });
 
         const password = this._resolvePassword();
-        await this.upsertProviderAccount({
-          provider_code:     MEGAAPP_CODE,
-          user_id:           userId,
-          provider_login_id: megaLoginId,
-          provider_password: password,
-        });
 
-        // Persist megaLoginId to gp_players so future launches skip this creation step.
-        await pool.query(
-          `UPDATE gp_players
-             SET provider_player_id = $1, updated_at = NOW()
-           WHERE provider_id = $2 AND user_id = $3`,
-          [megaLoginId, params.provider_id, userId],
-        );
+        // Persist provider_accounts + gp_players in parallel.
+        const t3 = Date.now();
+        await Promise.all([
+          this.upsertProviderAccount({
+            provider_code:     MEGAAPP_CODE,
+            user_id:           userId,
+            provider_login_id: megaLoginId,
+            provider_password: password,
+          }),
+          pool.query(
+            `UPDATE gp_players
+               SET provider_player_id = $1, updated_at = NOW()
+             WHERE provider_id = $2 AND user_id = $3`,
+            [megaLoginId, params.provider_id, userId],
+          ),
+        ]);
+        console.log(`[MEGA] launch step4 parallel(upsert+gp_update) ${Date.now() - t3}ms`);
 
-        row = await this.findProviderAccount(userId);
-        console.log("[MEGA] STEP5 (new registration)", { row, megaLoginId });
+        // Construct row from known values — no need to re-fetch from DB.
+        row = this._makeRow(userId, megaLoginId, password);
       }
     }
 
@@ -233,18 +245,12 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     const loginId  = row.provider_login_id;
     const password = row.provider_password;
 
-    // Fetch download URL from MEGA API — agent-specific, no manual config needed
-    // Falls back to ERP config values if the API call fails
-    let downloadUrl: string | null = this.cfg.download_url_android ?? null;
-    try {
-      const apiUrl = await this.api.getAppDownloadUrl();
-      if (apiUrl) downloadUrl = apiUrl;
-    } catch { /* use fallback */ }
-
     const launchUrl = [
       `${MEGAAPP_DEEPLINK_SCHEME}://?account=${encodeURIComponent(loginId)}`,
       `&password=${encodeURIComponent(password)}`,
     ].join('');
+
+    console.log(`[MEGA] launch total ${Date.now() - t0}ms`, { userId, loginId });
 
     return {
       launch_url:    launchUrl,
@@ -256,7 +262,7 @@ export class MegaAppAdapter extends BaseProviderAdapter {
         download_url_ios:     this.cfg.download_url_ios ?? downloadUrl,
         apk_name:             this.cfg.apk_name         ?? 'MEGA888',
       }),
-      session_id:    0,
+      session_id: 0,
     };
   }
 
@@ -464,6 +470,38 @@ export class MegaAppAdapter extends BaseProviderAdapter {
   /** Returns true if id matches the ERP internal account ID format: u{digits}@... */
   private _isErpInternalId(id: string): boolean {
     return /^u\d+@/.test(id);
+  }
+
+  /**
+   * Fetch the agent-specific APK download URL, caching the result for the
+   * process lifetime (the URL never changes between launches).
+   * Falls back to cfg.download_url_android on error.
+   */
+  private async _getDownloadUrl(): Promise<string | null> {
+    if (_downloadUrlCache !== null) return _downloadUrlCache;
+    try {
+      const url = await this.api.getAppDownloadUrl();
+      if (url) _downloadUrlCache = url;
+      return url ?? this.cfg.download_url_android ?? null;
+    } catch {
+      return this.cfg.download_url_android ?? null;
+    }
+  }
+
+  /** Build a minimal ProviderAccountRow from known values to avoid a re-fetch after upsert. */
+  private _makeRow(userId: number, loginId: string, password: string): ProviderAccountRow {
+    const now = new Date().toISOString();
+    return {
+      id:                0,
+      provider_code:     MEGAAPP_CODE,
+      user_id:           userId,
+      provider_login_id: loginId,
+      provider_password: password,
+      provider_user_id:  null,
+      extra:             {},
+      created_at:        now,
+      updated_at:        now,
+    };
   }
 
   /** Returns the fixed password when password_mode='fixed', otherwise generates a random one. */

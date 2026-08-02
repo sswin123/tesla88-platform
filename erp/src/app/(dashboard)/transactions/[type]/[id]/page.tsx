@@ -10,6 +10,7 @@ import { DepositPaymentCard, WithdrawalPaymentCard } from '@/components/transact
 import TurnoverCard from '@/components/transactions/TurnoverCard';
 import ReceiptCard from '@/components/transactions/ReceiptCard';
 import DepositReceiptCard from '@/components/transactions/DepositReceiptCard';
+import WithdrawalMemberReceiptCard from '@/components/transactions/WithdrawalMemberReceiptCard';
 import ActionPanel from '@/components/transactions/ActionPanel';
 import WorkspacePanel from '@/components/transactions/WorkspacePanel';
 import type { HandleDetail } from '@/components/transactions/types';
@@ -203,6 +204,13 @@ export default function HandlePage() {
 
         {!isDeposit && turnoverRequired > 0 && (
           <TurnoverCard required={turnoverRequired} completed={turnoverCompleted} />
+        )}
+
+        {!isDeposit && (
+          <WithdrawalMemberReceiptCard
+            withdrawalId={detail.id}
+            memberReceiptMediaId={detail.member_receipt_media_id}
+          />
         )}
 
         {!isDeposit && (

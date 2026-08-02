@@ -4,9 +4,9 @@ import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
 import { MegaAppDialog } from './MegaAppDialog';
 
 interface MegaAppDialogState {
-  loginId:            string;
-  password:           string;
-  launchUrl:          string;
+  loginId:            string | null;  // null while loading
+  password:           string | null;  // null while loading
+  launchUrl:          string | null;  // null while loading
   downloadUrlAndroid: string | null;
   downloadUrlIos:     string | null;
 }
@@ -102,6 +102,13 @@ export default function GameLobby() {
     }
 
     setLaunching(card.provider_code);
+
+    // For MEGA888: open dialog immediately with loading state so the user sees
+    // instant feedback while the server processes the launch request.
+    if (card.provider_code === 'MEGAAPP') {
+      setMegaAppDialog({ loginId: null, password: null, launchUrl: null, downloadUrlAndroid: null, downloadUrlIos: null });
+    }
+
     try {
       const res = await fetch('/api/public/games/launch', {
         method: 'POST',
@@ -116,12 +123,14 @@ export default function GameLobby() {
       };
 
       if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
+        setMegaAppDialog(null);
         window.location.href = '/login';
         return;
       }
 
       if (!res.ok || !data.launch_url) {
         if (card.provider_code === 'MEGAAPP') {
+          setMegaAppDialog(null);
           setMegaAppError(data.error ?? 'Unable to launch MEGA888. Please try again later.');
         } else {
           alert(data.error ?? '启动失败，请稍后再试');
@@ -129,7 +138,7 @@ export default function GameLobby() {
         return;
       }
 
-      // MEGA888 App: show credential dialog instead of navigating.
+      // MEGA888 App: populate credential dialog instead of navigating.
       // Detection is by provider_code, not launch_mode, because the DB schema only
       // supports LOBBY/DIRECT and ERP returns launch_mode='LOBBY' for MEGAAPP.
       if (card.provider_code === 'MEGAAPP') {
@@ -160,6 +169,7 @@ export default function GameLobby() {
         }
 
         if (loginId && password) {
+          // Update the already-open dialog with real credentials
           setMegaAppDialog({
             loginId,
             password,
@@ -167,14 +177,18 @@ export default function GameLobby() {
             downloadUrlAndroid,
             downloadUrlIos,
           });
-          return;
+        } else {
+          setMegaAppDialog(null);
+          setMegaAppError('Unable to parse MEGA888 credentials. Please try again later.');
         }
+        return;
       }
 
       // Default: redirect into H5 Lobby / game
       window.location.href = data.launch_url;
     } catch {
       if (card.provider_code === 'MEGAAPP') {
+        setMegaAppDialog(null);
         setMegaAppError('Unable to launch MEGA888. Please try again later.');
       } else {
         alert('网络错误，请稍后再试');

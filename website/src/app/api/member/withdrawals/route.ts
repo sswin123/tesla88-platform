@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json() as { amount?: number };
+  const body = await req.json() as { amount?: number; receipt_media_id?: number };
   if (!body.amount || body.amount <= 0)
     return NextResponse.json({ error: '请输入有效的提款金额' }, { status: 400 });
 
@@ -101,16 +101,46 @@ export async function POST(req: NextRequest) {
     }
 
     /* Insert withdrawal — DB trigger trg_withdrawal_pending fires AFTER INSERT:
-       it increments users.pending_withdrawal, which reduces available_balance. */
-    const ins = await client.query<{ id: number }>(
-      `INSERT INTO withdrawal_requests
-         (user_id, withdraw_amount, bank_name, bank_account, bank_holder_name,
-          status, provider, game_username)
-       VALUES ($1, $2, $3, $4, $5, 'PENDING', 'MANUAL', '')
-       RETURNING id`,
-      [member.sub, body.amount, u.bank_name, u.bank_account, u.bank_holder_name]
-    );
-    const withdrawalId = ins.rows[0].id;
+       it increments users.pending_withdrawal, which reduces available_balance.
+       member_receipt_media_id is optional (migration 090); fall back without it. */
+    let withdrawalId: number;
+    const memberReceiptMediaId = body.receipt_media_id ?? null;
+    if (memberReceiptMediaId) {
+      try {
+        const ins = await client.query<{ id: number }>(
+          `INSERT INTO withdrawal_requests
+             (user_id, withdraw_amount, bank_name, bank_account, bank_holder_name,
+              status, provider, game_username, member_receipt_media_id)
+           VALUES ($1, $2, $3, $4, $5, 'PENDING', 'MANUAL', '', $6)
+           RETURNING id`,
+          [member.sub, body.amount, u.bank_name, u.bank_account, u.bank_holder_name, memberReceiptMediaId]
+        );
+        withdrawalId = ins.rows[0].id;
+      } catch (colErr) {
+        const code = typeof colErr === 'object' && colErr !== null ? (colErr as Record<string, unknown>).code : undefined;
+        if (code !== '42703') throw colErr;
+        // Migration 090 not yet applied — insert without the receipt column
+        const ins = await client.query<{ id: number }>(
+          `INSERT INTO withdrawal_requests
+             (user_id, withdraw_amount, bank_name, bank_account, bank_holder_name,
+              status, provider, game_username)
+           VALUES ($1, $2, $3, $4, $5, 'PENDING', 'MANUAL', '')
+           RETURNING id`,
+          [member.sub, body.amount, u.bank_name, u.bank_account, u.bank_holder_name]
+        );
+        withdrawalId = ins.rows[0].id;
+      }
+    } else {
+      const ins = await client.query<{ id: number }>(
+        `INSERT INTO withdrawal_requests
+           (user_id, withdraw_amount, bank_name, bank_account, bank_holder_name,
+            status, provider, game_username)
+         VALUES ($1, $2, $3, $4, $5, 'PENDING', 'MANUAL', '')
+         RETURNING id`,
+        [member.sub, body.amount, u.bank_name, u.bank_account, u.bank_holder_name]
+      );
+      withdrawalId = ins.rows[0].id;
+    }
 
     /* Read back updated balance within same transaction for response */
     const balRes = await client.query<{

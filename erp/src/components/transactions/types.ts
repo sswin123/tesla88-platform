@@ -33,9 +33,12 @@ export interface HandleDetail {
   bank_name?: string;
   bank_account?: string;
   bank_holder_name?: string;
-  // Receipt fields — shared by Deposit (read-only viewer) and Withdrawal (upload + view)
+  // Receipt fields
+  // Deposit: receipt_media_id = customer-uploaded proof; receipt_file_id = legacy Telegram photo
+  // Withdrawal: receipt_media_id = admin payment proof; member_receipt_media_id = customer-submitted at creation
   receipt_media_id?: number | null;
   receipt_file_id?: string | null;
+  member_receipt_media_id?: number | null;
   active_turnover_required?: string | null;
   active_turnover_completed?: string | null;
 }

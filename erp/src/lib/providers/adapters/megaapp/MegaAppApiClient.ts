@@ -315,20 +315,16 @@ export class MegaAppApiClient {
       params,
     });
 
-    // ── ALWAYS-ON DEBUG: full RPC body + agentLoginId trace ──────────────────
-    // This block is unconditional so production issues can be diagnosed.
-    // It logs every field relevant to the official Java Sample comparison.
-    {
+    if (this.cfg.debug) {
+      // Full RPC trace: logs every field relevant to the official Java Sample comparison.
       const rpcTrace: Record<string, unknown> = {
         method,
         url:         this.apiUrl,
         request_id:  requestId,
-        // ── Creds snapshot (confirms DB → adapter chain) ──
         creds_sn:             this.creds.sn,
         creds_agent_login_id: this.creds.agent_login_id,
         creds_secret_code_len:    this.creds.secret_code.length,
         creds_secret_code_masked: this._maskSecret(this.creds.secret_code),
-        // ── What's actually in params (what MEGA receives) ──
         param_sn:          'sn'           in params ? params['sn']           : '(absent)',
         param_loginId:     'loginId'      in params ? params['loginId']      : '(absent)',
         param_agentLoginId:'agentLoginId' in params ? params['agentLoginId'] : '(absent)',
@@ -336,13 +332,11 @@ export class MegaAppApiClient {
         param_random:      'random'       in params ? params['random']       : '(absent)',
         param_digest:      'digest'       in params ? params['digest']       : '(absent)',
         param_secretCode_in_params: 'secretCode' in params,
-        // ── Full RPC body ──
         rpc_body: body,
       };
       console.log('[MEGA API] send() RPC_TRACE', JSON.stringify(rpcTrace));
     }
 
-    // Original debug logging (retained)
     if (this.cfg.debug) {
       console.log(`[MEGAAPP API] → REQUEST method="${method}" url="${this.apiUrl}"`);
       console.log(`[MEGAAPP API] → PARAMS:`, JSON.stringify(params));

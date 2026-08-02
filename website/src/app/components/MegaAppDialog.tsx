@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef } from 'react';
 
 interface MegaAppDialogProps {
-  loginId:             string;
-  password:            string;
-  launchUrl:           string;
+  loginId:             string | null;  // null while credentials are loading
+  password:            string | null;  // null while credentials are loading
+  launchUrl:           string | null;  // null while loading; disables "Main Sekarang"
   downloadUrlAndroid:  string | null;
   downloadUrlIos:      string | null;
   onClose:             () => void;
@@ -62,6 +62,7 @@ export function MegaAppDialog({
   downloadUrlIos,
   onClose,
 }: MegaAppDialogProps) {
+  const isLoading = loginId === null || password === null || launchUrl === null;
   const downloadUrl = detectDownloadUrl(downloadUrlAndroid, downloadUrlIos);
   const [launching, setLaunching]           = useState(false);
   const [showAppNotDetected, setShowAppNotDetected] = useState(false);
@@ -86,7 +87,7 @@ export function MegaAppDialog({
   }, []);
 
   const handlePlay = () => {
-    if (launching) return;
+    if (launching || !launchUrl) return;
     setLaunching(true);
     leftRef.current = false;
 
@@ -99,7 +100,7 @@ export function MegaAppDialog({
     window.addEventListener('blur',             markLeft,    { once: true });
     window.addEventListener('visibilitychange', onVisChange);
 
-    window.location.href = launchUrl;
+    window.location.href = launchUrl!;
 
     timerRef.current = setTimeout(() => {
       window.removeEventListener('pagehide',         markLeft);
@@ -224,14 +225,18 @@ export function MegaAppDialog({
                 <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
                   Login ID
                 </p>
-                <p
-                  className="text-sm font-semibold truncate"
-                  style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {loginId}
-                </p>
+                {loginId === null ? (
+                  <div className="h-4 w-28 rounded animate-pulse" style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.12))' }} />
+                ) : (
+                  <p
+                    className="text-sm font-semibold truncate"
+                    style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {loginId}
+                  </p>
+                )}
               </div>
-              <CopyButton text={loginId} />
+              {loginId !== null && <CopyButton text={loginId} />}
             </div>
 
             {/* Password */}
@@ -243,14 +248,18 @@ export function MegaAppDialog({
                 <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
                   Password
                 </p>
-                <p
-                  className="text-sm font-semibold truncate"
-                  style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {password}
-                </p>
+                {password === null ? (
+                  <div className="h-4 w-24 rounded animate-pulse" style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.12))' }} />
+                ) : (
+                  <p
+                    className="text-sm font-semibold truncate"
+                    style={{ color: 'var(--brand-primary, #f59e0b)', fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {password}
+                  </p>
+                )}
               </div>
-              <CopyButton text={password} />
+              {password !== null && <CopyButton text={password} />}
             </div>
           </div>
 
@@ -283,18 +292,23 @@ export function MegaAppDialog({
             )}
             <button
               onClick={handlePlay}
-              disabled={launching}
+              disabled={isLoading || launching}
               className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
               style={{
                 background: 'transparent',
-                color:      launching ? 'var(--text-muted, #aaa)' : 'var(--text-base, #fff)',
-                border:     launching
+                color:      (isLoading || launching) ? 'var(--text-muted, #aaa)' : 'var(--text-base, #fff)',
+                border:     (isLoading || launching)
                   ? '2px solid var(--bg-surface2, rgba(255,255,255,0.2))'
                   : '2px solid var(--text-base, rgba(255,255,255,0.6))',
-                cursor: launching ? 'not-allowed' : 'pointer',
+                cursor: (isLoading || launching) ? 'not-allowed' : 'pointer',
               }}
             >
-              {launching ? '…' : 'Main Sekarang'}
+              {isLoading ? (
+                <svg className="inline w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : launching ? '…' : 'Main Sekarang'}
             </button>
           </div>
         </div>

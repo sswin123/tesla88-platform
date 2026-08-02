@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMember } from '@/lib/contexts/MemberContext';
 import WithdrawSummary from './WithdrawSummary';
 
@@ -28,6 +28,78 @@ function maskAccount(s: string): string {
   return '*'.repeat(s.length - 4) + s.slice(-4);
 }
 
+// ── Receipt Upload ────────────────────────────────────────────────────────────
+function WithdrawReceiptUpload({ mediaId, preview, uploading, onFile, onDelete }: {
+  mediaId: number | null; preview: string | null; uploading: boolean;
+  onFile: (file: File) => void; onDelete: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  function trigger() { inputRef.current?.click(); }
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) { e.target.value = ''; onFile(file); }
+  }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) onFile(file);
+  }
+  return (
+    <div>
+      {preview ? (
+        <div className="relative">
+          <img src={preview} alt="Receipt"
+            className="w-full max-h-48 object-contain rounded-xl"
+            style={{ background: 'var(--bg-surface3)', border: '1px solid var(--border-mid)' }} />
+          {!uploading && (
+            <div className="absolute top-2 right-2 flex gap-1.5">
+              <button type="button" onClick={trigger}
+                className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                style={{ background: 'rgba(0,0,0,0.65)', color: '#fff' }}>
+                重新上传
+              </button>
+              <button type="button" onClick={onDelete}
+                className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                style={{ background: 'rgba(239,68,68,0.75)', color: '#fff' }}>
+                删除
+              </button>
+            </div>
+          )}
+          {mediaId && !uploading && (
+            <div className="absolute bottom-2 left-2 text-xs px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(34,197,94,0.85)', color: '#fff' }}>
+              ✓ 已上传
+            </div>
+          )}
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl"
+              style={{ background: 'rgba(0,0,0,0.5)' }}>
+              <p className="text-sm text-white">上传中…</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-all select-none"
+          style={{ borderColor: uploading ? 'var(--brand-primary)' : 'var(--border-mid)' }}
+          onClick={trigger}
+          onDrop={handleDrop}
+          onDragOver={e => e.preventDefault()}>
+          <p className="text-2xl mb-2 pointer-events-none">{uploading ? '⏳' : '📎'}</p>
+          <p className="text-sm font-medium pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+            {uploading ? '上传中…' : '点击上传（可选）'}
+          </p>
+          <p className="text-xs mt-1 pointer-events-none" style={{ color: 'var(--text-faint)' }}>
+            支持 JPG / PNG / WEBP，最大 10MB
+          </p>
+        </div>
+      )}
+      <input ref={inputRef} type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden" onChange={handleChange} disabled={uploading} />
+    </div>
+  );
+}
+
 export default function WithdrawForm() {
   const { profile, loading, updateProfile } = useMember();
   const [step, setStep]         = useState<Step>('form');
@@ -41,6 +113,12 @@ export default function WithdrawForm() {
   const [maxAmount, setMaxAmount] = useState(50000);
   const [currency, setCurrency] = useState('RM');
   const [decimals, setDecimals] = useState(2);
+
+  // ── Receipt (optional) ───────────────────────────────────────────────────
+  const [receiptMediaId,   setReceiptMediaId]   = useState<number | null>(null);
+  const [receiptPreview,   setReceiptPreview]   = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptError,     setReceiptError]     = useState('');
 
   useEffect(() => {
     fetch('/api/public/settings')
@@ -59,6 +137,27 @@ export default function WithdrawForm() {
   const balance   = parseFloat(profile?.available_balance ?? profile?.net_deposit ?? '0');
   const pendingWd = parseFloat(profile?.pending_withdrawal ?? '0');
 
+  async function handleReceiptFile(file: File) {
+    setUploadingReceipt(true);
+    setReceiptPreview(URL.createObjectURL(file));
+    setReceiptMediaId(null);
+    setReceiptError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch('/api/member/uploads/receipt', { method: 'POST', body: form });
+      const d = await r.json() as { ok?: boolean; media_id?: number; error?: string };
+      if (r.ok && d.media_id) { setReceiptMediaId(d.media_id); }
+      else { setReceiptError(d.error ?? '上传凭证失败，请重试'); setReceiptPreview(null); }
+    } finally { setUploadingReceipt(false); }
+  }
+
+  function handleDeleteReceipt() {
+    setReceiptPreview(null);
+    setReceiptMediaId(null);
+    setReceiptError('');
+  }
+
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -66,6 +165,7 @@ export default function WithdrawForm() {
     if (numAmount < minAmount)  { setError(`最低提款金额为 ${currency} ${minAmount.toFixed(decimals)}`); return; }
     if (numAmount > maxAmount)  { setError(`单笔提款上限为 ${currency} ${maxAmount.toFixed(decimals)}`); return; }
     if (numAmount > balance)    { setError(`可用余额不足，当前可提款 ${currency} ${balance.toFixed(decimals)}`); return; }
+    if (uploadingReceipt)       { setError('请等待凭证上传完成'); return; }
     setStep('confirm');
   }
 
@@ -76,7 +176,10 @@ export default function WithdrawForm() {
       const res = await fetch('/api/member/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: numAmount }),
+        body: JSON.stringify({
+          amount: numAmount,
+          receipt_media_id: receiptMediaId ?? undefined,
+        }),
       });
       const data = await res.json() as {
         ok?: boolean; id?: number; error?: string;
@@ -288,11 +391,46 @@ export default function WithdrawForm() {
         )}
       </div>
 
+      {/* ── Optional Receipt Upload ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+            style={{
+              background: receiptMediaId ? 'rgba(34,197,94,0.15)' : 'var(--bg-surface3)',
+              color:      receiptMediaId ? '#22c55e' : 'var(--text-muted)',
+              border:     receiptMediaId ? '1px solid rgba(34,197,94,0.4)' : '1px solid var(--border-mid)',
+            }}>
+            {receiptMediaId ? '✓' : '📎'}
+          </div>
+          <p className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>
+            上传凭证（可选）
+            <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-faint)' }}>
+              银行截图 / 转账记录
+            </span>
+          </p>
+        </div>
+        {receiptError && (
+          <p className="text-xs mb-2 px-3 py-1.5 rounded-lg"
+            style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+            {receiptError}
+          </p>
+        )}
+        <WithdrawReceiptUpload
+          mediaId={receiptMediaId}
+          preview={receiptPreview}
+          uploading={uploadingReceipt}
+          onFile={handleReceiptFile}
+          onDelete={handleDeleteReceipt}
+        />
+      </div>
+
       <button
         type="submit"
+        disabled={uploadingReceipt}
         className="casino-btn-primary w-full text-sm font-bold"
+        style={uploadingReceipt ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
       >
-        下一步：确认详情
+        {uploadingReceipt ? '等待凭证上传…' : '下一步：确认详情'}
       </button>
     </form>
   );
