@@ -39,10 +39,14 @@ source "${SCRIPT_DIR}/lib.sh"
 
 require_docker
 load_env
+detect_services
 
 log_step "Database Migrations"
 
-root_running db || die "Database container is not running. Run: docker compose up -d"
+[[ -n "${DB_SERVICE}" ]] \
+  || die "No database service found in ${COMPOSE_FILE##*/} (expected 'postgres' or 'db')."
+root_running "${DB_SERVICE}" \
+  || die "Database container '${DB_SERVICE}' is not running. Run: dc up -d ${DB_SERVICE}"
 
 # ── Temp-file cleanup ─────────────────────────────────────────────────────────
 TMP_DRY="${TMPDIR:-/tmp}/migrate_dry_$$.out"
@@ -139,7 +143,7 @@ for migration_file in "${MIGRATION_FILES[@]+"${MIGRATION_FILES[@]}"}"; do
     { printf 'BEGIN;\n'; cat "${migration_file}"; printf '\nROLLBACK;\n'; } | \
       dc exec -T \
         -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-        db psql \
+        "${DB_SERVICE}" psql \
         -U "${POSTGRES_USER}" \
         -d "${POSTGRES_DB}" \
         -v ON_ERROR_STOP=1 \
@@ -269,7 +273,7 @@ while [ "${idx}" -lt "${#FILE_NAMES[@]}" ]; do
       # `cmd && var=true || var=false` keeps set -e from aborting the script.
       dc exec -T \
         -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-        db psql \
+        "${DB_SERVICE}" psql \
         -U "${POSTGRES_USER}" \
         -d "${POSTGRES_DB}" \
         -v ON_ERROR_STOP=1 \

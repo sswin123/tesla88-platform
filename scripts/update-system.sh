@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # update-system.sh — One-command safe system updater.
 #
-# Detects services automatically.  Never deletes volumes.
+# Compose priority:  docker-compose.production.yml → staging.yml → docker-compose.yml
+# DB service:        postgres (production) or db (development) — auto-detected
+# Never deletes volumes.
 #
 # Usage:
 #   ./scripts/update-system.sh          # Update without pulling code
@@ -10,7 +12,7 @@
 # Steps:
 #   1. Optional git pull (--pull flag)
 #   2. Verify Docker
-#   3. Detect compose services
+#   3. Detect compose file + services   ← COMPOSE_FILE set here
 #   4. Backup database → backups/auto/YYYY-MM-DD-HHMM.sql
 #   5. Run migrations
 #   6. Rebuild + restart containers
@@ -19,9 +21,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/lib.sh"
+source "${SCRIPT_DIR}/lib.sh"   # logging helpers, paths, http_status, wait_http, require_docker
 
-SCRIPT_NAME="$(basename "$0")"
 START_TIME="$(date +%s)"
 BACKUP_FILE=""
 
@@ -34,22 +35,13 @@ for arg in "$@"; do
   esac
 done
 
-# ── Failure handler — show logs before exiting ───────────────────────────────
+# ── Failure handler ───────────────────────────────────────────────────────────
 show_logs_and_exit() {
   echo ""
-  log_error "Update failed.  Showing last 100 log lines per service:"
-  echo ""
-  echo -e "${YELLOW}── Root services ───────────────────────────────────────────────${NC}"
-  dc logs --tail=100 2>/dev/null || true
-  if [[ -f "${ERP_DIR}/docker-compose.yml" ]]; then
-    echo -e "${YELLOW}── ERP service ─────────────────────────────────────────────────${NC}"
-    erp_dc logs --tail=100 2>/dev/null || true
-  fi
-  if [[ -f "${WEBSITE_DIR}/docker-compose.yml" ]]; then
-    echo -e "${YELLOW}── Website service ──────────────────────────────────────────────${NC}"
-    website_dc logs --tail=100 2>/dev/null || true
-  fi
-  if [[ -n "${BACKUP_FILE}" && -f "${BACKUP_FILE}" ]]; then
+  log_error "Update failed.  Showing last 100 log lines:"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+    logs --tail=100 2>/dev/null || true
+  if [[ -n "${BACKUP_FILE:-}" && -f "${BACKUP_FILE}" ]]; then
     echo ""
     log_warn "A backup was taken before this run: ${BACKUP_FILE}"
     log_warn "Restore with:  ./scripts/rollback-db.sh"
@@ -89,39 +81,52 @@ require_docker
 log_success "Docker is running."
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 3 — Detect compose services
+# Step 3 — Detect compose file and services
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 3 / 8 — Detect Services"
 
 load_env
-
-# Generate sub-project .env files from root .env before building
 "${SCRIPT_DIR}/gen-env.sh"
 
-# Root compose services (e.g. db, app)
-ROOT_SERVICES=$(dc config --services 2>/dev/null || true)
-log_info "Root compose services: $(echo "${ROOT_SERVICES}" | tr '\n' ' ')"
+# ── COMPOSE_FILE: production → staging → development ─────────────────────────
+if   [[ -f "${PROJECT_ROOT}/docker-compose.production.yml" ]]; then
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.production.yml"
+elif [[ -f "${PROJECT_ROOT}/docker-compose.staging.yml" ]]; then
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.staging.yml"
+else
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
+fi
+log_info "Compose file: ${COMPOSE_FILE##*/}"
 
-HAS_DB=false
-HAS_APP=false
-for svc in ${ROOT_SERVICES}; do
-  case "$svc" in
-    db)  HAS_DB=true  ;;
-    app) HAS_APP=true ;;
-  esac
-done
+# ── Enumerate all services from COMPOSE_FILE ─────────────────────────────────
+SVCS="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+         config --services 2>/dev/null || true)"
+log_info "Services:     $(echo "${SVCS}" | tr '\n' ' ')"
 
-# Separate compose files for ERP and Website
-HAS_ERP_COMPOSE=false
-HAS_WEBSITE_COMPOSE=false
+# ── DB service: postgres (production) → db (development) ─────────────────────
+if echo "${SVCS}" | grep -qx 'postgres'; then
+  DB_SERVICE="postgres"
+elif echo "${SVCS}" | grep -qx 'db'; then
+  DB_SERVICE="db"
+else
+  die "No database service found in ${COMPOSE_FILE##*/} (expected 'postgres' or 'db')."
+fi
+log_info "DB service:   ${DB_SERVICE}"
 
-[[ -f "${ERP_DIR}/docker-compose.yml" ]]     && HAS_ERP_COMPOSE=true
-[[ -f "${WEBSITE_DIR}/docker-compose.yml" ]] && HAS_WEBSITE_COMPOSE=true
+# ── Application service flags ─────────────────────────────────────────────────
+HAS_ERP_SVC=false;  HAS_WEBSITE_SVC=false;  HAS_TELEGRAM_SVC=false
+HAS_REDIS_SVC=false; HAS_NGINX_SVC=false
 
-log_info "db service:     $( $HAS_DB            && echo "yes" || echo "no")"
-log_info "app service:    $( $HAS_APP           && echo "yes" || echo "no")"
-log_info "ERP compose:    $( $HAS_ERP_COMPOSE   && echo "yes (${ERP_DIR})" || echo "no")"
-log_info "Website compose:$( $HAS_WEBSITE_COMPOSE && echo "yes (${WEBSITE_DIR})" || echo "no")"
+if echo "${SVCS}" | grep -qx 'erp';         then HAS_ERP_SVC=true;      fi
+if echo "${SVCS}" | grep -qx 'website';      then HAS_WEBSITE_SVC=true;  fi
+if echo "${SVCS}" | grep -qx 'telegram-bot'; then HAS_TELEGRAM_SVC=true; fi
+if echo "${SVCS}" | grep -qx 'redis';        then HAS_REDIS_SVC=true;    fi
+if echo "${SVCS}" | grep -qx 'nginx';        then HAS_NGINX_SVC=true;    fi
+
+# ── Dev-mode sub-project compose files (fallback when not in production compose) ──
+HAS_ERP_COMPOSE=false; HAS_WEBSITE_COMPOSE=false
+if [[ -f "${ERP_DIR}/docker-compose.yml" ]];     then HAS_ERP_COMPOSE=true;     fi
+if [[ -f "${WEBSITE_DIR}/docker-compose.yml" ]]; then HAS_WEBSITE_COMPOSE=true; fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4 — Database backup
@@ -133,25 +138,27 @@ mkdir -p "${AUTO_BACKUPS_DIR}"
 TIMESTAMP="$(date +"%Y-%m-%d-%H%M")"
 BACKUP_FILE="${AUTO_BACKUPS_DIR}/${TIMESTAMP}.sql"
 
-if $HAS_DB; then
-  root_running db || die "Database container is not running. Start it first: docker compose up -d"
-  log_info "Backing up → ${BACKUP_FILE}"
-
-  dc exec -T \
-    -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-    db pg_dump \
-    -U "${POSTGRES_USER}" \
-    --no-password \
-    "${POSTGRES_DB}" \
-    > "${BACKUP_FILE}" \
-    || die "Database backup FAILED — aborting."
-
-  SIZE="$(du -sh "${BACKUP_FILE}" | cut -f1)"
-  log_success "Backup complete — ${BACKUP_FILE} (${SIZE})"
-else
-  log_warn "No 'db' service detected — skipping backup."
-  BACKUP_FILE=""
+# Verify DB container is running
+_DB_CID="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+              ps -q "${DB_SERVICE}" 2>/dev/null | head -1 || true)"
+if [[ -z "${_DB_CID}" ]] || \
+   [[ "$(docker inspect --format '{{.State.Status}}' "${_DB_CID}" 2>/dev/null)" != "running" ]]; then
+  die "Database container '${DB_SERVICE}' is not running.  Start it: docker compose -f ${COMPOSE_FILE##*/} up -d ${DB_SERVICE}"
 fi
+
+log_info "Backing up → ${BACKUP_FILE}"
+docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+  exec -T \
+  -e PGPASSWORD="${POSTGRES_PASSWORD}" \
+  "${DB_SERVICE}" pg_dump \
+  -U "${POSTGRES_USER}" \
+  --no-password \
+  "${POSTGRES_DB}" \
+  > "${BACKUP_FILE}" \
+  || die "Database backup FAILED — aborting."
+
+SIZE="$(du -sh "${BACKUP_FILE}" | cut -f1)"
+log_success "Backup complete — ${BACKUP_FILE} (${SIZE})"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 5 — Database migrations
@@ -159,33 +166,48 @@ fi
 log_step "Step 5 / 8 — Database Migrations"
 
 "${SCRIPT_DIR}/migrate.sh" \
-  || die "Migration FAILED${BACKUP_FILE:+ — restore from: ${BACKUP_FILE}}"
+  || die "Migration FAILED — restore from: ${BACKUP_FILE}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 6 — Rebuild + restart containers
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 6 / 8 — Rebuild Services"
 
-# Root compose (bot + db)
-log_info "Building root compose ($(echo "${ROOT_SERVICES}" | tr '\n' ' '))…"
-dc build
-log_info "Restarting root compose…"
-dc up -d
+# All production commands use COMPOSE_FILE explicitly.
+# Dev fallback uses sub-project compose files.
 
-# ERP
-if $HAS_ERP_COMPOSE; then
+if $HAS_ERP_SVC; then
   log_info "Building ERP…"
-  erp_dc build
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build erp
   log_info "Restarting ERP…"
-  erp_dc up -d
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps erp
+elif $HAS_ERP_COMPOSE; then
+  log_info "Building ERP (sub-project)…"
+  docker compose -f "${ERP_DIR}/docker-compose.yml" --project-directory "${ERP_DIR}" build
+  docker compose -f "${ERP_DIR}/docker-compose.yml" --project-directory "${ERP_DIR}" up -d
 fi
 
-# Website
-if $HAS_WEBSITE_COMPOSE; then
-  log_info "Building website…"
-  website_dc build
-  log_info "Restarting website…"
-  website_dc up -d
+if $HAS_WEBSITE_SVC; then
+  log_info "Building Website…"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build website
+  log_info "Restarting Website…"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps website
+elif $HAS_WEBSITE_COMPOSE; then
+  log_info "Building Website (sub-project)…"
+  docker compose -f "${WEBSITE_DIR}/docker-compose.yml" --project-directory "${WEBSITE_DIR}" build
+  docker compose -f "${WEBSITE_DIR}/docker-compose.yml" --project-directory "${WEBSITE_DIR}" up -d
+fi
+
+if $HAS_TELEGRAM_SVC; then
+  log_info "Building Telegram Bot…"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" build telegram-bot
+  log_info "Restarting Telegram Bot…"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps telegram-bot
+fi
+
+if $HAS_NGINX_SVC; then
+  log_info "Restarting Nginx…"
+  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" up -d --no-deps nginx
 fi
 
 log_success "All containers rebuilt and restarted."
@@ -197,10 +219,19 @@ log_step "Step 7 / 8 — Health Checks"
 
 health_errors=0
 
-# Helper: check container running
+# Returns 0 if service container is running, 1 otherwise
+_svc_running() {
+  local svc="$1"
+  local cid
+  cid="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+           ps -q "${svc}" 2>/dev/null | head -1 || true)"
+  [[ -n "${cid}" ]] && \
+    [[ "$(docker inspect --format '{{.State.Status}}' "${cid}" 2>/dev/null)" == "running" ]]
+}
+
 check_container() {
-  local label="$1" service="$2"
-  if root_running "${service}"; then
+  local label="$1" svc="$2"
+  if _svc_running "${svc}"; then
     log_success "  ${label}: container running"
   else
     log_error   "  ${label}: container NOT running"
@@ -208,12 +239,11 @@ check_container() {
   fi
 }
 
-# Helper: check HTTP endpoint
 check_http() {
   local label="$1" url="$2"
   local code
   code="$(http_status "${url}")"
-  if [[ "$code" =~ ^2 ]]; then
+  if [[ "${code}" =~ ^2 ]]; then
     log_success "  ${label}: HTTP ${code} ✓"
   else
     log_error   "  ${label}: HTTP ${code} — ${url}"
@@ -222,33 +252,39 @@ check_http() {
 }
 
 # Database: pg_isready
-if $HAS_DB; then
-  if dc exec -T db pg_isready \
-       -U "${POSTGRES_USER}" \
-       -d "${POSTGRES_DB}" \
-       &>/dev/null; then
-    log_success "  Database: pg_isready ✓"
-  else
-    log_error   "  Database: pg_isready FAILED"
-    health_errors=$((health_errors + 1))
-  fi
+if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+     exec -T "${DB_SERVICE}" pg_isready \
+     -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" &>/dev/null; then
+  log_success "  Database (${DB_SERVICE}): pg_isready ✓"
+else
+  log_error   "  Database (${DB_SERVICE}): pg_isready FAILED"
+  health_errors=$((health_errors + 1))
 fi
 
-# Bot (app): container running
-if $HAS_APP; then
-  check_container "Bot (app)" app
+# Redis
+if $HAS_REDIS_SVC; then
+  check_container "Redis" redis
 fi
 
 # ERP: HTTP health endpoint
-if $HAS_ERP_COMPOSE; then
-  # Give ERP up to 30s to start before health check
+if $HAS_ERP_SVC || $HAS_ERP_COMPOSE; then
   sleep 5
   check_http "ERP" "${ERP_HEALTH_URL}"
 fi
 
-# Website: HTTP health check (waits up to 60s for Next.js to start)
-if $HAS_WEBSITE_COMPOSE; then
+# Website: waits up to 60s for Next.js to start
+if $HAS_WEBSITE_SVC || $HAS_WEBSITE_COMPOSE; then
   wait_http "${WEBSITE_HEALTH_URL}" "Website" 60
+fi
+
+# Telegram Bot
+if $HAS_TELEGRAM_SVC; then
+  check_container "Telegram Bot" telegram-bot
+fi
+
+# Nginx
+if $HAS_NGINX_SVC; then
+  check_container "Nginx" nginx
 fi
 
 if [[ $health_errors -gt 0 ]]; then
@@ -272,9 +308,14 @@ echo -e "  ${GREEN}✓${NC} Migrations applied"
 echo -e "  ${GREEN}✓${NC} Containers rebuilt"
 echo -e "  ${GREEN}✓${NC} Health checks passed"
 echo ""
-$HAS_ERP_COMPOSE     && echo -e "  ${BOLD}ERP:${NC}      http://localhost:${ERP_HOST_PORT}"
-$HAS_WEBSITE_COMPOSE && echo -e "  ${BOLD}Website:${NC}  http://localhost:${WEBSITE_HOST_PORT}"
+if $HAS_ERP_SVC || $HAS_ERP_COMPOSE; then
+  echo -e "  ${BOLD}ERP:${NC}      http://localhost:${ERP_HOST_PORT}"
+fi
+if $HAS_WEBSITE_SVC || $HAS_WEBSITE_COMPOSE; then
+  echo -e "  ${BOLD}Website:${NC}  http://localhost:${WEBSITE_HOST_PORT}"
+fi
 [[ -n "${BACKUP_FILE}" ]] && echo -e "  ${BOLD}Backup:${NC}   ${BACKUP_FILE}"
+echo -e "  ${BOLD}Compose:${NC}  ${COMPOSE_FILE##*/}"
 echo -e "  ${BOLD}Duration:${NC} ${ELAPSED}s"
 echo -e "  ${BOLD}Commit:${NC}   $(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
 echo ""

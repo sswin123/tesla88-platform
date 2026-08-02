@@ -25,6 +25,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BACKUPS_DIR="${PROJECT_ROOT}/backups"
 MIGRATIONS_DIR="${PROJECT_ROOT}/erp/migrations"
 ERP_DIR="${PROJECT_ROOT}/erp"
+WEBSITE_DIR="${PROJECT_ROOT}/website"
 
 # ── Well-known ports/URLs ─────────────────────────────────────────────────────
 ERP_HOST_PORT=3001
@@ -36,7 +37,26 @@ ERP_STATUS_URL="http://localhost:${ERP_HOST_PORT}/api/maintenance/status"
 BOT_RELAY_HEALTH_URL="http://localhost:${BOT_RELAY_HOST_PORT}/health"
 WEBSITE_HEALTH_URL="http://localhost:${WEBSITE_HOST_PORT}/api/health"
 
-WEBSITE_DIR="${PROJECT_ROOT}/website"
+# ── Compose file — production-first ──────────────────────────────────────────
+# Priority: docker-compose.production.yml → staging.yml → docker-compose.yml
+if   [[ -f "${PROJECT_ROOT}/docker-compose.production.yml" ]]; then
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.production.yml"
+elif [[ -f "${PROJECT_ROOT}/docker-compose.staging.yml" ]]; then
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.staging.yml"
+else
+  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
+fi
+
+# ── Service name variables — populated by detect_services() ──────────────────
+DB_SERVICE=""           # postgres | db | (empty if none found)
+HAS_ERP_SVC=false       # 'erp' service in COMPOSE_FILE
+HAS_WEBSITE_SVC=false   # 'website' service in COMPOSE_FILE
+HAS_TELEGRAM_SVC=false  # 'telegram-bot' service in COMPOSE_FILE
+HAS_REDIS_SVC=false     # 'redis' service in COMPOSE_FILE
+HAS_NGINX_SVC=false     # 'nginx' service in COMPOSE_FILE
+# Dev-mode sub-project compose files (separate ERP / Website directories)
+HAS_ERP_COMPOSE=false
+HAS_WEBSITE_COMPOSE=false
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 load_env() {
@@ -48,16 +68,15 @@ load_env() {
   set +a
 }
 
-# ── Docker Compose helpers ────────────────────────────────────────────────────
-# Root project: db + app (Telegram bot + relay)
+# ── Docker Compose helper — always uses COMPOSE_FILE ─────────────────────────
 dc() {
   docker compose \
-    -f "${PROJECT_ROOT}/docker-compose.yml" \
+    -f "${COMPOSE_FILE}" \
     --project-directory "${PROJECT_ROOT}" \
     "$@"
 }
 
-# ERP project (Next.js)
+# Dev sub-project helpers (backward compat — not called in production mode)
 erp_dc() {
   docker compose \
     -f "${ERP_DIR}/docker-compose.yml" \
@@ -65,7 +84,6 @@ erp_dc() {
     "$@"
 }
 
-# Website project (Next.js)
 website_dc() {
   docker compose \
     -f "${WEBSITE_DIR}/docker-compose.yml" \
@@ -73,17 +91,49 @@ website_dc() {
     "$@"
 }
 
-# ── psql in the db container ──────────────────────────────────────────────────
+# ── Detect services from the active compose file ──────────────────────────────
+# Call after require_docker. Populates DB_SERVICE, HAS_*_SVC, HAS_*_COMPOSE.
+detect_services() {
+  local svcs
+  svcs="$(dc config --services 2>/dev/null || true)"
+
+  # DB service: prefer 'postgres', fall back to 'db'
+  if echo "${svcs}" | grep -q '^postgres$'; then
+    DB_SERVICE="postgres"
+  elif echo "${svcs}" | grep -q '^db$'; then
+    DB_SERVICE="db"
+  else
+    DB_SERVICE=""
+  fi
+
+  if echo "${svcs}" | grep -q '^erp$';         then HAS_ERP_SVC=true;      else HAS_ERP_SVC=false;      fi
+  if echo "${svcs}" | grep -q '^website$';      then HAS_WEBSITE_SVC=true;  else HAS_WEBSITE_SVC=false;  fi
+  if echo "${svcs}" | grep -q '^telegram-bot$'; then HAS_TELEGRAM_SVC=true; else HAS_TELEGRAM_SVC=false; fi
+  if echo "${svcs}" | grep -q '^redis$';        then HAS_REDIS_SVC=true;    else HAS_REDIS_SVC=false;    fi
+  if echo "${svcs}" | grep -q '^nginx$';        then HAS_NGINX_SVC=true;    else HAS_NGINX_SVC=false;    fi
+
+  # Dev-mode sub-project compose files
+  if [[ -f "${ERP_DIR}/docker-compose.yml" ]];     then HAS_ERP_COMPOSE=true;     else HAS_ERP_COMPOSE=false;     fi
+  if [[ -f "${WEBSITE_DIR}/docker-compose.yml" ]]; then HAS_WEBSITE_COMPOSE=true; else HAS_WEBSITE_COMPOSE=false; fi
+
+  log_info "Compose file: ${COMPOSE_FILE##*/}"
+  log_info "DB service:   ${DB_SERVICE:-(none detected)}"
+  log_info "Services:     $(echo "${svcs}" | tr '\n' ' ')"
+}
+
+# ── psql inside the database container ───────────────────────────────────────
 db_psql() {
+  [[ -n "${DB_SERVICE}" ]] \
+    || die "DB_SERVICE is not set — call detect_services after require_docker."
   dc exec -T \
     -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-    db psql \
+    "${DB_SERVICE}" psql \
     -U "${POSTGRES_USER}" \
     -d "${POSTGRES_DB}" \
     "$@"
 }
 
-# ── Check if a service container is running ───────────────────────────────────
+# ── Check if a service container is running (in COMPOSE_FILE) ────────────────
 root_running() {
   local service="$1"
   local cid
@@ -92,6 +142,7 @@ root_running() {
   [[ "$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)" == "running" ]]
 }
 
+# Dev backward-compat aliases
 erp_running() {
   local cid
   cid=$(erp_dc ps -q erp 2>/dev/null | head -1)
@@ -106,7 +157,6 @@ website_running() {
   [[ "$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)" == "running" ]]
 }
 
-# ── Check if a container exists at all (running or stopped) ──────────────────
 root_exists() {
   local service="$1"
   dc ps -q "${service}" 2>/dev/null | grep -q .
@@ -123,7 +173,6 @@ http_status() {
     curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 8 "$url" 2>/dev/null \
       || echo "000"
   else
-    # wget fallback (Linux servers without curl)
     wget -q --spider --server-response --timeout=8 "$url" 2>&1 \
       | awk '/HTTP\// {print $2}' | tail -1 \
       || echo "000"
