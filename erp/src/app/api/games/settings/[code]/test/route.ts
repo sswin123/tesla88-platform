@@ -1,8 +1,9 @@
-import { createDecipheriv } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
 import { Kiss918AuthService } from '@/lib/providers/adapters/kiss918/Kiss918AuthService';
+import { createGamingPlatform, ProviderRepository } from '@/lib/providers';
+import { ProviderRuntimeBuilder } from '@/lib/providers/core/ProviderRuntimeBuilder';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -37,25 +38,6 @@ export interface RawHttpDiagnostics {
   response_format:  string;        // 'JSON' | 'HTML' | 'XML' | 'EMPTY' | 'BINARY' | 'UNKNOWN'
   parsed_body:      unknown;       // result of JSON.parse, or null
   parse_error:      string | null;
-}
-
-// ── AES-256-GCM credential decryption (mirrors gaming.ts) ────────────────────
-function decryptCredential(encrypted: string): string {
-  const hexKey = process.env.AES_ENCRYPTION_KEY;
-  if (!hexKey || hexKey.length !== 64) throw new Error('AES_ENCRYPTION_KEY not configured');
-  const key    = Buffer.from(hexKey, 'hex');
-  const buf    = Buffer.from(encrypted, 'base64');
-  const iv      = buf.subarray(0, 12);
-  const authTag = buf.subarray(12, 28);
-  const cipher  = buf.subarray(28);
-  const decipher = createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(authTag);
-  return decipher.update(cipher).toString('utf8') + decipher.final('utf8');
-}
-
-function safeDecrypt(value: string, isEncrypted: boolean): string {
-  if (!isEncrypted) return value;
-  try { return decryptCredential(value); } catch { return ''; }
 }
 
 // ── 918KISS H5 Lobby real launch flow test ────────────────────────────────────
@@ -276,93 +258,121 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code }    = await params;
-  const upperCode   = code.toUpperCase();
+  const { code }  = await params;
+  const upperCode = code.toUpperCase();
 
-  const { rows: provRows } = await pool.query(
+  // ── Step 1: Validate provider exists ─────────────────────────────────────
+  const { rows: provRows } = await pool.query<{
+    id: number; code: string; display_name: string; status: string; environment: string;
+  }>(
     `SELECT id, code, display_name, status, environment
      FROM gp_providers WHERE code = $1 LIMIT 1`,
     [upperCode],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const provider = provRows[0];
-  console.log(`[DEBUG gp-test][${upperCode}] provider_id=${provider.id}`);
 
-  const { rows: cfgRows }  = await pool.query<{ key: string; value: string }>(
-    `SELECT key, value FROM gp_config WHERE provider_id = $1`, [provider.id],
+  // ── Step 2: Find the brand_provider (most-ACTIVE for this provider) ──────
+  const { rows: bpRows } = await pool.query<{ brand_code: string }>(
+    `SELECT b.code AS brand_code
+     FROM brand_providers bp
+     JOIN brands b ON b.id = bp.brand_id
+     WHERE bp.provider_id = $1
+     ORDER BY (bp.status = 'ACTIVE') DESC, bp.id ASC
+     LIMIT 1`,
+    [provider.id],
   );
-  const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
-  console.log(`[DEBUG gp-test][${upperCode}] TABLE=gp_config rows=${cfgRows.length} keys=[${Object.keys(cfg).join(',')}]`);
 
-  const { rows: credRows } = await pool.query<{
-    key: string; value: string; is_encrypted: boolean;
-  }>(
-    `SELECT key, value, is_encrypted FROM gp_credentials WHERE provider_id = $1`, [provider.id],
-  );
-  const creds          = Object.fromEntries(credRows.map(r => [r.key, r.value]));
-  const decryptedCreds = Object.fromEntries(
-    credRows.map(r => [r.key, safeDecrypt(r.value, r.is_encrypted)]),
-  );
-  console.log(`[DEBUG gp-test][${upperCode}] TABLE=gp_credentials rows=${credRows.length} keys=[${Object.keys(creds).join(',')}]`);
+  // Provider not yet onboarded to brand framework — return PARTIAL with empty checks
+  if (!bpRows[0]) {
+    return NextResponse.json({
+      overall: 'PARTIAL',
+      provider: {
+        code:         provider.code,
+        display_name: provider.display_name,
+        status:       provider.status,
+        environment:  provider.environment,
+      },
+      url_checks:        [],
+      credential_checks: [],
+      config_checks:     [],
+      summary: {
+        urls_ok: 0, urls_configured: 0, urls_error: 0,
+        creds_ok: 0, creds_total: 0, config_ok: 0, config_total: 0,
+      },
+      setup_note:      'Provider not yet configured in brand framework. Go to Brand Center to configure.',
+      total_latency_ms: 0,
+      tested_at:        new Date().toISOString(),
+    });
+  }
 
-  // ── URL checks ────────────────────────────────────────────────────────────
+  const brandCode = bpRows[0].brand_code;
+
+  // ── Step 3: Build runtime via ProviderRuntimeBuilder (Single Source of Truth) ──
+  const platform     = createGamingPlatform();
+  const providerRepo = new ProviderRepository();
+
+  const result = await ProviderRuntimeBuilder.build(
+    brandCode,
+    upperCode,
+    (v) => platform.security.decrypt(v),
+    { wallet: platform.wallet, eventLogger: platform.eventLogger, providerRepo },
+    false, // skip game count for speed
+  );
+
+  // ── Step 4: URL checks (dynamic — no hardcoded keys) ─────────────────────
+  // 918KISS h5_lobby_domain requires a real auth-token flow, not a plain GET.
   const startAll = Date.now();
-  const urlChecks = await Promise.all([
-    checkUrl('API Base URL', cfg['api_base_url']),
-    checkUrl('DataFeed URL', cfg['datafeed_url']),
-    checkUrl('H5 API URL',   cfg['h5_api_domain']),
-    // 918KISS H5 Lobby cannot be health-checked by GET to root domain.
-    // Test the real Authenticate → Token → apiLobby?tkn flow instead.
-    upperCode === '918KISS'
-      ? testKiss918H5LobbyFlow(cfg, decryptedCreds)
-      : checkUrl('H5 Lobby URL', cfg['h5_lobby_domain']),
-  ]);
+  const urlChecks = await Promise.all(
+    result.urlConfigKeys.map(k => {
+      if (upperCode === '918KISS' && k === 'h5_lobby_domain') {
+        return testKiss918H5LobbyFlow(result.config, result.credentials);
+      }
+      return checkUrl(k, result.config[k]);
+    }),
+  );
   const totalLatency = Date.now() - startAll;
 
-  // ── Credential presence ───────────────────────────────────────────────────
-  const credChecks = [
-    { key: 'secret_key',     label: 'SecretKey' },
-    { key: 'operator_token', label: 'Operator Token' },
-    { key: 'api_token',      label: 'Access Token' },
-    { key: 'md5_key',        label: 'Md5EncryptKey' },
-    { key: 'encrypt_key',    label: 'EncryptKey' },
-  ].map(({ key, label }) => ({
-    label,
-    loaded: !!(creds[key]?.trim()),
+  // ── Step 5: Credential presence (dynamic from AdapterRegistry + DB keys) ─
+  const allCredKeys = [...new Set([...result.requiredCredKeys, ...Object.keys(result.credentials)])];
+  const credChecks  = allCredKeys.map(key => ({
+    label:  key,
+    loaded: !!(result.credentials[key]?.trim()),
   }));
 
-  // ── Config presence ───────────────────────────────────────────────────────
-  const configChecks = [
-    { key: 'api_base_url', label: 'API Base URL' },
-    { key: 'postfix_id',   label: 'PostFix ID' },
-    { key: 'currency',     label: 'Currency' },
-  ].map(({ key, label }) => ({
-    label,
-    loaded: !!(cfg[key]?.trim()),
-    value:  key === 'postfix_id' ? cfg[key] : undefined,
-  }));
+  // ── Step 6: Config presence (non-URL keys only) ───────────────────────────
+  const allCfgKeys  = [...new Set([...result.requiredConfigKeys, ...Object.keys(result.config)])];
+  const configChecks = allCfgKeys
+    .filter(k => !result.urlConfigKeys.includes(k))
+    .map(key => ({
+      label:  key,
+      loaded: !!(result.config[key]?.trim()),
+      value:  result.config[key] || undefined,
+    }));
 
-  // Only 'error' state counts as a failure for the overall result
-  const urlErrors    = urlChecks.filter(c => c.state === 'error').length;
-  const urlsOk       = urlChecks.filter(c => c.state === 'ok').length;
+  // ── Step 7: Overall status ────────────────────────────────────────────────
+  const urlErrors      = urlChecks.filter(c => c.state === 'error').length;
+  const urlsOk         = urlChecks.filter(c => c.state === 'ok').length;
   const urlsConfigured = urlChecks.filter(c => c.state === 'configured').length;
-  const credsPassed  = credChecks.filter(c => c.loaded).length;
-  const cfgPassed    = configChecks.filter(c => c.loaded).length;
+  const credsPassed    = credChecks.filter(c => c.loaded).length;
+  const cfgPassed      = configChecks.filter(c => c.loaded).length;
 
   const overall: 'SUCCESS' | 'PARTIAL' =
     urlErrors === 0 && credChecks.every(c => c.loaded) && configChecks.every(c => c.loaded)
       ? 'SUCCESS' : 'PARTIAL';
 
+  // ── Step 8: Audit log (Global Provider audit — connection test is provider-level) ─
   await pool.query(
     `INSERT INTO gp_config_audit_log
        (provider_id, provider_code, admin_id, admin_username, action, notes)
-     VALUES ($1,$2,$3,$4,'CONNECTION_TEST',$5)`,
+     VALUES ($1, $2, $3, $4, 'CONNECTION_TEST', $5)`,
     [
       provider.id, upperCode, payload.sub, payload.username,
-      `Result: ${overall} — URLs ok=${urlsOk} configured=${urlsConfigured} error=${urlErrors}`,
+      `Result: ${overall} — brand=${brandCode} URLs ok=${urlsOk} configured=${urlsConfigured} error=${urlErrors}`,
     ],
   );
 
+  // ── Step 9: Response (format unchanged — Gaming Platform UI needs no changes) ─
   return NextResponse.json({
     overall,
     provider: {

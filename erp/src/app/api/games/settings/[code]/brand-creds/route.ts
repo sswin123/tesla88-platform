@@ -176,10 +176,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const maskedNew = maskValue(value);
     await pool.query(
-      `INSERT INTO gp_config_audit_log
-         (provider_id, action, field_key, new_value_hint, admin_id, admin_username, ip_address)
-       VALUES ($1, 'UPDATE_BRAND_CRED', $2, $3, $4, $5, 'system')`,
-      [providerId, key, maskedNew, adminId, adminUsername],
+      `INSERT INTO brand_provider_audit_log
+         (brand_provider_id, brand_code, provider_code, admin_id, admin_username, action, field_key, new_value_hint, ip_address)
+       VALUES ($1, $2, $3, $4, $5, 'UPDATE_BRAND_CRED', $6, $7, 'system')`,
+      [brandProviderId, bp.brandCode, upperCode, adminId, adminUsername, key, maskedNew],
     ).catch(() => {/* non-fatal */});
 
     return NextResponse.json({ ok: true });
