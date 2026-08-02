@@ -90,6 +90,15 @@ export type {
 } from './types/transaction.types';
 
 export type { HealthCheckResult, HealthCheckStatus, PlatformHealthReport } from './types/health.types';
+export type {
+  ProviderState,
+  RuntimeCheckStatus,
+  RuntimeCheck,
+  RuntimeHealthReport,
+  RuntimeSnapshot,
+  DiagnosticStep,
+} from './types/runtime.types';
+export { REQUIRED_CREDENTIAL_KEYS, REQUIRED_CONFIG_KEYS, URL_CONFIG_KEYS, CREDENTIAL_KEY_LABELS } from './utils/provider-keys';
 export type { EventLogInput, EventLogRecord } from './types/event.types';
 export type { RetryInput, RetryRecord, RetryStatus, RetryTickResult } from './types/retry.types';
 
@@ -151,6 +160,8 @@ export { HealthRepository } from './repositories/HealthRepository';
 export { BrandProviderRepository } from './repositories/BrandProviderRepository';
 export type { BrandProviderRecord, RawCredentialRow, RawConfigRow } from './repositories/BrandProviderRepository';
 export { BrandProviderManager } from './core/BrandProviderManager';
+export { ProviderRuntimeBuilder } from './core/ProviderRuntimeBuilder';
+export type { RuntimeBuildResult } from './core/ProviderRuntimeBuilder';
 export { createAdapter } from './adapters/AdapterFactory';
 
 // ── Platform Factory ──────────────────────────────────────────────────────────

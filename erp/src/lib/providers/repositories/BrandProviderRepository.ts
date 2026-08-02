@@ -27,6 +27,28 @@ export interface RawConfigRow {
 
 export class BrandProviderRepository {
   /**
+   * Find the brand_providers row for any status — used by Connection Test
+   * so admins can test before activating a provider.
+   */
+  async findByBrandAndProvider(brandCode: string, providerCode: string): Promise<BrandProviderRecord | null> {
+    const { rows } = await pool.query<BrandProviderRecord>(
+      `SELECT
+         bp.id, bp.brand_id, bp.provider_id,
+         b.code  AS brand_code,
+         p.code  AS provider_code,
+         p.name  AS provider_name,
+         bp.status, bp.wallet_type, bp.environment, bp.currency, bp.health_status
+       FROM brand_providers bp
+       JOIN brands        b ON b.id = bp.brand_id
+       JOIN gp_providers  p ON p.id = bp.provider_id
+       WHERE b.code = $1 AND p.code = $2
+       LIMIT 1`,
+      [brandCode, providerCode],
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
    * Find the brand_providers row for a given (brandCode, providerCode) pair.
    * Returns null if brand doesn't exist, provider isn't enabled for brand,
    * or status is not ACTIVE.

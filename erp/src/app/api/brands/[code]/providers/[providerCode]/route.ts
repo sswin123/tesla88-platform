@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { createGamingPlatform } from '@/lib/providers';
 
 type Params = { params: Promise<{ code: string; providerCode: string }> };
 
@@ -205,6 +206,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       `UPDATE brand_providers SET ${sets.join(', ')} WHERE id = $1`,
       vals,
     );
+    // Invalidate + eagerly rebuild snapshot (fire-and-forget, returns immediately)
+    try { createGamingPlatform().brandManager.invalidateAndReload(upperBrand, upperProvider).catch(() => undefined); } catch { /* best-effort */ }
     return NextResponse.json({ ok: true });
   }
 
@@ -227,6 +230,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
              updated_at = NOW()`,
       [brandProviderId, key, value, isEncrypted, adminId, adminUsername],
     );
+    // Invalidate + eagerly rebuild snapshot (fire-and-forget)
+    try { createGamingPlatform().brandManager.invalidateAndReload(upperBrand, upperProvider).catch(() => undefined); } catch { /* best-effort */ }
     return NextResponse.json({
       ok: true,
       hint: maskValue(value),
@@ -252,6 +257,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
              updated_at = NOW()`,
       [brandProviderId, key, value, adminId, adminUsername],
     );
+    // Invalidate + eagerly rebuild snapshot (fire-and-forget)
+    try { createGamingPlatform().brandManager.invalidateAndReload(upperBrand, upperProvider).catch(() => undefined); } catch { /* best-effort */ }
     return NextResponse.json({ ok: true });
   }
 
