@@ -140,8 +140,8 @@ export class Kiss918Adapter extends BaseProviderAdapter {
   private readonly defaultLobbyUrl:  string;
   private readonly debug:            boolean;
 
-  /** Cached provider row ID (loaded lazily from gp_providers). */
-  private providerId: number | null = null;
+  /** gp_providers.id — injected by ProviderRuntimeBuilder/BrandProviderManager so adapter never queries gp_providers. */
+  private readonly providerId: number;
 
   constructor(
     private readonly creds: Kiss918Credentials,
@@ -149,8 +149,10 @@ export class Kiss918Adapter extends BaseProviderAdapter {
     private readonly wallet: MasterWalletEngine,
     private readonly eventLogger: EventLogger,
     private readonly providerRepo: IProviderRepository,
+    gpProviderId = 0,
   ) {
     super();
+    this.providerId = gpProviderId;
 
     this.currency        = cfg.currency        ?? 'MYR';
     this.defaultLobbyUrl = cfg.default_lobby_url ?? '';
@@ -398,12 +400,11 @@ export class Kiss918Adapter extends BaseProviderAdapter {
       const res = await this.wallet.handleAuthenticate(req);
       // Store provider_player_id so getbalance/bet/etc can resolve userId later.
       // 918KISS uses the playerID we return here in all subsequent callbacks.
-      if (res.error_code === OPERATOR_ERROR.OK && res.player_id && userId != null) {
-        const pid = await this.getProviderId();
+      if (res.error_code === OPERATOR_ERROR.OK && res.player_id && userId != null && this.providerId > 0) {
         const { default: pool } = await import('@/lib/db');
         await pool.query(
           `UPDATE gp_players SET provider_player_id = $1 WHERE provider_id = $2 AND user_id = $3`,
-          [res.player_id, pid, userId],
+          [res.player_id, this.providerId, userId],
         );
       }
       const out = this.formatter.formatAuthenticate(res);
@@ -879,7 +880,7 @@ export class Kiss918Adapter extends BaseProviderAdapter {
    * Queries gp_players by (provider_id, provider_player_id).
    */
   private async resolveUserId(kiss918PlayerID: string): Promise<string> {
-    const pid = await this.getProviderId();
+    const pid = this.providerId;
     const player = await this.findPlayerByProviderPlayerId(pid, kiss918PlayerID);
     if (!player) {
       if (this.debug) {
@@ -889,19 +890,6 @@ export class Kiss918Adapter extends BaseProviderAdapter {
         `No gp_players row for provider_player_id="${kiss918PlayerID}"`);
     }
     return String(player.user_id);
-  }
-
-  /**
-   * Lazy-load our provider_id from gp_providers.
-   */
-  private async getProviderId(): Promise<number> {
-    if (this.providerId !== null) return this.providerId;
-    const provider = await this.providerRepo.findByCode(KISS918_CODE);
-    if (!provider) {
-      throw new Error(`[Kiss918Adapter] Provider "${KISS918_CODE}" not found in gp_providers.`);
-    }
-    this.providerId = provider.id;
-    return provider.id;
   }
 
   /**

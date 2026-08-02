@@ -242,6 +242,7 @@ export class BrandProviderManager {
       wallet:        this.wallet,
       eventLogger:   this.eventLogger,
       providerRepo:  this.providerRepo,
+      gpProviderId:  bp.provider_id,
     });
 
     this.adapters.set(cacheKey, adapter);

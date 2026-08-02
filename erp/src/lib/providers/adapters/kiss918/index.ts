@@ -34,7 +34,7 @@ AdapterRegistry.register(
       default_lobby_url:   config['default_lobby_url']    || undefined,
       debug:               config['debug'] === 'true' || process.env.ENABLE_PROVIDER_DEBUG === 'true',
     };
-    return new Kiss918Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo);
+    return new Kiss918Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo, deps.gpProviderId ?? 0);
   },
   ['api_token', 'operator_token', 'md5_key', 'secret_key', 'encrypt_key', 'delimiter'],
   ['api_base_url', 'h5_api_domain', 'h5_lobby_domain', 'postfix_id', 'currency'],
@@ -69,7 +69,7 @@ AdapterRegistry.register(
       default_lobby_url:   config['default_lobby_url']    || undefined,
       debug:               config['debug'] === 'true' || process.env.ENABLE_PROVIDER_DEBUG === 'true',
     };
-    return new Kiss918Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo);
+    return new Kiss918Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo, deps.gpProviderId ?? 0);
   },
   ['api_token', 'operator_token', 'md5_key', 'secret_key', 'encrypt_key', 'delimiter'],
   ['api_base_url', 'h5_api_domain', 'h5_lobby_domain', 'postfix_id', 'currency'],
