@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { isBrowser } from '@/lib/is-browser';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ function SlideContent({
   textColor?: string;
   onClose: () => void;
 }) {
-  const mediaUrl  = (isMobile && slide.mobile_media_url) ? slide.mobile_media_url  : slide.desktop_media_url;
+  const mediaUrl  = getProxyImageUrl((isMobile && slide.mobile_media_url) ? slide.mobile_media_url  : slide.desktop_media_url);
   const mediaType = (isMobile && slide.mobile_media_url) ? slide.mobile_media_type : slide.desktop_media_type;
   const isVideo   = mediaType === 'VIDEO';
   const hasImg    = !!mediaUrl;

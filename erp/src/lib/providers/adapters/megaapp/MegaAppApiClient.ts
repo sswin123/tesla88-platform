@@ -57,6 +57,16 @@ export class MegaAppApiClient {
   ) {
     this.signer = new MegaAppSigner(creds.secret_code);
     this.apiUrl = cfg.api_base_url.replace(/\/$/, '') + '/';
+
+    // ── Credential snapshot on construction (confirms DB → adapter path) ──
+    console.log('[MEGA API CLIENT] constructed', JSON.stringify({
+      sn:                    creds.sn,
+      agent_login_id:        creds.agent_login_id,
+      secret_code_len:       creds.secret_code.length,
+      secret_code_masked:    this._maskSecret(creds.secret_code),
+      secret_code_empty:     !creds.secret_code,
+      api_base_url:          cfg.api_base_url,
+    }));
   }
 
   // ── Member ───────────────────────────────────────────────────────────────
@@ -64,6 +74,16 @@ export class MegaAppApiClient {
   /** open.mega.user.create — digest = MD5(random+sn+secretCode) */
   async createMember(nickname: string): Promise<CreateMemberResult> {
     const random = this.signer.random();
+    // ── DEBUG: confirm agentLoginId comes from this.creds, not overridden ──
+    console.log('[MEGA API] createMember CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.CREATE_MEMBER,
+      random,
+      sn:                this.creds.sn,
+      agentLoginId:      this.creds.agent_login_id,
+      nickname,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+    }));
     return this.rpc<CreateMemberResult>(MEGAAPP_METHOD.CREATE_MEMBER, {
       sn:           this.creds.sn,
       agentLoginId: this.creds.agent_login_id,
@@ -76,6 +96,14 @@ export class MegaAppApiClient {
   /** open.mega.user.get — digest = MD5(random+sn+loginId+secretCode) */
   async getMember(loginId: string): Promise<GetMemberResult> {
     const random = this.signer.random();
+    console.log('[MEGA API] getMember CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.GET_MEMBER,
+      random,
+      sn:                this.creds.sn,
+      loginId,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+    }));
     return this.rpc<GetMemberResult>(MEGAAPP_METHOD.GET_MEMBER, {
       sn:      this.creds.sn,
       loginId,
@@ -90,6 +118,16 @@ export class MegaAppApiClient {
    */
   async getAppDownloadUrl(): Promise<string> {
     const random = this.signer.random();
+    // ── DEBUG: THIS IS WHERE agentLoginId ENTERS THE RPC ──
+    // If agentLoginId is wrong here, the value in this.creds is wrong (DB or AdapterFactory).
+    console.log('[MEGA API] getAppDownloadUrl CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.APP_DOWNLOAD_URL,
+      random,
+      sn:                this.creds.sn,
+      agentLoginId:      this.creds.agent_login_id,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+    }));
     return this.rpcRaw<string>(MEGAAPP_METHOD.APP_DOWNLOAD_URL, {
       sn:           this.creds.sn,
       agentLoginId: this.creds.agent_login_id,
@@ -101,6 +139,14 @@ export class MegaAppApiClient {
   /** open.mega.user.logout — digest = MD5(random+sn+loginId+secretCode) */
   async logout(loginId: string): Promise<boolean> {
     const random = this.signer.random();
+    console.log('[MEGA API] logout CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.LOGOUT,
+      random,
+      sn:                this.creds.sn,
+      loginId,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+    }));
     const raw = await this.rpcRaw<string | number>(MEGAAPP_METHOD.LOGOUT, {
       sn:      this.creds.sn,
       loginId,
@@ -125,6 +171,18 @@ export class MegaAppApiClient {
   async balanceTransfer(loginId: string, amount: number, bizId?: string): Promise<number> {
     const random     = this.signer.random();
     const amountStr  = this.formatAmount(amount);
+    console.log('[MEGA API] balanceTransfer CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.BALANCE_TRANSFER,
+      random,
+      sn:                this.creds.sn,
+      loginId,
+      amount_raw:        amount,
+      amount_str:        amountStr,
+      bizId:             bizId ?? null,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+      note: 'digest formula: MD5(random+sn+loginId+amount+secretCode) — amount must match params exactly',
+    }));
     const params: Record<string, unknown> = {
       sn:           this.creds.sn,
       loginId,
@@ -146,6 +204,19 @@ export class MegaAppApiClient {
    */
   async autoTransferOut(loginId: string, bizId?: string): Promise<number> {
     const random = this.signer.random();
+    console.log('[MEGA API] autoTransferOut CALL', JSON.stringify({
+      method:            MEGAAPP_METHOD.AUTO_TRANSFER_OUT,
+      random,
+      sn:                this.creds.sn,
+      loginId,
+      bizId:             bizId ?? null,
+      secret_code_len:   this.creds.secret_code.length,
+      secret_code_masked: this._maskSecret(this.creds.secret_code),
+      secret_code_empty: !this.creds.secret_code,
+      note_digest:       'formula: MD5(random+sn+loginId+secretCode) — secretCode NOT sent as param per MEGA doc',
+      note_secretCode:   'secretCode is only used in digest, NOT added to params (official doc does not require it)',
+      has_secretCode_in_rpc_params: false,
+    }));
     const params: Record<string, unknown> = {
       sn:      this.creds.sn,
       loginId,
@@ -226,6 +297,12 @@ export class MegaAppApiClient {
     return isWholeNumber ? String(Math.round(amount)) : amount.toFixed(2);
   }
 
+  /** Mask middle of a secret string; show first 2 + last 2 chars and total length. */
+  private _maskSecret(s: string): string {
+    if (s.length <= 4) return `[${s.length}chars:****]`;
+    return `[${s.length}chars:${s.slice(0, 2)}${'*'.repeat(s.length - 4)}${s.slice(-2)}]`;
+  }
+
   private async send<T>(
     method: string,
     params: Record<string, unknown>,
@@ -238,8 +315,34 @@ export class MegaAppApiClient {
       params,
     });
 
-    // Always log API request — essential for diagnosing Transfer Wallet issues.
-    // Set debug=true in ERP Brand Config to see full param details.
+    // ── ALWAYS-ON DEBUG: full RPC body + agentLoginId trace ──────────────────
+    // This block is unconditional so production issues can be diagnosed.
+    // It logs every field relevant to the official Java Sample comparison.
+    {
+      const rpcTrace: Record<string, unknown> = {
+        method,
+        url:         this.apiUrl,
+        request_id:  requestId,
+        // ── Creds snapshot (confirms DB → adapter chain) ──
+        creds_sn:             this.creds.sn,
+        creds_agent_login_id: this.creds.agent_login_id,
+        creds_secret_code_len:    this.creds.secret_code.length,
+        creds_secret_code_masked: this._maskSecret(this.creds.secret_code),
+        // ── What's actually in params (what MEGA receives) ──
+        param_sn:          'sn'           in params ? params['sn']           : '(absent)',
+        param_loginId:     'loginId'      in params ? params['loginId']      : '(absent)',
+        param_agentLoginId:'agentLoginId' in params ? params['agentLoginId'] : '(absent)',
+        param_amount:      'amount'       in params ? params['amount']       : '(absent)',
+        param_random:      'random'       in params ? params['random']       : '(absent)',
+        param_digest:      'digest'       in params ? params['digest']       : '(absent)',
+        param_secretCode_in_params: 'secretCode' in params,
+        // ── Full RPC body ──
+        rpc_body: body,
+      };
+      console.log('[MEGA API] send() RPC_TRACE', JSON.stringify(rpcTrace));
+    }
+
+    // Original debug logging (retained)
     if (this.cfg.debug) {
       console.log(`[MEGAAPP API] → REQUEST method="${method}" url="${this.apiUrl}"`);
       console.log(`[MEGAAPP API] → PARAMS:`, JSON.stringify(params));

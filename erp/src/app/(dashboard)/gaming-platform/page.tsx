@@ -10,7 +10,7 @@ import {
   BarChart2, ScrollText, Zap, Filter, Search, ChevronLeft, ChevronRight,
   Clock, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2, PackageSearch,
 } from 'lucide-react';
-import { getProviderSchema, type ProviderSchema, type SchemaField } from '@/lib/provider-schemas';
+import { getProviderSchema, type ProviderSchema, type SchemaField, type RadioGroupChildField, type RadioGroupOption } from '@/lib/provider-schemas';
 
 // ══════════════════════════════════════════════════════════════
 // Types
@@ -413,12 +413,62 @@ function SchemaStubNotice({ schema }: { schema: ProviderSchema | null }) {
   );
 }
 
-// Schema-driven configuration field (text / url / number / select / boolean)
-function SchemaConfigField({ field, value, updatedBy, onSave }: {
-  field: SchemaField;
+// Sub-input rendered inside a radio_group option when that option is selected
+function RadioChildInput({ field, value, onSave }: {
+  field: RadioGroupChildField;
   value: string;
-  updatedBy?: string | null;
   onSave: (v: string) => Promise<void>;
+}) {
+  const [val, setVal]       = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+  useEffect(() => setVal(value), [value]);
+
+  async function handleSave(raw: string) {
+    if (field.key === 'fixed_password') {
+      const trimmed = raw.trim();
+      if (!trimmed)          { setError('Please enter a fixed password.'); return; }
+      if (trimmed.length < 6)  { setError('Minimum 6 characters.');         return; }
+      if (trimmed.length > 32) { setError('Maximum 32 characters.');         return; }
+      setError(null);
+      setSaving(true);
+      try { await onSave(trimmed); } finally { setSaving(false); }
+    } else {
+      setError(null);
+      setSaving(true);
+      try { await onSave(raw); } finally { setSaving(false); }
+    }
+  }
+
+  return (
+    <div className="ml-6 mt-2">
+      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{field.label}</div>
+      <div className="flex items-center gap-2">
+        <input
+          type={field.type === 'number' ? 'number' : 'text'}
+          value={val}
+          onChange={e => { setVal(e.target.value); setError(null); }}
+          onBlur={e => void handleSave(e.target.value)}
+          placeholder={field.placeholder}
+          min={field.min}
+          max={field.max}
+          className="w-40 text-sm font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        />
+        {saving && <Spinner />}
+      </div>
+      {error && <div className="text-xs text-rose-500 mt-1">{error}</div>}
+    </div>
+  );
+}
+
+// Schema-driven configuration field (text / url / number / select / boolean / radio_group)
+function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSaveExtra }: {
+  field:         SchemaField;
+  value:         string;
+  updatedBy?:    string | null;
+  onSave:        (v: string) => Promise<void>;
+  extraValues?:  Record<string, string>;
+  onSaveExtra?:  (key: string, v: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value);
@@ -428,6 +478,46 @@ function SchemaConfigField({ field, value, updatedBy, onSave }: {
   async function save() {
     setSaving(true);
     try { await onSave(val); setEditing(false); } finally { setSaving(false); }
+  }
+
+  // Radio group: mutually-exclusive options, each with an optional child input
+  if (field.type === 'radio_group') {
+    const selectedMode = value || 'random';
+    return (
+      <div className="p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+          {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
+        </div>
+        <div>
+          {(field.radioOptions ?? []).map((opt: RadioGroupOption, idx: number) => {
+            const isSelected = selectedMode === opt.value;
+            return (
+              <div key={opt.value}>
+                {idx > 0 && <div className="border-t border-slate-100 dark:border-slate-700/40 my-2" />}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="radio"
+                    name={field.key}
+                    value={opt.value}
+                    checked={isSelected}
+                    onChange={() => void onSave(opt.value)}
+                    className="accent-blue-600"
+                  />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{opt.label}</span>
+                </label>
+                {isSelected && opt.childField && (
+                  <RadioChildInput
+                    field={opt.childField}
+                    value={extraValues?.[opt.childField.key] ?? ''}
+                    onSave={v => onSaveExtra?.(opt.childField!.key, v) ?? Promise.resolve()}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   }
 
   // Select type: inline dropdown, no separate edit mode
@@ -520,15 +610,36 @@ function SchemaConfigPanel({ schema, loading, data, onLoad, onSaveCfg }: {
     <div className="space-y-3">
       <SectionHead title="Configuration" sub="点击任意行右侧「编辑」按钮修改，保存后立即写入数据库" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {schema.config.map(field => (
-          <SchemaConfigField
-            key={field.key}
-            field={field}
-            value={cfgMap[field.key]?.value ?? ''}
-            updatedBy={cfgMap[field.key]?.updated_by_name}
-            onSave={v => onSaveCfg(field.key, v)}
-          />
-        ))}
+        {schema.config.map(field => {
+          if (field.type === 'radio_group') {
+            const childValues: Record<string, string> = {};
+            for (const opt of field.radioOptions ?? []) {
+              if (opt.childField) {
+                childValues[opt.childField.key] = cfgMap[opt.childField.key]?.value ?? '';
+              }
+            }
+            return (
+              <div key={field.key} className="md:col-span-2">
+                <SchemaConfigField
+                  field={field}
+                  value={cfgMap[field.key]?.value ?? 'random'}
+                  extraValues={childValues}
+                  onSave={v => onSaveCfg(field.key, v)}
+                  onSaveExtra={(k, v) => onSaveCfg(k, v)}
+                />
+              </div>
+            );
+          }
+          return (
+            <SchemaConfigField
+              key={field.key}
+              field={field}
+              value={cfgMap[field.key]?.value ?? ''}
+              updatedBy={cfgMap[field.key]?.updated_by_name}
+              onSave={v => onSaveCfg(field.key, v)}
+            />
+          );
+        })}
       </div>
     </div>
   );

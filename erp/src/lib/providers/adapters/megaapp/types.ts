@@ -18,7 +18,9 @@ export interface MegaAppConfig {
   api_base_url:          string;   // JSON-RPC endpoint
   currency:              string;   // Default currency
   timeout_ms:            number;   // Request timeout, default 15000
-  password_length:       number;   // Generated password length, default 10
+  password_mode?:        'random' | 'fixed';  // Password strategy; defaults to 'random'
+  password_length?:      number;              // Length used when password_mode='random', default 10
+  fixed_password?:       string;              // Password used when password_mode='fixed'
   download_url_android?: string;   // APK download link (Android)
   download_url_ios?:     string;   // App Store link (iOS)
   apk_version?:          string;   // Display version e.g. "8.8.8"

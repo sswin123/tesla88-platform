@@ -16,6 +16,7 @@ interface GameListRes extends BaseResponse {
 }
 interface H5LoginRes {
   actk?: string | null;
+  tkn?: string | null;   // MEGAH5 2.0 may use 'tkn' instead of 'actk'
   status?: number | string | null;
   description?: string | null;
 }
@@ -55,24 +56,41 @@ export class MegaH5ApiClient {
       encryptKey:  this.creds.encrypt_key,
       md5Key:      this.creds.md5_key,
       accessToken: this.creds.api_token,
+      delimiter:   this.creds.delimiter,
     });
 
     const body = JSON.stringify({ q, s, accessToken: this.creds.api_token });
     const url  = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.LOGIN}`;
 
-    if (this.cfg.debug) {
-      console.debug('[MegaH5ApiClient] h5Login →', url);
-    }
+    console.log('[MEGAH5 H5Login Request]', {
+      url,
+      method:           'POST',
+      postfix_id:       this.cfg.postfix_id,
+      accountId:        params.accountId,
+      currency:         params.currency,
+      body_s:           s,
+      body_accessToken: this.creds.api_token.slice(0, 8) + '***',
+    });
 
     const { data: raw, latencyMs } = await this.post<H5LoginRes>(url, body);
 
-    if (!raw.actk) {
+    const token = raw.actk ?? raw.tkn ?? null;
+    console.log('[MEGAH5 H5Login Response]', {
+      status: raw.status,
+      description: raw.description,
+      actk: raw.actk ? '[present]' : '[missing]',
+      tkn:  raw.tkn  ? '[present]' : '[missing]',
+      token_used: token ? '[present]' : '[MISSING]',
+      latencyMs,
+    });
+
+    if (!token) {
       throw new Error(
         `MEGAH5 H5 Login failed: status=${raw.status} description="${raw.description}"`,
       );
     }
 
-    return { actk: raw.actk, latencyMs };
+    return { actk: token, latencyMs };
   }
 
   /** Register a new player on MEGAH5 provider side. */
@@ -157,12 +175,9 @@ export class MegaH5ApiClient {
     try {
       res = await fetch(url, {
         method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${this.creds.api_token}`,
-        },
-        body:   jsonBody,
-        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body:    jsonBody,
+        signal:  controller.signal,
       });
     } catch (err) {
       clearTimeout(timer);

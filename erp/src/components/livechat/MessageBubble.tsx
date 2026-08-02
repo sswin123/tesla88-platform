@@ -49,7 +49,7 @@ function QuoteBlock({
       )}
     >
       <p className={cn('font-semibold text-[10px] mb-0.5', isAgentBubble ? 'text-white/60' : 'text-blue-500')}>
-        {senderType === 'AGENT' ? 'Agent' : 'Customer'}
+        {senderType === 'AGENT' ? 'Agent' : senderType === 'SYSTEM' ? 'System' : 'Customer'}
       </p>
       <p className="line-clamp-2 leading-tight">{content}</p>
     </div>
@@ -200,6 +200,27 @@ export function MessageBubble({
   onReply?: (msg: SupportMessage) => void;
 }) {
   const isAgent = msg.sender_type === 'AGENT';
+
+  if (msg.sender_type === 'SYSTEM') {
+    return (
+      <div className="flex justify-center group">
+        <div className="flex items-center gap-1">
+          <div className="max-w-sm rounded-full bg-gray-100 text-gray-500 text-xs px-3 py-1.5 text-center">
+            {msg.content}
+          </div>
+          {onReply && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onReply(msg); }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-blue-400 text-base px-1 flex-shrink-0"
+              title="Reply"
+            >
+              ↩
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex gap-1 group', isAgent ? 'flex-row-reverse' : 'flex-row')}>

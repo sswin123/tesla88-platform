@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 interface HeroSlide {
   id: string;
@@ -32,8 +33,8 @@ function isVideo(type?: string, mime?: string) {
 
 // Render one slide's media — uses mobile URL on small screens if available
 function SlideMedia({ slide, active }: { slide: HeroSlide; active: boolean }) {
-  const desktopUrl   = slide.desktop_media_url;
-  const mobileUrl    = slide.mobile_media_url;
+  const desktopUrl   = getProxyImageUrl(slide.desktop_media_url);
+  const mobileUrl    = getProxyImageUrl(slide.mobile_media_url);
   const desktopVideo = isVideo(slide.desktop_media_type, slide.desktop_mime_type);
   const mobileVideo  = isVideo(slide.mobile_media_type,  slide.mobile_mime_type);
 

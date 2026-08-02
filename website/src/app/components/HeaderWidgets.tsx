@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ function ButtonWidget({ w }: { w: HeaderWidget }) {
 // ── Partner Popup ──────────────────────────────────────────────────────────────
 
 function PartnerPopup({ item, onClose }: { item: PartnerItem; onClose: () => void }) {
-  const logoUrl = item.logo_media_id ? `/api/public/media/${item.logo_media_id}` : item.logo_url;
+  const logoUrl = item.logo_media_id ? `/api/public/media/${item.logo_media_id}` : getProxyImageUrl(item.logo_url);
   const socials = [
     { url: item.popup_whatsapp,  label: 'WhatsApp',  color: '#25D366', icon: '📱' },
     { url: item.popup_telegram,  label: 'Telegram',  color: '#2AABEE', icon: '✈️' },
@@ -280,7 +281,7 @@ function PartnerWidget({ w }: { w: HeaderWidget }) {
   const displayPartners = s.display_type === 'carousel' ? [partners[carouselIdx]] : partners;
 
   function renderPartnerItem(item: PartnerItem) {
-    const logoUrl = item.logo_media_id ? `/api/public/media/${item.logo_media_id}` : item.logo_url;
+    const logoUrl = item.logo_media_id ? `/api/public/media/${item.logo_media_id}` : getProxyImageUrl(item.logo_url);
     const showLogo = logoUrl && s.display_style !== 'text_only';
     const showText = s.display_style !== 'image_only' || !logoUrl;
 

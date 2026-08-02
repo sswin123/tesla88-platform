@@ -1,3 +1,5 @@
+import { getProxyImageUrl } from '@/lib/imageProxy';
+
 interface GalleryImage {
   media_url: string;
   alt?:      string;
@@ -28,7 +30,7 @@ export default function GallerySection({ config }: { config: GalleryConfig }) {
         {images.map((img, i) => (
           <div key={i} className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)' }}>
             <img
-              src={img.media_url}
+              src={getProxyImageUrl(img.media_url) ?? img.media_url}
               alt={img.alt || ''}
               className="w-full h-full object-cover"
               loading="lazy"

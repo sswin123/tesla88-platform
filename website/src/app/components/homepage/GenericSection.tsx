@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import SafeHtmlBlock from '@/app/components/SafeHtmlBlock';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 interface GenericConfig {
   title?: string;
@@ -36,8 +37,8 @@ export default function GenericSection({ config }: { config: GenericConfig }) {
     html,
   } = config;
 
-  const desktopUrl = desktop_media_url;
-  const mobileUrl  = mobile_media_url;
+  const desktopUrl = getProxyImageUrl(desktop_media_url);
+  const mobileUrl  = getProxyImageUrl(mobile_media_url);
   const desktopVid = isVideo(desktop_media_type);
   const mobileVid  = isVideo(mobile_media_type);
   const body       = content ?? subtitle ?? text ?? '';

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 export interface Slide {
   id: number;
@@ -75,7 +76,7 @@ export default function HeroSlider({ slides }: Props) {
           {s.imageUrl ? (
             <>
               <Image
-                src={s.imageUrl}
+                src={getProxyImageUrl(s.imageUrl) ?? s.imageUrl}
                 alt={s.title}
                 fill
                 className="object-cover"

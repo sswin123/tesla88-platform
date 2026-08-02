@@ -96,3 +96,70 @@ Bot Settings Fix: complete (commit a5d8195f) — Telegram profile sync; setMyNam
 5.9 Task 3: complete (commit cd8f65d8) — require_permission.ts central helper; /api/auth/me; AccessDenied+usePermissionGuard; 18 API routes migrated (deposits/withdrawals/members previously unguarded); sidebar permission-based filtering (filterNavGroups exported); 14 new tests + 2 updated; 299/299 total; tsc clean; build clean
 5.9 Task 4: complete (commit 041be8e2) — migration 033 (display_name+last_login_at); admin_repo 5 new functions; GET+POST /api/settings/staff + PATCH /[id] (staff.manage guard; no SA creation; SA edit blocked; self-role-change blocked); /settings/staff page (table+create modal+edit modal+toggle); sidebar Staff Manager entry; 11/11 new tests, 310/310 total; tsc clean; build clean
 5.9 Task 5: complete (commit a922ae3b) — Security audit: 29 routes fixed across 11 modules (Members/Deposits/Withdrawals/Broadcast/APK/Media/QuickReply/LiveChat-sessions/Audit); SUPER_ADMIN safety hardened in admin-users/[id]; 10 test files updated with permission_engine mock; docs/security/permission-audit.md created; 310/310 total; tsc clean; build clean — PHASE 5.9 LOCKED
+TX-UX Task 1: complete (commits c6ce328..4a26dd1, review clean) [minor: no DB error catch on pending-count route; stream no controller.close() in notify handler (matches deposits/stream pattern); as-never cast in tests; no DELETE trigger (not spec required); no SSE stream tests (not spec required)]
+TX-UX Task 2: complete (commits 4a26dd1..8e30d73, review clean) [fix: added search+type=deposit/withdrawal tests; minor: correlated subquery vs UNION ALL SUM (functionally correct); searchParamIdx alias redundant; no SSE tests]
+TX-UX Task 3: complete (commits 8e30d73..8ab8295, review clean) [P1已确认: API route在Task2已实现，非代码缺口; P2已确认: transactions/page.tsx将在Task4重写切换至transactions/stream; minor: status参数字符串拼接(与brief一致); 初始fetch无取消; SSE无onerror(与livechat一致)]
+TX-UX Task 4: complete (commits 8ab8295..5cd09b4, review clean after fix) [fix: highlightTimerRef追踪高亮清除计时器确保2.5s窗口完整; trivial: switchTab未取消悬挂计时器(冗余但无副作用); minor: sidebar初始count真值检查vs undefined检查(功能等价)]
+TX-UX Task 5: complete (regression + final review) — ERP 472/472 PASS, TypeScript PASS, Next.js build PASS (94页面), 5个保护文件零修改, 最终全分支审查 PASS — TRANSACTIONS CENTER UX UPGRADE COMPLETE
+
+# ERP Performance Optimization Progress Ledger
+# Plan: docs/superpowers/plans/2026-07-26-erp-performance-optimization.md
+# Base commit (perf start): 207199d
+# Root causes: SSE connection pool exhaustion (4/6 slots); no loading.tsx; filterNavGroups not memoized
+Perf Task 1: complete (commits 207199d..e8fa57d, review clean after fix) [fix: onerror仅在CLOSED时删除Map entry保留浏览器自动重连; minor: useMemo deps注释修正; effect: LiveChat SSE 4→2连接, Transactions SSE 3→2连接]
+Task 2: complete (commits e8fa57d..8093928, review clean)
+Task 3: complete (commits 8093928..00100c5, review clean after asChild fix)
+Task 4: complete (HEAD 00100c5, regression clean — 472/472 vitest, tsc clean, next build 94 pages, protected files unmodified)
+Task 4: complete (HEAD dc3927f, final review clean — 481/481 vitest, tsc clean, 94 pages build)
+
+# ERP LiveChat UX Phase 1 Progress Ledger
+# Plan: docs/superpowers/plans/2026-07-27-livechat-ux-phase1.md
+# Base commit (phase start): d561624
+Task 1: complete (commits d561624..70bcf5f, review clean)
+Task 2: complete (commits 70bcf5f..458c417, review clean) [minor: empty PATCH body returns 404 vs 400 (inherited); sort_order无运行时类型校验(内部接口可接受)]
+Task 5: complete (commits 458c417..c331457, review clean) [minor: createSessionForUser前未检查会员状态(超出scope)]
+Task 6: complete (commits c331457..ccfb6eb, review clean) [minor: parseInt+isInteger略冗余但无bug; step=100但free-text允许非整数(button disabled guard正确处理)]
+Task 3: complete (commits ccfb6eb..c1e0b3c, review clean) [minor: sort_order交换无单独错误处理(基本可接受)]
+Task 4: complete (commits c1e0b3c..827d35e, review clean)
+Task 7: complete (commits 827d35e..a302049, review clean) [minor: tagSearch无防抖(标签数<100可接受)]
+Final review: PASS (d561624..ecde84c) — 9项交付物全部到位，安全守卫完整，类型系统一致；fix: 搜索激活时禁用排序箭头; minor留存: interval启动时机早于配置加载(可接受), sort_order并发写无DB事务(Phase 2优化) — LIVECHAT UX PHASE 1 COMPLETE
+
+# Gaming Platform Architecture Upgrade Progress Ledger
+# Plan: docs/superpowers/plans/2026-07-27-gaming-platform-arch-upgrade.md
+# Base commit (branch start): b955f5a
+
+GPA Task 1: complete (commits b955f5a..61dbf90, review clean)
+GPA Task 2: complete (commits 61dbf90..fe53348, review clean) [pre-existing bug noted: upsertBatch xmax vs is_insert alias (inserted count always 0) — predates task, not in scope]
+GPA Task 1: complete (commits b955f5a..61dbf90, review clean)
+GPA Task 2: complete (commits 61dbf90..fe53348, review clean) [pre-existing bug noted: upsertBatch xmax vs is_insert alias]
+GPA Task 3: complete (commits fe53348..47a62ed, review clean) [fix: duplicate wrapped in transaction, copied_credentials in response]
+GPA Task 4a: complete (commit 55ec749, review clean) [SaaS brand layer: brands + brand_providers + brand_provider_credentials + brand_provider_config + seed TESLA88]
+GPA Task 4b: complete (commit a9e9c5c, review clean) [Brand Management API: GET/POST /brands + GET/PATCH/DELETE /brands/[code]]
+GPA Task 4c: complete (commit 70d076c, review clean) [Brand Provider API: enable/list/detail/settings/credential/config/remove]
+GPA Task 4d: complete (commits 70d076c..125b54b, review clean after fix) [fix: default_lobby_url mapping, NaN-safe parseIntSafe, in-flight dedup; minor: no IBrandProviderRepository interface, providerCode pre-uppercase]
+GPA Task 4e: complete (commits 125b54b..69c8275, review clean) [low: delete dialog no click-outside; delete error leaves dialog open (correct UX, intentional)]
+GPA Task 5: complete (commit 22be375, review clean) — name_zh/name_en in GameRow + EditGameDialog state + PATCH body + form inputs
+GPA Final Review: PASS (b955f5a..f8ed441) — 全部全局约束满足，12 commits clean；fix: brand_providers DELETE guard, is_encrypted default false, dead constants removed — GAMING PLATFORM ARCH UPGRADE COMPLETE
+
+# Phase A — Brand Center UI Progress Ledger
+# Plan: docs/superpowers/plans/2026-07-28-phase-a-brand-center-implementation-plan.md
+# Base commit (Phase A start): f8ed441
+# Design Spec: UI/UX Design Specification v1.1 (Approved)
+Brand Center Task 1: complete (commits f8ed441..6cf6ccf, review clean) [minor: redundant setLoading(false) in !r.ok branch; permissionDenied guard after filtered derivation; combined search+filter clear-search doesn't reset filter]
+Brand Center Task 2: complete (commits 6cf6ccf..d38b110, review clean after fix) [fix: hardcoded HEALTHY/DEGRADED/DOWN → HEALTH_STATUS constants; PROVIDER_STATUS import added]
+Brand Center Task 3: complete (commits d38b110..1d1e562, review clean after fix) [fix: credential row ⋯ overflow menu added; onReload dead prop removed; catch blocks added to handleRemoveConfirm+handleDisable; ConfirmDialog text updated for [CLEARED] sentinel]
+Brand Center Task 4: complete (commits 1d1e562..048444d, review clean) [note: settings-tab Legacy badge renders below SectionHead (block div) rather than inline — unavoidable per zero-structural-changes constraint; minor: sentinel [CLEARED] exposed in ConfirmDialog text]
+Brand Center Final Review: PASS (f8ed441..2cfa78d) — 9 commits total; all 11 binding constraints satisfied; fix: Disable confirm dialog, provider_code uppercase in EnableModal, calcCompletion count-vs-key comment; minor留存: count-based completion is proxy approximation (by design — list API), [CLEARED] sentinel in confirm text, controls render during loading, a11y labels missing (all deferred)
+
+# Phase B — MegaH5 Provider Adapter Progress Ledger
+# Plan: docs/superpowers/plans/2026-07-28-phase-b-megah5-adapter.md
+# Base commit (Phase B start): 3eb29a9
+
+Phase B Task 1: complete (commits 3eb29a9..fcb12f7, review clean) — constants.ts (MEGAH5_CODE, OPERATOR_ERROR 8 codes, H5_PATH, API_PATH, MEGAH5_LANGUAGE), types.ts (MegaH5Credentials + MegaH5Config), 4/4 smoke tests
+Phase B Task 2: complete (commits fcb12f7..079d8b6, review clean after 2 fixes) [fix: NODE_OPTIONS moved to package.json test script; pinned desEncrypt ciphertext CyqS6B+0nOGkMmaqyup7gQ==; minor留存: LoginPayloadParams unused language/accessToken fields (forward-compat, deferred)]
+Phase B Task 3: complete (commits 079d8b6..edfb614, review clean) — MegaH5ApiClient.ts: h5Login/createPlayer/checkPlayer/getGameList/healthCheck; 509/509 tests pass
+Phase B Task 4: complete (commits edfb614..f614f5a, review clean) — MegaH5CallbackParser + MegaH5CallbackFormatter; 4 brief deviations all correct TypeScript adaptations; 520/520 tests pass
+Phase B Task 5: complete (commits f614f5a..a324dbc, review clean) — MegaH5Adapter (SEAMLESS, LOBBY+GAME_SYNC caps, 9 callback handlers), AdapterFactory MEGAH5 case, launch route brand-aware routing + brand_provider_config query for non-918KISS auto-reg; 528/528 tests pass. Minor留存: validateCallbackToken Bearer prefix ambiguity (spec-inherited), providerId falsy check (spec-inherited), syncGames no-op
+Phase B Task 6: complete (commits a324dbc..473d38d, review clean) — /api/games/megah5/callback/[action] route; 9 actions dispatched; HTTP 200 on all error paths; 530/530 tests pass
+Phase B Task 7: complete (验证通过) — 530/530 测试，0 TS 新错误，所有文件路径验证，918KISS 零修改
+Phase B Final Review: PASS (3eb29a9..26d9d60) — 修复3项: DES-CBC NODE_OPTIONS加入dev/start脚本; healthCheck statusCode校验; proxyUrl限https://; 留存: SSRF无主机白名单(预存问题), 时序攻击token比较(建议), 多品牌单LIMIT(已记录), syncGames存根(Phase C实现) — PHASE B MEGAH5 ADAPTER COMPLETE

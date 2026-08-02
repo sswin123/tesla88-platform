@@ -1,3 +1,5 @@
+import { getProxyImageUrl } from '@/lib/imageProxy';
+
 interface Props {
   title: string;
   subtitle?: string;
@@ -9,6 +11,7 @@ interface Props {
 }
 
 export default function GameCard({ title, subtitle, badge, imageUrl, emoji, href, onClick }: Props) {
+  const proxiedImage = getProxyImageUrl(imageUrl);
   const content = (
     <div
       className="casino-card casino-card-hover relative overflow-hidden cursor-pointer transition-all duration-200"
@@ -16,9 +19,9 @@ export default function GameCard({ title, subtitle, badge, imageUrl, emoji, href
       onClick={onClick}
     >
       {/* Background image or emoji placeholder */}
-      {imageUrl ? (
+      {proxiedImage ? (
         <img
-          src={imageUrl}
+          src={proxiedImage}
           alt={title}
           className="absolute inset-0 w-full h-full object-cover"
         />

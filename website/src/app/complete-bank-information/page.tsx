@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMember } from '@/lib/contexts/MemberContext';
 import { MALAYSIA_BANKS, validateBankAccount, stripNonDigits } from '@/lib/bank';
 
 // Three-step registration wizard indicator
@@ -55,10 +56,16 @@ function SetupWizard({ step }: { step: 1 | 2 | 3 }) {
 // Step 3: Registration complete screen
 function RegistrationComplete({ holderName }: { holderName: string }) {
   const router = useRouter();
+  const { refreshProfile } = useMember();
   useEffect(() => {
-    const t = setTimeout(() => router.replace('/'), 3000);
-    return () => clearTimeout(t);
-  }, [router]);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      await refreshProfile();
+      router.replace('/');
+    }, 3000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [router, refreshProfile]);
 
   return (
     <div className="w-full max-w-sm text-center">
@@ -102,7 +109,7 @@ function RegistrationComplete({ holderName }: { holderName: string }) {
       </p>
 
       <button
-        onClick={() => router.replace('/')}
+        onClick={async () => { await refreshProfile(); router.replace('/'); }}
         className="w-full py-3 rounded-xl text-sm font-bold"
         style={{
           background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-secondary))',

@@ -10,6 +10,7 @@ export interface LoginPayloadParams {
   encryptKey:  string;
   md5Key:      string;
   accessToken: string;
+  delimiter:   string;
 }
 
 export interface LoginPayload {
@@ -63,24 +64,55 @@ export class MegaH5Crypto {
 
   /**
    * Build the q (encrypted QS) and s (MD5 sign) for H5 Login POST body.
-   * Uses "|" as the field delimiter — adjust if MEGAH5 API requires different separator.
+   * Delimiter is read from brand_provider_credentials['delimiter'].
    */
   buildLoginPayload(params: LoginPayloadParams): LoginPayload {
     const currTime = this.formatUtcDateTime(new Date());
-    const d = '|'; // field delimiter — verify with actual MEGAH5 API spec
+    const d = params.delimiter || '|';
 
+    // MEGAH5 is seamless wallet — no player passwords exist.
+    // QS does NOT include a password field (unlike 918KISS transfer wallet).
     const QS = [
       `key=${params.secretKey}`,
       `time=${currTime}`,
       `userName=${params.accountId}`,
-      `password=${params.accountId}`,
       `currency=${params.currency}`,
       `nickName=${params.nickname}`,
     ].join(d);
 
-    const q = encodeURIComponent(this.desEncrypt(QS, params.encryptKey));
-    const s = this.md5Hex(QS + params.md5Key + currTime + params.secretKey);
+    // Formula A (918KISS v1.11 p45): MD5(QS + md5Key + currTime + secretKey)
+    const rawSignStringA = QS + params.md5Key + currTime + params.secretKey;
+    const sA = this.md5Hex(rawSignStringA);
 
-    return { q, s };
+    // Formula B (alternative — no suffix): MD5(QS + md5Key)
+    const sB = this.md5Hex(QS + params.md5Key);
+
+    const q = encodeURIComponent(this.desEncrypt(QS, params.encryptKey));
+
+    // Mask secrets for log safety
+    const maskedQS = QS
+      .replace(new RegExp(params.secretKey, 'g'), '[SECRET_KEY]')
+      .replace(new RegExp(params.md5Key, 'g'), '[MD5_KEY]');
+    const maskedSigA = rawSignStringA
+      .replace(new RegExp(params.secretKey, 'g'), '[SECRET_KEY]')
+      .replace(new RegExp(params.md5Key, 'g'), '[MD5_KEY]');
+
+    console.log('[MEGAH5 Signature Debug] ─────────────────────────');
+    console.log('  Delimiter       :', d, ' charCodes:', [...d].map(c => c.charCodeAt(0)));
+    console.log('  currTime (UTC)  :', currTime);
+    console.log('  QS fields       : key | time | userName | password | currency | nickName');
+    console.log('  QS (masked)     :', maskedQS);
+    console.log('  ---');
+    console.log('  Formula A: MD5(QS + md5Key + currTime + secretKey)');
+    console.log('    rawSig (masked):', maskedSigA);
+    console.log('    s (Formula A)  :', sA);
+    console.log('  ---');
+    console.log('  Formula B: MD5(QS + md5Key)');
+    console.log('    s (Formula B)  :', sB);
+    console.log('  ---');
+    console.log('  Using Formula B → s =', sB);
+    console.log('[MEGAH5 Signature Debug] ─────────────────────────');
+
+    return { q, s: sB };
   }
 }

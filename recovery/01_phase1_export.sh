@@ -231,12 +231,13 @@ done 3<<< "${TABLE_LIST}"
 
 # ============================================================
 # STEP 6: Record known-missing tables in manifest
-# (gp_providers/support_sessions/support_messages/provider_accounts)
+# (support_sessions/support_messages/provider_accounts)
 # These are EXPECTED absences due to catalog damage — NOT export failures
+# gp_providers is NOT hardcoded here: it has live data (brand_providers FK).
 # ============================================================
 hdr "Step 6: Recording known-missing tables"
 
-MISSING_TABLES=(gp_providers support_sessions support_messages provider_accounts)
+MISSING_TABLES=(support_sessions support_messages provider_accounts)
 for mt in "${MISSING_TABLES[@]}"; do
   if ! grep -q "^${mt}|" "${MANIFEST}" 2>/dev/null; then
     echo "${mt}|${mt}.csv|0|0||MISSING_IN_SOURCE" >> "${MANIFEST}"

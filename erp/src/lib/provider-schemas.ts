@@ -1,17 +1,33 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type FieldType = 'text' | 'password' | 'url' | 'number' | 'select' | 'boolean' | 'textarea';
+export type FieldType = 'text' | 'password' | 'url' | 'number' | 'select' | 'boolean' | 'textarea' | 'radio_group';
+
+export interface RadioGroupChildField {
+  key:          string;
+  label:        string;
+  type:         'text' | 'number';
+  placeholder?: string;
+  min?:         number;
+  max?:         number;
+}
+
+export interface RadioGroupOption {
+  value:       string;
+  label:       string;
+  childField?: RadioGroupChildField;
+}
 
 export interface SchemaField {
-  key: string;
-  label: string;
-  type: FieldType;
-  description?: string;
-  placeholder?: string;
-  required?: boolean;
-  options?: { label: string; value: string }[];
-  min?: number;
-  max?: number;
+  key:           string;
+  label:         string;
+  type:          FieldType;
+  description?:  string;
+  placeholder?:  string;
+  required?:     boolean;
+  options?:      { label: string; value: string }[];
+  min?:          number;
+  max?:          number;
+  radioOptions?: RadioGroupOption[];
 }
 
 export interface ProviderSchema {
@@ -81,7 +97,24 @@ const MEGAAPP: ProviderSchema = {
         { label: 'IDR', value: 'IDR' }, { label: 'VND', value: 'VND' },
       ],
     },
-    { key: 'password_length', label: 'Generated Password Length', type: 'number', required: false, min: 6, max: 20, placeholder: '10' },
+    {
+      key:  'password_mode',
+      type: 'radio_group',
+      label: 'Password Configuration',
+      required: false,
+      radioOptions: [
+        {
+          value: 'random',
+          label: 'Random Password',
+          childField: { key: 'password_length', label: 'Password Length', type: 'number', placeholder: '10', min: 6, max: 20 },
+        },
+        {
+          value: 'fixed',
+          label: 'Fixed Password',
+          childField: { key: 'fixed_password', label: 'Password', type: 'text', placeholder: 'e.g. Abc123' },
+        },
+      ],
+    },
     { key: 'timeout_ms',      label: 'Request Timeout (ms)',       type: 'number', required: false, min: 3000, max: 60000, placeholder: '15000' },
     { key: 'download_url_android', label: 'APK Download URL (Android)', type: 'url', required: false, placeholder: 'https://...' },
     { key: 'download_url_ios',     label: 'App Store URL (iOS)',         type: 'url', required: false, placeholder: 'https://...' },

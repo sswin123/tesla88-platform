@@ -319,7 +319,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         <div className="flex items-start gap-2 border-t border-b bg-blue-50/60 px-3 py-2">
           <div className="flex-1 border-l-2 border-blue-400 pl-2 min-w-0">
             <p className="text-[10px] font-semibold text-blue-500 mb-0.5">
-              {replyToMessage.sender_type === 'AGENT' ? 'Agent' : 'Customer'}
+              {replyToMessage.sender_type === 'AGENT' ? 'Agent' : replyToMessage.sender_type === 'SYSTEM' ? 'System' : 'Customer'}
             </p>
             <p className="text-xs text-gray-500 truncate">{getPreviewText(replyToMessage)}</p>
           </div>

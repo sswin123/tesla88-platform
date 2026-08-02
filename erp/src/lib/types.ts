@@ -349,7 +349,7 @@ export interface UserTagAssignment {
 // ── Live Chat ────────────────────────────────────────────────────────────────
 
 export type SessionStatus = 'OPEN' | 'ACTIVE' | 'CLOSED';
-export type MessageSenderType = 'USER' | 'AGENT';
+export type MessageSenderType = 'USER' | 'AGENT' | 'SYSTEM';
 export type MessageType =
   | 'TEXT' | 'PHOTO' | 'DOCUMENT' | 'VOICE' | 'STICKER'
   | 'VIDEO' | 'VIDEO_NOTE' | 'AUDIO' | 'ANIMATION' | 'OTHER';

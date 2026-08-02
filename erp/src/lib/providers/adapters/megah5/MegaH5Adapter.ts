@@ -87,35 +87,28 @@ export class MegaH5Adapter extends BaseProviderAdapter {
   // ── Game Launch ──────────────────────────────────────────────────────────────
 
   async getLoginToken(params: LoginTokenParams): Promise<string> {
+    const accountId = this.withPostfix(params.account_id);
     const { actk } = await this.api.h5Login({
-      accountId: params.account_id,
+      accountId,
       currency:  params.currency ?? this.currency,
-      nickname:  params.nickname ?? params.account_id,
+      nickname:  params.nickname ?? accountId,
       language:  MEGAH5_LANGUAGE.ZH,
       lobbyUrl:  '',
     });
     return actk;
   }
 
-  getLobbyURL(token: string, language: number, lobbyReturnUrl: string): string {
+  getLobbyURL(token: string, _language: number, _lobbyReturnUrl: string): string {
+    // MEGAH5 lobby format: /apiLobby?tkn={token}
     const base = this.cfg.h5_lobby_domain.replace(/\/$/, '');
-    const qs   = new URLSearchParams({
-      token:    token,
-      language: String(language),
-      returnUrl: lobbyReturnUrl,
-    }).toString();
-    return `${base}/lobby?${qs}`;
+    return `${base}/apiLobby?tkn=${encodeURIComponent(token)}`;
   }
 
-  getGameURL(token: string, gameCode: string, language: number, lobbyReturnUrl: string): string {
+  getGameURL(token: string, gameCode: string, language: number, _lobbyReturnUrl: string): string {
+    // MEGAH5 game format: /CallGame/?language={lang}&gName={gameCode}&tkn={token}
+    // NOTE: user= (accountId) must be injected via launch() which has the player record
     const base = this.cfg.h5_game_domain.replace(/\/$/, '');
-    const qs   = new URLSearchParams({
-      token:    token,
-      gameCode,
-      language: String(language),
-      returnUrl: lobbyReturnUrl,
-    }).toString();
-    return `${base}/game?${qs}`;
+    return `${base}/CallGame/?language=${language}&gName=${encodeURIComponent(gameCode)}&tkn=${encodeURIComponent(token)}`;
   }
 
   async launch(params: LaunchParams): Promise<LaunchResult> {
@@ -124,17 +117,23 @@ export class MegaH5Adapter extends BaseProviderAdapter {
       throw new ProviderError(this.code, OPERATOR_ERROR.PLAYER_NOT_FOUND, 'Player not registered.');
     }
 
+    const accountId = this.withPostfix(playerRecord.provider_account_id);
     const { actk } = await this.api.h5Login({
-      accountId: playerRecord.provider_account_id,
+      accountId,
       currency:  playerRecord.currency ?? this.currency,
-      nickname:  playerRecord.provider_account_id,
+      nickname:  accountId,
       language:  params.language ?? MEGAH5_LANGUAGE.ZH,
       lobbyUrl:  params.lobby_return_url,
     });
 
-    const launchUrl = params.game_code
-      ? this.getGameURL(actk, params.game_code, params.language ?? MEGAH5_LANGUAGE.ZH, params.lobby_return_url)
-      : this.getLobbyURL(actk, params.language ?? MEGAH5_LANGUAGE.ZH, params.lobby_return_url);
+    const lang = params.language ?? MEGAH5_LANGUAGE.ZH;
+    let launchUrl: string;
+    if (params.game_code) {
+      const base = this.cfg.h5_game_domain.replace(/\/$/, '');
+      launchUrl = `${base}/CallGame/?language=${lang}&user=${encodeURIComponent(accountId)}&gName=${encodeURIComponent(params.game_code)}&tkn=${encodeURIComponent(actk)}`;
+    } else {
+      launchUrl = this.getLobbyURL(actk, lang, params.lobby_return_url);
+    }
 
     return { launch_url: launchUrl, session_token: actk, session_id: 0 };
   }
@@ -407,6 +406,14 @@ export class MegaH5Adapter extends BaseProviderAdapter {
       return { error: OPERATOR_ERROR.AUTH_FAILED };
     }
     return null;
+  }
+
+  /** Append postfix_id (e.g. "@opulux") if not already present. */
+  private withPostfix(id: string): string {
+    if (this.cfg.postfix_id && !id.includes('@')) {
+      return id + this.cfg.postfix_id;
+    }
+    return id;
   }
 
   private extractUserIdFromAccountId(accountId: string): number | null {

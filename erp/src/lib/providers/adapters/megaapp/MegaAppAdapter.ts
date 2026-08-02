@@ -44,6 +44,12 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     super();
     this.api    = new MegaAppApiClient(creds, cfg);
     this.signer = new MegaAppSigner(creds.secret_code);
+    console.log('[MEGA] constructor creds check', {
+      secret_code_len:   creds.secret_code.length,
+      secret_code_empty: !creds.secret_code,
+      sn:                creds.sn,
+      agent_login_id:    creds.agent_login_id,
+    });
   }
 
   // ── Capabilities ──────────────────────────────────────────────────────────
@@ -65,7 +71,7 @@ export class MegaAppAdapter extends BaseProviderAdapter {
       params.nickname ?? params.account_id,
     );
 
-    const password = this.signer.generatePassword(this.cfg.password_length || 10);
+    const password = this._resolvePassword();
 
     // Derive user_id from account_id ("u{userId}@{postfix}" or "u{userId}")
     const internalUserId = this.extractUserId(params.account_id);
@@ -134,13 +140,20 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     let row = await this.findProviderAccount(userId);
     console.log("[MEGA] STEP1", { userId, row });
 
+    // If the stored provider_login_id is an ERP internal ID (u{n}@...) it was
+    // saved by the old wrong compatibility fix. Treat as no account — re-register.
+    if (row && this._isErpInternalId(row.provider_login_id)) {
+      console.log('[MEGA] STEP1b: provider_login_id is ERP internal ID, forcing re-registration', {
+        userId, bad_login_id: row.provider_login_id,
+      });
+      row = null;
+    }
+
     if (!row) {
-      // No provider_accounts row — attempt to recreate from gp_players.
-      // Historical records (pre-recovery) stored loginId in provider_account_id;
-      // new registrations store it in provider_player_id. Accept both.
+      // No valid provider_accounts row — check gp_players for an existing MEGA loginId.
       const { default: pool } = await import('@/lib/db');
       const { rows: gpRows } = await pool.query<{
-        provider_player_id: string | null;
+        provider_player_id:  string | null;
         provider_account_id: string;
       }>(
         `SELECT provider_player_id, provider_account_id
@@ -150,28 +163,66 @@ export class MegaAppAdapter extends BaseProviderAdapter {
       );
       console.log("[MEGA] STEP2", { provider_id: params.provider_id, userId, gpRows });
 
-      const gp      = gpRows[0];
-      const loginId =
-        gp?.provider_player_id?.trim()  ||
-        gp?.provider_account_id?.trim() ||
-        null;
+      const gp = gpRows[0];
+
+      // provider_account_id is ALWAYS the ERP internal ID (u{userId}@{postfix}) — NEVER use as MEGA loginId.
+      // Only provider_player_id can hold the MEGA-assigned numeric loginId (e.g. "3555383").
+      const existingMegaLoginId =
+        (gp?.provider_player_id?.trim() && !this._isErpInternalId(gp.provider_player_id.trim()))
+          ? gp.provider_player_id.trim()
+          : null;
+
       console.log("[MEGA] STEP3", {
-        provider_player_id:  gp?.provider_player_id,
-        provider_account_id: gp?.provider_account_id,
-        loginId,
+        provider_player_id:       gp?.provider_player_id,
+        provider_account_id:      gp?.provider_account_id,
+        existingMegaLoginId,
+        pid_is_erp_internal:      gp?.provider_player_id ? this._isErpInternalId(gp.provider_player_id) : 'null',
       });
 
-      if (loginId) {
-        const password = this.signer.generatePassword(this.cfg.password_length || 10);
-        console.log("[MEGA] STEP4", { loginId, userId });
+      if (existingMegaLoginId) {
+        // Found a valid MEGA numeric loginId in gp_players → recreate provider_accounts entry.
+        const password = this._resolvePassword();
+        console.log("[MEGA] STEP4 (existing loginId)", { existingMegaLoginId, userId });
         await this.upsertProviderAccount({
           provider_code:     MEGAAPP_CODE,
           user_id:           userId,
-          provider_login_id: loginId,
+          provider_login_id: existingMegaLoginId,
           provider_password: password,
         });
         row = await this.findProviderAccount(userId);
         console.log("[MEGA] STEP5", { row });
+      } else {
+        // No valid MEGA loginId on record — this user never had a successful MEGA
+        // account creation (provider_player_id = NULL or was ERP internal ID).
+        // provider_account_id is ERP-internal format so there is no old MEGA account
+        // to recover. Create a new one now.
+        const reason = gp
+          ? (gp.provider_player_id ? 'provider_player_id is ERP-internal format' : 'provider_player_id=NULL')
+          : 'no gp_players record';
+        console.log("[MEGA] STEP4 (new registration)", { userId, reason });
+
+        const nickname       = `Player${userId}`;
+        const { loginId: megaLoginId } = await this.api.createMember(nickname);
+        console.log("[MEGA] createMember result", { megaLoginId });
+
+        const password = this._resolvePassword();
+        await this.upsertProviderAccount({
+          provider_code:     MEGAAPP_CODE,
+          user_id:           userId,
+          provider_login_id: megaLoginId,
+          provider_password: password,
+        });
+
+        // Persist megaLoginId to gp_players so future launches skip this creation step.
+        await pool.query(
+          `UPDATE gp_players
+             SET provider_player_id = $1, updated_at = NOW()
+           WHERE provider_id = $2 AND user_id = $3`,
+          [megaLoginId, params.provider_id, userId],
+        );
+
+        row = await this.findProviderAccount(userId);
+        console.log("[MEGA] STEP5 (new registration)", { row, megaLoginId });
       }
     }
 
@@ -409,6 +460,19 @@ export class MegaAppAdapter extends BaseProviderAdapter {
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
+
+  /** Returns true if id matches the ERP internal account ID format: u{digits}@... */
+  private _isErpInternalId(id: string): boolean {
+    return /^u\d+@/.test(id);
+  }
+
+  /** Returns the fixed password when password_mode='fixed', otherwise generates a random one. */
+  private _resolvePassword(): string {
+    if (this.cfg.password_mode === 'fixed' && this.cfg.fixed_password?.trim()) {
+      return this.cfg.fixed_password.trim();
+    }
+    return this.signer.generatePassword(this.cfg.password_length || 10);
+  }
 
   private extractUserId(accountId: string): number | null {
     const match = /^u(\d+)(?:@|$)/.exec(accountId);

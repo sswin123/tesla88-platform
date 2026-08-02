@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { isBrowser } from '@/lib/is-browser';
 import { useMember } from '@/lib/contexts/MemberContext';
 import type { MemberProfile } from '@/lib/types';
+import { getProxyImageUrl } from '@/lib/imageProxy';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -133,9 +134,9 @@ function BannerMedia({ url, type, alt = '' }: { url: string; type: string; alt?:
 
 function ReferralBanner({ config }: { config: ReferralCenterConfig }) {
   const enabled     = config.banner_enabled !== false;
-  const desktopUrl  = config.banner_desktop_media_url  ?? '';
-  const tabletUrl   = config.banner_tablet_media_url   ?? desktopUrl;
-  const mobileUrl   = config.banner_mobile_media_url   ?? desktopUrl;
+  const desktopUrl  = getProxyImageUrl(config.banner_desktop_media_url)  ?? '';
+  const tabletUrl   = getProxyImageUrl(config.banner_tablet_media_url)   ?? desktopUrl;
+  const mobileUrl   = getProxyImageUrl(config.banner_mobile_media_url)   ?? desktopUrl;
   const desktopType = config.banner_desktop_media_type ?? 'IMAGE';
   const tabletType  = config.banner_tablet_media_type  ?? desktopType;
   const mobileType  = config.banner_mobile_media_type  ?? desktopType;
@@ -225,7 +226,7 @@ function ActionButton({
         aria-label={btn.text}
       >
         <img
-          src={btn.image_media_url}
+          src={getProxyImageUrl(btn.image_media_url) ?? btn.image_media_url}
           alt={btn.text}
           className="w-full h-auto block max-w-full"
           style={{ display: 'block', borderRadius: config.button_border_radius ? `${config.button_border_radius}px` : 0 }}

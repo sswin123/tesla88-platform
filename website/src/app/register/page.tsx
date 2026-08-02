@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useMember } from '@/lib/contexts/MemberContext';
 
 const SHAKE_CSS = `
 @keyframes reg-shake {
@@ -118,6 +119,7 @@ function SetupWizard({ step }: { step: 1 | 2 | 3 }) {
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshProfile } = useMember();
 
   const [phone,            setPhone]            = useState('');
   const [password,         setPassword]         = useState('');
@@ -221,6 +223,7 @@ function RegisterForm() {
         sessionStorage.removeItem('referral_ref');
         sessionStorage.removeItem('referral_locked');
         setSuccessMsg('账号创建成功！正在跳转至下一步…');
+        refreshProfile();
         setTimeout(() => router.push('/complete-bank-information'), 1000);
         return;
       }
