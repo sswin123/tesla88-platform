@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import pool from '@/lib/db';
-import { getKiss918Adapter } from '@/lib/gaming';
+import { createGamingPlatform } from '@/lib/providers';
 
 interface ComponentStatus {
   ok:      boolean;
@@ -67,7 +67,7 @@ export async function GET(): Promise<NextResponse> {
     report.gp_tables = { ok: false, detail: String(err) };
   }
 
-  // ── 3. 918KISS provider record ────────────────────────────────────────────
+  // ── 3. 918KISS provider record (catalog metadata check) ───────────────────
   try {
     const { rows } = await pool.query<{ status: string; health_status: string }>(
       `SELECT status, health_status FROM gp_providers WHERE code = '918KISS' LIMIT 1`,
@@ -86,13 +86,26 @@ export async function GET(): Promise<NextResponse> {
     report.kiss918_provider = { ok: false, detail: String(err) };
   }
 
-  // ── 4. Kiss918Adapter instantiation ──────────────────────────────────────
+  // ── 4. 918KISS adapter via brand framework ────────────────────────────────
   try {
-    const adapter = await getKiss918Adapter();
-    report.kiss918_adapter = {
-      ok:     adapter !== null,
-      detail: adapter ? 'Adapter loaded' : 'Adapter null (provider inactive or credentials missing)',
-    };
+    const { rows: bpRows } = await pool.query<{ brand_code: string }>(
+      `SELECT b.code AS brand_code
+       FROM brand_providers bp
+       JOIN brands b       ON b.id = bp.brand_id
+       JOIN gp_providers p ON p.id = bp.provider_id
+       WHERE UPPER(p.code) = '918KISS' AND bp.status IN ('ACTIVE', 'TESTING')
+       LIMIT 1`,
+    );
+    if (!bpRows[0]) {
+      report.kiss918_adapter = { ok: false, detail: 'No active brand configuration for 918KISS' };
+    } else {
+      const platform = createGamingPlatform();
+      const adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, '918KISS');
+      report.kiss918_adapter = {
+        ok:     adapter !== null,
+        detail: adapter ? 'Adapter loaded via brand framework' : 'Adapter null',
+      };
+    }
   } catch (err) {
     report.kiss918_adapter = { ok: false, detail: String(err) };
   }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKiss918Adapter } from '@/lib/gaming';
+import { createGamingPlatform } from '@/lib/providers';
 import { OPERATOR_ERROR } from '@/lib/providers/adapters/kiss918/constants';
+import pool from '@/lib/db';
+import type { Kiss918Adapter } from '@/lib/providers/adapters/kiss918/Kiss918Adapter';
 
 // ── 918KISS Seamless Wallet Callback Endpoint ─────────────────────────────────
 //
@@ -30,7 +32,7 @@ type Handler = (
 ) => Promise<Record<string, unknown>>;
 
 function resolveHandler(
-  adapter: NonNullable<Awaited<ReturnType<typeof getKiss918Adapter>>>,
+  adapter: Kiss918Adapter,
   action: string,
 ): Handler | null {
   switch (action.toLowerCase()) {
@@ -51,7 +53,6 @@ async function handleCallback(
   request: NextRequest,
   action: string,
 ): Promise<NextResponse> {
-  // Diagnostic — proves request reached route.ts (past middleware)
   console.log(`[kiss918-callback] route.ts reached: action=${action} method=${request.method} ip=${
     request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown'
   }`);
@@ -70,29 +71,48 @@ async function handleCallback(
     return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR }); // HTTP 200
   }
 
-  // 2. Load adapter (lazy singleton — returns null if provider not ACTIVE)
-  const adapter = await getKiss918Adapter();
-  if (!adapter) {
+  // 2. Find active brand for 918KISS
+  const { rows: bpRows } = await pool.query<{ brand_code: string }>(
+    `SELECT b.code AS brand_code
+     FROM brand_providers bp
+     JOIN brands b       ON b.id = bp.brand_id
+     JOIN gp_providers p ON p.id = bp.provider_id
+     WHERE UPPER(p.code) = '918KISS' AND bp.status IN ('ACTIVE', 'TESTING')
+     ORDER BY (bp.status = 'ACTIVE') DESC, bp.id ASC
+     LIMIT 1`,
+  );
+
+  if (!bpRows[0]) {
     return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE }); // HTTP 200
   }
 
-  // 3. Resolve handler
+  // 3. Get adapter from BrandProviderManager (cached)
+  let adapter: Kiss918Adapter;
+  try {
+    const platform = createGamingPlatform();
+    adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, '918KISS') as Kiss918Adapter;
+  } catch {
+    return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE }); // HTTP 200
+  }
+
+  // 4. Resolve handler
   const handler = resolveHandler(adapter, action);
   if (!handler) {
+    console.warn(`[kiss918-callback] unknown action "${action}"`);
     return NextResponse.json({ error: OPERATOR_ERROR.UNKNOWN }); // HTTP 200
   }
 
-  // 4. Build headers map
+  // 5. Build headers map
   const headers: Record<string, string | undefined> = {};
   request.headers.forEach((value, key) => { headers[key] = value; });
 
-  // 5. Extract client IP (trusting X-Forwarded-For set by Nginx)
+  // 6. Extract client IP (trusting X-Forwarded-For set by Nginx)
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     request.headers.get('x-real-ip') ??
     null;
 
-  // 6. Dispatch — the handler owns token validation, logging, wallet, formatting
+  // 7. Dispatch — the handler owns token validation, logging, wallet, formatting
   const result = await handler(rawBody, headers, ip);
   return NextResponse.json(result);
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
-import { getKiss918Adapter } from '@/lib/gaming';
+import { createGamingPlatform } from '@/lib/providers';
 import type { GameListItem } from '@/lib/providers/types/game.types';
 
 type Params = { params: Promise<{ code: string }> };
@@ -14,7 +14,7 @@ type Params = { params: Promise<{ code: string }> };
  * gp_providers.website_visible and does NOT depend on Games Library.
  *
  * Requires: game.manage permission
- * Provider support: 918KISS (more providers added as adapters are built)
+ * All providers use the brand framework (BrandProviderManager → Adapter).
  */
 export async function POST(_req: Request, { params }: Params) {
   const payload = await requirePermission('game.manage');
@@ -40,30 +40,37 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
-  // ── 2. Get adapter and fetch game list ────────────────────────────────────
+  // ── 2. Find active brand for this provider ────────────────────────────────
+  const { rows: bpRows } = await pool.query<{ brand_code: string }>(
+    `SELECT b.code AS brand_code
+     FROM brand_providers bp
+     JOIN brands b       ON b.id = bp.brand_id
+     JOIN gp_providers p ON p.id = bp.provider_id
+     WHERE UPPER(p.code) = $1 AND bp.status IN ('ACTIVE', 'TESTING')
+     ORDER BY (bp.status = 'ACTIVE') DESC, bp.id ASC
+     LIMIT 1`,
+    [upperCode],
+  );
+
+  if (!bpRows[0]) {
+    return NextResponse.json(
+      { error: `No active brand configuration for ${upperCode}. Enable it in Brand Center first.` },
+      { status: 503 },
+    );
+  }
+
+  // ── 3. Get adapter and fetch game list ────────────────────────────────────
   let games: GameListItem[];
 
-  if (upperCode === '918KISS') {
-    const adapter = await getKiss918Adapter();
-    if (!adapter) {
-      return NextResponse.json(
-        { error: 'Adapter not initialized. Check provider status and credentials.' },
-        { status: 503 },
-      );
-    }
-    try {
-      const result = await adapter.getGameList();
-      games = result.games;
-    } catch (err) {
-      return NextResponse.json(
-        { error: `getGameList failed: ${err instanceof Error ? err.message : String(err)}` },
-        { status: 502 },
-      );
-    }
-  } else {
+  try {
+    const platform = createGamingPlatform();
+    const adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, upperCode);
+    const result = await adapter.getGameList();
+    games = result.games;
+  } catch (err) {
     return NextResponse.json(
-      { error: `Game sync not yet implemented for ${upperCode}` },
-      { status: 422 },
+      { error: `getGameList failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 502 },
     );
   }
 
@@ -71,7 +78,7 @@ export async function POST(_req: Request, { params }: Params) {
     return NextResponse.json({ ok: true, gp_games: { inserted: 0, updated: 0, deactivated: 0 }, total: 0, synced_at: new Date().toISOString() });
   }
 
-  // ── 3. Upsert into gp_games ───────────────────────────────────────────────
+  // ── 4. Upsert into gp_games ───────────────────────────────────────────────
   let gpInserted = 0;
   let gpUpdated  = 0;
 
@@ -110,7 +117,7 @@ export async function POST(_req: Request, { params }: Params) {
     [provider.id, activeCodes],
   );
 
-  // ── 4. Audit log entry ────────────────────────────────────────────────────
+  // ── 5. Audit log entry ────────────────────────────────────────────────────
   await pool.query(
     `INSERT INTO gp_config_audit_log
        (provider_id, provider_code, admin_id, admin_username, action, notes)

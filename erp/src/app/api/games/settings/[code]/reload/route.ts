@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
-import { resetGamingPlatform } from '@/lib/gaming';
 import { createGamingPlatform } from '@/lib/providers';
 
 type Params = { params: Promise<{ code: string }> };
@@ -46,8 +45,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     [providerId],
   );
 
-  // Clear old-style singleton (918KISS) and all SaaS brand provider adapters
-  if (upperCode === '918KISS') resetGamingPlatform();
+  // Clear all brand provider adapter caches (includes 918KISS via brand framework)
   try { createGamingPlatform().brandManager.invalidateAll(); } catch { /* best-effort */ }
 
   // Audit
