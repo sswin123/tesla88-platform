@@ -63,44 +63,9 @@ export async function POST(req: NextRequest) {
   let walletType: string;
   let runtimeConfig: Record<string, string> = {};
 
-  if (upperCode === '918KISS') {
-    // ── Legacy path — reads gp_providers + gp_credentials via lib/gaming.ts ──
-    // Phase 2 will migrate 918KISS to the brand framework.
-    const { rows: provRows } = await pool.query<{
-      id: number; display_name: string; status: string; website_launch_mode: string; wallet_type: string;
-    }>(
-      `SELECT id, display_name, status, website_launch_mode, wallet_type
-       FROM gp_providers WHERE code = $1 LIMIT 1`,
-      [upperCode],
-    );
-    const prov918 = provRows[0];
-    if (!prov918) {
-      return NextResponse.json({ error: `Provider "918KISS" not found` }, { status: 404 });
-    }
-    if (prov918.status !== 'ACTIVE' && prov918.status !== 'TESTING') {
-      return NextResponse.json(
-        { error: `Provider "918KISS" is ${prov918.status} — cannot launch` },
-        { status: 503 },
-      );
-    }
-
-    gpProviderId        = prov918.id;
-    gpDisplayName       = prov918.display_name;
-    gpWebsiteLaunchMode = prov918.website_launch_mode;
-    walletType          = prov918.wallet_type;
-
-    const { getKiss918Adapter } = await import('@/lib/gaming');
-    const k918 = await getKiss918Adapter();
-    if (!k918) {
-      return NextResponse.json(
-        { error: 'Gaming adapter not initialized. Check provider status and credentials.' },
-        { status: 503 },
-      );
-    }
-    adapter = k918;
-
-  } else {
+  {
     // ── Brand framework path — ProviderRuntimeBuilder is the single runtime source ──
+    // All providers (918KISS, MEGAAPP, MEGAH5, …) use this unified path.
 
     // Find which brand has this provider configured (ACTIVE or TESTING status).
     const { rows: bpFindRows } = await pool.query<{ brand_code: string }>(
@@ -176,23 +141,9 @@ export async function POST(req: NextRequest) {
 
   if (!playerRecord) {
     // Build account_id: "u{userId}@{postfix_id}"
-    // 918KISS: config lives in gp_config (legacy).
-    // All other providers: config comes from ProviderRuntimeBuilder result.
-    let postfix: string;
-    let currency: string;
-
-    if (upperCode === '918KISS') {
-      const { rows: cfgRows } = await pool.query<{ key: string; value: string }>(
-        `SELECT key, value FROM gp_config WHERE provider_id = $1 AND key IN ('postfix_id', 'currency')`,
-        [gpProviderId],
-      );
-      const cfg = Object.fromEntries(cfgRows.map(r => [r.key, r.value]));
-      postfix  = cfg['postfix_id'] ?? '';
-      currency = cfg['currency'] ?? 'MYR';
-    } else {
-      postfix  = runtimeConfig['postfix_id'] ?? '';
-      currency = runtimeConfig['currency'] ?? 'MYR';
-    }
+    // All providers: config comes from ProviderRuntimeBuilder result.
+    const postfix  = runtimeConfig['postfix_id'] ?? '';
+    const currency = runtimeConfig['currency'] ?? 'MYR';
 
     const accountId = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
     const nickname  = user.first_name ?? `Player${user_id}`;
