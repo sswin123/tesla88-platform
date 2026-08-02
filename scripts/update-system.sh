@@ -239,19 +239,31 @@ check_container() {
   fi
 }
 
-check_http() {
-  local label="$1" url="$2"
-  local code
-  code="$(http_status "${url}")"
-  if [[ "${code}" =~ ^2 ]]; then
-    log_success "  ${label}: HTTP ${code} ✓"
+# HTTP check inside a container (no host-port dependency).
+# Uses curl if available, falls back to wget.
+check_http_in_container() {
+  local label="$1" svc="$2" url="$3"
+  local ok=false
+  if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+       exec -T "${svc}" sh -c \
+       "curl -sf --connect-timeout 5 --max-time 8 '${url}' -o /dev/null" \
+       &>/dev/null; then
+    ok=true
+  elif docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+       exec -T "${svc}" sh -c \
+       "wget -q --spider --timeout=8 '${url}'" \
+       &>/dev/null; then
+    ok=true
+  fi
+  if $ok; then
+    log_success "  ${label}: ${url} ✓"
   else
-    log_error   "  ${label}: HTTP ${code} — ${url}"
+    log_error   "  ${label}: ${url} FAILED"
     health_errors=$((health_errors + 1))
   fi
 }
 
-# Database: pg_isready
+# Database: pg_isready (runs inside the DB container)
 if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
      exec -T "${DB_SERVICE}" pg_isready \
      -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" &>/dev/null; then
@@ -266,15 +278,33 @@ if $HAS_REDIS_SVC; then
   check_container "Redis" redis
 fi
 
-# ERP: HTTP health endpoint
-if $HAS_ERP_SVC || $HAS_ERP_COMPOSE; then
+# ERP: check inside container on port 3000 (Nginx sits in front on host)
+if $HAS_ERP_SVC; then
   sleep 5
-  check_http "ERP" "${ERP_HEALTH_URL}"
+  check_http_in_container "ERP" erp "http://localhost:3000/api/maintenance/health"
 fi
 
-# Website: waits up to 60s for Next.js to start
-if $HAS_WEBSITE_SVC || $HAS_WEBSITE_COMPOSE; then
-  wait_http "${WEBSITE_HEALTH_URL}" "Website" 60
+# Website: check inside container on port 3000
+if $HAS_WEBSITE_SVC; then
+  local elapsed=0
+  log_info "  Waiting for Website…"
+  while [[ $elapsed -lt 60 ]]; do
+    if docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
+         exec -T website sh -c \
+         "curl -sf --connect-timeout 5 --max-time 8 'http://localhost:3000/api/health' -o /dev/null \
+          || wget -q --spider --timeout=8 'http://localhost:3000/api/health'" \
+         &>/dev/null; then
+      log_success "  Website: http://localhost:3000/api/health ✓"
+      break
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+    log_info "  ${elapsed}s — waiting for Website…"
+  done
+  if [[ $elapsed -ge 60 ]]; then
+    log_error "  Website: did not become healthy within 60s"
+    health_errors=$((health_errors + 1))
+  fi
 fi
 
 # Telegram Bot
