@@ -24,6 +24,14 @@ import {
   HelpCircle,
   Zap,
   Power,
+  Activity,
+  Layers,
+  Server,
+  Globe,
+  Database,
+  Lock,
+  Cpu,
+  ArrowRight,
 } from 'lucide-react';
 
 import {
@@ -34,6 +42,7 @@ import {
   CREDENTIAL_TEMPLATES,
   CONFIG_TEMPLATES,
 } from '@/components/brand-center/constants';
+import type { RuntimeSnapshot, RuntimeCheck } from '@/lib/providers';
 import { ProviderLogoAvatar } from '@/components/brand-center/ProviderLogoAvatar';
 import { ProviderStatusBadge } from '@/components/brand-center/ProviderStatusBadge';
 import { HealthBadge } from '@/components/brand-center/HealthBadge';
@@ -45,6 +54,7 @@ import { ConfirmDialog } from '@/components/brand-center/ConfirmDialog';
 // ─── Tab definitions ─────────────────────────────────────────────────────────
 
 const TABS = [
+  { id: 'overview',      label: 'Overview',      icon: Activity },
   { id: 'general',       label: 'General',       icon: Settings2 },
   { id: 'credentials',   label: 'Credentials',   icon: Key },
   { id: 'configuration', label: 'Configuration', icon: SlidersHorizontal },
@@ -74,6 +84,7 @@ type BrandProviderDetail = {
   provider_display_name: string;
   brand_code: string;
   brand_name: string;
+  gp_wallet_type: string;
 };
 
 type CredRow = {
@@ -329,6 +340,12 @@ function GeneralTab({ bp, onSave }: GeneralTabProps) {
               <option key={w} value={w}>{w}</option>
             ))}
           </select>
+          {walletType !== bp.gp_wallet_type && (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              <AlertCircle size={11} className="flex-shrink-0" />
+              Provider Registry default is <strong>{bp.gp_wallet_type}</strong>. Confirm this override is intentional.
+            </p>
+          )}
         </div>
 
         {/* Environment */}
@@ -1387,6 +1404,272 @@ function ConfigurationTab({
   );
 }
 
+// ─── OverviewTab ──────────────────────────────────────────────────────────────
+
+const STATE_ORDER: string[] = [
+  'CREATED', 'CONFIGURED', 'CREDENTIAL_READY', 'CONNECTED', 'HEALTHY', 'LAUNCH_READY',
+];
+
+const STATE_CFG: Record<string, { label: string; color: string; dot: string; hint: string }> = {
+  CREATED:          { label: 'Created',           color: 'text-slate-500',              dot: 'bg-slate-400',    hint: 'Add configuration and credentials to continue' },
+  CONFIGURED:       { label: 'Configured',        color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', hint: 'Add credentials in the Credentials tab' },
+  CREDENTIAL_READY: { label: 'Credential Ready',  color: 'text-blue-600 dark:text-blue-400',   dot: 'bg-blue-500',  hint: 'Run Connection Test to verify API connectivity' },
+  CONNECTED:        { label: 'Connected',         color: 'text-indigo-600 dark:text-indigo-400', dot: 'bg-indigo-500', hint: 'API reachable — run Connection Test for full health' },
+  HEALTHY:          { label: 'Healthy',           color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', hint: 'Sync game catalog and set Status to ACTIVE' },
+  LAUNCH_READY:     { label: 'Launch Ready',      color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', hint: 'Set Status to ACTIVE in the General tab' },
+};
+
+interface OverviewTabProps {
+  bp: BrandProviderDetail;
+  snapshot: RuntimeSnapshot | null;
+  brandCode: string;
+  providerCode: string;
+  onReload: () => void;
+}
+
+function OverviewTab({ bp, snapshot, brandCode, providerCode, onReload }: OverviewTabProps) {
+  const [reloading, setReloading] = useState(false);
+
+  const handleReload = async () => {
+    setReloading(true);
+    try {
+      await fetch(`/api/brands/${brandCode}/providers/${providerCode}/reload`, { method: 'POST' });
+      onReload();
+    } catch { /* ignore */ } finally {
+      setReloading(false);
+    }
+  };
+
+  const cardCls = 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4';
+
+  const statePct = snapshot
+    ? Math.round(((STATE_ORDER.indexOf(snapshot.state) + 1) / STATE_ORDER.length) * 100)
+    : null;
+  const stCfg = snapshot ? (STATE_CFG[snapshot.state] ?? STATE_CFG.CREATED) : null;
+
+  return (
+    <div className="space-y-5">
+      {/* State Machine Progress */}
+      <div className={cardCls}>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Provider State</p>
+          <button
+            onClick={handleReload}
+            disabled={reloading}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg
+              bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600
+              text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={11} className={reloading ? 'animate-spin' : ''} />
+            Reload Runtime
+          </button>
+        </div>
+
+        {snapshot ? (
+          <>
+            {/* Progress bar */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${statePct}%` }}
+                />
+              </div>
+              <span className="text-xs text-slate-500">{statePct}%</span>
+            </div>
+            {/* State steps */}
+            <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1">
+              {STATE_ORDER.map((s, i) => {
+                const current   = STATE_ORDER.indexOf(snapshot.state);
+                const reached   = i <= current;
+                const isCurrent = i === current;
+                const sCfg      = STATE_CFG[s];
+                return (
+                  <div key={s} className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className={`h-2 w-2 rounded-full transition-colors ${reached ? (sCfg?.dot ?? 'bg-slate-400') : 'bg-slate-200 dark:bg-slate-600'}`} />
+                      <span className={`text-xs whitespace-nowrap ${isCurrent ? (stCfg?.color ?? 'text-slate-500') : reached ? 'text-slate-500 dark:text-slate-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                        {sCfg?.label}
+                      </span>
+                    </div>
+                    {i < STATE_ORDER.length - 1 && (
+                      <div className={`h-px w-4 flex-shrink-0 mt-[-10px] ${i < current ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {stCfg && snapshot.state !== 'LAUNCH_READY' && (
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <ArrowRight size={11} />
+                {stCfg.hint}
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="h-8 bg-slate-100 dark:bg-slate-700 rounded animate-pulse" />
+        )}
+      </div>
+
+      {/* Status grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          {
+            icon: Server,
+            label: 'Admin Status',
+            value: bp.status,
+            color: bp.status === 'ACTIVE'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-slate-500 dark:text-slate-400',
+          },
+          {
+            icon: Globe,
+            label: 'Environment',
+            value: bp.environment,
+            color: bp.environment === 'PRODUCTION' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400',
+          },
+          {
+            icon: Layers,
+            label: 'Wallet Type',
+            value: bp.wallet_type,
+            color: 'text-slate-600 dark:text-slate-300',
+          },
+          {
+            icon: Database,
+            label: 'Games Synced',
+            value: snapshot ? `${snapshot.games_synced} games` : '…',
+            color: (snapshot?.games_synced ?? 0) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400',
+          },
+          {
+            icon: Cpu,
+            label: 'Adapter Version',
+            value: snapshot?.adapter_version ?? '—',
+            color: 'text-slate-600 dark:text-slate-300',
+          },
+          {
+            icon: Activity,
+            label: 'Config Keys',
+            value: snapshot ? `${snapshot.config_count} / ${snapshot.config_count + snapshot.missing_config_keys.length}` : '…',
+            color: (snapshot?.missing_config_keys.length ?? 0) === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
+          },
+        ].map(({ icon: Icon, label, value, color }) => (
+          <div key={label} className={cardCls}>
+            <div className="flex items-center gap-2 mb-1">
+              <Icon size={13} className="text-slate-400" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+            </div>
+            <p className={`text-sm font-semibold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Readiness checks */}
+      {snapshot && (
+        <div className={cardCls}>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Readiness Checks</p>
+          <div className="space-y-2">
+            {[
+              { icon: SlidersHorizontal, label: 'Configuration', check: snapshot.health.configuration },
+              { icon: Lock,              label: 'Credentials',   check: snapshot.health.credentials    },
+              { icon: Cpu,               label: 'Adapter',       check: snapshot.health.adapter        },
+              { icon: Globe,             label: 'Network',       check: snapshot.health.network        },
+              { icon: ShieldCheck,       label: 'Authentication',check: snapshot.health.authentication },
+              { icon: Activity,          label: 'Provider API',  check: snapshot.health.provider_api   },
+              { icon: Database,          label: 'Game Sync',     check: snapshot.health.game_sync      },
+              { icon: Zap,               label: 'Launch Ready',  check: snapshot.health.launch         },
+            ].map(({ icon: Icon, label, check }) => (
+              <OverviewCheckRow key={label} icon={Icon} label={label} check={check} />
+            ))}
+          </div>
+          {snapshot.health.tested_at && (
+            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+              Last tested: {new Date(snapshot.health.tested_at).toLocaleString()}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Missing keys */}
+      {snapshot && (snapshot.missing_config_keys.length > 0 || snapshot.missing_credential_keys.length > 0) && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-sm">
+          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <div className="text-amber-700 dark:text-amber-300">
+            {snapshot.missing_config_keys.length > 0 && (
+              <p>Missing config: <span className="font-mono text-xs">{snapshot.missing_config_keys.join(', ')}</span></p>
+            )}
+            {snapshot.missing_credential_keys.length > 0 && (
+              <p>Missing credentials: <span className="font-mono text-xs">{snapshot.missing_credential_keys.join(', ')}</span></p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics */}
+      {snapshot && snapshot.diagnostics.length > 0 && (
+        <div className={cardCls}>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Build Diagnostics</p>
+          <div className="space-y-1.5">
+            {snapshot.diagnostics.map((step, i) => {
+              const col =
+                step.status === 'ok'      ? 'text-emerald-600 dark:text-emerald-400'
+                : step.status === 'failed'  ? 'text-red-600 dark:text-red-400'
+                :                            'text-slate-400';
+              const dot =
+                step.status === 'ok'      ? 'bg-emerald-500'
+                : step.status === 'failed'  ? 'bg-red-500'
+                :                            'bg-slate-300 dark:bg-slate-600';
+              return (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1 ${dot}`} />
+                  <span className="w-32 flex-shrink-0 font-mono text-slate-500 dark:text-slate-400">{step.step}</span>
+                  <span className={`flex-shrink-0 ${col}`}>{step.status}</span>
+                  <span className="text-slate-400 flex-shrink-0">{step.duration_ms}ms</span>
+                  {step.detail && <span className="text-slate-400 truncate">{step.detail}</span>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+            Snapshot built at {new Date(snapshot.loaded_at).toLocaleString()}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverviewCheckRow({
+  icon: Icon,
+  label,
+  check,
+}: {
+  icon: typeof Server;
+  label: string;
+  check: RuntimeCheck;
+}) {
+  const { color, dot } =
+    check.status === 'ok'      ? { color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' }
+    : check.status === 'warning' ? { color: 'text-amber-600 dark:text-amber-400',   dot: 'bg-amber-500' }
+    : check.status === 'error'   ? { color: 'text-red-600 dark:text-red-400',        dot: 'bg-red-500' }
+    :                              { color: 'text-slate-400',                         dot: 'bg-slate-300 dark:bg-slate-600' };
+
+  return (
+    <div className="flex items-start gap-3">
+      <Icon size={13} className="text-slate-400 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300 w-28 flex-shrink-0">{label}</span>
+          <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dot}`} />
+          <span className={`text-xs ${color} truncate`}>{check.message}</span>
+        </div>
+        {check.detail && (
+          <p className="text-xs text-slate-400 dark:text-slate-500 pl-30 mt-0.5 ml-30 truncate">{check.detail}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Health icon mapping ──────────────────────────────────────────────────────
 
 const HEALTH_ICON_CFG: Record<string, { icon: typeof CheckCircle; color: string; label: string }> = {
@@ -1398,19 +1681,137 @@ const HEALTH_ICON_CFG: Record<string, { icon: typeof CheckCircle; color: string;
 
 // ─── HealthTab ────────────────────────────────────────────────────────────────
 
-interface HealthTabProps {
-  bp: BrandProviderDetail;
+interface UrlCheckResult {
+  label: string;
+  url: string | null;
+  state: 'ok' | 'configured' | 'error';
+  latency_ms: number | null;
+  http_status?: number;
+  error?: string;
 }
 
-function HealthTab({ bp }: HealthTabProps) {
+interface CredCheckResult {
+  label: string;
+  key: string;
+  loaded: boolean;
+}
+
+interface TestResult {
+  overall: 'HEALTHY' | 'DEGRADED' | 'DOWN';
+  url_checks: UrlCheckResult[];
+  credential_checks: CredCheckResult[];
+  adapter: { built: boolean; error: string | null; decrypt_errors: string[] };
+  health: { provider: string; status: string; latency_ms: number | null; error_message?: string; checked_at: string } | null;
+  summary: {
+    urls_checked: number;
+    urls_ok: number;
+    urls_configured: number;
+    urls_error: number;
+    credentials_present: number;
+    credentials_total: number;
+    adapter_built: boolean;
+    health_status: string;
+  };
+  tested_at: string;
+}
+
+interface HealthTabProps {
+  bp: BrandProviderDetail;
+  brandCode: string;
+  providerCode: string;
+  onReload: () => void;
+  snapshot?: RuntimeSnapshot | null;
+}
+
+function HealthTab({ bp, brandCode, providerCode, onReload, snapshot }: HealthTabProps) {
   const cfg = HEALTH_ICON_CFG[bp.health_status] ?? HEALTH_ICON_CFG[HEALTH_STATUS.UNKNOWN];
   const Icon = cfg.icon;
+
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTestError(null);
+    setTestResult(null);
+    try {
+      const res = await fetch(`/api/brands/${brandCode}/providers/${providerCode}/test`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestError(data.error ?? `HTTP ${res.status}`);
+      } else {
+        setTestResult(data as TestResult);
+        onReload();
+      }
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'Connection test failed');
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const statCardCls =
     'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4';
 
+  const urlStateColor = (state: UrlCheckResult['state']) =>
+    state === 'ok'         ? 'text-emerald-600 dark:text-emerald-400'
+    : state === 'configured' ? 'text-amber-600 dark:text-amber-400'
+    :                          'text-red-600 dark:text-red-400';
+
+  const urlStateDot = (state: UrlCheckResult['state']) =>
+    state === 'ok'           ? 'bg-emerald-500'
+    : state === 'configured' ? 'bg-amber-500'
+    :                          'bg-red-500';
+
+  const overallColor = (s: string) =>
+    s === 'HEALTHY'  ? 'text-emerald-600 dark:text-emerald-400'
+    : s === 'DEGRADED' ? 'text-amber-600 dark:text-amber-400'
+    :                    'text-red-600 dark:text-red-400';
+
   return (
     <div className="space-y-4">
+      {/* Snapshot-based pre-test breakdown */}
+      {snapshot && (
+        <div className={statCardCls}>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">Health Breakdown</p>
+          <div className="space-y-1.5">
+            {[
+              { icon: SlidersHorizontal, label: 'Configuration', check: snapshot.health.configuration },
+              { icon: Lock,              label: 'Credentials',   check: snapshot.health.credentials    },
+              { icon: Cpu,               label: 'Adapter',       check: snapshot.health.adapter        },
+              { icon: Globe,             label: 'Network',       check: snapshot.health.network        },
+              { icon: ShieldCheck,       label: 'Authentication',check: snapshot.health.authentication },
+              { icon: Activity,          label: 'Provider API',  check: snapshot.health.provider_api   },
+              { icon: Database,          label: 'Game Sync',     check: snapshot.health.game_sync      },
+              { icon: Zap,               label: 'Launch',        check: snapshot.health.launch         },
+            ].map(({ icon: HIcon, label, check }) => {
+              const dot =
+                check.status === 'ok'      ? 'bg-emerald-500'
+                : check.status === 'warning' ? 'bg-amber-500'
+                : check.status === 'error'   ? 'bg-red-500'
+                :                              'bg-slate-300 dark:bg-slate-600';
+              const msgColor =
+                check.status === 'ok'      ? 'text-emerald-600 dark:text-emerald-400'
+                : check.status === 'warning' ? 'text-amber-600 dark:text-amber-400'
+                : check.status === 'error'   ? 'text-red-600 dark:text-red-400'
+                :                              'text-slate-400';
+              return (
+                <div key={label} className="flex items-start gap-2 text-xs">
+                  <HIcon size={12} className="text-slate-400 flex-shrink-0 mt-0.5" />
+                  <span className="w-24 flex-shrink-0 text-slate-600 dark:text-slate-300">{label}</span>
+                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 mt-1 ${dot}`} />
+                  <span className={msgColor}>{check.message}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Status cards */}
       <div className="grid grid-cols-2 gap-4">
         {/* Health Status */}
         <div className={statCardCls}>
@@ -1460,11 +1861,131 @@ function HealthTab({ bp }: HealthTabProps) {
         </div>
       </div>
 
-      {/* Future banner */}
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 text-sm">
-        <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-        Automated health monitoring will be available after provider integration is complete.
+      {/* Connection Test button */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={runTest}
+          disabled={testing}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+            bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white transition-colors"
+        >
+          {testing ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Testing…
+            </>
+          ) : (
+            <>Run Connection Test</>
+          )}
+        </button>
+        {testResult && !testing && (
+          <span className={`text-sm font-semibold ${overallColor(testResult.overall)}`}>
+            {testResult.overall}
+          </span>
+        )}
+        {testError && !testing && (
+          <span className="text-sm text-red-600 dark:text-red-400">{testError}</span>
+        )}
       </div>
+
+      {/* Test results */}
+      {testResult && (
+        <div className="space-y-3">
+          {/* URL checks */}
+          {testResult.url_checks.length > 0 && (
+            <div className={statCardCls}>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">URL Reachability</p>
+              <div className="space-y-2">
+                {testResult.url_checks.map((c) => (
+                  <div key={c.label} className="flex items-start gap-2 text-sm">
+                    <span className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${urlStateDot(c.state)}`} />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-slate-700 dark:text-slate-200">{c.label}</span>
+                      {c.url && (
+                        <span className="ml-2 text-slate-400 dark:text-slate-500 truncate text-xs">
+                          {c.url}
+                        </span>
+                      )}
+                      <div className={`text-xs mt-0.5 ${urlStateColor(c.state)}`}>
+                        {c.state === 'ok'          ? `HTTP ${c.http_status} · ${c.latency_ms}ms`
+                         : c.state === 'configured' ? `HTTP ${c.http_status} — server reached (auth required)`
+                         :                            c.error ?? 'Unreachable'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Credential checks */}
+          {testResult.credential_checks.length > 0 && (
+            <div className={statCardCls}>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">Credential Presence</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {testResult.credential_checks.map((c) => (
+                  <div key={c.key} className="flex items-center gap-1.5 text-sm">
+                    <span className={`h-2 w-2 rounded-full ${c.loaded ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className={c.loaded ? 'text-slate-700 dark:text-slate-200' : 'text-red-600 dark:text-red-400'}>
+                      {c.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {testResult.adapter.decrypt_errors.length > 0 && (
+                <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                  Decrypt errors: {testResult.adapter.decrypt_errors.join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Adapter + live health */}
+          <div className={statCardCls}>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">Adapter &amp; Live Health</p>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${testResult.adapter.built ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                <span className="text-slate-700 dark:text-slate-200">
+                  {testResult.adapter.built ? 'Adapter built successfully' : 'Adapter build failed'}
+                </span>
+              </div>
+              {testResult.adapter.error && (
+                <p className="text-xs text-red-600 dark:text-red-400 pl-4">{testResult.adapter.error}</p>
+              )}
+              {testResult.health && (
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${
+                    testResult.health.status === 'HEALTHY' ? 'bg-emerald-500'
+                    : testResult.health.status === 'DEGRADED' ? 'bg-amber-500'
+                    : 'bg-red-500'
+                  }`} />
+                  <span className={`font-medium ${overallColor(testResult.health.status)}`}>
+                    {testResult.health.status}
+                  </span>
+                  {testResult.health.latency_ms != null && (
+                    <span className="text-slate-400 dark:text-slate-500 text-xs">
+                      {testResult.health.latency_ms}ms
+                    </span>
+                  )}
+                  {testResult.health.error_message && (
+                    <span className="text-red-600 dark:text-red-400 text-xs">
+                      — {testResult.health.error_message}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Tested at {new Date(testResult.tested_at).toLocaleString()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1691,7 +2212,8 @@ export default function BrandProviderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [snapshot, setSnapshot] = useState<RuntimeSnapshot | null>(null);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [enabling, setEnabling] = useState(false);
@@ -1728,6 +2250,12 @@ export default function BrandProviderDetailPage() {
       setBp(data.brand_provider);
       setCredentials(data.credentials);
       setConfig(data.config);
+
+      // Fetch snapshot in parallel (non-blocking — UI shows without it)
+      fetch(`/api/brands/${code}/providers/${providerCode}/snapshot`)
+        .then(r => r.ok ? r.json() : null)
+        .then(snap => { if (snap) setSnapshot(snap as RuntimeSnapshot); })
+        .catch(() => undefined);
     } catch {
       showToast('Failed to load provider data', 'error');
     } finally {
@@ -1847,6 +2375,16 @@ export default function BrandProviderDetailPage() {
 
   function renderTabContent() {
     switch (activeTab) {
+      case 'overview':
+        return (
+          <OverviewTab
+            bp={bp!}
+            snapshot={snapshot}
+            brandCode={code}
+            providerCode={providerCode}
+            onReload={load}
+          />
+        );
       case 'general':
         return (
           <GeneralTab
@@ -1875,7 +2413,7 @@ export default function BrandProviderDetailPage() {
           />
         );
       case 'health':
-        return <HealthTab bp={bp!} />;
+        return <HealthTab bp={bp!} brandCode={code} providerCode={providerCode} onReload={load} snapshot={snapshot} />;
       case 'logs':
         return <LogsTab />;
       case 'statistics':

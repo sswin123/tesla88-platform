@@ -101,8 +101,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'provider_code is required' }, { status: 400 });
   }
 
-  // Validate wallet_type and environment
-  const walletType = body.wallet_type === 'TRANSFER' ? 'TRANSFER' : 'SEAMLESS';
+  // Validate environment and currency
   const environment = body.environment === 'SANDBOX' ? 'SANDBOX' : 'PRODUCTION';
   const currency = typeof body.currency === 'string' && body.currency.trim()
     ? body.currency.trim().toUpperCase().slice(0, 3)
@@ -116,9 +115,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!brandRows[0]) return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
   const brandId = brandRows[0].id;
 
-  // Resolve provider
-  const { rows: provRows } = await pool.query<{ id: number }>(
-    `SELECT id FROM gp_providers WHERE code = $1`,
+  // Resolve provider — include wallet_type to use as default when not explicitly specified
+  const { rows: provRows } = await pool.query<{ id: number; wallet_type: string }>(
+    `SELECT id, wallet_type FROM gp_providers WHERE code = $1`,
     [providerCode],
   );
   if (!provRows[0]) {
@@ -128,6 +127,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
   const providerId = provRows[0].id;
+  // Inherit wallet_type from Provider Registry if caller does not explicitly specify one
+  const walletType = body.wallet_type === 'TRANSFER' ? 'TRANSFER'
+    : body.wallet_type === 'SEAMLESS' ? 'SEAMLESS'
+    : provRows[0].wallet_type;
 
   // Check uniqueness
   const { rows: existing } = await pool.query(

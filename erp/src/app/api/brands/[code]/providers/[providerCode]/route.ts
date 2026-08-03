@@ -51,6 +51,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     created_at: string; updated_at: string;
     provider_code: string; provider_name: string; provider_display_name: string;
     brand_code: string; brand_name: string;
+    gp_wallet_type: string;
   }>(
     `SELECT
        bp.id, bp.status, bp.wallet_type, bp.environment, bp.currency,
@@ -58,7 +59,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
        bp.last_failed_at, bp.created_at, bp.updated_at,
        p.code AS provider_code, p.name AS provider_name,
        p.display_name AS provider_display_name,
-       b.code AS brand_code, b.name AS brand_name
+       b.code AS brand_code, b.name AS brand_name,
+       p.wallet_type AS gp_wallet_type
      FROM brand_providers bp
      JOIN gp_providers p ON p.id = bp.provider_id
      JOIN brands b        ON b.id = bp.brand_id

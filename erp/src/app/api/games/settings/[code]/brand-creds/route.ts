@@ -15,7 +15,10 @@ function maskValue(val: string): string {
  * Uses the first active brand if no record exists yet.
  * Returns null if no brands exist in the system.
  */
-async function resolveBrandProvider(providerId: number): Promise<{
+async function resolveBrandProvider(
+  providerId: number,
+  gpWalletType: string,
+): Promise<{
   brandProviderId: number;
   brandCode: string;
   brandId: number;
@@ -51,10 +54,10 @@ async function resolveBrandProvider(providerId: number): Promise<{
 
   const { rows: inserted } = await pool.query<{ id: number }>(
     `INSERT INTO brand_providers (brand_id, provider_id, status, wallet_type, environment, currency)
-     VALUES ($1, $2, 'DISABLED', 'SEAMLESS', 'PRODUCTION', 'MYR')
+     VALUES ($1, $2, 'DISABLED', $3, 'PRODUCTION', 'MYR')
      ON CONFLICT (brand_id, provider_id) DO UPDATE SET updated_at = NOW()
      RETURNING id`,
-    [brandRows[0].id, providerId],
+    [brandRows[0].id, providerId, gpWalletType],
   );
 
   return {
@@ -78,14 +81,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { code } = await params;
   const upperCode = code.toUpperCase();
 
-  const { rows: provRows } = await pool.query<{ id: number }>(
-    `SELECT id FROM gp_providers WHERE code = $1 LIMIT 1`,
+  const { rows: provRows } = await pool.query<{ id: number; wallet_type: string }>(
+    `SELECT id, wallet_type FROM gp_providers WHERE code = $1 LIMIT 1`,
     [upperCode],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
-  const providerId = provRows[0].id;
+  const providerId   = provRows[0].id;
+  const gpWalletType = provRows[0].wallet_type;
 
-  const bp = await resolveBrandProvider(providerId);
+  const bp = await resolveBrandProvider(providerId, gpWalletType);
   if (!bp) return NextResponse.json({ error: 'No brands configured in the system' }, { status: 503 });
 
   const { rows: credRows } = await pool.query<{
@@ -145,14 +149,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const payload = await requirePermission(perm);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { rows: provRows } = await pool.query<{ id: number }>(
-    `SELECT id FROM gp_providers WHERE code = $1 LIMIT 1`,
+  const { rows: provRows } = await pool.query<{ id: number; wallet_type: string }>(
+    `SELECT id, wallet_type FROM gp_providers WHERE code = $1 LIMIT 1`,
     [upperCode],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
-  const providerId = provRows[0].id;
+  const providerId   = provRows[0].id;
+  const gpWalletType = provRows[0].wallet_type;
 
-  const bp = await resolveBrandProvider(providerId);
+  const bp = await resolveBrandProvider(providerId, gpWalletType);
   if (!bp) return NextResponse.json({ error: 'No brands configured in the system' }, { status: 503 });
 
   const adminId       = payload.sub;
