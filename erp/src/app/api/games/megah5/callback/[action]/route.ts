@@ -35,8 +35,10 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
     ?? null;
 
   // ── UAT Debug: log every inbound callback ────────────────────────────────
-  const authHeader = request.headers.get('authorization')
+  const authHeader = request.headers.get('token')
+    ?? request.headers.get('authorization')
     ?? request.headers.get('x-operator-token')
+    ?? request.headers.get('x-client-token')
     ?? '(none)';
   console.log(`[megah5-callback] ▶ action=${action} ip=${ip} auth=${authHeader.slice(0, 20)}***`);
 

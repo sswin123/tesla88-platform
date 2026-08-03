@@ -400,25 +400,28 @@ export class MegaH5Adapter extends BaseProviderAdapter {
   private checkToken(
     headers: Record<string, string | string[] | undefined>,
   ): Record<string, unknown> | null {
-    // MEGAH5 sends the Client Token (operator_token) in one of these headers.
-    // Log all candidates during UAT so we can confirm which header MEGA actually uses.
+    // Official MEGAH5 API v1.0.5: callback authentication via HTTP header "token".
+    // Fallback chain for compatibility with any future header variations.
+    const fromToken         = headers['token'];
     const fromAuthorization = headers['authorization'];
     const fromXOperatorToken = headers['x-operator-token'];
-    const fromXClientToken = headers['x-client-token'];
+    const fromXClientToken  = headers['x-client-token'];
 
-    const rawAuth = fromAuthorization ?? fromXOperatorToken ?? fromXClientToken ?? '';
-    const token = typeof rawAuth === 'string'
-      ? rawAuth.replace(/^Bearer\s+/i, '')
-      : Array.isArray(rawAuth) ? rawAuth[0]?.replace(/^Bearer\s+/i, '') ?? '' : '';
+    const raw = fromToken ?? fromAuthorization ?? fromXOperatorToken ?? fromXClientToken ?? '';
+    const received = typeof raw === 'string'
+      ? raw.replace(/^Bearer\s+/i, '')
+      : Array.isArray(raw) ? raw[0]?.replace(/^Bearer\s+/i, '') ?? '' : '';
 
     const expected = this.creds.operator_token;
-    const match = token === expected;
+    const match = received === expected;
 
     console.log('[MEGAH5 TokenCheck]', {
-      'authorization':     fromAuthorization  ? `${String(fromAuthorization).slice(0, 12)}***` : '(absent)',
-      'x-operator-token':  fromXOperatorToken ? `${String(fromXOperatorToken).slice(0, 12)}***` : '(absent)',
-      'x-client-token':    fromXClientToken   ? `${String(fromXClientToken).slice(0, 12)}***` : '(absent)',
-      received_token:      token ? `${token.slice(0, 8)}***` : '(empty)',
+      'token':             fromToken          ? `${String(fromToken).slice(0, 8)}***`          : '(absent)',
+      'authorization':     fromAuthorization  ? `${String(fromAuthorization).slice(0, 8)}***`  : '(absent)',
+      'x-operator-token':  fromXOperatorToken ? `${String(fromXOperatorToken).slice(0, 8)}***` : '(absent)',
+      'x-client-token':    fromXClientToken   ? `${String(fromXClientToken).slice(0, 8)}***`   : '(absent)',
+      source:              fromToken ? 'token' : fromAuthorization ? 'authorization' : fromXOperatorToken ? 'x-operator-token' : fromXClientToken ? 'x-client-token' : 'none',
+      received_prefix:     received ? `${received.slice(0, 8)}***` : '(empty)',
       expected_prefix:     expected ? `${expected.slice(0, 8)}***` : '(empty)',
       match,
     });
