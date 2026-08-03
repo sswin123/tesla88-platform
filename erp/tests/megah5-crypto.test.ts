@@ -57,7 +57,7 @@ describe('MegaH5Crypto', () => {
       secretKey:   'secret123',
       encryptKey:  'enckey12',
       md5Key:      'md5keyxx',
-      accessToken: 'acc_token',
+      delimiter:   '|',
     });
     expect(result).toHaveProperty('q');
     expect(result).toHaveProperty('s');

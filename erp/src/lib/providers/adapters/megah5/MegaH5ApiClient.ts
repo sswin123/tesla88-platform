@@ -39,7 +39,13 @@ export class MegaH5ApiClient {
     private readonly cfg:   MegaH5Config,
   ) {}
 
-  /** H5 Login — returns the actk (access token) for URL construction. */
+  /**
+   * H5 Login — returns the actk (access token) for URL construction.
+   *
+   * Per MEGA official confirmation (2026-08-03): the POST body `accessToken`
+   * field must use api_account_token (API Account Token), NOT api_token.
+   * Using api_token causes status=15 "Invalid Access Token".
+   */
   async h5Login(params: {
     accountId:  string;
     currency:   string;
@@ -55,11 +61,10 @@ export class MegaH5ApiClient {
       secretKey:   this.creds.secret_key,
       encryptKey:  this.creds.encrypt_key,
       md5Key:      this.creds.md5_key,
-      accessToken: this.creds.api_token,
       delimiter:   this.creds.delimiter,
     });
 
-    const body = JSON.stringify({ q, s, accessToken: this.creds.api_token });
+    const body = JSON.stringify({ q, s, accessToken: this.creds.api_account_token });
     const url  = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.LOGIN}`;
 
     console.log('[MEGAH5 H5Login Request]', {
@@ -69,7 +74,7 @@ export class MegaH5ApiClient {
       accountId:        params.accountId,
       currency:         params.currency,
       body_s:           s,
-      body_accessToken: this.creds.api_token.slice(0, 8) + '***',
+      body_accessToken: this.creds.api_account_token.slice(0, 8) + '***',
     });
 
     const { data: raw, latencyMs } = await this.post<H5LoginRes>(url, body);

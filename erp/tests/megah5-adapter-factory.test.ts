@@ -18,8 +18,13 @@ const mockDeps = {
 };
 
 const MEGAH5_CREDS = {
-  api_token: 'tok', operator_token: 'optok',
-  secret_key: 'sec', encrypt_key: 'enc12345', md5_key: 'md5k',
+  api_token:         'tok',
+  api_account_token: 'acct_tok',
+  operator_token:    'optok',
+  secret_key:        'sec',
+  encrypt_key:       'enc12345',
+  md5_key:           'md5k',
+  delimiter:         '|',
 };
 const MEGAH5_CFG = {
   api_base_url: 'https://api.test', h5_api_domain: 'https://h5.test',

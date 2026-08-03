@@ -4,13 +4,16 @@
 export interface MegaH5Credentials {
   /**
    * Client Token (Operator/Client Token from MEGA).
-   * Used for: H5 Login QS encryption, H5 Login body accessToken, GameList body accessToken.
+   * Used for: GameList body accessToken only.
+   * NOT used for H5 Login — use api_account_token there (MEGA confirmed 2026-08-03).
    * key = 'api_token'
    */
   api_token: string;
   /**
-   * Api Account Token (separate credential from MEGA for Operations API).
-   * Used for: CreatePlayer, CheckPlayer, HealthCheck — HTTP Header 'token:'.
+   * API Account Token (separate credential from MEGA).
+   * Used for: H5 Login body accessToken, CreatePlayer, CheckPlayer, HealthCheck.
+   *   - H5 Login: POST body { accessToken: api_account_token }
+   *   - Operations API: HTTP Header 'token: api_account_token'
    * key = 'api_account_token'
    */
   api_account_token: string;

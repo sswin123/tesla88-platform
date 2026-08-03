@@ -87,9 +87,10 @@ WITH bp AS (
 INSERT INTO brand_provider_credentials (brand_provider_id, key, value, is_encrypted)
 SELECT bp_id, k, v, false FROM bp, (VALUES
   -- MEGA Production Integration Information (confirmed 2026-08-03)
-  -- api_token         = Client Token: H5 Login QS 加密 + body accessToken、GameList body
-  -- api_account_token = Api Account Token: Operations API HTTP Header 'token:'
-  -- operator_token    = Client Token: MEGA 回调 Header 'token:' 身份验证
+  -- api_token         = Client Token: GameList body accessToken only
+  --                     (NOT for H5 Login — MEGA confirmed api_account_token must be used there)
+  -- api_account_token = API Account Token: H5 Login body accessToken + Operations API HTTP Header 'token:'
+  -- operator_token    = Inbound Token: MEGA → ERP callback Header 'token:' 身份验证
   ('api_token',         'XTqf65esyLWLOwub'),
   ('api_account_token', 'NUFXYmtCaDY5d2QxZkhyUWtDbExxOEpWbElFcjBkZnlaWmZxYVV6TW9KYTY5bGNDVHV5ZjFpdUJWQS9XWTNENk9CemFnVTJsQll6Y3lQekhRNUZQVXBXNkVEenR2WVR2bllJaGJEZ0N0emkyQUxidVo5cnJPejlVdHFCM1d1SU10Q2syWlNnQXFRMHpBSTFCUmo0YXlRPT0='),
   ('operator_token',    'XTqf65esyLWLOwub'),

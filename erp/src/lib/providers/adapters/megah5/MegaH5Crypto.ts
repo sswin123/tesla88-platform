@@ -9,7 +9,6 @@ export interface LoginPayloadParams {
   secretKey:   string;
   encryptKey:  string;
   md5Key:      string;
-  accessToken: string;
   delimiter:   string;
 }
 
@@ -21,13 +20,13 @@ export interface LoginPayload {
 /**
  * MegaH5Crypto — DES-CBC encryption + MD5 signing for H5 Login.
  *
- * Per MEGAH5 H5 API (same algorithm as 918KISS API v1.11 page 45-48):
- *   QS = "key={secretKey}|time={currTime}|userName={accountId}|password={accountId}|currency={currency}|nickName={nickname}"
+ * QS fields (MEGAH5 seamless wallet — no password field):
+ *   QS = "key={secretKey}|time={currTime}|userName={accountId}|currency={currency}|nickName={nickname}"
  *   q  = URLEncode(DES-CBC-encrypt(QS, encryptKey))   — key = IV = first 8 bytes
- *   s  = MD5(QS + md5Key + currTime + secretKey)      — lowercase hex
+ *   s  = MD5(QS + md5Key)                             — lowercase hex (Formula B)
  *
- * Delimiter between fields is "|" (pipe). Verify against actual MEGAH5 API docs
- * if integration fails — 918KISS uses configurable delimiter, MEGAH5 may use pipe.
+ * Note: `accessToken` is NOT part of the QS or signature — it is placed directly
+ * in the POST body by MegaH5ApiClient.h5Login() using api_account_token.
  */
 export class MegaH5Crypto {
   /** MD5 of input string, returned as lowercase hex. */
@@ -100,7 +99,7 @@ export class MegaH5Crypto {
     console.log('[MEGAH5 Signature Debug] ─────────────────────────');
     console.log('  Delimiter       :', d, ' charCodes:', [...d].map(c => c.charCodeAt(0)));
     console.log('  currTime (UTC)  :', currTime);
-    console.log('  QS fields       : key | time | userName | password | currency | nickName');
+    console.log('  QS fields       : key | time | userName | currency | nickName');
     console.log('  QS (masked)     :', maskedQS);
     console.log('  ---');
     console.log('  Formula A: MD5(QS + md5Key + currTime + secretKey)');
