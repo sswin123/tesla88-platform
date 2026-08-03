@@ -206,6 +206,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── [TRANSFER-DEBUG] Debug 1: playerRecord state BEFORE adapter.launch() ──
+  if (walletType === 'TRANSFER') {
+    console.log('[TRANSFER-DEBUG-1] before adapter.launch()', JSON.stringify({
+      userId:   user_id,
+      provider: upperCode,
+      'playerRecord.provider_player_id': playerRecord?.provider_player_id ?? null,
+      'playerRecord.is_registered':      playerRecord?.is_registered      ?? null,
+    }));
+  }
+
   // ── 4. Launch ─────────────────────────────────────────────────────────────
   let launchResult: import('@/lib/providers').LaunchResult;
   try {
@@ -224,6 +234,49 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── [TRANSFER-DEBUG] Debug 2 / 3 / 4: immediately AFTER adapter.launch() ─
+  if (walletType === 'TRANSFER') {
+    // Debug 2 — playerRecord still holds the pre-launch() snapshot (never refreshed)
+    console.log('[TRANSFER-DEBUG-2] after adapter.launch() — playerRecord in memory (snapshot, NOT re-fetched)', JSON.stringify({
+      userId:   user_id,
+      provider: upperCode,
+      'playerRecord.provider_player_id': playerRecord?.provider_player_id ?? null,
+    }));
+
+    // Debug 3 — query provider_accounts right now (adapter.launch() may have just created/updated it)
+    try {
+      const { rows: _paDbg } = await pool.query<{ provider_login_id: string }>(
+        `SELECT provider_login_id FROM provider_accounts
+         WHERE provider_code = $1 AND user_id = $2 LIMIT 1`,
+        [upperCode, user_id],
+      );
+      console.log('[TRANSFER-DEBUG-3] provider_accounts (queried after launch())', JSON.stringify({
+        userId:   user_id,
+        provider: upperCode,
+        'provider_accounts.provider_login_id': _paDbg[0]?.provider_login_id ?? null,
+        'row_exists': _paDbg.length > 0,
+      }));
+    } catch (_e) {
+      console.warn('[TRANSFER-DEBUG-3] provider_accounts query error:', _e);
+    }
+
+    // Debug 4 — full launchResult structure (password masked if present in session_token)
+    const _stRaw = launchResult.session_token;
+    let _stParsed: unknown = null;
+    try { _stParsed = _stRaw ? JSON.parse(_stRaw) : null; } catch { _stParsed = '(not JSON)'; }
+    if (_stParsed && typeof _stParsed === 'object' && _stParsed !== null) {
+      const _obj = _stParsed as Record<string, unknown>;
+      if ('password' in _obj) _obj['password'] = '***';
+    }
+    console.log('[TRANSFER-DEBUG-4] launchResult', JSON.stringify({
+      'launch_url_prefix':       launchResult.launch_url?.slice(0, 80) ?? null,
+      'session_id':              launchResult.session_id,
+      'session_token_is_null':   _stRaw === null,
+      'session_token_keys':      (_stParsed && typeof _stParsed === 'object') ? Object.keys(_stParsed as object) : null,
+      'session_token_parsed':    _stParsed,
+    }));
+  }
+
   // ── 5. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
   // Architecture:
   //   Step A — autoWithdrawAll: recover any remaining provider balance → wallet
@@ -232,6 +285,14 @@ export async function POST(req: NextRequest) {
   // Refresh Button: Transfer Out only (member-wallet-sync route).
   if (walletType === 'TRANSFER') {
     const loginId = playerRecord.provider_player_id;
+    // ── [TRANSFER-DEBUG] Debug 5: final loginId at Transfer decision point ──
+    console.log('[TRANSFER-DEBUG-5] Transfer decision', JSON.stringify({
+      userId:   user_id,
+      provider: upperCode,
+      'loginId': loginId ?? null,
+      'will_transfer': loginId !== null && loginId !== '',
+      'source': loginId ? 'playerRecord.provider_player_id (pre-launch snapshot)' : 'NULL — Transfer WILL BE SKIPPED',
+    }));
     if (!loginId) {
       console.warn(`[games/launch] Transfer Wallet skipped: no provider_player_id for userId=${user_id}`);
     } else {
