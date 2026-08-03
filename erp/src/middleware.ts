@@ -94,6 +94,13 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // MEGAH5 Seamless Wallet callbacks — called by MEGAH5 servers, not ERP users.
+  // Security is handled inside each handler via token header validation.
+  if (pathname.startsWith('/api/games/megah5/callback/')) {
+    console.log(`[middleware] PASS-THROUGH: ${pathname} — MEGAH5 callback, no auth required`);
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     // API routes must return JSON — never HTML redirect
