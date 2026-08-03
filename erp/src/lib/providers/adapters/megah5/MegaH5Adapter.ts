@@ -400,11 +400,30 @@ export class MegaH5Adapter extends BaseProviderAdapter {
   private checkToken(
     headers: Record<string, string | string[] | undefined>,
   ): Record<string, unknown> | null {
-    const authHeader = headers['authorization'] ?? headers['x-operator-token'] ?? '';
-    const token = typeof authHeader === 'string'
-      ? authHeader.replace(/^Bearer\s+/i, '')
-      : '';
-    if (token !== this.creds.operator_token) {
+    // MEGAH5 sends the Client Token (operator_token) in one of these headers.
+    // Log all candidates during UAT so we can confirm which header MEGA actually uses.
+    const fromAuthorization = headers['authorization'];
+    const fromXOperatorToken = headers['x-operator-token'];
+    const fromXClientToken = headers['x-client-token'];
+
+    const rawAuth = fromAuthorization ?? fromXOperatorToken ?? fromXClientToken ?? '';
+    const token = typeof rawAuth === 'string'
+      ? rawAuth.replace(/^Bearer\s+/i, '')
+      : Array.isArray(rawAuth) ? rawAuth[0]?.replace(/^Bearer\s+/i, '') ?? '' : '';
+
+    const expected = this.creds.operator_token;
+    const match = token === expected;
+
+    console.log('[MEGAH5 TokenCheck]', {
+      'authorization':     fromAuthorization  ? `${String(fromAuthorization).slice(0, 12)}***` : '(absent)',
+      'x-operator-token':  fromXOperatorToken ? `${String(fromXOperatorToken).slice(0, 12)}***` : '(absent)',
+      'x-client-token':    fromXClientToken   ? `${String(fromXClientToken).slice(0, 12)}***` : '(absent)',
+      received_token:      token ? `${token.slice(0, 8)}***` : '(empty)',
+      expected_prefix:     expected ? `${expected.slice(0, 8)}***` : '(empty)',
+      match,
+    });
+
+    if (!match) {
       return { error: OPERATOR_ERROR.AUTH_FAILED };
     }
     return null;
@@ -427,7 +446,10 @@ export class MegaH5Adapter extends BaseProviderAdapter {
   private async resolveUserId(body: Record<string, unknown>): Promise<string | undefined> {
     const accountId = String(body.userName ?? body.playerID ?? '');
     const userId = this.extractUserIdFromAccountId(accountId);
-    if (userId != null) return String(userId);
+    if (userId != null) {
+      console.log(`[MEGAH5 resolveUserId] extracted userId=${userId} from accountId="${accountId}"`);
+      return String(userId);
+    }
 
     // Fallback: look up gp_players by provider_player_id (only when providerId is known)
     const pid = body.playerID;
@@ -437,7 +459,13 @@ export class MegaH5Adapter extends BaseProviderAdapter {
         `SELECT user_id FROM gp_players WHERE provider_id=$1 AND provider_player_id=$2 LIMIT 1`,
         [this.providerId, String(pid)],
       );
-      if (rows[0]) return String(rows[0].user_id);
+      if (rows[0]) {
+        console.log(`[MEGAH5 resolveUserId] DB lookup: playerID=${pid} → userId=${rows[0].user_id}`);
+        return String(rows[0].user_id);
+      }
+      console.warn(`[MEGAH5 resolveUserId] DB lookup found no match: providerId=${this.providerId} playerID=${pid}`);
+    } else {
+      console.warn(`[MEGAH5 resolveUserId] cannot resolve: accountId="${accountId}" providerId=${this.providerId}`);
     }
     return undefined;
   }

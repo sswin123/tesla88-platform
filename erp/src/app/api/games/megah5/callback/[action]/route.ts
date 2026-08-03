@@ -28,38 +28,57 @@ function resolveHandler(adapter: MegaH5Adapter, action: string): Handler | null 
 }
 
 export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const t0 = Date.now();
   const { action } = await params;
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? request.headers.get('x-real-ip')
+    ?? null;
 
-  console.log(`[megah5-callback] action=${action} method=${request.method}`);
+  // ── UAT Debug: log every inbound callback ────────────────────────────────
+  const authHeader = request.headers.get('authorization')
+    ?? request.headers.get('x-operator-token')
+    ?? '(none)';
+  console.log(`[megah5-callback] ▶ action=${action} ip=${ip} auth=${authHeader.slice(0, 20)}***`);
 
   // Parse body
   let rawBody: Record<string, unknown>;
+  let rawText = '';
   try {
-    rawBody = await request.json() as Record<string, unknown>;
+    rawText = await request.text();
+    rawBody = rawText ? JSON.parse(rawText) as Record<string, unknown> : {};
   } catch {
+    console.error(`[megah5-callback] body parse failed: ${rawText.slice(0, 200)}`);
     return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR });
   }
 
-  // Find active brand for MEGAH5
-  const { rows: bpRows } = await pool.query<{ brand_code: string }>(
-    `SELECT b.code AS brand_code
+  console.log(`[megah5-callback] body=${JSON.stringify(rawBody).slice(0, 500)}`);
+
+  // Find active brand for MEGAH5 (ACTIVE or TESTING — both valid during UAT)
+  const { rows: bpRows } = await pool.query<{ brand_code: string; bp_status: string }>(
+    `SELECT b.code AS brand_code, bp.status AS bp_status
      FROM brand_providers bp
      JOIN brands b       ON b.id = bp.brand_id
      JOIN gp_providers p ON p.id = bp.provider_id
-     WHERE p.code = 'MEGAH5' AND bp.status = 'ACTIVE'
+     WHERE UPPER(p.code) = 'MEGAH5'
+       AND bp.status IN ('ACTIVE', 'TESTING')
+     ORDER BY (bp.status = 'ACTIVE') DESC, bp.id ASC
      LIMIT 1`,
   );
 
   if (!bpRows[0]) {
+    console.error('[megah5-callback] no ACTIVE/TESTING brand found for MEGAH5');
     return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE });
   }
+
+  console.log(`[megah5-callback] brand=${bpRows[0].brand_code} status=${bpRows[0].bp_status}`);
 
   // Get adapter from BrandProviderManager
   let adapter: MegaH5Adapter;
   try {
     const platform = createGamingPlatform();
     adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, 'MEGAH5') as MegaH5Adapter;
-  } catch {
+  } catch (err) {
+    console.error('[megah5-callback] adapter load failed:', err);
     return NextResponse.json({ error: OPERATOR_ERROR.MAINTENANCE });
   }
 
@@ -67,17 +86,17 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
   const handler = resolveHandler(adapter, action);
   if (!handler) {
     console.warn(`[megah5-callback] unknown action "${action}"`);
-    return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR });
+    return NextResponse.json({ error: OPERATOR_ERROR.UNKNOWN });
   }
 
   // Build headers map
   const headers: Record<string, string | undefined> = {};
   request.headers.forEach((v, k) => { headers[k] = v; });
 
-  const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? null;
-
   try {
     const result = await handler(rawBody, headers, ip);
+    const elapsed = Date.now() - t0;
+    console.log(`[megah5-callback] ◀ action=${action} elapsed=${elapsed}ms result=${JSON.stringify(result).slice(0, 200)}`);
     return NextResponse.json(result);
   } catch (err) {
     console.error(`[megah5-callback] handler threw for action="${action}":`, err);
