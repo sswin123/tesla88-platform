@@ -53,15 +53,9 @@ export class MegaH5ApiClient {
     language:   number;
     lobbyUrl:   string;
   }): Promise<{ actk: string; latencyMs: number }> {
-    // RCA DEBUG — confirm which credential values Runtime actually loaded
-    console.log('[MEGAH5 CredentialDump]', {
-      api_token:         this.creds.api_token?.slice(0, 8),
-      api_account_token: this.creds.api_account_token?.slice(0, 8),
-      operator_token:    this.creds.operator_token?.slice(0, 8),
-    });
-
     const { q, s } = this.crypto.buildLoginPayload({
       accountId:   params.accountId,
+      password:    params.accountId,  // Seamless Wallet: password = accountId; echoed back in MEGA /api/authenticate callback
       currency:    params.currency,
       nickname:    params.nickname,
       language:    params.language,

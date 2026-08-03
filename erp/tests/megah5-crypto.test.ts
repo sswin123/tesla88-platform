@@ -51,6 +51,7 @@ describe('MegaH5Crypto', () => {
   it('buildLoginPayload returns q and s fields', () => {
     const result = crypto.buildLoginPayload({
       accountId:   'u1@testpostfix',
+      password:    'u1@testpostfix',
       currency:    'MYR',
       nickname:    'Player1',
       language:    2,
