@@ -140,12 +140,12 @@ export async function POST(req: NextRequest) {
   let playerRecord = playerRows[0];
 
   if (!playerRecord) {
-    // Build account_id: "u{userId}@{postfix_id}"
-    // All providers: config comes from ProviderRuntimeBuilder result.
+    // Build account_id: "u{userId}{postfix_id}"
+    // postfix_id already contains '@' (e.g. '@opulux'), so no extra '@' here.
     const postfix  = runtimeConfig['postfix_id'] ?? '';
     const currency = runtimeConfig['currency'] ?? 'MYR';
 
-    const accountId = postfix ? `u${user_id}@${postfix}` : `u${user_id}`;
+    const accountId = postfix ? `u${user_id}${postfix}` : `u${user_id}`;
     const nickname  = user.first_name ?? `Player${user_id}`;
 
     // Call provider API to create the player account.
