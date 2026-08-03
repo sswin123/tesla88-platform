@@ -106,7 +106,7 @@ export class MegaH5ApiClient {
       currency,
       language: MEGAH5_LANGUAGE.ZH,
     });
-    const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_token });
+    const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_account_token });
     if (res.data.statusCode !== 0) {
       throw new Error(`MEGAH5 CreatePlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
     }
@@ -117,7 +117,7 @@ export class MegaH5ApiClient {
   async checkPlayer(accountID: string): Promise<{ playerID: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.CHECK_PLAYER}`;
     const body = JSON.stringify({ accountID });
-    const res = await this.post<CheckPlayerRes>(url, body, { token: this.creds.api_token });
+    const res = await this.post<CheckPlayerRes>(url, body, { token: this.creds.api_account_token });
     if (res.data.statusCode !== 0) {
       throw new Error(`MEGAH5 CheckPlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
     }
@@ -143,7 +143,7 @@ export class MegaH5ApiClient {
   /** Lightweight ping to verify API connectivity. Throws on failure. */
   async healthCheck(): Promise<{ latencyMs: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.HEALTH}`;
-    const { data, latencyMs } = await this.post<BaseResponse>(url, '{}', { token: this.creds.api_token });
+    const { data, latencyMs } = await this.post<BaseResponse>(url, '{}', { token: this.creds.api_account_token });
     if (data.statusCode !== 0) {
       throw new Error(`MEGAH5 HealthCheck error ${data.statusCode}: ${data.errMsg}`);
     }

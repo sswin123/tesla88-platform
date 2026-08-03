@@ -87,10 +87,12 @@ WITH bp AS (
 INSERT INTO brand_provider_credentials (brand_provider_id, key, value, is_encrypted)
 SELECT bp_id, k, v, false FROM bp, (VALUES
   -- MEGA Production Integration Information (confirmed 2026-08-03)
-  -- api_token  = Api Account Token (我们发给 MEGA 的 Operations API 认证，放在 HTTP Header token:)
-  -- operator_token = Client Token (MEGA 在 Callback Header token: 中发给我们，用于验证回调真实性)
-  ('api_token',       'NUFXYmtCaDY5d2QxZkhyUWtDbExxOEpWbElFcjBkZnlaWmZxYVV6TW9KYTY5bGNDVHV5ZjFpdUJWQS9XWTNENk9CemFnVTJsQll6Y3lQekhRNUZQVXBXNkVEenR2WVR2bllJaGJEZ0N0emkyQUxidVo5cnJPejlVdHFCM1d1SU10Q2syWlNnQXFRMHpBSTFCUmo0YXlRPT0='),
-  ('operator_token',  'XTqf65esyLWLOwub'),
+  -- api_token         = Client Token: H5 Login QS 加密 + body accessToken、GameList body
+  -- api_account_token = Api Account Token: Operations API HTTP Header 'token:'
+  -- operator_token    = Client Token: MEGA 回调 Header 'token:' 身份验证
+  ('api_token',         'XTqf65esyLWLOwub'),
+  ('api_account_token', 'NUFXYmtCaDY5d2QxZkhyUWtDbExxOEpWbElFcjBkZnlaWmZxYVV6TW9KYTY5bGNDVHV5ZjFpdUJWQS9XWTNENk9CemFnVTJsQll6Y3lQekhRNUZQVXBXNkVEenR2WVR2bllJaGJEZ0N0emkyQUxidVo5cnJPejlVdHFCM1d1SU10Q2syWlNnQXFRMHpBSTFCUmo0YXlRPT0='),
+  ('operator_token',    'XTqf65esyLWLOwub'),
 
   -- ★ 以下值已确认，无需修改 ★
   ('secret_key',   'pVhahppR'),   -- MEGA 后台 SecretKey

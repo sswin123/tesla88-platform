@@ -2,9 +2,23 @@
 
 /** Credentials loaded from brand_provider_credentials. */
 export interface MegaH5Credentials {
-  /** Outbound API access token (sent by us in API calls). key = 'api_token' */
+  /**
+   * Client Token (Operator/Client Token from MEGA).
+   * Used for: H5 Login QS encryption, H5 Login body accessToken, GameList body accessToken.
+   * key = 'api_token'
+   */
   api_token: string;
-  /** Inbound operator token (sent by MEGAH5 in callback headers). key = 'operator_token' */
+  /**
+   * Api Account Token (separate credential from MEGA for Operations API).
+   * Used for: CreatePlayer, CheckPlayer, HealthCheck — HTTP Header 'token:'.
+   * key = 'api_account_token'
+   */
+  api_account_token: string;
+  /**
+   * Inbound operator token (sent by MEGAH5 in callback HTTP Header 'token:').
+   * Used for: validateCallbackToken / checkToken() — all 9 callback types.
+   * key = 'operator_token'
+   */
   operator_token: string;
   /** SecretKey used in H5 Login MD5 signature. key = 'secret_key' */
   secret_key: string;
@@ -34,6 +48,8 @@ export interface MegaH5Config {
   timeout_ms: number;
   /** DataFeed API base URL (optional). key = 'datafeed_url' */
   datafeed_url?: string;
+  /** Game icon base URL (optional). key = 'game_icon_url' */
+  game_icon_url?: string;
   /** Enable verbose debug logging. Derived from env ENABLE_PROVIDER_DEBUG. */
   debug: boolean;
 }
