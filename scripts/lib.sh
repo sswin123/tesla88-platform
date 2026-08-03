@@ -27,15 +27,10 @@ MIGRATIONS_DIR="${PROJECT_ROOT}/erp/migrations"
 ERP_DIR="${PROJECT_ROOT}/erp"
 WEBSITE_DIR="${PROJECT_ROOT}/website"
 
-# ── Well-known ports/URLs ─────────────────────────────────────────────────────
+# ── Well-known host-mapped ports (display / external access only) ─────────────
 ERP_HOST_PORT=3001
 BOT_RELAY_HOST_PORT=8090
 WEBSITE_HOST_PORT=3002
-
-ERP_HEALTH_URL="http://localhost:${ERP_HOST_PORT}/api/maintenance/health"
-ERP_STATUS_URL="http://localhost:${ERP_HOST_PORT}/api/maintenance/status"
-BOT_RELAY_HEALTH_URL="http://localhost:${BOT_RELAY_HOST_PORT}/health"
-WEBSITE_HEALTH_URL="http://localhost:${WEBSITE_HOST_PORT}/api/health"
 
 # ── Compose file — production-first ──────────────────────────────────────────
 # Priority: docker-compose.production.yml → staging.yml → docker-compose.yml
@@ -203,8 +198,13 @@ wait_http() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Health Check Framework
+# Health Check Framework  —  Docker HEALTHCHECK is the single Source of Truth
 # ═══════════════════════════════════════════════════════════════════════════════
+#
+# Architecture:
+#   Dockerfile HEALTHCHECK CMD → Docker Engine → container health status
+#   update-system.sh → hc_docker_healthy() → run_container_healthcheck()
+#                                             (re-executes the same CMD)
 #
 # Usage in update-system.sh (or any deploy script):
 #
@@ -218,14 +218,20 @@ wait_http() {
 # Built-in checks (call after detect_services):
 #   hc_postgres   — pg_isready inside DB container
 #   hc_redis      — redis-cli PING inside redis container
-#   hc_erp        — Docker healthy + HTTP /api/maintenance/health
-#   hc_website    — Docker healthy + HTTP /api/health
-#   hc_telegram   — Docker healthy (container-level only)
-#   hc_nginx      — Docker healthy
+#   hc_erp        — Docker healthy + re-run image HEALTHCHECK CMD
+#   hc_website    — Docker healthy + re-run image HEALTHCHECK CMD
+#   hc_telegram   — Docker healthy + re-run image HEALTHCHECK CMD (or running check)
+#   hc_nginx      — Docker healthy + re-run image HEALTHCHECK CMD (or running check)
 #
-# To add a new service in the future:
-#   hc_myservice() { hc_docker_healthy "MyService" myservice 60; }
-#   hc_register "MyService" hc_myservice
+# Adding a new service (zero changes to update-system.sh needed):
+#   1. Define HEALTHCHECK in its Dockerfile
+#   2. hc_myservice() { hc_docker_healthy "MyService" myservice 60 && \
+#                       run_container_healthcheck "MyService" myservice; }
+#   3. hc_register "MyService" hc_myservice
+#
+# Fallback (image has no HEALTHCHECK):
+#   → try wget http://127.0.0.1:3000/api/ping inside container
+#   → if unreachable, accept if container state == running
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -334,24 +340,116 @@ hc_http_host() {
   return 1
 }
 
-# HTTP probe from INSIDE the container (avoids host-port dependency).
-hc_http_container() {
-  local label="$1" svc="$2" url="$3" max_wait="${4:-30}"
-  local interval=5 elapsed=0
-  log_info "  [${label}] in-container probe: ${url} (max ${max_wait}s)…"
-  while [[ $elapsed -lt $max_wait ]]; do
-    if dc exec -T "${svc}" sh -c \
-        "curl -sf --connect-timeout 4 --max-time 7 '${url}' -o /dev/null 2>/dev/null \
-         || wget -q --spider --timeout=7 '${url}' 2>/dev/null" &>/dev/null; then
-      log_success "  [${label}] ${url} ✓  (${elapsed}s)"
-      return 0
-    fi
-    sleep "$interval"
-    elapsed=$((elapsed + interval))
-    log_info "    ${elapsed}s — not ready yet"
-  done
-  log_error "  [${label}] in-container probe failed within ${max_wait}s"
-  return 1
+# ── run_container_healthcheck ─────────────────────────────────────────────────
+#
+# Re-execute the Docker image's own HEALTHCHECK command inside the container.
+# This is the ONLY place that runs application-level health probes.
+# No hardcoded URLs — all probe logic lives in the Dockerfile.
+#
+# Reads:  docker inspect .Config.Healthcheck.Test
+# Runs:   CMD-SHELL → docker exec <cid> sh -c "<shell command>"
+#         CMD       → docker exec <cid> <argv...>
+#         NONE/none → fallback: /api/ping, then container running check
+#
+# Returns 0 (PASS) or 1 (FAIL).
+# max_wait is not used here (Docker healthy is already confirmed upstream).
+run_container_healthcheck() {
+  local label="$1" svc="$2"
+
+  local cid
+  cid=$(_hc_cid "${svc}")
+  if [[ -z "$cid" ]]; then
+    log_error "  [${label}] container not found for healthcheck"
+    return 1
+  fi
+
+  # Read HEALTHCHECK.Test from the container's image config.
+  # Output: one element per line — first line is CMD-SHELL / CMD / NONE, rest is the command.
+  local hc_parts
+  hc_parts=$(docker inspect \
+    --format '{{if .Config.Healthcheck}}{{range .Config.Healthcheck.Test}}{{println .}}{{end}}{{end}}' \
+    "$cid" 2>/dev/null || true)
+
+  local hc_type
+  hc_type=$(printf '%s' "$hc_parts" | head -1 | tr -d '[:space:]')
+
+  local t0 elapsed
+  t0=$(date +%s)
+
+  case "$hc_type" in
+
+    CMD-SHELL)
+      local hc_cmd
+      hc_cmd=$(printf '%s' "$hc_parts" | tail -n +2)
+      log_info "  [${label}] HealthCheck CMD-SHELL: ${hc_cmd}"
+      if docker exec -T "$cid" sh -c "$hc_cmd" &>/dev/null; then
+        elapsed=$(( $(date +%s) - t0 ))
+        log_success "  [${label}] PASS ✓  (${elapsed}s)"
+        return 0
+      else
+        elapsed=$(( $(date +%s) - t0 ))
+        log_error "  [${label}] FAIL  (${elapsed}s)"
+        return 1
+      fi
+      ;;
+
+    CMD)
+      # Build argv array from remaining lines (one arg per line)
+      local -a cmd_args=()
+      while IFS= read -r arg; do
+        [[ -n "$arg" ]] && cmd_args+=("$arg")
+      done < <(printf '%s' "$hc_parts" | tail -n +2)
+      log_info "  [${label}] HealthCheck CMD: ${cmd_args[*]}"
+      if docker exec -T "$cid" "${cmd_args[@]}" &>/dev/null; then
+        elapsed=$(( $(date +%s) - t0 ))
+        log_success "  [${label}] PASS ✓  (${elapsed}s)"
+        return 0
+      else
+        elapsed=$(( $(date +%s) - t0 ))
+        log_error "  [${label}] FAIL  (${elapsed}s)"
+        return 1
+      fi
+      ;;
+
+    NONE)
+      # Dockerfile explicitly set HEALTHCHECK NONE — healthcheck disabled
+      log_warn "  [${label}] HEALTHCHECK NONE — skipping API probe"
+      local cstate
+      cstate=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)
+      if [[ "$cstate" == "running" ]]; then
+        log_success "  [${label}] Container running ✓ (healthcheck disabled)"
+        return 0
+      fi
+      log_error "  [${label}] Container not running (state=${cstate})"
+      return 1
+      ;;
+
+    "")
+      # Image has no HEALTHCHECK defined — try /api/ping fallback, then running check
+      log_warn "  [${label}] no HEALTHCHECK in image"
+      if dc exec -T "${svc}" sh -c \
+          "wget -qO /dev/null --timeout=5 http://127.0.0.1:3000/api/ping 2>/dev/null \
+           || curl -sf --connect-timeout 4 --max-time 7 \
+              http://127.0.0.1:3000/api/ping -o /dev/null 2>/dev/null" \
+          &>/dev/null 2>&1; then
+        log_success "  [${label}] /api/ping ✓ (fallback)"
+        return 0
+      fi
+      local cstate
+      cstate=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null)
+      if [[ "$cstate" == "running" ]]; then
+        log_success "  [${label}] Container running ✓ (no healthcheck)"
+        return 0
+      fi
+      log_error "  [${label}] Container not running (state=${cstate})"
+      return 1
+      ;;
+
+    *)
+      log_error "  [${label}] Unknown HEALTHCHECK type: ${hc_type}"
+      return 1
+      ;;
+  esac
 }
 
 # ── Built-in service checks ───────────────────────────────────────────────────
@@ -382,25 +480,10 @@ hc_redis() {
   return 1
 }
 
-hc_erp() {
-  # Step 1: wait for Docker healthcheck to pass (Next.js compilation can take 60-120s)
-  hc_docker_healthy "ERP" erp 150 || return 1
-  # Step 2: confirm the API health endpoint returns 2xx (inside container)
-  hc_http_container "ERP API" erp "http://localhost:3000/api/maintenance/health" 30
-}
-
-hc_website() {
-  hc_docker_healthy "Website" website 150 || return 1
-  hc_http_container "Website API" website "http://localhost:3000/api/health" 30
-}
-
-hc_telegram() {
-  hc_docker_healthy "Telegram Bot" telegram-bot 60
-}
-
-hc_nginx() {
-  hc_docker_healthy "Nginx" nginx 30
-}
+hc_erp()     { hc_docker_healthy "ERP"         erp          150 || return 1; run_container_healthcheck "ERP"         erp; }
+hc_website() { hc_docker_healthy "Website"     website      150 || return 1; run_container_healthcheck "Website"     website; }
+hc_telegram() { hc_docker_healthy "Telegram Bot" telegram-bot  60 || return 1; run_container_healthcheck "Telegram Bot" telegram-bot; }
+hc_nginx()   { hc_docker_healthy "Nginx"        nginx          30 || return 1; run_container_healthcheck "Nginx"        nginx; }
 
 # ── Require Docker (Compose V2) ───────────────────────────────────────────────
 require_docker() {
