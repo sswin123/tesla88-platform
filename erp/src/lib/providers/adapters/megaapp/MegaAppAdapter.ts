@@ -253,7 +253,8 @@ export class MegaAppAdapter extends BaseProviderAdapter {
     console.log(`[MEGA] launch total ${Date.now() - t0}ms`, { userId, loginId });
 
     return {
-      launch_url:    launchUrl,
+      launch_url:        launchUrl,
+      provider_login_id: loginId,
       session_token: JSON.stringify({
         login_id:             loginId,
         password,

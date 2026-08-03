@@ -303,7 +303,7 @@ export async function POST(req: NextRequest) {
     userId: user_id,
   });
   if (walletType === 'TRANSFER') {
-    const loginId = playerRecord.provider_player_id;
+    const loginId = launchResult.provider_login_id ?? playerRecord.provider_player_id;
     console.log('[TRANSFER-LOGINID]', {
       loginId,
     });

@@ -88,6 +88,8 @@ export interface LaunchResult {
   session_token: string | null;
   /** Our internal game session ID. */
   session_id: number;
+  /** The provider-assigned player login ID resolved during launch (Transfer Wallet providers only). */
+  provider_login_id?: string | null;
 }
 
 /** Timepoint cursor record from gp_timepoints. */
