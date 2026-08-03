@@ -98,7 +98,7 @@ This is the recommended way to run the entire stack.
 ### 4.1 Start all services
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.production.yml up -d
 ```
 
 This starts:
@@ -110,14 +110,14 @@ This starts:
 ### 4.2 Verify services are running
 
 ```bash
-docker compose ps
-docker compose logs app --tail=30
+docker compose -f docker-compose.production.yml ps
+docker compose -f docker-compose.production.yml logs telegram-bot --tail=30
 ```
 
 ### 4.3 Stop services
 
 ```bash
-docker compose down
+docker compose -f docker-compose.production.yml down
 ```
 
 ---
@@ -197,7 +197,7 @@ Message [@userinfobot](https://t.me/userinfobot). Copy the numeric ID into `SUPE
 
 ```bash
 # Via Docker Compose (recommended):
-docker compose up -d app
+docker compose -f docker-compose.production.yml up -d erp website telegram-bot
 
 # Locally:
 pip install -r requirements.txt
@@ -210,13 +210,13 @@ python -m bot.main
 
 ```bash
 # Check bot is reachable
-docker compose logs app --tail=20
+docker compose -f docker-compose.production.yml logs telegram-bot --tail=20
 
 # Check ERP build
 cd erp && npm run build
 
 # Check database connection
-docker compose exec db psql -U postgres -d member_bot -c "SELECT COUNT(*) FROM admins;"
+docker compose -f docker-compose.production.yml exec postgres psql -U postgres -d member_bot -c "SELECT COUNT(*) FROM admins;"
 
 # Check relay server (should return {"status":"ok"})
 curl http://localhost:8090/health

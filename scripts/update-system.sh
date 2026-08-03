@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # update-system.sh — One-command safe system updater.
 #
-# Compose priority:  docker-compose.production.yml → staging.yml → docker-compose.yml
-# DB service:        postgres (production) or db (development) — auto-detected
+# Compose file:  docker-compose.production.yml (REQUIRED — exits if missing)
+# DB service:    postgres (auto-detected from compose file)
 # Never deletes volumes.
 #
 # Usage:
@@ -39,8 +39,7 @@ done
 show_logs_and_exit() {
   echo ""
   log_error "Update failed.  Showing last 100 log lines:"
-  docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-    logs --tail=100 2>/dev/null || true
+  dc logs --tail=100 2>/dev/null || true
   if [[ -n "${BACKUP_FILE:-}" && -f "${BACKUP_FILE}" ]]; then
     echo ""
     log_warn "A backup was taken before this run: ${BACKUP_FILE}"
@@ -105,16 +104,14 @@ TIMESTAMP="$(date +"%Y-%m-%d-%H%M")"
 BACKUP_FILE="${AUTO_BACKUPS_DIR}/${TIMESTAMP}.sql"
 
 # Verify DB container is running
-_DB_CID="$(docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-              ps -q "${DB_SERVICE}" 2>/dev/null | head -1 || true)"
+_DB_CID="$(dc ps -q "${DB_SERVICE}" 2>/dev/null | head -1 || true)"
 if [[ -z "${_DB_CID}" ]] || \
    [[ "$(docker inspect --format '{{.State.Status}}' "${_DB_CID}" 2>/dev/null)" != "running" ]]; then
-  die "Database container '${DB_SERVICE}' is not running.  Start it: docker compose -f ${COMPOSE_FILE##*/} up -d ${DB_SERVICE}"
+  die "Database container '${DB_SERVICE}' is not running.  Start it: docker compose -f docker-compose.production.yml up -d ${DB_SERVICE}"
 fi
 
 log_info "Backing up → ${BACKUP_FILE}"
-docker compose -f "${COMPOSE_FILE}" --project-directory "${PROJECT_ROOT}" \
-  exec -T \
+dc exec -T \
   -e PGPASSWORD="${POSTGRES_PASSWORD}" \
   "${DB_SERVICE}" pg_dump \
   -U "${POSTGRES_USER}" \

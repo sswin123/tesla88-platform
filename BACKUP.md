@@ -20,7 +20,7 @@ The ERP runs `pg_dump` server-side and streams the result as a `.sql` file downl
 
 ```bash
 # Via Docker
-docker compose exec db pg_dump -U postgres member_bot > backup_$(date +%Y%m%d_%H%M%S).sql
+docker compose -f docker-compose.production.yml exec postgres pg_dump -U postgres member_bot > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Against a remote database
 pg_dump "postgresql://USER:PASS@HOST:5432/member_bot" > backup_$(date +%Y%m%d_%H%M%S).sql
@@ -51,33 +51,33 @@ This keeps 30 days of daily backups and automatically removes older ones.
 
 ```bash
 # Stop the bot to prevent writes during restore
-docker compose stop app
+docker compose -f docker-compose.production.yml stop telegram-bot erp website
 
 # Restore (this overwrites all existing data)
-docker compose exec -T db psql -U postgres -d member_bot < backup_20260627_030000.sql
+docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot < backup_20260627_030000.sql
 
 # Restart the bot
-docker compose start app
+docker compose -f docker-compose.production.yml start telegram-bot erp website
 ```
 
 ### Restore into a fresh database
 
 ```bash
 # Create a fresh database
-docker compose exec db createdb -U postgres member_bot_restored
+docker compose -f docker-compose.production.yml exec postgres createdb -U postgres member_bot_restored
 
 # Restore
-docker compose exec -T db psql -U postgres -d member_bot_restored < backup_20260627_030000.sql
+docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot_restored < backup_20260627_030000.sql
 ```
 
 ### Restore the ERP's database from a downloaded backup file
 
 ```bash
 # Copy the backup file into the container
-docker compose cp backup_20260627.sql db:/tmp/restore.sql
+docker compose -f docker-compose.production.yml cp backup_20260627.sql db:/tmp/restore.sql
 
 # Run the restore
-docker compose exec db psql -U postgres -d member_bot -f /tmp/restore.sql
+docker compose -f docker-compose.production.yml exec postgres psql -U postgres -d member_bot -f /tmp/restore.sql
 ```
 
 > Warning: Restoring will remove all data added after the backup timestamp. Confirm the backup file before proceeding.
@@ -102,7 +102,7 @@ docker run --rm \
 
 ```bash
 # Stop containers first
-docker compose down
+docker compose -f docker-compose.production.yml down
 
 # Restore (overwrites all volume data)
 docker run --rm \
@@ -112,7 +112,7 @@ docker run --rm \
   sh -c "rm -rf /data/* && tar xzf /backup/postgres_data_20260627_030000.tar.gz -C /data"
 
 # Restart
-docker compose up -d
+docker compose -f docker-compose.production.yml up -d
 ```
 
 ---
@@ -137,20 +137,20 @@ Receipt images are uploaded to Telegram's servers and proxied on demand. They do
 
 1. Stop the bot to halt writes:
    ```bash
-   docker compose stop app
+   docker compose -f docker-compose.production.yml stop telegram-bot erp website
    ```
 2. Drop and recreate the database:
    ```bash
-   docker compose exec db psql -U postgres -c "DROP DATABASE member_bot;"
-   docker compose exec db psql -U postgres -c "CREATE DATABASE member_bot;"
+   docker compose -f docker-compose.production.yml exec postgres psql -U postgres -c "DROP DATABASE member_bot;"
+   docker compose -f docker-compose.production.yml exec postgres psql -U postgres -c "CREATE DATABASE member_bot;"
    ```
 3. Restore the most recent backup:
    ```bash
-   docker compose exec -T db psql -U postgres -d member_bot < /opt/backups/db_latest.sql
+   docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot < /opt/backups/db_latest.sql
    ```
 4. Restart services:
    ```bash
-   docker compose start app
+   docker compose -f docker-compose.production.yml start telegram-bot erp website
    ```
 
 ### Scenario 2 — Server Loss (Full Rebuild)
@@ -160,15 +160,15 @@ Receipt images are uploaded to Telegram's servers and proxied on demand. They do
 3. Restore `.env` and `erp/.env` from your secure vault.
 4. Start the database:
    ```bash
-   docker compose up -d db
+   docker compose -f docker-compose.production.yml up -d postgres
    ```
 5. Wait for it to be healthy, then restore data:
    ```bash
-   docker compose exec -T db psql -U postgres -d member_bot < backup_latest.sql
+   docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot < backup_latest.sql
    ```
 6. Start all services:
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose.production.yml up -d
    cd erp && docker build -t erp . && docker run -d --name erp --restart always -p 3000:3000 --env-file .env erp
    ```
 7. Update DNS to point to the new server IP.
@@ -183,8 +183,8 @@ If records were accidentally deleted (member data, deposit records, etc.):
 1. Do **not** take a new backup — this would overwrite the pre-deletion backup.
 2. Restore to a staging database:
    ```bash
-   docker compose exec db createdb -U postgres member_bot_recovery
-   docker compose exec -T db psql -U postgres -d member_bot_recovery < backup_pre_deletion.sql
+   docker compose -f docker-compose.production.yml exec postgres createdb -U postgres member_bot_recovery
+   docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot_recovery < backup_pre_deletion.sql
    ```
 3. Extract the specific rows from the recovery database and re-insert them into production.
 
@@ -196,17 +196,17 @@ Test your backups monthly by doing a restore into a staging environment:
 
 ```bash
 # Create a staging DB
-docker compose exec db createdb -U postgres member_bot_staging
+docker compose -f docker-compose.production.yml exec postgres createdb -U postgres member_bot_staging
 
 # Restore
-docker compose exec -T db psql -U postgres -d member_bot_staging < backup_latest.sql
+docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d member_bot_staging < backup_latest.sql
 
 # Verify row counts
-docker compose exec db psql -U postgres -d member_bot_staging -c \
+docker compose -f docker-compose.production.yml exec postgres psql -U postgres -d member_bot_staging -c \
   "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC;"
 
 # Clean up
-docker compose exec db psql -U postgres -c "DROP DATABASE member_bot_staging;"
+docker compose -f docker-compose.production.yml exec postgres psql -U postgres -c "DROP DATABASE member_bot_staging;"
 ```
 
 A backup that cannot be restored is not a backup.

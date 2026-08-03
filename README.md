@@ -27,6 +27,8 @@ Python · Aiogram 3.13.1 · PostgreSQL 14 · Docker Compose
 
 ## 快速部署
 
+> **重要：** 所有部署命令必须使用 `-f docker-compose.production.yml`，禁止使用默认 `docker-compose.yml`（仅供本地开发）。
+
 ### 1. 配置环境变量
 
 ```bash
@@ -37,20 +39,21 @@ cp .env.example .env
 ### 2. 启动
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.production.yml up -d --build
 ```
 
 ### 3. 查看日志
 
 ```bash
-docker compose logs -f app
+docker compose -f docker-compose.production.yml logs -f erp
+docker compose -f docker-compose.production.yml logs -f telegram-bot
 ```
 
 ### 4. 停止
 
 ```bash
-docker compose down          # 保留数据
-docker compose down -v       # 删除数据（重置 DB）
+docker compose -f docker-compose.production.yml down          # 保留数据
+docker compose -f docker-compose.production.yml down -v       # 删除数据（重置 DB）
 ```
 
 ---

@@ -56,7 +56,9 @@ fi
 require_docker
 load_env
 
-root_running db || die "Database container is not running. Start it first: docker compose up -d"
+detect_services
+root_running "${DB_SERVICE}" \
+  || die "Database (${DB_SERVICE}) is not running. Start it: docker compose -f docker-compose.production.yml up -d ${DB_SERVICE}"
 
 # ── Confirmation ──────────────────────────────────────────────────────────────
 FILE_SIZE="$(du -sh "${TARGET_FILE}" | cut -f1)"
@@ -129,5 +131,5 @@ echo ""
 echo -e "  ${BOLD}Restored:${NC}     ${TARGET_FILE}"
 echo -e "  ${BOLD}Pre-rollback:${NC} ${PRE_ROLLBACK_BACKUP}"
 echo ""
-log_warn "Restart application containers to reconnect: docker compose up -d"
+log_warn "Restart application containers to reconnect: docker compose -f docker-compose.production.yml up -d"
 echo ""

@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # update.sh — one-command full-system deployment update.
 #
+# IMPORTANT: Uses docker-compose.production.yml exclusively (via lib.sh dc()).
+#            Production services: erp, website, telegram-bot, postgres, redis, nginx
+#            Never uses docker-compose.yml (development only).
+#
 # Steps:
 #   1. Git pull (skipped if no remote / no upstream configured)
 #   2. Verify Docker is running
-#   3. Verify required containers exist
+#   3. Detect compose file + services
 #   4. Backup database
 #   5. Apply pending migrations
 #   6. Update Telegram Bot
-#   7. Update ERP
+#   7. Update ERP + Website
 #   8. Health checks
 #   9. Print summary
 #
@@ -63,36 +67,20 @@ require_docker
 log_success "Docker is running."
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 2 — Verify required containers exist
+# Step 3 — Detect compose services
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 3 / 8 — Verify Containers"
+log_step "Step 3 / 8 — Detect Services"
 load_env
+detect_services
 
-errors=0
-for service in db app; do
-  if root_running "$service"; then
-    log_success "  Root project — ${service}: running"
-  else
-    log_error   "  Root project — ${service}: NOT running"
-    errors=$((errors + 1))
-  fi
-done
-
-if erp_running; then
-  log_success "  ERP project  — erp: running"
-else
-  log_error   "  ERP project  — erp: NOT running"
-  errors=$((errors + 1))
+# DB must be running before we can proceed
+if [[ -z "${DB_SERVICE}" ]]; then
+  die "No database service found in ${COMPOSE_FILE##*/}. Start it first:\n  docker compose -f docker-compose.production.yml up -d postgres"
 fi
-
-if [[ $errors -gt 0 ]]; then
-  echo ""
-  log_error "One or more required containers are not running."
-  log_error "Perform an initial deployment before running ${SCRIPT_NAME}."
-  log_error "  Root services:  docker compose up -d"
-  log_error "  ERP service:    cd erp && docker compose up -d"
-  exit 1
+if ! root_running "${DB_SERVICE}"; then
+  die "Database (${DB_SERVICE}) is not running. Start it first:\n  docker compose -f docker-compose.production.yml up -d ${DB_SERVICE}"
 fi
+log_success "Database (${DB_SERVICE}): running."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 3 — Backup database
@@ -106,7 +94,7 @@ BACKUP_FILE="${BACKUPS_DIR}/${TIMESTAMP}.sql"
 log_info "Backing up to: ${BACKUP_FILE}"
 dc exec -T \
   -e PGPASSWORD="${POSTGRES_PASSWORD}" \
-  db pg_dump \
+  "${DB_SERVICE}" pg_dump \
   -U "${POSTGRES_USER}" \
   --no-password \
   "${POSTGRES_DB}" \
@@ -131,27 +119,38 @@ STEP_MIGRATE_OK=true
 # ─────────────────────────────────────────────────────────────────────────────
 log_step "Step 6 / 8 — Update Telegram Bot"
 
-log_info "Building bot image…"
-dc build app
-
-log_info "Restarting bot container…"
-dc up -d --no-deps app
-
-wait_http "$BOT_RELAY_HEALTH_URL" "Bot relay" 90
-STEP_BOT_OK=true
+if $HAS_TELEGRAM_SVC; then
+  log_info "Building Telegram Bot image…"
+  dc build telegram-bot
+  log_info "Restarting Telegram Bot container…"
+  dc up -d --no-deps --remove-orphans telegram-bot
+  wait_http "$BOT_RELAY_HEALTH_URL" "Bot relay" 90
+  STEP_BOT_OK=true
+else
+  log_warn "telegram-bot not in ${COMPOSE_FILE##*/} — skipping"
+  STEP_BOT_OK=true
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 6 — Update ERP
+# Step 7 — Update ERP + Website
 # ─────────────────────────────────────────────────────────────────────────────
-log_step "Step 7 / 8 — Update ERP"
+log_step "Step 7 / 8 — Update ERP + Website"
 
-log_info "Building ERP image…"
-erp_dc build erp
+if $HAS_ERP_SVC; then
+  log_info "Building ERP image…"
+  dc build erp
+  log_info "Restarting ERP container…"
+  dc up -d --no-deps --remove-orphans erp
+  wait_http "$ERP_HEALTH_URL" "ERP" 180
+fi
 
-log_info "Restarting ERP container…"
-erp_dc up -d --no-deps erp
+if $HAS_WEBSITE_SVC; then
+  log_info "Building Website image…"
+  dc build website
+  log_info "Restarting Website container…"
+  dc up -d --no-deps --remove-orphans website
+fi
 
-wait_http "$ERP_HEALTH_URL" "ERP" 180
 STEP_ERP_OK=true
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require_docker
 load_env
+detect_services   # populates DB_SERVICE, HAS_*_SVC
 
 echo ""
 echo -e "${BOLD}${CYAN}════════════════════════════════════════════════${NC}"
@@ -34,12 +35,10 @@ fi
 
 # ── Container status ──────────────────────────────────────────────────────────
 echo ""
-echo -e "  ${BOLD}Containers${NC}"
+echo -e "  ${BOLD}Containers  (${COMPOSE_FILE##*/})${NC}"
 
 print_container() {
-  local label="$1"
-  local running="$2"
-  local extra="${3:-}"
+  local label="$1" running="$2" extra="${3:-}"
   if [[ "$running" == "true" ]]; then
     echo -e "    ${GREEN}●${NC} ${label}${extra:+  (${extra})}"
   else
@@ -47,25 +46,39 @@ print_container() {
   fi
 }
 
-# db
-if root_running db; then
-  print_container "db  (PostgreSQL)" "true" "port 5432"
+# postgres (production DB service)
+if [[ -n "${DB_SERVICE}" ]] && root_running "${DB_SERVICE}"; then
+  print_container "${DB_SERVICE}  (PostgreSQL)" "true" "port 5432"
 else
-  print_container "db  (PostgreSQL)" "false"
+  print_container "${DB_SERVICE:-postgres}  (PostgreSQL)" "false"
 fi
 
-# app (bot + relay)
-if root_running app; then
-  print_container "app (Telegram Bot + Relay)" "true" "relay port ${BOT_RELAY_HOST_PORT}"
-else
-  print_container "app (Telegram Bot + Relay)" "false"
+# telegram-bot
+if $HAS_TELEGRAM_SVC && root_running telegram-bot; then
+  print_container "telegram-bot (Telegram Bot + Relay)" "true" "relay port ${BOT_RELAY_HOST_PORT}"
+elif $HAS_TELEGRAM_SVC; then
+  print_container "telegram-bot (Telegram Bot + Relay)" "false"
 fi
 
 # erp
-if erp_running; then
+if $HAS_ERP_SVC && root_running erp; then
   print_container "erp (Next.js ERP)" "true" "port ${ERP_HOST_PORT}"
-else
+elif $HAS_ERP_SVC; then
   print_container "erp (Next.js ERP)" "false"
+fi
+
+# website
+if $HAS_WEBSITE_SVC && root_running website; then
+  print_container "website (Next.js Website)" "true" "port ${WEBSITE_HOST_PORT}"
+elif $HAS_WEBSITE_SVC; then
+  print_container "website (Next.js Website)" "false"
+fi
+
+# nginx
+if $HAS_NGINX_SVC && root_running nginx; then
+  print_container "nginx (Reverse Proxy)" "true" "port 80/443"
+elif $HAS_NGINX_SVC; then
+  print_container "nginx (Reverse Proxy)" "false"
 fi
 
 # ── Service health ─────────────────────────────────────────────────────────────
@@ -87,21 +100,21 @@ check_url "ERP health " "$ERP_HEALTH_URL"
 check_url "ERP status " "$ERP_STATUS_URL"
 check_url "Bot relay  " "$BOT_RELAY_HEALTH_URL"
 
-if root_running db; then
+if [[ -n "${DB_SERVICE}" ]] && root_running "${DB_SERVICE}"; then
   if db_psql -c "SELECT 1;" &>/dev/null; then
-    echo -e "    ${GREEN}✓${NC} Database    connected"
+    echo -e "    ${GREEN}✓${NC} Database (${DB_SERVICE})  connected"
   else
-    echo -e "    ${RED}✗${NC} Database    connection failed"
+    echo -e "    ${RED}✗${NC} Database (${DB_SERVICE})  connection failed"
   fi
 else
-  echo -e "    ${RED}✗${NC} Database    container not running"
+  echo -e "    ${RED}✗${NC} Database (${DB_SERVICE:-postgres})  container not running"
 fi
 
 # ── Migrations ────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${BOLD}Migrations${NC}"
 
-if root_running db; then
+if [[ -n "${DB_SERVICE}" ]] && root_running "${DB_SERVICE}"; then
   # Check if schema_migrations table exists
   table_exists=$(
     db_psql -tAc \

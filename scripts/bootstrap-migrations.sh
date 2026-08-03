@@ -30,7 +30,9 @@ fi
 
 log_step "Migration Bootstrap"
 
-root_running db || die "Database container is not running. Run: docker compose up -d"
+detect_services
+root_running "${DB_SERVICE}" \
+  || die "Database (${DB_SERVICE}) is not running. Run: docker compose -f docker-compose.production.yml up -d ${DB_SERVICE}"
 
 # ── Ensure schema_migrations table exists ─────────────────────────────────────
 db_psql -v ON_ERROR_STOP=1 <<'SQL'

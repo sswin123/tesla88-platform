@@ -8,6 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require_docker
 load_env
+detect_services   # populates DB_SERVICE (postgres or db)
 
 log_step "Health Checks"
 
@@ -41,15 +42,15 @@ else
 fi
 
 # ── PostgreSQL connection ─────────────────────────────────────────────────────
-if root_running db; then
+if [[ -n "${DB_SERVICE}" ]] && root_running "${DB_SERVICE}"; then
   if db_psql -c "SELECT 1;" &>/dev/null; then
-    log_success "PostgreSQL connection       OK"
+    log_success "PostgreSQL connection       OK (${DB_SERVICE})"
   else
     log_error   "PostgreSQL connection       FAILED (psql returned error)"
     overall_ok=false
   fi
 else
-  log_error   "PostgreSQL connection       FAILED (db container not running)"
+  log_error   "PostgreSQL connection       FAILED (${DB_SERVICE:-postgres} container not running)"
   overall_ok=false
 fi
 

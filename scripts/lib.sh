@@ -32,14 +32,17 @@ ERP_HOST_PORT=3001
 BOT_RELAY_HOST_PORT=8090
 WEBSITE_HOST_PORT=3002
 
-# ── Compose file — production-first ──────────────────────────────────────────
-# Priority: docker-compose.production.yml → staging.yml → docker-compose.yml
-if   [[ -f "${PROJECT_ROOT}/docker-compose.production.yml" ]]; then
+# ── Compose file — PRODUCTION ONLY ───────────────────────────────────────────
+# All scripts MUST use docker-compose.production.yml.
+# docker-compose.yml is development-only and must never be used on the server.
+# If docker-compose.production.yml is missing, abort immediately.
+if [[ -f "${PROJECT_ROOT}/docker-compose.production.yml" ]]; then
   COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.production.yml"
-elif [[ -f "${PROJECT_ROOT}/docker-compose.staging.yml" ]]; then
-  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.staging.yml"
 else
-  COMPOSE_FILE="${PROJECT_ROOT}/docker-compose.yml"
+  echo -e "\033[0;31m[FATAL]\033[0m docker-compose.production.yml not found at ${PROJECT_ROOT}" >&2
+  echo -e "\033[0;31m[FATAL]\033[0m All deployment scripts require docker-compose.production.yml." >&2
+  echo -e "\033[0;31m[FATAL]\033[0m Do NOT use docker-compose.yml (development only)." >&2
+  exit 1
 fi
 
 # ── Service name variables — populated by detect_services() ──────────────────
@@ -493,4 +496,6 @@ require_docker() {
     || die "Docker daemon is not running. Start Docker and retry."
   docker compose version &>/dev/null \
     || die "Docker Compose V2 ('docker compose') not available. Upgrade Docker."
+  # Confirm active compose file is production
+  log_info "Using compose: ${COMPOSE_FILE##*/}"
 }

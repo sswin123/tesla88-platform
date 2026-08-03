@@ -222,7 +222,7 @@ If a deployment fails:
 1. Check which step failed from the error output.
 2. If the database was already modified, restore from backup:
    ```bash
-   docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < backups/YYYY-MM-DD_HH-MM.sql
+   docker compose -f docker-compose.production.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < backups/YYYY-MM-DD_HH-MM.sql
    ```
 3. Fix the issue and re-run `./scripts/update.sh`.
 
