@@ -123,6 +123,13 @@ export async function POST(req: NextRequest) {
     gpDisplayName       = result.gpDisplayName;
     gpWebsiteLaunchMode = result.gpWebsiteLaunchMode;
     walletType          = result.bpWalletType;
+    console.log('[LAUNCH-WALLETTYPE]', {
+      walletType: result.bpWalletType,
+      bpId: result.bpId,
+      providerCode: upperCode,
+      userId: user_id,
+      found: result.found,
+    });
     runtimeConfig       = result.config;
     adapter             = result.adapter;
   }
@@ -206,6 +213,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  console.log('[LAUNCH-RUNTIME]', {
+    walletType,
+    upperCode,
+    userId: user_id,
+    gpProviderId,
+  });
   // ── [TRANSFER-DEBUG] Debug 1: playerRecord state BEFORE adapter.launch() ──
   if (walletType === 'TRANSFER') {
     console.log('[TRANSFER-DEBUG-1] before adapter.launch()', JSON.stringify({
@@ -283,8 +296,17 @@ export async function POST(req: NextRequest) {
   //   Step B — Transfer In: move ALL wallet balance → provider
   // Login Callback: authentication only, never touches wallet.
   // Refresh Button: Transfer Out only (member-wallet-sync route).
+  console.log('[TRANSFER-GATE]', {
+    walletType,
+    providerPlayerId: playerRecord?.provider_player_id,
+    providerPlayerIdType: typeof playerRecord?.provider_player_id,
+    userId: user_id,
+  });
   if (walletType === 'TRANSFER') {
     const loginId = playerRecord.provider_player_id;
+    console.log('[TRANSFER-LOGINID]', {
+      loginId,
+    });
     // ── [TRANSFER-DEBUG] Debug 5: final loginId at Transfer decision point ──
     console.log('[TRANSFER-DEBUG-5] Transfer decision', JSON.stringify({
       userId:   user_id,
