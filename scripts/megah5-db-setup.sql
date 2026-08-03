@@ -9,9 +9,10 @@ BEGIN;
 -- ── Step 1: gp_providers ─────────────────────────────────────
 -- 新增 MEGAH5 Provider 记录
 
-INSERT INTO gp_providers (code, display_name, status, wallet_type, website_launch_mode)
+INSERT INTO gp_providers (code, name, display_name, status, wallet_type, website_launch_mode)
 VALUES (
   'MEGAH5',
+  'mega888_h5',        -- internal slug (same convention as mega888_app)
   'Mega888 H5',
   'TESTING',           -- UAT 期间用 TESTING；上线前改为 ACTIVE
   'SEAMLESS',
