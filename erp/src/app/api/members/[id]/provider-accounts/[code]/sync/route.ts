@@ -52,7 +52,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     `SELECT gp.wallet_type, gp.code, gp.name
      FROM brand_providers bp
      JOIN gp_providers gp ON gp.id = bp.provider_id
-     WHERE gp.code = $1 AND bp.status = 'ACTIVE' LIMIT 1`,
+     WHERE gp.code = $1 AND bp.status IN ('ACTIVE', 'TESTING') LIMIT 1`,
     [upperCode],
   );
 
@@ -74,7 +74,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
      FROM brand_providers bp
      JOIN brands b ON b.id = bp.brand_id
      JOIN gp_providers gp ON gp.id = bp.provider_id
-     WHERE gp.code = $1 AND bp.status = 'ACTIVE' LIMIT 1`,
+     WHERE gp.code = $1 AND bp.status IN ('ACTIVE', 'TESTING') LIMIT 1`,
     [upperCode],
   );
 

@@ -50,9 +50,10 @@ export class BrandProviderRepository {
 
   /**
    * Find the brand_providers row for a given (brandCode, providerCode) pair.
-   * Returns null if brand doesn't exist, provider isn't enabled for brand,
-   * or status is not ACTIVE.
-   * Only returns ACTIVE brand-providers — inactive ones cannot serve requests.
+   * Returns null if brand doesn't exist or provider isn't enabled for brand.
+   * ACTIVE and TESTING are both treated as live — TESTING allows UAT without
+   * a separate environment while keeping the status visible in the UI.
+   * DISABLED / MAINTENANCE / DEPRECATED cannot serve requests.
    */
   async findActive(brandCode: string, providerCode: string): Promise<BrandProviderRecord | null> {
     const { rows } = await pool.query<BrandProviderRecord>(
@@ -65,7 +66,8 @@ export class BrandProviderRepository {
        FROM brand_providers bp
        JOIN brands        b ON b.id = bp.brand_id
        JOIN gp_providers  p ON p.id = bp.provider_id
-       WHERE b.code = $1 AND p.code = $2 AND bp.status = 'ACTIVE'
+       WHERE b.code = $1 AND p.code = $2 AND bp.status IN ('ACTIVE', 'TESTING')
+       ORDER BY (bp.status = 'ACTIVE') DESC
        LIMIT 1`,
       [brandCode, providerCode],
     );

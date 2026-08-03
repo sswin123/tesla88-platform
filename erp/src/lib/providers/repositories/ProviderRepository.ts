@@ -37,7 +37,7 @@ export class ProviderRepository implements IProviderRepository {
 
   async findActive(): Promise<ProviderRecord[]> {
     const { rows } = await pool.query<ProviderRecord>(
-      `SELECT * FROM gp_providers WHERE status = 'ACTIVE' ORDER BY priority ASC, code ASC`,
+      `SELECT * FROM gp_providers WHERE status IN ('ACTIVE', 'TESTING') ORDER BY priority ASC, code ASC`,
     );
     return rows;
   }

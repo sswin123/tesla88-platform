@@ -74,7 +74,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             u.public_id     AS user_public_id
      FROM provider_accounts pa
      JOIN gp_providers   gp ON gp.code = pa.provider_code
-     JOIN brand_providers bp ON bp.provider_id = gp.id AND bp.status = 'ACTIVE'
+     JOIN brand_providers bp ON bp.provider_id = gp.id AND bp.status IN ('ACTIVE', 'TESTING')
      JOIN brands          b  ON b.id = bp.brand_id
      JOIN users           u  ON u.id = pa.user_id
      WHERE pa.user_id = $1`,
