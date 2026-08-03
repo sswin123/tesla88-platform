@@ -101,13 +101,12 @@ export class MegaH5ApiClient {
   ): Promise<{ playerID: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.CREATE_PLAYER}`;
     const body = JSON.stringify({
-      accessToken: this.creds.api_token,
       accountID,
       nickName,
       currency,
       language: MEGAH5_LANGUAGE.ZH,
     });
-    const res = await this.post<CreatePlayerRes>(url, body);
+    const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_token });
     if (res.data.statusCode !== 0) {
       throw new Error(`MEGAH5 CreatePlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
     }
@@ -117,8 +116,8 @@ export class MegaH5ApiClient {
   /** Retrieve the provider playerID for an existing account. */
   async checkPlayer(accountID: string): Promise<{ playerID: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.CHECK_PLAYER}`;
-    const body = JSON.stringify({ accessToken: this.creds.api_token, accountID });
-    const res = await this.post<CheckPlayerRes>(url, body);
+    const body = JSON.stringify({ accountID });
+    const res = await this.post<CheckPlayerRes>(url, body, { token: this.creds.api_token });
     if (res.data.statusCode !== 0) {
       throw new Error(`MEGAH5 CheckPlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
     }
@@ -144,8 +143,7 @@ export class MegaH5ApiClient {
   /** Lightweight ping to verify API connectivity. Throws on failure. */
   async healthCheck(): Promise<{ latencyMs: number }> {
     const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.HEALTH}`;
-    const body = JSON.stringify({ accessToken: this.creds.api_token });
-    const { data, latencyMs } = await this.post<BaseResponse>(url, body);
+    const { data, latencyMs } = await this.post<BaseResponse>(url, '{}', { token: this.creds.api_token });
     if (data.statusCode !== 0) {
       throw new Error(`MEGAH5 HealthCheck error ${data.statusCode}: ${data.errMsg}`);
     }
@@ -166,6 +164,7 @@ export class MegaH5ApiClient {
   private async post<T>(
     url: string,
     jsonBody: string,
+    extraHeaders?: Record<string, string>,
   ): Promise<{ data: T; latencyMs: number }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeout_ms);
@@ -175,7 +174,7 @@ export class MegaH5ApiClient {
     try {
       res = await fetch(url, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...extraHeaders },
         body:    jsonBody,
         signal:  controller.signal,
       });

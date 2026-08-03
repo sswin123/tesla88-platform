@@ -56,17 +56,16 @@ WITH bp AS (
 )
 INSERT INTO brand_provider_config (brand_provider_id, key, value)
 SELECT bp_id, k, v FROM bp, (VALUES
-  -- ★ 必须替换以下 PLACEHOLDER 值 ★
-  -- MEGA 官方 API 文档中获取
-  ('api_base_url',    'PLACEHOLDER_MEGA_OPS_API_URL'),   -- e.g. https://api.mega888.com/operator
-  ('h5_api_domain',   'PLACEHOLDER_MEGA_H5_API_URL'),    -- e.g. https://h5api.mega888.com
-  ('h5_lobby_domain', 'PLACEHOLDER_MEGA_H5_LOBBY_URL'),  -- e.g. https://lobby.mega888.com
-  ('h5_game_domain',  'PLACEHOLDER_MEGA_H5_GAME_URL'),   -- e.g. https://game.mega888.com
-
-  -- ★ 以下值已确认，无需修改 ★
-  ('postfix_id',   '@opulux'),
-  ('currency',     'MYR'),
-  ('timeout_ms',   '10000')
+  -- MEGA Production Integration Information (confirmed 2026-08-03)
+  ('api_base_url',    'https://prov.h5mg888.com'),
+  ('h5_api_domain',   'https://apigame.mg558h5.com'),
+  ('h5_lobby_domain', 'https://apigame.mg558h5.com'),
+  ('h5_game_domain',  'https://apigame.mg558h5.com'),
+  ('datafeed_url',    'https://dtfeed.h5mg888.com'),
+  ('game_icon_url',   'https://game1.mg888h5.com/v3/h5Lb02/gameIcon_en/'),
+  ('postfix_id',      '@opulux'),
+  ('currency',        'MYR'),
+  ('timeout_ms',      '10000')
 ) AS t(k, v)
 ON CONFLICT (brand_provider_id, key) DO UPDATE
   SET value      = EXCLUDED.value,
@@ -87,12 +86,11 @@ WITH bp AS (
 )
 INSERT INTO brand_provider_credentials (brand_provider_id, key, value, is_encrypted)
 SELECT bp_id, k, v, false FROM bp, (VALUES
-  -- ★ 必须确认以下值 ★
-  -- MEGA 后台 → Client Token: XTqf65esyLWLOwub
-  -- 此值同时用作 api_token（发给 MEGA API）和 operator_token（MEGA 发给我们）
-  -- 如果 MEGA 给了不同的 Api Account Token，请替换 api_token 的值
-  ('api_token',       'XTqf65esyLWLOwub'),   -- MEGA Client Token（我们发出的 accessToken）
-  ('operator_token',  'XTqf65esyLWLOwub'),   -- MEGA 在 Callback 中发给我们的验证 Token（待 UAT 确认）
+  -- MEGA Production Integration Information (confirmed 2026-08-03)
+  -- api_token  = Api Account Token (我们发给 MEGA 的 Operations API 认证，放在 HTTP Header token:)
+  -- operator_token = Client Token (MEGA 在 Callback Header token: 中发给我们，用于验证回调真实性)
+  ('api_token',       'NUFXYmtCaDY5d2QxZkhyUWtDbExxOEpWbElFcjBkZnlaWmZxYVV6TW9KYTY5bGNDVHV5ZjFpdUJWQS9XWTNENk9CemFnVTJsQll6Y3lQekhRNUZQVXBXNkVEenR2WVR2bllJaGJEZ0N0emkyQUxidVo5cnJPejlVdHFCM1d1SU10Q2syWlNnQXFRMHpBSTFCUmo0YXlRPT0='),
+  ('operator_token',  'XTqf65esyLWLOwub'),
 
   -- ★ 以下值已确认，无需修改 ★
   ('secret_key',   'pVhahppR'),   -- MEGA 后台 SecretKey
