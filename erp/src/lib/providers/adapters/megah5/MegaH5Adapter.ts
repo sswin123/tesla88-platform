@@ -100,10 +100,15 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     return actk;
   }
 
-  getLobbyURL(token: string, _language: number, _lobbyReturnUrl: string): string {
-    // MEGAH5 lobby format: /apiLobby?tkn={token}
+  getLobbyURL(token: string, language: number, lobbyReturnUrl: string): string {
+    // MG888H5 API v1.0.5 §9: GET <h5-lobby-domain>/apiLobby?tkn={actk}&language={langId}&lobbyUrl={lobbyUrl}
+    // Note: tkn/language/lobbyUrl values must NOT be URLEncoded per PDF explicit instruction
     const base = this.cfg.h5_lobby_domain.replace(/\/$/, '');
-    return `${base}/apiLobby?tkn=${encodeURIComponent(token)}`;
+    let url = `${base}/apiLobby?tkn=${token}&language=${language}`;
+    if (lobbyReturnUrl) {
+      url += `&lobbyUrl=${lobbyReturnUrl}`;
+    }
+    return url;
   }
 
   getGameURL(token: string, gameCode: string, language: number, _lobbyReturnUrl: string): string {
@@ -153,7 +158,7 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     }
 
     console.log('[MEGAH5-STEP6] Launch URL ready', {
-      launchUrlPrefix: launchUrl.slice(0, 80),
+      launchUrl,
       isGameLaunch:    !!params.game_code,
       sessionTokenPrefix: actk.slice(0, 12) + '***',
     });
