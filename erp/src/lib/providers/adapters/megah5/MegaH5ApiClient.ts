@@ -112,7 +112,25 @@ export class MegaH5ApiClient {
       currency,
       language: MEGAH5_LANGUAGE.ZH,
     });
+
+    console.log('[MEGAH5-STEP4] CreatePlayer Request', {
+      url,
+      accountID,
+      nickName,
+      currency,
+      language:    MEGAH5_LANGUAGE.ZH,
+      tokenPrefix: this.creds.api_account_token.slice(0, 8) + '***',
+    });
+
     const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_account_token });
+
+    console.log('[MEGAH5-STEP4] CreatePlayer Response', {
+      statusCode: res.data.statusCode,
+      errMsg:     res.data.errMsg,
+      playerID:   res.data.playerID,
+      latencyMs:  res.latencyMs,
+    });
+
     if (res.data.statusCode !== 0) {
       throw new Error(`MEGAH5 CreatePlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
     }
@@ -188,6 +206,11 @@ export class MegaH5ApiClient {
       clearTimeout(timer);
       const latencyMs = Date.now() - start;
       const msg = err instanceof Error ? err.message : String(err);
+      console.error('[MEGAH5-STEP7] Network/Timeout error', {
+        url, latencyMs,
+        error:   msg,
+        stack:   err instanceof Error ? err.stack : undefined,
+      });
       throw new Error(`MEGAH5 API request to ${url} failed: ${msg} (${latencyMs}ms)`);
     }
     clearTimeout(timer);
@@ -195,6 +218,12 @@ export class MegaH5ApiClient {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      console.error('[MEGAH5-STEP7] HTTP error response', {
+        url,
+        httpStatus: res.status,
+        rawBody:    text.slice(0, 300),
+        latencyMs,
+      });
       throw new Error(`MEGAH5 API HTTP ${res.status} from ${url}: ${text.slice(0, 200)}`);
     }
 

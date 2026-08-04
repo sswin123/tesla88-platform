@@ -120,12 +120,27 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     }
 
     const accountId = this.withPostfix(playerRecord.provider_account_id);
+
+    console.log('[MEGAH5-STEP3] MegaH5Adapter.launch()', {
+      userId:              params.user_id,
+      providerId:          params.provider_id,
+      playerExists:        true,
+      providerAccountId:   playerRecord.provider_account_id,
+      providerPlayerId:    playerRecord.provider_player_id,
+      accountIdWithPostfix: accountId,
+      gameCode:            params.game_code ?? '(lobby)',
+    });
+
     const { actk } = await this.api.h5Login({
       accountId,
       currency:  playerRecord.currency ?? this.currency,
       nickname:  accountId,
       language:  params.language ?? MEGAH5_LANGUAGE.ZH,
       lobbyUrl:  params.lobby_return_url,
+    });
+
+    console.log('[MEGAH5-STEP6-LOGIN] h5Login succeeded', {
+      actkPrefix: actk.slice(0, 12) + '***',
     });
 
     const lang = params.language ?? MEGAH5_LANGUAGE.ZH;
@@ -136,6 +151,12 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     } else {
       launchUrl = this.getLobbyURL(actk, lang, params.lobby_return_url);
     }
+
+    console.log('[MEGAH5-STEP6] Launch URL ready', {
+      launchUrlPrefix: launchUrl.slice(0, 80),
+      isGameLaunch:    !!params.game_code,
+      sessionTokenPrefix: actk.slice(0, 12) + '***',
+    });
 
     return { launch_url: launchUrl, session_token: actk, session_id: 0 };
   }

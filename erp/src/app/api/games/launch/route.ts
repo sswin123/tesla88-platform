@@ -99,6 +99,14 @@ export async function POST(req: NextRequest) {
 
     activeBrandCode = bpFindRows[0].brand_code;
 
+    if (upperCode === 'MEGAH5') {
+      console.log('[MEGAH5-STEP1] POST /api/games/launch entered', {
+        providerCode: upperCode,
+        brandCode:    activeBrandCode,
+        userId:       user_id,
+      });
+    }
+
     const { createGamingPlatform, ProviderRepository } = await import('@/lib/providers');
     const { ProviderRuntimeBuilder } = await import('@/lib/providers/core/ProviderRuntimeBuilder');
     const platform     = createGamingPlatform();
@@ -111,6 +119,20 @@ export async function POST(req: NextRequest) {
       { wallet: platform.wallet, eventLogger: platform.eventLogger, providerRepo },
       false,
     );
+
+    if (upperCode === 'MEGAH5') {
+      console.log('[MEGAH5-STEP2] ProviderRuntimeBuilder.build() result', {
+        found:                result.found,
+        adapterBuilt:         result.adapterBuilt,
+        adapterError:         result.adapterError,
+        missingCredKeys:      result.missingCredKeys,
+        missingConfigKeys:    result.missingConfigKeys,
+        loadedCredentialKeys: Object.keys(result.credentials),
+        loadedConfigKeys:     Object.keys(result.config),
+        bpId:                 result.bpId,
+        bpStatus:             result.bpStatus,
+      });
+    }
 
     if (!result.found || !result.adapterBuilt || !result.adapter) {
       return NextResponse.json(
@@ -240,6 +262,16 @@ export async function POST(req: NextRequest) {
       lobby_return_url: lobby_return_url || '',
     });
   } catch (err) {
+    if (upperCode === 'MEGAH5') {
+      console.error('[MEGAH5-STEP7] adapter.launch() threw exception', {
+        message:    err instanceof Error ? err.message      : String(err),
+        stack:      err instanceof Error ? err.stack        : undefined,
+        cause:      err instanceof Error && err.cause instanceof Error
+                      ? err.cause.message
+                      : (err instanceof Error && err.cause != null ? String(err.cause) : undefined),
+        httpStatus: 502,
+      });
+    }
     console.error('[games/launch] adapter.launch failed:', err);
     return NextResponse.json(
       { error: `Launch failed: ${err instanceof Error ? err.message : String(err)}` },
