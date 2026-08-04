@@ -82,7 +82,16 @@ export class MegaH5Crypto {
 
     // Formula A per MG888H5 API v1.0.5 Page 48:
     // var s = BuildMD5(QS + md5Key + currTime + secretKey)
-    const s = this.md5Hex(QS + params.md5Key + currTime + params.secretKey);
+    const md5Input = QS + params.md5Key + currTime + params.secretKey;
+    const s = this.md5Hex(md5Input);
+
+    // [MEGAH5-SIG-DEBUG] Print full MD5 input for manual verification against MG888H5 API v1.0.5
+    console.log('[MEGAH5-SIG-DEBUG]', {
+      QS,
+      md5Input,
+      s,
+      formula: 'MD5(QS + md5Key + currTime + secretKey)',
+    });
 
     const q = encodeURIComponent(this.desEncrypt(QS, params.encryptKey));
 

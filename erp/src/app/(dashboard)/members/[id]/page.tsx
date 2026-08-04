@@ -690,6 +690,39 @@ export default function MemberDetailPage() {
               )}
             </CardContent>
           </Card>
+          {/* Sync Wallet — only shown when there are TRANSFER wallet providers */}
+          {providerAccounts !== null && providerAccounts.some(a => a.wallet_type === 'TRANSFER') && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Sync Wallet</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {providerAccounts.filter(a => a.wallet_type === 'TRANSFER').map(acc => (
+                    <div key={acc.provider_code} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                      <div>
+                        <span className="text-sm font-medium text-gray-800">{acc.provider_name}</span>
+                        <span className="ml-2 text-xs font-mono text-gray-400">{acc.provider_login_id}</span>
+                        {syncResult[acc.provider_code] && (
+                          <p className="text-xs mt-0.5 text-gray-600">{syncResult[acc.provider_code]}</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void syncProviderWallet(acc.provider_code, member.id)}
+                        disabled={syncingProvider === acc.provider_code}
+                        className="text-xs h-7 px-3 shrink-0"
+                      >
+                        {syncingProvider === acc.provider_code ? '同步中…' : '↺ Sync Wallet'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">

@@ -182,6 +182,15 @@ export async function POST(req: NextRequest) {
     // on first H5 Login — so a failed createPlayer/checkPlayer is non-fatal.
     // We still persist the local gp_players record so adapter.launch() can find
     // the account_id and proceed with getLoginToken().
+    if (upperCode === 'MEGAH5') {
+      console.log('[MEGAH5 CREATEPLAYER DB-BEFORE]', {
+        userId:               user_id,
+        gpProviderId,
+        accountId,
+        existingRecord:       'null — first launch, no gp_players record yet',
+        providerPlayerId_before: null,
+      });
+    }
     let providerPlayerId: string | null = null;
     try {
       const result = await adapter.createPlayer({
@@ -190,6 +199,12 @@ export async function POST(req: NextRequest) {
         currency,
       });
       providerPlayerId = result.provider_player_id;
+      if (upperCode === 'MEGAH5') {
+        console.log('[MEGAH5 CREATEPLAYER SUCCESS]', {
+          accountId,
+          providerPlayerId_returned: providerPlayerId,
+        });
+      }
     } catch (err) {
       // Player may already exist on provider side — try checkPlayer first.
       console.warn(`[games/launch] createPlayer failed: ${err instanceof Error ? err.message : String(err)} — attempting checkPlayer`);
@@ -220,6 +235,16 @@ export async function POST(req: NextRequest) {
       [gpProviderId, user_id, providerPlayerId, accountId, currency],
     );
     playerRecord = inserted[0];
+    if (upperCode === 'MEGAH5') {
+      console.log('[MEGAH5 CREATEPLAYER DB-AFTER]', {
+        providerPlayerId_before:  null,
+        providerPlayerId_after:   playerRecord?.provider_player_id ?? null,
+        provider_account_id:      playerRecord?.provider_account_id,
+        is_registered:            playerRecord?.is_registered,
+        gp_players_id:            playerRecord?.id,
+        saved_to_db:              playerRecord?.provider_player_id != null,
+      });
+    }
   } else if (!playerRecord.is_registered || !playerRecord.provider_player_id) {
     // Record exists but not properly registered — try checkPlayer to fill in IDs
     try {

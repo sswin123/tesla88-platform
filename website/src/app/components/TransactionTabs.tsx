@@ -10,6 +10,7 @@ interface DepositRow {
   status: string;
   provider: string | null;
   reject_reason: string | null;
+  receipt_media_id: number | null;
   created_at: string;
 }
 interface WithdrawRow {
@@ -34,6 +35,7 @@ function toTx(d: DepositRow): TxRecord {
     status: d.status,
     method: d.provider ?? '手动',
     reject_reason: d.reject_reason,
+    receipt_media_id: d.receipt_media_id,
     created_at: d.created_at,
   };
 }

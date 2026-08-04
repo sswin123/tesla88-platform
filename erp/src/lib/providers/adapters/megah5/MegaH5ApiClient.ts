@@ -113,22 +113,23 @@ export class MegaH5ApiClient {
       language: MEGAH5_LANGUAGE.ZH,
     });
 
-    console.log('[MEGAH5-STEP4] CreatePlayer Request', {
+    console.log('[MEGAH5 CREATEPLAYER REQUEST]', {
       url,
-      accountID,
-      nickName,
-      currency,
-      language:    MEGAH5_LANGUAGE.ZH,
-      tokenPrefix: this.creds.api_account_token.slice(0, 8) + '***',
+      method:      'POST',
+      header_token: this.creds.api_account_token.slice(0, 8) + '***',
+      body:        { accountID, nickName, currency, language: MEGAH5_LANGUAGE.ZH },
     });
 
     const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_account_token });
 
-    console.log('[MEGAH5-STEP4] CreatePlayer Response', {
-      statusCode: res.data.statusCode,
-      errMsg:     res.data.errMsg,
-      playerID:   res.data.playerID,
-      latencyMs:  res.latencyMs,
+    console.log('[MEGAH5 CREATEPLAYER RESPONSE]', {
+      httpStatus:  200,
+      statusCode:  res.data.statusCode,
+      errMsg:      res.data.errMsg,
+      playerID:    res.data.playerID,
+      latencyMs:   res.latencyMs,
+      fullBody:    res.data,
+      success:     res.data.statusCode === 0,
     });
 
     if (res.data.statusCode !== 0) {

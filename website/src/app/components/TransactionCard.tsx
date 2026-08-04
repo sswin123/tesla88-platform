@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 export interface TxRecord {
   id: number;
   type: 'TOP_UP' | 'WITHDRAW';
@@ -72,12 +74,54 @@ function fmtDate(iso: string) {
 
 type CardProps = { tx: TxRecord; fmt: (n: string | number) => string };
 
-/* ── Mobile card ────────────────────────────────────────────────── */
+/* ── Receipt preview (shared by mobile card + desktop row) ──────── */
+function ReceiptPreview({ tx }: { tx: TxRecord }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  if (!tx.receipt_media_id) return null;
+  const url   = `/api/public/media/${tx.receipt_media_id}`;
+  const label = tx.type === 'TOP_UP' ? '查看转账凭证' : '查看付款证明';
+  return (
+    <div className="mt-1.5">
+      {/* Thumbnail: hide img on error (PDF), show PDF icon instead */}
+      {!imgFailed ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" title="放大查看">
+          <img
+            src={url}
+            alt="receipt"
+            className="h-14 w-auto rounded border object-cover cursor-zoom-in"
+            style={{ borderColor: 'var(--border-dim)' }}
+            onError={() => setImgFailed(true)}
+          />
+        </a>
+      ) : (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-2 py-1 rounded border text-xs"
+          style={{ borderColor: 'var(--border-dim)', color: 'var(--text-muted)', background: 'var(--bg-surface2)' }}
+        >
+          📄 PDF ↗
+        </a>
+      )}
+      <div className="flex items-center gap-2 mt-0.5">
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          className="text-xs" style={{ color: 'var(--brand-primary)' }}>
+          📄 {label} ↗
+        </a>
+        <a href={url} download={`receipt-${tx.id}`}
+          className="text-xs underline" style={{ color: 'var(--text-faint)' }}>
+          下载
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function MobileCard({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
   const isRejected  = tx.status === 'REJECTED';
-  const hasReceipt  = !!tx.receipt_media_id;
 
   return (
     <div
@@ -89,7 +133,7 @@ function MobileCard({ tx, fmt }: CardProps) {
         <StatusDot status={tx.status} />
       </div>
       <div className="flex items-end justify-between">
-        <div>
+        <div className="flex-1 min-w-0 mr-3">
           <p className="text-xs mb-0.5" style={{ color: 'var(--text-faint)' }}>
             #{tx.id} · {methodLabel}{bankDetail ? ` · ${bankDetail}` : ''}
           </p>
@@ -102,20 +146,10 @@ function MobileCard({ tx, fmt }: CardProps) {
               原因：{tx.reject_reason}
             </p>
           )}
-          {/* Receipt link */}
-          {hasReceipt && (
-            <a
-              href={`/api/public/media/${tx.receipt_media_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs mt-1 inline-flex items-center gap-1"
-              style={{ color: 'var(--brand-primary)' }}
-            >
-              📄 查看收款凭证
-            </a>
-          )}
+          {/* Receipt preview */}
+          <ReceiptPreview tx={tx} />
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <p className="text-base font-bold" style={{ color: tx.type === 'TOP_UP' ? '#22c55e' : '#f97316' }}>
             {tx.type === 'TOP_UP' ? '+' : '-'}{fmt(tx.amount)}
           </p>
@@ -135,7 +169,6 @@ function DesktopRow({ tx, fmt }: CardProps) {
   const methodLabel = tx.method ?? (tx.bank_name ? tx.bank_name : '手动');
   const bankDetail  = tx.bank_account ? maskAccount(tx.bank_account) : null;
   const isRejected  = tx.status === 'REJECTED';
-  const hasReceipt  = !!tx.receipt_media_id;
 
   return (
     <div
@@ -159,18 +192,8 @@ function DesktopRow({ tx, fmt }: CardProps) {
             {tx.reject_reason}
           </p>
         )}
-        {/* Receipt */}
-        {hasReceipt && (
-          <a
-            href={`/api/public/media/${tx.receipt_media_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-xs mt-1"
-            style={{ color: 'var(--brand-primary)' }}
-          >
-            📄 查看凭证
-          </a>
-        )}
+        {/* Receipt preview */}
+        <ReceiptPreview tx={tx} />
       </div>
       <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
         {methodLabel}{bankDetail ? ` · ${bankDetail}` : ''}

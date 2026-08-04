@@ -11,13 +11,30 @@ function isMissingColumnError(e: unknown): boolean {
 export async function GET() {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const res = await pool.query(
-    `SELECT id, deposit_amount, bonus_amount, status, provider, payment_bank,
-            reject_reason, created_at, reviewed_at
-     FROM deposit_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
-    [member.sub]
-  );
-  return NextResponse.json(res.rows);
+  // receipt_media_id may not exist before migration 090 — fall back silently
+  let rows: unknown[];
+  try {
+    const res = await pool.query(
+      `SELECT id, deposit_amount, bonus_amount, status, provider, payment_bank,
+              reject_reason, receipt_media_id, created_at, reviewed_at
+       FROM deposit_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [member.sub]
+    );
+    rows = res.rows;
+  } catch (err) {
+    if (typeof err === 'object' && err !== null && (err as Record<string, unknown>).code === '42703') {
+      const res = await pool.query(
+        `SELECT id, deposit_amount, bonus_amount, status, provider, payment_bank,
+                reject_reason, NULL::int AS receipt_media_id, created_at, reviewed_at
+         FROM deposit_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [member.sub]
+      );
+      rows = res.rows;
+    } else {
+      throw err;
+    }
+  }
+  return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {

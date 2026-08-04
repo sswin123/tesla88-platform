@@ -154,13 +154,14 @@ async function handleWithdrawal(id: number) {
      ) bc ON true
      WHERE wr.id = $1`,
 
-    // Level 2: Processing columns present but no available_balance (pre-migration 063)
-    // member_receipt_media_id included — added in same migration 090 as deposit's receipt_media_id
+    // Level 2: No member_receipt_media_id (pre-migration 090), has receipt_media_id + processing_by.
+    // member_receipt_media_id is NULL-cast so this succeeds without migration 090.
+    // Keeping processing_by here is the critical difference from Levels 3+.
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
        wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
-       wr.member_receipt_media_id,
+       NULL::int AS member_receipt_media_id,
        wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
        wr.processing_by, wr.processing_at, wr.approved_by, wr.approved_at, wr.rejected_by, wr.rejected_at,
        u.first_name, u.phone, u.public_id,
@@ -173,11 +174,36 @@ async function handleWithdrawal(id: number) {
      LEFT JOIN admins a ON a.id = wr.processing_by
      WHERE wr.id = $1`,
 
-    // Level 3: Minimal fallback — no processing columns (pre-migration 065)
+    // Level 3: No receipt_media_id either (pre-migration 064), still has processing_by (migration 065).
+    // Guards the case where migrations were applied out of order: 065 applied, 064 skipped.
+    // CRITICAL: processing_by must not be NULL so showApproveReject works in the UI.
     `SELECT
        wr.id, 'withdrawal'::text AS type, wr.user_id,
        wr.withdraw_amount, wr.provider, wr.game_username,
-       wr.bank_name, wr.bank_account, wr.bank_holder_name, wr.receipt_media_id,
+       wr.bank_name, wr.bank_account, wr.bank_holder_name,
+       NULL::int AS receipt_media_id,
+       NULL::int AS member_receipt_media_id,
+       wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
+       wr.processing_by, wr.processing_at, wr.approved_by, wr.approved_at, wr.rejected_by, wr.rejected_at,
+       u.first_name, u.phone, u.public_id,
+       (u.total_deposit - u.total_withdraw) AS available_balance,
+       a.erp_username AS processing_by_name,
+       NULL::numeric AS active_turnover_required,
+       NULL::numeric AS active_turnover_completed
+     FROM withdrawal_requests wr
+     JOIN users u ON u.id = wr.user_id
+     LEFT JOIN admins a ON a.id = wr.processing_by
+     WHERE wr.id = $1`,
+
+    // Level 4: Absolute fallback — no processing columns at all (pre-migration 065).
+    // processing_by = NULL means showApproveReject = false, which is correct since
+    // PROCESSING status itself requires migration 065, making this level unreachable
+    // in a working system. It exists only to prevent a 500 crash.
+    `SELECT
+       wr.id, 'withdrawal'::text AS type, wr.user_id,
+       wr.withdraw_amount, wr.provider, wr.game_username,
+       wr.bank_name, wr.bank_account, wr.bank_holder_name,
+       NULL::int AS receipt_media_id,
        NULL::int AS member_receipt_media_id,
        wr.status, wr.reject_reason, wr.created_at, wr.reviewed_at,
        NULL::int AS processing_by, NULL::timestamptz AS processing_at,

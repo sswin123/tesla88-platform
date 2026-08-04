@@ -7,13 +7,32 @@ import { ActivityLogService } from '@/lib/services/activity-log';
 export async function GET() {
   const member = await getMember();
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const res = await pool.query(
-    `SELECT id, withdraw_amount, status, bank_name, bank_account,
-            reject_reason, receipt_media_id, created_at, reviewed_at
-     FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
-    [member.sub]
-  );
-  return NextResponse.json(res.rows, {
+
+  // receipt_media_id was added in migration 064 — fall back silently if not yet applied.
+  let rows: unknown[];
+  try {
+    const res = await pool.query(
+      `SELECT id, withdraw_amount, status, bank_name, bank_account,
+              reject_reason, receipt_media_id, created_at, reviewed_at
+       FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [member.sub]
+    );
+    rows = res.rows;
+  } catch (err) {
+    if (typeof err === 'object' && err !== null && (err as Record<string, unknown>).code === '42703') {
+      const res = await pool.query(
+        `SELECT id, withdraw_amount, status, bank_name, bank_account,
+                reject_reason, NULL::int AS receipt_media_id, created_at, reviewed_at
+         FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+        [member.sub]
+      );
+      rows = res.rows;
+    } else {
+      throw err;
+    }
+  }
+
+  return NextResponse.json(rows, {
     headers: { 'Cache-Control': 'no-store' },
   });
 }

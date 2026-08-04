@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface ReceiptCardProps {
@@ -21,49 +22,107 @@ export default function ReceiptCard({
   onUpload,
   inputRef,
 }: ReceiptCardProps) {
-  const isAwaitingReceipt = status === 'AWAITING_RECEIPT';
-  const isPaid = status === 'PAID';
+  const [imgFailed, setImgFailed] = useState(false);
 
-  if (!isAwaitingReceipt && !isPaid) return null;
+  const isProcessing      = status === 'PROCESSING';
+  const isAwaitingReceipt = status === 'AWAITING_RECEIPT';
+  const isPaid            = status === 'PAID';
+
+  // Visible for PROCESSING (upload ahead of Approve), AWAITING_RECEIPT, and PAID (read-only view).
+  if (!isProcessing && !isAwaitingReceipt && !isPaid) return null;
+
+  // Upload is allowed only before Done (not after PAID).
+  const canUpload = isProcessing || isAwaitingReceipt;
 
   const receiptUrl = receiptMediaId ? `/api/public/media/${receiptMediaId}` : null;
 
+  // Border colour: amber when action is expected, blue as a soft reminder during PROCESSING.
+  const borderClass = isAwaitingReceipt && !receiptMediaId
+    ? 'border-amber-300 bg-amber-50'
+    : isProcessing && !receiptMediaId
+      ? 'border-blue-200 bg-blue-50/40'
+      : 'bg-white';
+
   return (
-    <div className={`rounded-lg border p-4 ${isAwaitingReceipt && !receiptMediaId ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}>
+    <div className={`rounded-lg border p-4 ${borderClass}`}>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
         Payment Receipt
+        {isPaid && <span className="ml-2 text-gray-300 font-normal normal-case tracking-normal">(read-only)</span>}
       </h2>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,application/pdf"
-        className="hidden"
-        onChange={e => {
-          const f = e.target.files?.[0];
-          if (f) { e.target.value = ''; onUpload(f); }
-        }}
-      />
+      {/* Hidden file input — only rendered when uploads are allowed */}
+      {canUpload && (
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden"
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) { e.target.value = ''; onUpload(f); }
+          }}
+        />
+      )}
 
       {receiptUrl ? (
+        <div className="space-y-2">
+          {/* Preview: image thumbnail or PDF indicator */}
+          {!imgFailed ? (
+            <a href={receiptUrl} target="_blank" rel="noopener noreferrer" title="View full size">
+              <img
+                src={receiptUrl}
+                alt="Payment receipt"
+                className="max-h-36 max-w-full rounded border object-contain cursor-zoom-in"
+                onError={() => setImgFailed(true)}
+              />
+            </a>
+          ) : (
+            <a
+              href={receiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded border border-gray-200 bg-gray-50 w-fit hover:bg-gray-100 transition-colors"
+            >
+              <span className="text-2xl">📄</span>
+              <span className="text-sm text-gray-700 font-medium">PDF Document</span>
+              <span className="text-xs text-gray-400">↗ Open</span>
+            </a>
+          )}
+
+          {/* Action links */}
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={receiptUrl} target="_blank" rel="noopener noreferrer"
+              className="text-blue-600 hover:underline text-sm font-medium">
+              View Full Size ↗
+            </a>
+            <a href={receiptUrl} download={`receipt-wd-${transactionId}`}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 underline">
+              Download
+            </a>
+            {canUpload && (
+              <>
+                <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
+                  {uploading ? 'Uploading…' : 'Replace Receipt'}
+                </Button>
+                {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
+              </>
+            )}
+          </div>
+        </div>
+      ) : isProcessing ? (
         <div className="flex flex-wrap items-center gap-3">
-          <a href={receiptUrl} target="_blank" rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-sm font-medium">
-            View Receipt ↗
-          </a>
-          <a href={receiptUrl} download={`receipt-wd-${transactionId}`}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 underline">
-            Download
-          </a>
+          <span className="text-sm text-blue-700">
+            Upload payment receipt after transferring funds
+          </span>
           <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
-            {uploading ? 'Uploading…' : 'Replace Receipt'}
+            {uploading ? 'Uploading…' : 'Upload Receipt'}
           </Button>
           {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
         </div>
       ) : isAwaitingReceipt ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-amber-700">
-            Receipt is optional — upload or press Done to complete payment
+            Upload payment receipt before marking Done
           </span>
           <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
             {uploading ? 'Uploading…' : 'Upload Receipt'}
@@ -71,12 +130,8 @@ export default function ReceiptCard({
           {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
         </div>
       ) : (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">No receipt uploaded</span>
-          <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
-            {uploading ? 'Uploading…' : 'Upload Receipt'}
-          </Button>
-        </div>
+        /* isPaid, no receipt — read-only empty state */
+        <p className="text-sm text-gray-400">No payment receipt was uploaded.</p>
       )}
     </div>
   );

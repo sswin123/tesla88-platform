@@ -18,14 +18,15 @@ export async function POST(
   const withdrawalId = parseInt(id, 10);
   if (isNaN(withdrawalId)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
 
-  // Accept uploads for both AWAITING_RECEIPT and PAID
+  // Accept uploads for PROCESSING (pre-approve) and AWAITING_RECEIPT only.
+  // PAID is read-only — the receipt cannot be replaced after Done.
   const check = await pool.query<{ id: number }>(
-    `SELECT id FROM withdrawal_requests WHERE id = $1 AND status IN ('AWAITING_RECEIPT', 'PAID')`,
+    `SELECT id FROM withdrawal_requests WHERE id = $1 AND status IN ('PROCESSING', 'AWAITING_RECEIPT')`,
     [withdrawalId]
   );
   if (!check.rows[0]) {
     return NextResponse.json(
-      { error: 'Withdrawal not found or not in a state that accepts receipts' },
+      { error: 'Withdrawal not found or not in a state that accepts receipt uploads (must be PROCESSING or AWAITING_RECEIPT)' },
       { status: 404 }
     );
   }

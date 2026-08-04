@@ -49,8 +49,8 @@ export default function HandlePage() {
     const handlePaste = (e: ClipboardEvent) => {
       if (!detail) return;
       const isWithdrawal = detail.type === 'withdrawal';
-      const isAwaitingOrPaid = detail.status === 'AWAITING_RECEIPT' || detail.status === 'PAID';
-      if (!isWithdrawal || !isAwaitingOrPaid) return;
+      const canUpload = detail.status === 'PROCESSING' || detail.status === 'AWAITING_RECEIPT';
+      if (!isWithdrawal || !canUpload) return;
       const items = e.clipboardData?.items;
       if (!items) return;
       for (const item of Array.from(items)) {
