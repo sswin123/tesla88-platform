@@ -13,7 +13,7 @@ export const H5_PATH = {
 /** Operations API endpoints (on api_base_url). */
 export const API_PATH = {
   CREATE_PLAYER:  '/api/createplayer',          // MG888H5 API v1.0.5 confirmed (curl 405)
-  CHECK_PLAYER:   '/operator/v2/CheckPlayer',   // unverified — left unchanged pending investigation
+  CHECK_PLAYER:   '/api/checkplayer',            // MG888H5 API v1.0.5 §2.14: GET ?userName=accountID@postfixID
   HEALTH:         '/operator/v2/HealthCheck',   // unverified
 } as const;
 

@@ -123,7 +123,7 @@ export class MegaH5ApiClient {
     const res = await this.post<CreatePlayerRes>(url, body, { token: this.creds.api_account_token });
 
     console.log('[MEGAH5 CREATEPLAYER RESPONSE]', {
-      httpStatus:  200,
+      httpStatus:  res.httpStatus,
       statusCode:  res.data.statusCode,
       errMsg:      res.data.errMsg,
       playerID:    res.data.playerID,
@@ -138,15 +138,29 @@ export class MegaH5ApiClient {
     return { playerID: res.data.playerID };
   }
 
-  /** Retrieve the provider playerID for an existing account. */
+  /** Retrieve the provider playerID for an existing account. MG888H5 API v1.0.5 §2.14 */
   async checkPlayer(accountID: string): Promise<{ playerID: number }> {
-    const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.CHECK_PLAYER}`;
-    const body = JSON.stringify({ accountID });
-    const res = await this.post<CheckPlayerRes>(url, body, { token: this.creds.api_account_token });
-    if (res.data.statusCode !== 0) {
-      throw new Error(`MEGAH5 CheckPlayer error ${res.data.statusCode}: ${res.data.errMsg}`);
+    const url = `${this.cfg.api_base_url.replace(/\/$/, '')}${API_PATH.CHECK_PLAYER}?userName=${encodeURIComponent(accountID)}`;
+
+    console.log('[MEGAH5 CHECKPLAYER REQUEST]', {
+      url,
+      method:  'GET',
+      headers: { token: this.creds.api_account_token.slice(0, 8) + '***' },
+      userName: accountID,
+    });
+
+    const res = await this.request<Record<string, unknown>>('GET', url, undefined, { token: this.creds.api_account_token });
+
+    // Print complete raw response — field names to be confirmed on first runtime hit
+    console.log('[MEGAH5 CHECKPLAYER RESPONSE]', res.data, { httpStatus: res.httpStatus, latencyMs: res.latencyMs });
+
+    // 'playerID' is the only field confirmed by MG888H5 API v1.0.5 §2.14 Response table
+    // error/statusCode field name is TBD — do not check until first runtime observation
+    const playerID = res.data['playerID'];
+    if (typeof playerID !== 'number') {
+      throw new Error(`MEGAH5 CheckPlayer: unexpected response — ${JSON.stringify(res.data)}`);
     }
-    return { playerID: res.data.playerID };
+    return { playerID };
   }
 
   /** Fetch the full game list from MEGAH5. */
@@ -186,11 +200,12 @@ export class MegaH5ApiClient {
     }
   }
 
-  private async post<T>(
+  private async request<T>(
+    method: string,
     url: string,
-    jsonBody: string,
+    jsonBody?: string,
     extraHeaders?: Record<string, string>,
-  ): Promise<{ data: T; latencyMs: number }> {
+  ): Promise<{ data: T; latencyMs: number; httpStatus: number }> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeout_ms);
     const start = Date.now();
@@ -198,10 +213,12 @@ export class MegaH5ApiClient {
     let res: Response;
     try {
       res = await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', ...extraHeaders },
-        body:    jsonBody,
-        signal:  controller.signal,
+        method,
+        headers: jsonBody !== undefined
+          ? { 'Content-Type': 'application/json', ...extraHeaders }
+          : { ...extraHeaders },
+        body:   jsonBody,
+        signal: controller.signal,
       });
     } catch (err) {
       clearTimeout(timer);
@@ -228,7 +245,12 @@ export class MegaH5ApiClient {
       throw new Error(`MEGAH5 API HTTP ${res.status} from ${url}: ${text.slice(0, 200)}`);
     }
 
+    const httpStatus = res.status;
     const data = (await res.json()) as T;
-    return { data, latencyMs };
+    return { data, latencyMs, httpStatus };
+  }
+
+  private post<T>(url: string, jsonBody: string, extraHeaders?: Record<string, string>) {
+    return this.request<T>('POST', url, jsonBody, extraHeaders);
   }
 }
