@@ -27,7 +27,11 @@ function resolveHandler(adapter: MegaH5Adapter, action: string): Handler | null 
   }
 }
 
-export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
+async function dispatch(
+  request: NextRequest,
+  { params }: Params,
+  rawBody: Record<string, unknown>,
+): Promise<NextResponse> {
   const t0 = Date.now();
   const { action } = await params;
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -40,19 +44,7 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
     ?? request.headers.get('x-operator-token')
     ?? request.headers.get('x-client-token')
     ?? '(none)';
-  console.log(`[megah5-callback] ▶ action=${action} ip=${ip} auth=${authHeader.slice(0, 20)}***`);
-
-  // Parse body
-  let rawBody: Record<string, unknown>;
-  let rawText = '';
-  try {
-    rawText = await request.text();
-    rawBody = rawText ? JSON.parse(rawText) as Record<string, unknown> : {};
-  } catch {
-    console.error(`[megah5-callback] body parse failed: ${rawText.slice(0, 200)}`);
-    return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR });
-  }
-
+  console.log(`[megah5-callback] ▶ action=${action} method=${request.method} ip=${ip} auth=${authHeader.slice(0, 20)}***`);
   console.log(`[megah5-callback] body=${JSON.stringify(rawBody).slice(0, 500)}`);
 
   // Find active brand for MEGAH5 (ACTIVE or TESTING — both valid during UAT)
@@ -104,4 +96,26 @@ export async function POST(request: NextRequest, { params }: Params): Promise<Ne
     console.error(`[megah5-callback] handler threw for action="${action}":`, err);
     return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR });
   }
+}
+
+// MEGA sends POST for write callbacks (Authenticate, Bet, BetResult, Refund, …)
+export async function POST(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  let rawBody: Record<string, unknown>;
+  let rawText = '';
+  try {
+    rawText = await request.text();
+    rawBody = rawText ? JSON.parse(rawText) as Record<string, unknown> : {};
+  } catch {
+    console.error(`[megah5-callback] body parse failed: ${rawText.slice(0, 200)}`);
+    return NextResponse.json({ error: OPERATOR_ERROR.SYSTEM_ERROR });
+  }
+  return dispatch(request, { params }, rawBody);
+}
+
+// MEGA sends GET for read callbacks (GetBalance) with params in query string.
+// Without this export, Next.js returns 405 and the handler never runs.
+export async function GET(request: NextRequest, { params }: Params): Promise<NextResponse> {
+  const rawBody: Record<string, unknown> = {};
+  request.nextUrl.searchParams.forEach((v, k) => { rawBody[k] = v; });
+  return dispatch(request, { params }, rawBody);
 }
