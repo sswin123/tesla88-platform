@@ -9,11 +9,11 @@ import type {
  * MegaH5CallbackFormatter — serializes normalized wallet responses back into
  * the JSON shapes that MEGAH5 expects from the OPERATOR.
  *
- * Response field conventions (same as 918KISS):
- *   error       — integer error code (0 = success)
- *   balance     — current player balance (2 decimal places)
- *   playerID    — only in Authenticate response
- *   referenceID — only in Bet/BetResult/Refund/JackpotWin/FundRequest/FundReturn
+ * Response field conventions (PDF §3.x):
+ *   error         — integer error code (0 = success)
+ *   balance       — current player balance (2 decimal places)
+ *   playerID      — only in Authenticate response
+ *   transactionID — Operator's unique transaction ID; required in Bet/BetResult/Refund/JackpotWin/FundRequest/FundReturn
  */
 export class MegaH5CallbackFormatter {
   formatAuthenticate(res: AuthenticateResponse): Record<string, unknown> {
@@ -29,27 +29,27 @@ export class MegaH5CallbackFormatter {
   }
 
   formatBet(res: BetResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   formatBetResult(res: BetResultResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   formatRefund(res: RefundResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   formatJackpotWin(res: JackpotWinResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   formatFundRequest(res: FundRequestResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   formatFundReturn(res: FundReturnResponse): Record<string, unknown> {
-    return { error: res.error_code, balance: this.round(res.balance), referenceID: res.transaction_id };
+    return { error: res.error_code, balance: this.round(res.balance), transactionID: res.transaction_id };
   }
 
   /** FundBetResult is informational — OPERATOR must NOT modify wallet. */

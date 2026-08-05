@@ -25,6 +25,16 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  async rewrites() {
+    return [
+      // MEGAH5: MEGA calls /api/megah5/callback/api/<action> (base-URL + MEGA's fixed /api/<action> suffix).
+      // Rewrite to the canonical handler path so route.ts receives the correct [action] segment.
+      {
+        source: '/api/megah5/callback/api/:action',
+        destination: '/api/games/megah5/callback/:action',
+      },
+    ];
+  },
   // Allow up to 50MB file uploads from browser (default Next.js limit is 10MB)
   experimental: {
     serverActions: {
