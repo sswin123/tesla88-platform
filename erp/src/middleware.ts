@@ -106,6 +106,15 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // Generic Seamless Wallet callback bypass — covers all future providers.
+  // Any provider with a callback route under /api/games/{code}/callback/ is
+  // authenticated inside its own handler (signature / token validation).
+  // This rule must come AFTER the provider-specific rules above so existing
+  // log messages remain accurate; it only fires for providers not yet listed.
+  if (pathname.startsWith('/api/games/') && pathname.includes('/callback/')) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) {
     // API routes must return JSON — never HTML redirect
