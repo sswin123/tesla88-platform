@@ -65,8 +65,12 @@ export async function GET(req: NextRequest) {
       `g.is_active = TRUE`,
       `p.status IN ('ACTIVE', 'TESTING')`,
       `p.website_visible = TRUE`,
-      `COALESCE(p.website_display_mode, 'PROVIDER_CARD') != 'PROVIDER_CARD'`,
     ];
+    // When fetching for a specific provider (e.g. MEGAH5 game picker), skip the
+    // display_mode filter — the caller already knows which provider it wants.
+    if (!provider) {
+      conditions.push(`COALESCE(p.website_display_mode, 'PROVIDER_CARD') != 'PROVIDER_CARD'`);
+    }
     const vals: unknown[] = [];
     let i = 1;
 

@@ -156,6 +156,13 @@ export interface IGameProvider {
    */
   getBalance?(providerPlayerID: string, currency: string): Promise<number>;
 
+  /**
+   * Withdraw ALL available balance from the player's provider wallet back to
+   * the operator wallet. Transfer Wallet only; called by the admin Sync action.
+   * Returns the amount withdrawn (0 if the provider reports no balance to pull).
+   */
+  withdrawAll?(loginId: string): Promise<number>;
+
   // ── Seamless Wallet Callbacks (PROVIDER → US) ─────────────────────────────
   // Adapters translate the raw HTTP request body into these typed shapes.
   // The framework's MasterWalletEngine handles the actual balance changes.

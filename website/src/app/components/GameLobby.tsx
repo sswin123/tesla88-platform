@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PublicGameProvider } from '@/app/api/public/game-providers/route';
 import { MegaAppDialog } from './MegaAppDialog';
+import { MegaH5GamePicker } from './MegaH5GamePicker';
 
 interface MegaAppDialogState {
   loginId:            string | null;  // null while loading
@@ -72,8 +73,9 @@ export default function GameLobby() {
   const [launching, setLaunching] = useState<string | null>(null); // provider_code being launched
   const [authChecked, setAuthChecked]   = useState(false);
   const [isLoggedIn, setIsLoggedIn]     = useState(false);
-  const [megaAppDialog, setMegaAppDialog] = useState<MegaAppDialogState | null>(null);
-  const [megaAppError,  setMegaAppError]  = useState<string | null>(null);
+  const [megaAppDialog,    setMegaAppDialog]    = useState<MegaAppDialogState | null>(null);
+  const [megaAppError,     setMegaAppError]     = useState<string | null>(null);
+  const [megaH5PickerOpen, setMegaH5PickerOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/public/game-providers')
@@ -98,6 +100,13 @@ export default function GameLobby() {
     // If not logged in, redirect to login page
     if (authChecked && !isLoggedIn) {
       window.location.href = '/login';
+      return;
+    }
+
+    // MEGAH5: show game picker — player selects a specific game, then we launch with game_code.
+    // No apiLobby; CallGame is the only supported launch method.
+    if (card.provider_code === 'MEGAH5') {
+      setMegaH5PickerOpen(true);
       return;
     }
 
@@ -198,6 +207,32 @@ export default function GameLobby() {
     }
   }, [launching, authChecked, isLoggedIn]);
 
+  const handleMegaH5GameLaunch = useCallback(async (gameCode: string) => {
+    setMegaH5PickerOpen(false);
+    setLaunching('MEGAH5');
+    try {
+      const res = await fetch('/api/public/games/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_code: 'MEGAH5', game_code: gameCode }),
+      });
+      const data = await res.json() as { launch_url?: string; error?: string; code?: string };
+      if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
+        window.location.href = '/login';
+        return;
+      }
+      if (!res.ok || !data.launch_url) {
+        alert(data.error ?? '启动失败，请稍后再试');
+        return;
+      }
+      window.location.href = data.launch_url;
+    } catch {
+      alert('网络错误，请稍后再试');
+    } finally {
+      setLaunching(null);
+    }
+  }, []);
+
   const cards: CardItem[] = providers === null ? [] : toCards(providers, tab);
 
   return (
@@ -212,6 +247,13 @@ export default function GameLobby() {
         onClose={() => setMegaAppDialog(null)}
       />
     )}
+    <MegaH5GamePicker
+      open={megaH5PickerOpen}
+      launching={!!launching}
+      onClose={() => setMegaH5PickerOpen(false)}
+      onSelect={(gameCode) => void handleMegaH5GameLaunch(gameCode)}
+    />
+
     {megaAppError && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center px-4"

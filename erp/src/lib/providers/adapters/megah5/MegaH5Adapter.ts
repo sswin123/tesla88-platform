@@ -100,15 +100,14 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     return actk;
   }
 
-  getLobbyURL(token: string, language: number, lobbyReturnUrl: string): string {
-    // MG888H5 API v1.0.5 §9: GET <h5-lobby-domain>/apiLobby?tkn={actk}&language={langId}&lobbyUrl={lobbyUrl}
-    // Note: tkn/language/lobbyUrl values must NOT be URLEncoded per PDF explicit instruction
-    const base = this.cfg.h5_lobby_domain.replace(/\/$/, '');
-    let url = `${base}/apiLobby?tkn=${token}&language=${language}`;
-    if (lobbyReturnUrl) {
-      url += `&lobbyUrl=${lobbyReturnUrl}`;
-    }
-    return url;
+  getLobbyURL(_token: string, _language: number, _lobbyReturnUrl: string): string {
+    // MEGAH5 lobby mode (apiLobby / Option 1) has been permanently removed.
+    // All launches use CallGame (Option 2). This method must not be called.
+    throw new ProviderError(
+      this.code,
+      OPERATOR_ERROR.UNKNOWN,
+      'MEGAH5 does not support lobby mode — use launch() with game_code (CallGame).',
+    );
   }
 
   getGameURL(token: string, gameCode: string, language: number, _lobbyReturnUrl: string): string {
@@ -126,6 +125,14 @@ export class MegaH5Adapter extends BaseProviderAdapter {
 
     const accountId = this.withPostfix(playerRecord.provider_account_id);
 
+    if (!params.game_code) {
+      throw new ProviderError(
+        this.code,
+        OPERATOR_ERROR.UNKNOWN,
+        'MEGAH5 requires game_code — lobby mode has been replaced by CallGame. Select a specific game.',
+      );
+    }
+
     console.log('[MEGAH5-STEP3] MegaH5Adapter.launch()', {
       userId:              params.user_id,
       providerId:          params.provider_id,
@@ -133,7 +140,7 @@ export class MegaH5Adapter extends BaseProviderAdapter {
       providerAccountId:   playerRecord.provider_account_id,
       providerPlayerId:    playerRecord.provider_player_id,
       accountIdWithPostfix: accountId,
-      gameCode:            params.game_code ?? '(lobby)',
+      gameCode:            params.game_code,
     });
 
     const { actk } = await this.api.h5Login({
@@ -149,17 +156,11 @@ export class MegaH5Adapter extends BaseProviderAdapter {
     });
 
     const lang = params.language ?? MEGAH5_LANGUAGE.ZH;
-    let launchUrl: string;
-    if (params.game_code) {
-      const base = this.cfg.h5_game_domain.replace(/\/$/, '');
-      launchUrl = `${base}/CallGame/?language=${lang}&user=${encodeURIComponent(accountId)}&gName=${encodeURIComponent(params.game_code)}&tkn=${encodeURIComponent(actk)}`;
-    } else {
-      launchUrl = this.getLobbyURL(actk, lang, params.lobby_return_url);
-    }
+    const base = this.cfg.h5_game_domain.replace(/\/$/, '');
+    const launchUrl = `${base}/CallGame/?language=${lang}&user=${encodeURIComponent(accountId)}&gName=${encodeURIComponent(params.game_code)}&tkn=${encodeURIComponent(actk)}`;
 
-    console.log('[MEGAH5-STEP6] Launch URL ready', {
+    console.log('[MEGAH5-STEP6] Launch URL ready (CallGame)', {
       launchUrl,
-      isGameLaunch:    !!params.game_code,
       sessionTokenPrefix: actk.slice(0, 12) + '***',
     });
 

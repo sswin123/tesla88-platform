@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { isBrowser } from '@/lib/is-browser';
 import { MegaAppDialog } from '@/app/components/MegaAppDialog';
+import { MegaH5GamePicker } from '@/app/components/MegaH5GamePicker';
 
 interface MegaAppDialogState {
   loginId:            string;
@@ -461,10 +462,32 @@ interface CardProps {
 }
 
 function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) {
-  const [hovered,       setHovered]       = useState(false);
-  const [launching,     setLaunching]     = useState(false);
-  const [megaAppDialog, setMegaAppDialog] = useState<MegaAppDialogState | null>(null);
-  const [megaAppError,  setMegaAppError]  = useState<string | null>(null);
+  const [hovered,          setHovered]          = useState(false);
+  const [launching,        setLaunching]        = useState(false);
+  const [megaAppDialog,    setMegaAppDialog]    = useState<MegaAppDialogState | null>(null);
+  const [megaAppError,     setMegaAppError]     = useState<string | null>(null);
+  const [megaH5PickerOpen, setMegaH5PickerOpen] = useState(false);
+
+  async function handleMegaH5GameLaunch(gameCode: string) {
+    setMegaH5PickerOpen(false);
+    setLaunching(true);
+    try {
+      const r = await fetch('/api/public/games/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_code: 'MEGAH5', game_code: gameCode }),
+      });
+      if (r.status === 401) { window.location.href = '/login'; return; }
+      const d = await r.json() as { launch_url?: string; error?: string; code?: string };
+      if (d.code === 'UNAUTHENTICATED') { window.location.href = '/login'; return; }
+      if (d.launch_url) { window.location.href = d.launch_url; return; }
+      alert(d.error ?? '启动失败，请稍后再试。');
+    } catch {
+      alert('网络错误，请稍后再试。');
+    } finally {
+      setLaunching(false);
+    }
+  }
 
   async function handleLaunch(e: React.MouseEvent) {
     e.preventDefault();
@@ -474,6 +497,11 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
     }
     if (!card.provider_code) {
       window.location.href = '/download';
+      return;
+    }
+    // MEGAH5: 必须选择具体游戏，不能直接 launch（CallGame 要求 game_code）
+    if (card.provider_code === 'MEGAH5') {
+      setMegaH5PickerOpen(true);
       return;
     }
     setLaunching(true);
@@ -628,6 +656,12 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         onClose={() => setMegaAppDialog(null)}
       />
     )}
+    <MegaH5GamePicker
+      open={megaH5PickerOpen}
+      launching={launching}
+      onClose={() => setMegaH5PickerOpen(false)}
+      onSelect={(gameCode) => void handleMegaH5GameLaunch(gameCode)}
+    />
     {megaAppError && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
