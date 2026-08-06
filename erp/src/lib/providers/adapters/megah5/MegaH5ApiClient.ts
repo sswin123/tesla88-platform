@@ -11,8 +11,12 @@ interface BaseResponse {
 }
 interface CreatePlayerRes extends BaseResponse { playerID: number }
 interface CheckPlayerRes  extends BaseResponse { playerID: number }
-interface GameListRes extends BaseResponse {
-  gameList: Array<{ gameID: number; gameName: string; gameType: number; status: number }>;
+// Section 10.1 of MG888H5 API v1.0.5 — GET /api/Game/GameList
+// status: "1"=Success, "14"=SignatureNotMatch, "15"=InvalidAccessToken, "17"=UnauthorizedIPAddress
+interface GameListRes {
+  gamelist:    Array<{ gld: number; gtyp: number; gname: string; jpr?: number; jpa?: number }> | null;
+  status:      string;
+  description: string | null;
 }
 interface H5LoginRes {
   actk?: string | null;
@@ -163,19 +167,65 @@ export class MegaH5ApiClient {
     return { playerID };
   }
 
-  /** Fetch the full game list from MEGAH5. */
+  /**
+   * Fetch the full game list from MEGAH5.
+   *
+   * Per MG888H5 API v1.0.5 Section 10.1:
+   *   HTTP GET <h5_api_domain>/api/Game/GameList?q={q}&s={s}&accessToken={accessToken}
+   *
+   *   QS  = "key={secretKey}{delimiter}time={currTime}"  (no gameType → all games)
+   *   q   = URLEncode(DESencrypt(QS, encryptKey))
+   *   s   = MD5(QS + md5Key + currTime + secretKey)
+   *   accessToken = URLEncode(api_token)  — NOT inside q/s
+   *
+   * Response: { gamelist:[{gld, gtyp, gname, jpr?, jpa?}], status:"1", description }
+   *   status "1"=Success, "14"=SignatureNotMatch, "15"=InvalidAccessToken
+   */
   async getGameList(): Promise<GameListItem[]> {
-    const url = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.GAME_LIST}`;
-    const body = JSON.stringify({ accessToken: this.creds.api_token });
-    const res = await this.post<GameListRes>(url, body);
-    if (res.data.statusCode !== 0) {
-      throw new Error(`MEGAH5 GameList error ${res.data.statusCode}: ${res.data.errMsg}`);
+    const now = new Date();
+    const p   = (n: number) => String(n).padStart(2, '0');
+    const currTime =
+      String(now.getUTCFullYear()) +
+      p(now.getUTCMonth() + 1) +
+      p(now.getUTCDate()) +
+      p(now.getUTCHours()) +
+      p(now.getUTCMinutes()) +
+      p(now.getUTCSeconds());
+
+    const d  = this.creds.delimiter || '|';
+    const QS = `key=${this.creds.secret_key}${d}time=${currTime}`;
+
+    const q           = encodeURIComponent(this.crypto.desEncrypt(QS, this.creds.encrypt_key));
+    const s           = this.crypto.md5Hex(QS + this.creds.md5_key + currTime + this.creds.secret_key);
+    const accessToken = encodeURIComponent(this.creds.api_token);
+
+    const url = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.GAME_LIST}?q=${q}&s=${s}&accessToken=${accessToken}`;
+
+    console.log('[MEGAH5 GameList Request]', {
+      url: url.slice(0, 120) + '...',
+      currTime,
+      QS,
+      s,
+    });
+
+    const res = await this.get<GameListRes>(url);
+
+    console.log('[MEGAH5 GameList Response]', {
+      status:      res.data.status,
+      description: res.data.description,
+      count:       res.data.gamelist?.length ?? 0,
+      latencyMs:   res.latencyMs,
+    });
+
+    if (res.data.status !== '1') {
+      throw new Error(`MEGAH5 GameList error status=${res.data.status}: ${res.data.description ?? ''}`);
     }
-    return (res.data.gameList ?? []).map(g => ({
-      game_code: String(g.gameID),
-      name:      g.gameName,
-      game_type: this.mapGameType(g.gameType),
-      is_active: g.status === 1,
+
+    return (res.data.gamelist ?? []).map(g => ({
+      game_code: g.gname,
+      name:      g.gname,
+      game_type: this.mapGameType(g.gtyp),
+      is_active: true,
     }));
   }
 
@@ -252,5 +302,9 @@ export class MegaH5ApiClient {
 
   private post<T>(url: string, jsonBody: string, extraHeaders?: Record<string, string>) {
     return this.request<T>('POST', url, jsonBody, extraHeaders);
+  }
+
+  private get<T>(url: string) {
+    return this.request<T>('GET', url, undefined);
   }
 }
