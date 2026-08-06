@@ -471,18 +471,27 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
   async function handleMegaH5GameLaunch(gameCode: string) {
     setMegaH5PickerOpen(false);
     setLaunching(true);
+    // Open blank tab synchronously inside the click-event stack so the browser
+    // does not classify it as a popup. We redirect it after the async fetch.
+    const gameTab = window.open('', '_blank', 'noopener,noreferrer');
     try {
       const r = await fetch('/api/public/games/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_code: 'MEGAH5', game_code: gameCode }),
       });
-      if (r.status === 401) { window.location.href = '/login'; return; }
+      if (r.status === 401) { gameTab?.close(); window.location.href = '/login'; return; }
       const d = await r.json() as { launch_url?: string; error?: string; code?: string };
-      if (d.code === 'UNAUTHENTICATED') { window.location.href = '/login'; return; }
-      if (d.launch_url) { window.location.href = d.launch_url; return; }
+      if (d.code === 'UNAUTHENTICATED') { gameTab?.close(); window.location.href = '/login'; return; }
+      if (d.launch_url) {
+        if (gameTab) { gameTab.location.href = d.launch_url; }
+        else { window.location.href = d.launch_url; }
+        return;
+      }
+      gameTab?.close();
       alert(d.error ?? '启动失败，请稍后再试。');
     } catch {
+      gameTab?.close();
       alert('网络错误，请稍后再试。');
     } finally {
       setLaunching(false);

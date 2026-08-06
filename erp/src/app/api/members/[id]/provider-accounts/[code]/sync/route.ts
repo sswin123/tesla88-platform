@@ -8,7 +8,6 @@ import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
 import { logAudit } from '@/lib/repositories/audit_repo';
 import { createGamingPlatform } from '@/lib/providers';
-import type { MegaAppAdapter } from '@/lib/providers/adapters/megaapp/MegaAppAdapter';
 import { adjustWallet } from '@/lib/services/wallet';
 import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
 import { ActivityLogService } from '@/lib/services/activity-log';
@@ -83,7 +82,14 @@ export async function POST(_req: NextRequest, { params }: Params) {
   }
 
   const platform = createGamingPlatform();
-  const adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, upperCode) as MegaAppAdapter;
+  const adapter = await platform.brandManager.getAdapter(bpRows[0].brand_code, upperCode);
+
+  if (!adapter.withdrawAll) {
+    return NextResponse.json(
+      { error: 'Provider does not support wallet sync' },
+      { status: 400 },
+    );
+  }
 
   const loginId = pa.provider_login_id;
   const refId   = `${upperCode}WD-ADMIN-${uid}-${Date.now()}`;
@@ -98,12 +104,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
   // Pull provider balance back to main wallet
   let returned = 0;
   try {
-    returned = await adapter.autoWithdrawAll(loginId);
+    returned = await adapter.withdrawAll(loginId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // error 37123 = "No balance to withdraw" — non-fatal
     if (!msg.includes('37123')) {
-      console.error(`[provider-accounts/sync] autoWithdrawAll failed userId=${uid}:`, msg);
+      console.error(`[provider-accounts/sync] withdrawAll failed userId=${uid} provider=${upperCode}:`, msg);
 
       await txRepo.create({
         provider:       upperCode,

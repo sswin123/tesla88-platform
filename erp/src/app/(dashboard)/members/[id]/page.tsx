@@ -109,6 +109,17 @@ export default function MemberDetailPage() {
   const [syncResult, setSyncResult]               = useState<Record<string, string>>({});
   const [showPasswords, setShowPasswords]         = useState<Record<string, boolean>>({});
 
+  // Sync All Wallets
+  interface SyncAllResult {
+    provider_code: string;
+    provider_name: string;
+    status:        'SUCCESS' | 'FAILED' | 'SKIPPED';
+    returned?:     number;
+    error?:        string;
+  }
+  const [syncingAll,    setSyncingAll]    = useState(false);
+  const [syncAllResults, setSyncAllResults] = useState<SyncAllResult[] | null>(null);
+
   // Wallet Center
   const [walletSummary,    setWalletSummary]    = useState<WalletSummary | null>(null);
   const [walletLoading,    setWalletLoading]    = useState(true);
@@ -289,6 +300,26 @@ export default function MemberDetailPage() {
     if (r.ok) { setData(p => p ? { ...p, accounts: p.accounts.filter(a => a.provider !== provider) } : null); }
     else { const d = await r.json().catch(() => ({})) as { error?: string }; alert(d.error ?? '移除失败'); }
     setRemovingGame(null);
+  }
+
+  async function syncAllWallets(memberId: number) {
+    setSyncingAll(true);
+    setSyncAllResults(null);
+    try {
+      const r = await fetch(`/api/members/${memberId}/provider-accounts/sync-all`, { method: 'POST' });
+      const d = await r.json() as { results?: SyncAllResult[]; error?: string };
+      if (r.ok && d.results) {
+        setSyncAllResults(d.results);
+        void loadWallet(memberId);
+        void loadProviderAccounts(memberId);
+      } else {
+        alert(d.error ?? 'Sync All 失败');
+      }
+    } catch {
+      alert('网络错误，请重试');
+    } finally {
+      setSyncingAll(false);
+    }
   }
 
   async function syncProviderWallet(providerCode: string, memberId: number) {
@@ -694,9 +725,38 @@ export default function MemberDetailPage() {
           {providerAccounts !== null && providerAccounts.some(a => a.wallet_type === 'TRANSFER') && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Sync Wallet</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Sync Wallet</CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={() => void syncAllWallets(member.id)}
+                    disabled={syncingAll || syncingProvider !== null}
+                    className="text-xs h-7 px-3"
+                  >
+                    {syncingAll ? '同步中…' : '↺ Sync All Wallets'}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {/* Sync All summary — shown after Sync All completes */}
+                {syncAllResults !== null && (
+                  <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs space-y-1">
+                    <p className="font-medium text-blue-700">
+                      Sync All 完成 — 共提回 RM {syncAllResults.reduce((s, r) => s + (r.returned ?? 0), 0).toFixed(2)}
+                    </p>
+                    {syncAllResults.map(r => (
+                      <p key={r.provider_code} className={r.status === 'SUCCESS' ? 'text-green-700' : r.status === 'SKIPPED' ? 'text-gray-500' : 'text-red-600'}>
+                        {r.status === 'SUCCESS' ? '✅' : r.status === 'SKIPPED' ? '⏭' : '❌'}{' '}
+                        {r.provider_name}
+                        {r.status === 'SUCCESS'
+                          ? r.returned && r.returned > 0 ? ` — 提回 RM${r.returned.toFixed(2)}` : ' — 余额为零'
+                          : ` — ${r.error ?? ''}`}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Per-provider individual sync buttons */}
                 <div className="space-y-2">
                   {providerAccounts.filter(a => a.wallet_type === 'TRANSFER').map(acc => (
                     <div key={acc.provider_code} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
@@ -711,7 +771,7 @@ export default function MemberDetailPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => void syncProviderWallet(acc.provider_code, member.id)}
-                        disabled={syncingProvider === acc.provider_code}
+                        disabled={syncingProvider === acc.provider_code || syncingAll}
                         className="text-xs h-7 px-3 shrink-0"
                       >
                         {syncingProvider === acc.provider_code ? '同步中…' : '↺ Sync Wallet'}

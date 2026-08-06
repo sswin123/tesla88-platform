@@ -147,7 +147,7 @@ export class MegaH5Adapter extends BaseProviderAdapter {
       accountId,
       currency:  playerRecord.currency ?? this.currency,
       nickname:  accountId,
-      language:  params.language ?? MEGAH5_LANGUAGE.ZH,
+      language:  MEGAH5_LANGUAGE.EN,
       lobbyUrl:  params.lobby_return_url,
     });
 
@@ -155,12 +155,19 @@ export class MegaH5Adapter extends BaseProviderAdapter {
       actkPrefix: actk.slice(0, 12) + '***',
     });
 
-    const lang = params.language ?? MEGAH5_LANGUAGE.ZH;
+    const lang = MEGAH5_LANGUAGE.EN;
     const base = this.cfg.h5_game_domain.replace(/\/$/, '');
-    const launchUrl = `${base}/CallGame/?language=${lang}&user=${encodeURIComponent(accountId)}&gName=${encodeURIComponent(params.game_code)}&tkn=${encodeURIComponent(actk)}`;
+    const lobby = params.lobby_return_url || '';
+    const launchUrl =
+      `${base}/CallGame/?language=${lang}` +
+      `&user=${encodeURIComponent(accountId)}` +
+      `&gName=${encodeURIComponent(params.game_code)}` +
+      `&tkn=${encodeURIComponent(actk)}` +
+      (lobby ? `&lobbyUrl=${encodeURIComponent(lobby)}` : '');
 
     console.log('[MEGAH5-STEP6] Launch URL ready (CallGame)', {
       launchUrl,
+      lobbyUrl: lobby || '(not set)',
       sessionTokenPrefix: actk.slice(0, 12) + '***',
     });
 

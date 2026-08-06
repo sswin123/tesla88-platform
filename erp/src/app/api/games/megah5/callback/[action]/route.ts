@@ -91,6 +91,13 @@ async function dispatch(
     const result = await handler(rawBody, headers, ip);
     const elapsed = Date.now() - t0;
     console.log(`[megah5-callback] ◀ action=${action} elapsed=${elapsed}ms result=${JSON.stringify(result).slice(0, 200)}`);
+    console.log('================================');
+    console.log('[MEGAH5 FINAL RESPONSE]');
+    console.log('Action:', action);
+    console.log('Method:', request.method);
+    console.log('HTTP Status: 200');
+    console.log('Response JSON:', JSON.stringify(result));
+    console.log('================================');
     return NextResponse.json(result);
   } catch (err) {
     console.error(`[megah5-callback] handler threw for action="${action}":`, err);

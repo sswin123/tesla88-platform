@@ -25,9 +25,9 @@ describe('MegaH5CallbackFormatter', () => {
     expect(res.balance).toBe(55.55);
   });
 
-  it('formatBet includes referenceID', () => {
+  it('formatBet returns transactionID and balance', () => {
     const res = fmt.formatBet({ transaction_id: 'txn123', balance: 90, currency: 'MYR', error_code: 0 });
-    expect(res.referenceID).toBe('txn123');
+    expect(res.transactionID).toBe('txn123');
     expect(res.balance).toBe(90);
   });
 

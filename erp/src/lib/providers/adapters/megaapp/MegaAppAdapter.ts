@@ -307,6 +307,14 @@ export class MegaAppAdapter extends BaseProviderAdapter {
   }
 
   /**
+   * IGameProvider.withdrawAll — wraps autoWithdrawAll for the Framework sync layer.
+   * Allows sync/route.ts to call adapter.withdrawAll() without knowing the concrete type.
+   */
+  async withdrawAll(loginId: string): Promise<number> {
+    return this.autoWithdrawAll(loginId);
+  }
+
+  /**
    * getBalance — uses getMember API which may return null balance.
    * If null, returns 0 and logs a warning.
    */

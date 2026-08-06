@@ -210,6 +210,9 @@ export default function GameLobby() {
   const handleMegaH5GameLaunch = useCallback(async (gameCode: string) => {
     setMegaH5PickerOpen(false);
     setLaunching('MEGAH5');
+    // Open blank tab synchronously inside the click-event stack so the browser
+    // does not classify it as a popup. We redirect it after the async fetch.
+    const gameTab = window.open('', '_blank', 'noopener,noreferrer');
     try {
       const res = await fetch('/api/public/games/launch', {
         method: 'POST',
@@ -218,15 +221,22 @@ export default function GameLobby() {
       });
       const data = await res.json() as { launch_url?: string; error?: string; code?: string };
       if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
+        gameTab?.close();
         window.location.href = '/login';
         return;
       }
       if (!res.ok || !data.launch_url) {
+        gameTab?.close();
         alert(data.error ?? '启动失败，请稍后再试');
         return;
       }
-      window.location.href = data.launch_url;
+      if (gameTab) {
+        gameTab.location.href = data.launch_url;
+      } else {
+        window.location.href = data.launch_url;
+      }
     } catch {
+      gameTab?.close();
       alert('网络错误，请稍后再试');
     } finally {
       setLaunching(null);

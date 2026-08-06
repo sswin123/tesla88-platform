@@ -79,15 +79,22 @@ export async function POST(_req: Request, { params }: Params) {
   }
 
   // ── 4. Upsert into gp_games ───────────────────────────────────────────────
+  // Map numeric game_type → category string for the website games API filter.
+  // Values match GAME_TYPE constants: 1=SLOT 2=ARCADE 3=TABLE 4=FISHING 5=LIVE_CASINO
+  const GAME_TYPE_CATEGORY: Record<number, string> = {
+    1: 'slot', 2: 'arcade', 3: 'table', 4: 'fishing', 5: 'live',
+  };
+
   let gpInserted = 0;
   let gpUpdated  = 0;
 
   for (const game of games) {
+    const category = GAME_TYPE_CATEGORY[game.game_type as number] ?? 'other';
     const { rows } = await pool.query<{ xmax: string }>(
       `INSERT INTO gp_games
          (provider_id, game_code, name, game_type, sub_type, icon_url, banner_url,
-          is_active, metadata, synced_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())
+          is_active, metadata, category, synced_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())
        ON CONFLICT (provider_id, game_code) DO UPDATE
          SET name       = EXCLUDED.name,
              game_type  = EXCLUDED.game_type,
@@ -96,13 +103,14 @@ export async function POST(_req: Request, { params }: Params) {
              banner_url = EXCLUDED.banner_url,
              is_active  = EXCLUDED.is_active,
              metadata   = EXCLUDED.metadata,
+             category   = EXCLUDED.category,
              synced_at  = NOW(),
              updated_at = NOW()
        RETURNING (xmax = 0) AS is_insert`,
       [
         provider.id, game.game_code, game.name, game.game_type,
         game.sub_type ?? null, game.icon_url ?? null, game.banner_url ?? null,
-        game.is_active ?? true, JSON.stringify(game.metadata ?? {}),
+        game.is_active ?? true, JSON.stringify(game.metadata ?? {}), category,
       ],
     );
     if (rows[0]?.xmax === '0') gpInserted++;
