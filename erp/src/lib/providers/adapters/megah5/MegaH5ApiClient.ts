@@ -227,18 +227,28 @@ export class MegaH5ApiClient {
 
     const res = await this.get<GameListRes>(url);
 
+    const rawList = res.data.gamelist ?? [];
+    // Count raw gtyp distribution before any mapping
+    const gtypBreakdown: Record<number, number> = {};
+    for (const g of rawList) {
+      gtypBreakdown[g.gtyp] = (gtypBreakdown[g.gtyp] ?? 0) + 1;
+    }
     console.log('[MEGAH5 GameList Response]', {
       status:      res.data.status,
       description: res.data.description,
-      count:       res.data.gamelist?.length ?? 0,
+      count:       rawList.length,
       latencyMs:   res.latencyMs,
+      // gtyp breakdown: 1=SLOT 2=ARCADE 3=TABLE 4=FISHING 5=LIVE_CASINO
+      gtyp_breakdown: gtypBreakdown,
+      first_30: rawList.slice(0, 30).map(g => ({ gtyp: g.gtyp, gname: g.gname })),
+      fishing_games: rawList.filter(g => g.gtyp === 4).map(g => g.gname),
     });
 
     if (res.data.status !== '1') {
       throw new Error(`MEGAH5 GameList error status=${res.data.status}: ${res.data.description ?? ''}`);
     }
 
-    return (res.data.gamelist ?? []).map(g => ({
+    return rawList.map(g => ({
       game_code: g.gname,
       name:      g.gname,
       game_type: this.mapGameType(g.gtyp),

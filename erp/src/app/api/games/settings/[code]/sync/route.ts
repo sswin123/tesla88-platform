@@ -85,6 +85,15 @@ export async function POST(_req: Request, { params }: Params) {
     1: 'slot', 2: 'arcade', 3: 'table', 4: 'fishing', 5: 'live',
   };
 
+  // Count by game_type for diagnostic response
+  const byGameType: Record<string | number, number> = {};
+  for (const g of games) {
+    const t = g.game_type ?? 'unknown';
+    byGameType[t] = (byGameType[t] ?? 0) + 1;
+  }
+  const fishingGames = games.filter(g => g.game_type === 4).map(g => g.game_code);
+  const first30 = games.slice(0, 30).map(g => ({ game_type: g.game_type, game_code: g.game_code }));
+
   let gpInserted = 0;
   let gpUpdated  = 0;
 
@@ -137,9 +146,12 @@ export async function POST(_req: Request, { params }: Params) {
   );
 
   return NextResponse.json({
-    ok:        true,
-    total:     games.length,
-    gp_games:  { inserted: gpInserted, updated: gpUpdated, deactivated: gpDeactivated ?? 0 },
-    synced_at: new Date().toISOString(),
+    ok:           true,
+    total:        games.length,
+    gp_games:     { inserted: gpInserted, updated: gpUpdated, deactivated: gpDeactivated ?? 0 },
+    by_game_type: byGameType,   // SLOT/ARCADE/TABLE/FISHING/LIVE_CASINO counts from API
+    fishing_games: fishingGames,
+    first_30: first30,
+    synced_at:    new Date().toISOString(),
   });
 }
