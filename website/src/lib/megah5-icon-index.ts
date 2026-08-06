@@ -3,7 +3,7 @@
  * Source: mega888gameicon_CNEN.zip → gameIcon_en/ → website/public/megah5/icons/
  *
  * Matching logic (in GameImage component):
- *   1. Exact:      stems.includes(code)           → /megah5/icons/{code}.png
+ *   1. Exact:      stems.includes(code)                → /megah5/icons/{code}.png
  *   2. StartsWith: stems.find(s => s.startsWith(code)) → /megah5/icons/{s}.png
  *   3. No match:   show 🎮 fallback (no HTTP request)
  *
@@ -85,6 +85,7 @@ export const MEGAH5_ICON_STEMS: readonly string[] = [
   "laura",
   "lottomadness",
   "luckyfisherman",
+  "luckystreakmahjong",
   "madamedestiny",
   "magicalspin",
   "marilynmonroe",
