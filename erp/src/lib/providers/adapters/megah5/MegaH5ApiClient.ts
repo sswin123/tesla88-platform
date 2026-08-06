@@ -214,7 +214,7 @@ export class MegaH5ApiClient {
 
     const q           = encodeURIComponent(this.crypto.desEncrypt(QS, this.creds.encrypt_key));
     const s           = this.crypto.md5Hex(QS + this.creds.md5_key + currTime + this.creds.secret_key);
-    const accessToken = encodeURIComponent(this.creds.api_token);
+    const accessToken = encodeURIComponent(this.creds.api_account_token); // [DIAG] was api_token
 
     const url = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.GAME_LIST}?q=${q}&s=${s}&accessToken=${accessToken}`;
 
