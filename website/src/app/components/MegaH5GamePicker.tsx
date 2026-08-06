@@ -14,24 +14,25 @@ interface Props {
   open:       boolean;
   launching:  boolean;
   onClose:    () => void;
-  onSelect:   (gameCode: string) => void;
+  onSelect:   (gameCode: string, displayName: string) => void;
 }
 
-const TABS = [
-  { key: 'all',     label: '全部' },
-  { key: 'slot',    label: 'Slot' },
-  { key: 'fishing', label: '捕鱼' },
-  { key: 'table',   label: '桌游' },
-  { key: 'arcade',  label: 'Arcade' },
-  { key: 'live',    label: '真人' },
-] as const;
+// Display labels for each category value from the database
+const CATEGORY_LABELS: Record<string, string> = {
+  slot:    'Slot',
+  arcade:  'Arcade',
+  table:   '桌游',
+  fishing: '捕鱼',
+  live:    '真人',
+};
 
-type TabKey = typeof TABS[number]['key'];
+// Preferred sort order for category tabs
+const CATEGORY_ORDER = ['slot', 'arcade', 'table', 'fishing', 'live'];
 
 export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) {
   const [games,    setGames]    = useState<MegaH5Game[] | null>(null);
   const [loading,  setLoading]  = useState(false);
-  const [tab,      setTab]      = useState<TabKey>('all');
+  const [tab,      setTab]      = useState<string>('all');
   const [search,   setSearch]   = useState('');
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
       .catch(() => { setGames([]); setLoading(false); });
   }, [open]);
 
+  // Derive category counts from actual game data
   const tabCounts = useMemo(() => {
     if (!games) return {} as Record<string, number>;
     const counts: Record<string, number> = { all: games.length };
@@ -54,6 +56,20 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
       counts[c] = (counts[c] ?? 0) + 1;
     }
     return counts;
+  }, [games]);
+
+  // Derive available categories dynamically — only categories with > 0 games, sorted by CATEGORY_ORDER
+  const availableTabs = useMemo(() => {
+    if (!games) return [] as string[];
+    const seen = new Set<string>();
+    for (const g of games) {
+      if (g.category && g.category !== 'other') seen.add(g.category);
+    }
+    return Array.from(seen).sort((a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a);
+      const bi = CATEGORY_ORDER.indexOf(b);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
   }, [games]);
 
   const filtered = useMemo(() => {
@@ -128,16 +144,29 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
           </div>
         </div>
 
-        {/* Category tabs */}
+        {/* Category tabs — derived dynamically from actual game data, no hardcoded categories */}
         <div className="flex gap-1 px-4 py-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {TABS.map(t => {
-            const count = tabCounts[t.key] ?? 0;
-            const active = tab === t.key;
-            if (t.key !== 'all' && !loading && games !== null && count === 0) return null;
+          {/* "All" tab is always shown */}
+          <button
+            onClick={() => setTab('all')}
+            className="flex-shrink-0 rounded-full text-xs px-3 py-1 font-medium transition-colors"
+            style={{
+              background: tab === 'all' ? 'var(--brand-primary, #6c5ce7)' : 'rgba(255,255,255,0.08)',
+              color: tab === 'all' ? '#fff' : 'var(--text-muted, #aaa)',
+              border: 'none',
+            }}
+          >全部</button>
+
+          {/* Category tabs — only rendered for categories that exist in the API response */}
+          {availableTabs.map(cat => {
+            const count = tabCounts[cat] ?? 0;
+            if (count === 0) return null;
+            const active = tab === cat;
+            const label  = CATEGORY_LABELS[cat] ?? cat;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={cat}
+                onClick={() => setTab(cat)}
                 className="flex-shrink-0 rounded-full text-xs px-3 py-1 font-medium transition-colors"
                 style={{
                   background: active ? 'var(--brand-primary, #6c5ce7)' : 'rgba(255,255,255,0.08)',
@@ -145,7 +174,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
                   border: 'none',
                 }}
               >
-                {t.label}{t.key !== 'all' && count > 0 ? ` (${count})` : ''}
+                {label} ({count})
               </button>
             );
           })}
@@ -176,7 +205,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
               {filtered.map(game => (
                 <button
                   key={game.game_code}
-                  onClick={() => { if (!game.is_maintenance) onSelect(game.game_code); }}
+                  onClick={() => { if (!game.is_maintenance) onSelect(game.game_code, game.display_name); }}
                   disabled={game.is_maintenance || launching}
                   className="relative overflow-hidden rounded-xl text-left disabled:opacity-60"
                   style={{ aspectRatio: '3/4' }}

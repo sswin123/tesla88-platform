@@ -76,6 +76,7 @@ export default function GameLobby() {
   const [megaAppDialog,    setMegaAppDialog]    = useState<MegaAppDialogState | null>(null);
   const [megaAppError,     setMegaAppError]     = useState<string | null>(null);
   const [megaH5PickerOpen, setMegaH5PickerOpen] = useState(false);
+  const [megaH5Ready,      setMegaH5Ready]      = useState<{ name: string; url: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/public/game-providers')
@@ -207,12 +208,13 @@ export default function GameLobby() {
     }
   }, [launching, authChecked, isLoggedIn]);
 
-  const handleMegaH5GameLaunch = useCallback(async (gameCode: string) => {
+  // Fetch the launch URL in the background, then surface a "Masuk Game" dialog.
+  // window.open is intentionally NOT called here — it is called synchronously
+  // inside the dialog button's onClick, which is a fresh user-gesture and is
+  // therefore never blocked by the browser's popup policy.
+  const handleMegaH5GameLaunch = useCallback(async (gameCode: string, displayName: string) => {
     setMegaH5PickerOpen(false);
     setLaunching('MEGAH5');
-    // Open blank tab synchronously inside the click-event stack so the browser
-    // does not classify it as a popup. We redirect it after the async fetch.
-    const gameTab = window.open('', '_blank', 'noopener,noreferrer');
     try {
       const res = await fetch('/api/public/games/launch', {
         method: 'POST',
@@ -221,22 +223,15 @@ export default function GameLobby() {
       });
       const data = await res.json() as { launch_url?: string; error?: string; code?: string };
       if (res.status === 401 || data.code === 'UNAUTHENTICATED') {
-        gameTab?.close();
         window.location.href = '/login';
         return;
       }
       if (!res.ok || !data.launch_url) {
-        gameTab?.close();
         alert(data.error ?? '启动失败，请稍后再试');
         return;
       }
-      if (gameTab) {
-        gameTab.location.href = data.launch_url;
-      } else {
-        window.location.href = data.launch_url;
-      }
+      setMegaH5Ready({ name: displayName, url: data.launch_url });
     } catch {
-      gameTab?.close();
       alert('网络错误，请稍后再试');
     } finally {
       setLaunching(null);
@@ -261,8 +256,42 @@ export default function GameLobby() {
       open={megaH5PickerOpen}
       launching={!!launching}
       onClose={() => setMegaH5PickerOpen(false)}
-      onSelect={(gameCode) => void handleMegaH5GameLaunch(gameCode)}
+      onSelect={(gameCode, displayName) => void handleMegaH5GameLaunch(gameCode, displayName)}
     />
+
+    {megaH5Ready && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(0,0,0,0.80)' }}
+          onClick={() => setMegaH5Ready(null)}
+          aria-hidden="true"
+        />
+        <div
+          className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center flex flex-col gap-4"
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+        >
+          <div className="text-4xl">🎮</div>
+          <div>
+            <p className="text-xs mb-1" style={{ color: 'var(--text-muted, #888)' }}>即将进入</p>
+            <h4 className="text-base font-bold" style={{ color: 'var(--text-base, #fff)' }}>{megaH5Ready.name}</h4>
+          </div>
+          <a
+            href={megaH5Ready.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full rounded-xl py-3 text-sm font-bold text-white text-center block"
+            style={{ background: 'var(--brand-primary, #6c5ce7)' }}
+            onClick={() => setMegaH5Ready(null)}
+          >Masuk Game</a>
+          <button
+            className="text-xs"
+            style={{ color: 'var(--text-muted, #888)' }}
+            onClick={() => setMegaH5Ready(null)}
+          >取消</button>
+        </div>
+      </div>
+    )}
 
     {megaAppError && (
       <div

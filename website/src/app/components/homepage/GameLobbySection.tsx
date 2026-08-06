@@ -467,31 +467,26 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
   const [megaAppDialog,    setMegaAppDialog]    = useState<MegaAppDialogState | null>(null);
   const [megaAppError,     setMegaAppError]     = useState<string | null>(null);
   const [megaH5PickerOpen, setMegaH5PickerOpen] = useState(false);
+  const [megaH5Ready,      setMegaH5Ready]      = useState<{ name: string; url: string } | null>(null);
 
-  async function handleMegaH5GameLaunch(gameCode: string) {
+  async function handleMegaH5GameLaunch(gameCode: string, displayName: string) {
     setMegaH5PickerOpen(false);
     setLaunching(true);
-    // Open blank tab synchronously inside the click-event stack so the browser
-    // does not classify it as a popup. We redirect it after the async fetch.
-    const gameTab = window.open('', '_blank', 'noopener,noreferrer');
     try {
       const r = await fetch('/api/public/games/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_code: 'MEGAH5', game_code: gameCode }),
       });
-      if (r.status === 401) { gameTab?.close(); window.location.href = '/login'; return; }
+      if (r.status === 401) { window.location.href = '/login'; return; }
       const d = await r.json() as { launch_url?: string; error?: string; code?: string };
-      if (d.code === 'UNAUTHENTICATED') { gameTab?.close(); window.location.href = '/login'; return; }
+      if (d.code === 'UNAUTHENTICATED') { window.location.href = '/login'; return; }
       if (d.launch_url) {
-        if (gameTab) { gameTab.location.href = d.launch_url; }
-        else { window.location.href = d.launch_url; }
+        setMegaH5Ready({ name: displayName, url: d.launch_url });
         return;
       }
-      gameTab?.close();
       alert(d.error ?? '启动失败，请稍后再试。');
     } catch {
-      gameTab?.close();
       alert('网络错误，请稍后再试。');
     } finally {
       setLaunching(false);
@@ -669,8 +664,42 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
       open={megaH5PickerOpen}
       launching={launching}
       onClose={() => setMegaH5PickerOpen(false)}
-      onSelect={(gameCode) => void handleMegaH5GameLaunch(gameCode)}
+      onSelect={(gameCode, displayName) => void handleMegaH5GameLaunch(gameCode, displayName)}
     />
+
+    {megaH5Ready && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(0,0,0,0.80)' }}
+          onClick={() => setMegaH5Ready(null)}
+          aria-hidden="true"
+        />
+        <div
+          className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center flex flex-col gap-4"
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+        >
+          <div className="text-4xl">🎮</div>
+          <div>
+            <p className="text-xs mb-1" style={{ color: 'var(--text-muted, #888)' }}>即将进入</p>
+            <h4 className="text-base font-bold" style={{ color: 'var(--text-base, #fff)' }}>{megaH5Ready.name}</h4>
+          </div>
+          <a
+            href={megaH5Ready.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full rounded-xl py-3 text-sm font-bold text-white text-center block"
+            style={{ background: 'var(--brand-primary, #6c5ce7)' }}
+            onClick={() => setMegaH5Ready(null)}
+          >Masuk Game</a>
+          <button
+            className="text-xs"
+            style={{ color: 'var(--text-muted, #888)' }}
+            onClick={() => setMegaH5Ready(null)}
+          >取消</button>
+        </div>
+      </div>
+    )}
     {megaAppError && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
