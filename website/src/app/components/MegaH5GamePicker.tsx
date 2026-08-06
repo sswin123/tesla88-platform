@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import { resolveIconStem } from '@/lib/megah5-icon-index';
 
 interface MegaH5Game {
   game_code:      string;
@@ -17,7 +18,6 @@ interface Props {
   onSelect:   (gameCode: string, displayName: string) => void;
 }
 
-// Display labels for each category value from the database
 const CATEGORY_LABELS: Record<string, string> = {
   slot:    'Slot',
   arcade:  'Arcade',
@@ -26,16 +26,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   live:    '真人',
 };
 
-// Preferred sort order for category tabs
 const CATEGORY_ORDER = ['slot', 'arcade', 'table', 'fishing', 'live'];
 
-// Game image from official ZIP (gameIcon_en/*.png).
-// Mapping: gameCode.toLowerCase() → /megah5/icons/{lower}.png
-// onError falls back to 🎮 emoji.
+/**
+ * GameImage — resolves game_code → official icon using a two-step index lookup:
+ *   1. Exact match:      stoneage        → stoneage.png
+ *   2. StartsWith match: santasurprise   → santasurprise_press.png
+ *   3. No match:         show 🎮 without any HTTP request
+ */
 function GameImage({ gameCode, displayName }: { gameCode: string; displayName: string }) {
+  const stem = resolveIconStem(gameCode);
   const [err, setErr] = useState(false);
 
-  if (err) {
+  // No icon in index → show fallback immediately, no img request
+  if (!stem || err) {
     return (
       <div
         className="absolute inset-0 flex items-center justify-center text-3xl"
@@ -46,9 +50,11 @@ function GameImage({ gameCode, displayName }: { gameCode: string; displayName: s
 
   return (
     <img
-      src={`/megah5/icons/${gameCode.toLowerCase()}.png`}
+      src={`/megah5/icons/${stem}.png`}
       alt={displayName}
       loading="lazy"
+      decoding="async"
+      fetchPriority="low"
       className="absolute inset-0 w-full h-full object-cover"
       onError={() => setErr(true)}
     />
@@ -73,7 +79,6 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
       .catch(() => { setGames([]); setLoading(false); });
   }, [open]);
 
-  // Count per category
   const tabCounts = useMemo(() => {
     if (!games) return {} as Record<string, number>;
     const counts: Record<string, number> = { all: games.length };
@@ -84,7 +89,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
     return counts;
   }, [games]);
 
-  // Categories derived dynamically from game data — sorted by CATEGORY_ORDER
+  // Derive available categories from actual game data — no hardcode
   const availableTabs = useMemo(() => {
     if (!games) return [] as string[];
     const seen = new Set<string>();
@@ -111,17 +116,17 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
   if (!open) return null;
 
   const tabBtnBase: React.CSSProperties = {
-    flexShrink:    0,
-    whiteSpace:    'nowrap',
-    minWidth:      80,
-    height:        40,
-    padding:       '0 16px',
-    borderRadius:  999,
-    fontSize:      13,
-    fontWeight:    500,
-    border:        'none',
-    cursor:        'pointer',
-    transition:    'background 0.18s, color 0.18s',
+    flexShrink:   0,
+    whiteSpace:   'nowrap',
+    minWidth:     80,
+    height:       40,
+    padding:      '0 16px',
+    borderRadius: 999,
+    fontSize:     13,
+    fontWeight:   500,
+    border:       'none',
+    cursor:       'pointer',
+    transition:   'background 0.18s, color 0.18s',
   };
 
   return (
@@ -190,19 +195,18 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
           </div>
         </div>
 
-        {/* Category Tabs — horizontal scroll, dynamic, no hardcoded categories */}
+        {/* Category Tabs — horizontal scroll, no hardcode */}
+        <style>{`.mh5-tabs::-webkit-scrollbar{display:none}`}</style>
         <div
-          className="picker-tabs px-4 py-2"
+          className="mh5-tabs px-4 py-2"
           style={{
-            display:         'flex',
-            gap:             10,
-            overflowX:       'auto',
-            scrollbarWidth:  'none',       /* Firefox */
-            msOverflowStyle: 'none',       /* IE */
+            display:                 'flex',
+            gap:                     10,
+            overflowX:               'auto',
+            scrollbarWidth:          'none',
             WebkitOverflowScrolling: 'touch',
           } as React.CSSProperties}
         >
-          {/* 全部 — always visible */}
           <button
             onClick={() => setTab('all')}
             style={{
@@ -214,9 +218,8 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
             全部{games !== null ? ` (${tabCounts['all'] ?? 0})` : ''}
           </button>
 
-          {/* Category tabs — only those with > 0 games */}
           {availableTabs.map(cat => {
-            const count = tabCounts[cat] ?? 0;
+            const count  = tabCounts[cat] ?? 0;
             if (count === 0) return null;
             const active = tab === cat;
             return (
@@ -234,8 +237,6 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
             );
           })}
         </div>
-        {/* Hide webkit scrollbar */}
-        <style>{`.picker-tabs::-webkit-scrollbar{display:none}`}</style>
 
         {/* Game grid */}
         <div className="overflow-y-auto px-4 pb-4">
@@ -267,16 +268,13 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
                   className="relative overflow-hidden rounded-xl text-left disabled:opacity-60"
                   style={{ aspectRatio: '3/4' }}
                 >
-                  {/* Official game image — falls back to 🎮 on error */}
                   <GameImage gameCode={game.game_code} displayName={game.display_name} />
 
-                  {/* Bottom gradient for text legibility */}
                   <div
                     className="absolute inset-0"
                     style={{ background: 'linear-gradient(to top, rgba(10,11,20,0.92) 0%, transparent 55%)' }}
                   />
 
-                  {/* Maintenance overlay */}
                   {game.is_maintenance && (
                     <div
                       className="absolute inset-0 flex items-center justify-center"
@@ -286,7 +284,6 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
                     </div>
                   )}
 
-                  {/* Game name */}
                   <span
                     className="absolute bottom-0 inset-x-0 px-1.5 py-1.5 text-xs font-medium leading-tight text-center"
                     style={{ color: 'var(--text-base, #fff)' }}

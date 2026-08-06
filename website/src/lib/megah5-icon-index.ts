@@ -1,0 +1,162 @@
+/**
+ * Auto-generated index of available MEGAH5 game icon stems.
+ * Source: mega888gameicon_CNEN.zip → gameIcon_en/ → website/public/megah5/icons/
+ *
+ * Matching logic (in GameImage component):
+ *   1. Exact:      stems.includes(code)           → /megah5/icons/{code}.png
+ *   2. StartsWith: stems.find(s => s.startsWith(code)) → /megah5/icons/{s}.png
+ *   3. No match:   show 🎮 fallback (no HTTP request)
+ *
+ * To regenerate after adding new icons from Vendor ZIP:
+ *   ls website/public/megah5/icons/ | sed 's/\.png$//' | sort
+ *   Then update the array below.
+ */
+export const MEGAH5_ICON_STEMS: readonly string[] = [
+  "5dragon",
+  "5dragondeluxe",
+  "5fortune",
+  "5koi",
+  "5koideluxe",
+  "aladdin",
+  "alice",
+  "amazingthailand",
+  "ancientegyptclassic",
+  "anightout",
+  "arctictreasure",
+  "aztec",
+  "baccarat",
+  "baozhuxuantian",
+  "bigprosperity",
+  "bigshot",
+  "bonusbear",
+  "bonusdigger",
+  "boyking",
+  "captaintreasure",
+  "carracing",
+  "cherrylove",
+  "circus",
+  "cleopatragold",
+  "cookiepop",
+  "coyotecash",
+  "crystal",
+  "deserttreasure",
+  "dolphinop",
+  "dolphinreef",
+  "dragongold",
+  "dragonmaiden",
+  "dragontiger",
+  "eastersurprise",
+  "emperorgate",
+  "fairygarden",
+  "fameandfortune",
+  "fashion",
+  "feicuigongzhu",
+  "fengshen",
+  "footballcarnival",
+  "footballrules",
+  "forestdance",
+  "fortunelions",
+  "fortuneofthefox",
+  "fortunepanda",
+  "fruit",
+  "geishastory",
+  "godofwealth",
+  "goldenisland",
+  "goldenlotus",
+  "goldenslut",
+  "goldentour",
+  "goldentree",
+  "greatblue",
+  "greatchina",
+  "greatmingempire",
+  "greatstars",
+  "greenlight",
+  "halloweenfortune",
+  "highwayking",
+  "hockeyleague",
+  "huanlecaishen",
+  "iceland",
+  "indianmyth",
+  "irishluck",
+  "japan",
+  "jinqianwa",
+  "kimochi",
+  "kingderby",
+  "laura",
+  "lottomadness",
+  "luckyfisherman",
+  "madamedestiny",
+  "magicalspin",
+  "marilynmonroe",
+  "masterchensfortune",
+  "mermaidjewel",
+  "motorbike",
+  "mysticdragon",
+  "niannianyouyu",
+  "nitro",
+  "niulangzhinu",
+  "orient",
+  "panjinlian",
+  "panthermoon",
+  "penguinvacation",
+  "pirateship",
+  "pokemon",
+  "rally",
+  "ranchstory",
+  "romeandglory",
+  "roulette",
+  "safariheat",
+  "santasurprise_press",
+  "seacaptain",
+  "seasongreetings",
+  "seaworld",
+  "shiningstars",
+  "shuangxi",
+  "sicbo",
+  "silentsamurai",
+  "silverbullet",
+  "sixiang",
+  "sparta",
+  "spartan",
+  "steamtower",
+  "stoneage",
+  "stripnight",
+  "sunwukong",
+  "t-rex",
+  "talesofegypt",
+  "tallyho",
+  "thaiparadise",
+  "thediscovery",
+  "threekingdoms",
+  "thunderbolt1",
+  "topgun",
+  "treasureisland",
+  "tripletwister",
+  "victory",
+  "wealth",
+  "westernranch",
+  "wildfox",
+  "wolfhunter",
+  "wongchoy",
+  "wukong1",
+  "xuanpulianhuan",
+  "yingcaishen",
+  "zhaocaijinbao",
+  "zhaocaitongzi",
+] as const;
+
+/**
+ * Resolve a game_code to its actual icon filename stem.
+ * Returns the stem (without .png) if found, or null if no icon exists.
+ *
+ * Step 1: exact match   → stoneage         matches stoneage
+ * Step 2: startsWith    → santasurprise    matches santasurprise_press
+ */
+export function resolveIconStem(gameCode: string): string | null {
+  const lower = gameCode.toLowerCase();
+  // Step 1: exact
+  if ((MEGAH5_ICON_STEMS as readonly string[]).includes(lower)) return lower;
+  // Step 2: startsWith — e.g. "santasurprise" → "santasurprise_press"
+  const partial = (MEGAH5_ICON_STEMS as readonly string[]).find(s => s.startsWith(lower));
+  return partial ?? null;
+}
