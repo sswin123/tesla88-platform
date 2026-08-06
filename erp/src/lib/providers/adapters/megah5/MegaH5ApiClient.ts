@@ -182,6 +182,23 @@ export class MegaH5ApiClient {
    *   status "1"=Success, "14"=SignatureNotMatch, "15"=InvalidAccessToken
    */
   async getGameList(): Promise<GameListItem[]> {
+    // ── [TEMP-CRED-AUDIT] Remove after investigation ─────────────────────────
+    const credAudit = (label: string, val: string) => {
+      const len = val?.length ?? 0;
+      if (len === 0) return { [label]: 'EMPTY/MISSING' };
+      return { [label]: { len, prefix: val.slice(0, 6), suffix: val.slice(-4) } };
+    };
+    console.log('[MEGAH5-CRED-AUDIT]', {
+      ...credAudit('api_token',         this.creds.api_token),
+      ...credAudit('api_account_token', this.creds.api_account_token),
+      ...credAudit('operator_token',    this.creds.operator_token),
+      ...credAudit('secret_key',        this.creds.secret_key),
+      ...credAudit('encrypt_key',       this.creds.encrypt_key),
+      ...credAudit('md5_key',           this.creds.md5_key),
+      delimiter: this.creds.delimiter || '(empty→default |)',
+    });
+    // ── [/TEMP-CRED-AUDIT] ────────────────────────────────────────────────────
+
     const now = new Date();
     const p   = (n: number) => String(n).padStart(2, '0');
     const currTime =
