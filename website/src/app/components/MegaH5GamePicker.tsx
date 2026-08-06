@@ -29,11 +29,37 @@ const CATEGORY_LABELS: Record<string, string> = {
 // Preferred sort order for category tabs
 const CATEGORY_ORDER = ['slot', 'arcade', 'table', 'fishing', 'live'];
 
+// Game image from official ZIP (gameIcon_en/*.png).
+// Mapping: gameCode.toLowerCase() → /megah5/icons/{lower}.png
+// onError falls back to 🎮 emoji.
+function GameImage({ gameCode, displayName }: { gameCode: string; displayName: string }) {
+  const [err, setErr] = useState(false);
+
+  if (err) {
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center text-3xl"
+        style={{ background: 'var(--bg-surface2, #252640)' }}
+      >🎮</div>
+    );
+  }
+
+  return (
+    <img
+      src={`/megah5/icons/${gameCode.toLowerCase()}.png`}
+      alt={displayName}
+      loading="lazy"
+      className="absolute inset-0 w-full h-full object-cover"
+      onError={() => setErr(true)}
+    />
+  );
+}
+
 export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) {
-  const [games,    setGames]    = useState<MegaH5Game[] | null>(null);
-  const [loading,  setLoading]  = useState(false);
-  const [tab,      setTab]      = useState<string>('all');
-  const [search,   setSearch]   = useState('');
+  const [games,   setGames]   = useState<MegaH5Game[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tab,     setTab]     = useState<string>('all');
+  const [search,  setSearch]  = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -47,7 +73,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
       .catch(() => { setGames([]); setLoading(false); });
   }, [open]);
 
-  // Derive category counts from actual game data
+  // Count per category
   const tabCounts = useMemo(() => {
     if (!games) return {} as Record<string, number>;
     const counts: Record<string, number> = { all: games.length };
@@ -58,7 +84,7 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
     return counts;
   }, [games]);
 
-  // Derive available categories dynamically — only categories with > 0 games, sorted by CATEGORY_ORDER
+  // Categories derived dynamically from game data — sorted by CATEGORY_ORDER
   const availableTabs = useMemo(() => {
     if (!games) return [] as string[];
     const seen = new Set<string>();
@@ -84,6 +110,20 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
 
   if (!open) return null;
 
+  const tabBtnBase: React.CSSProperties = {
+    flexShrink:    0,
+    whiteSpace:    'nowrap',
+    minWidth:      80,
+    height:        40,
+    padding:       '0 16px',
+    borderRadius:  999,
+    fontSize:      13,
+    fontWeight:    500,
+    border:        'none',
+    cursor:        'pointer',
+    transition:    'background 0.18s, color 0.18s',
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -91,18 +131,24 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
       aria-modal="true"
       aria-label="选择游戏"
     >
+      {/* Backdrop */}
       <div
         className="absolute inset-0"
         style={{ background: 'rgba(0,0,0,0.80)' }}
         onClick={onClose}
         aria-hidden="true"
       />
+
+      {/* Sheet */}
       <div
         className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl flex flex-col"
         style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', maxHeight: '85vh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+        >
           <h3 className="text-sm font-bold" style={{ color: 'var(--text-base, #fff)' }}>
             选择游戏
             {games !== null && (
@@ -137,48 +183,59 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
               className="w-full rounded-lg text-sm pl-9 pr-4 py-2 outline-none"
               style={{
                 background: 'rgba(255,255,255,0.07)',
-                color: 'var(--text-base, #fff)',
-                border: '1px solid rgba(255,255,255,0.10)',
+                color:      'var(--text-base, #fff)',
+                border:     '1px solid rgba(255,255,255,0.10)',
               }}
             />
           </div>
         </div>
 
-        {/* Category tabs — derived dynamically from actual game data, no hardcoded categories */}
-        <div className="flex gap-1 px-4 py-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {/* "All" tab is always shown */}
+        {/* Category Tabs — horizontal scroll, dynamic, no hardcoded categories */}
+        <div
+          className="picker-tabs px-4 py-2"
+          style={{
+            display:         'flex',
+            gap:             10,
+            overflowX:       'auto',
+            scrollbarWidth:  'none',       /* Firefox */
+            msOverflowStyle: 'none',       /* IE */
+            WebkitOverflowScrolling: 'touch',
+          } as React.CSSProperties}
+        >
+          {/* 全部 — always visible */}
           <button
             onClick={() => setTab('all')}
-            className="flex-shrink-0 rounded-full text-xs px-3 py-1 font-medium transition-colors"
             style={{
+              ...tabBtnBase,
               background: tab === 'all' ? 'var(--brand-primary, #6c5ce7)' : 'rgba(255,255,255,0.08)',
-              color: tab === 'all' ? '#fff' : 'var(--text-muted, #aaa)',
-              border: 'none',
+              color:      tab === 'all' ? '#fff' : 'var(--text-muted, #aaa)',
             }}
-          >全部</button>
+          >
+            全部{games !== null ? ` (${tabCounts['all'] ?? 0})` : ''}
+          </button>
 
-          {/* Category tabs — only rendered for categories that exist in the API response */}
+          {/* Category tabs — only those with > 0 games */}
           {availableTabs.map(cat => {
             const count = tabCounts[cat] ?? 0;
             if (count === 0) return null;
             const active = tab === cat;
-            const label  = CATEGORY_LABELS[cat] ?? cat;
             return (
               <button
                 key={cat}
                 onClick={() => setTab(cat)}
-                className="flex-shrink-0 rounded-full text-xs px-3 py-1 font-medium transition-colors"
                 style={{
+                  ...tabBtnBase,
                   background: active ? 'var(--brand-primary, #6c5ce7)' : 'rgba(255,255,255,0.08)',
-                  color: active ? '#fff' : 'var(--text-muted, #aaa)',
-                  border: 'none',
+                  color:      active ? '#fff' : 'var(--text-muted, #aaa)',
                 }}
               >
-                {label} ({count})
+                {CATEGORY_LABELS[cat] ?? cat} ({count})
               </button>
             );
           })}
         </div>
+        {/* Hide webkit scrollbar */}
+        <style>{`.picker-tabs::-webkit-scrollbar{display:none}`}</style>
 
         {/* Game grid */}
         <div className="overflow-y-auto px-4 pb-4">
@@ -210,27 +267,26 @@ export function MegaH5GamePicker({ open, launching, onClose, onSelect }: Props) 
                   className="relative overflow-hidden rounded-xl text-left disabled:opacity-60"
                   style={{ aspectRatio: '3/4' }}
                 >
-                  {(game.thumbnail_url ?? game.icon_url) ? (
-                    <img
-                      src={(game.thumbnail_url ?? game.icon_url)!}
-                      alt={game.display_name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-0 flex items-center justify-center text-2xl"
-                      style={{ background: 'var(--bg-surface2, #252640)' }}
-                    >🎮</div>
-                  )}
+                  {/* Official game image — falls back to 🎮 on error */}
+                  <GameImage gameCode={game.game_code} displayName={game.display_name} />
+
+                  {/* Bottom gradient for text legibility */}
                   <div
                     className="absolute inset-0"
                     style={{ background: 'linear-gradient(to top, rgba(10,11,20,0.92) 0%, transparent 55%)' }}
                   />
+
+                  {/* Maintenance overlay */}
                   {game.is_maintenance && (
-                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                    <div
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{ background: 'rgba(0,0,0,0.55)' }}
+                    >
                       <span className="text-xs font-semibold text-white">维护中</span>
                     </div>
                   )}
+
+                  {/* Game name */}
                   <span
                     className="absolute bottom-0 inset-x-0 px-1.5 py-1.5 text-xs font-medium leading-tight text-center"
                     style={{ color: 'var(--text-base, #fff)' }}
