@@ -176,29 +176,12 @@ export class MegaH5ApiClient {
    *   QS  = "key={secretKey}{delimiter}time={currTime}"  (no gameType → all games)
    *   q   = URLEncode(DESencrypt(QS, encryptKey))
    *   s   = MD5(QS + md5Key + currTime + secretKey)
-   *   accessToken = URLEncode(api_token)  — NOT inside q/s
+   *   accessToken = URLEncode(api_account_token)  — NOT inside q/s
    *
    * Response: { gamelist:[{gld, gtyp, gname, jpr?, jpa?}], status:"1", description }
    *   status "1"=Success, "14"=SignatureNotMatch, "15"=InvalidAccessToken
    */
   async getGameList(): Promise<GameListItem[]> {
-    // ── [TEMP-CRED-AUDIT] Remove after investigation ─────────────────────────
-    const credAudit = (label: string, val: string) => {
-      const len = val?.length ?? 0;
-      if (len === 0) return { [label]: 'EMPTY/MISSING' };
-      return { [label]: { len, prefix: val.slice(0, 6), suffix: val.slice(-4) } };
-    };
-    console.log('[MEGAH5-CRED-AUDIT]', {
-      ...credAudit('api_token',         this.creds.api_token),
-      ...credAudit('api_account_token', this.creds.api_account_token),
-      ...credAudit('operator_token',    this.creds.operator_token),
-      ...credAudit('secret_key',        this.creds.secret_key),
-      ...credAudit('encrypt_key',       this.creds.encrypt_key),
-      ...credAudit('md5_key',           this.creds.md5_key),
-      delimiter: this.creds.delimiter || '(empty→default |)',
-    });
-    // ── [/TEMP-CRED-AUDIT] ────────────────────────────────────────────────────
-
     const now = new Date();
     const p   = (n: number) => String(n).padStart(2, '0');
     const currTime =
@@ -214,7 +197,7 @@ export class MegaH5ApiClient {
 
     const q           = encodeURIComponent(this.crypto.desEncrypt(QS, this.creds.encrypt_key));
     const s           = this.crypto.md5Hex(QS + this.creds.md5_key + currTime + this.creds.secret_key);
-    const accessToken = encodeURIComponent(this.creds.api_account_token); // [DIAG] was api_token
+    const accessToken = encodeURIComponent(this.creds.api_account_token);
 
     const url = `${this.cfg.h5_api_domain.replace(/\/$/, '')}${H5_PATH.GAME_LIST}?q=${q}&s=${s}&accessToken=${accessToken}`;
 

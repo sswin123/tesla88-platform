@@ -47,10 +47,10 @@ const MEGAH5: ProviderSchema = {
   isStub: false,
   config: [
     { key: 'api_base_url',        label: 'API Provider URL',            type: 'url',    required: true,  placeholder: 'https://api.example.com' },
-    { key: 'datafeed_url',        label: 'DataFeed URL',                type: 'url',    required: true },
-    { key: 'h5_api_domain',       label: 'H5 API URL',                  type: 'url',    required: true },
-    { key: 'h5_lobby_domain',     label: 'H5 Lobby URL',                type: 'url',    required: true },
-    { key: 'h5_game_domain',      label: 'H5 Game URL',                 type: 'url',    required: true },
+    { key: 'datafeed_url',        label: 'DataFeed URL',                type: 'url',    required: false, placeholder: 'https://dtfeed.h5mg888.com' },
+    { key: 'h5_api_domain',       label: 'H5 API URL',                  type: 'url',    required: true,  placeholder: 'https://apigame.mg558h5.com' },
+    { key: 'h5_lobby_domain',     label: 'H5 Lobby URL',                type: 'url',    required: false, placeholder: 'https://apigame.mg558h5.com' },
+    { key: 'h5_game_domain',      label: 'H5 Game URL (CallGame)',      type: 'url',    required: true,  placeholder: 'https://apigame.mg558h5.com' },
     { key: 'game_icon_url',       label: 'Game Icon URL',               type: 'url',    required: false },
     { key: 'postfix_id',          label: 'PostFix ID',                  type: 'text',   required: true,  placeholder: 'e.g. mybrand' },
     {
@@ -72,12 +72,12 @@ const MEGAH5: ProviderSchema = {
     },
   ],
   credentials: [
-    { key: 'api_token',      label: 'Access Token',   type: 'password', required: true,  description: 'Primary API authentication token' },
-    { key: 'operator_token', label: 'Operator Token', type: 'password', required: true,  description: 'Operator-level access token' },
-    { key: 'secret_key',     label: 'SecretKey',      type: 'password', required: true,  description: 'HMAC signing secret' },
-    { key: 'md5_key',        label: 'Md5EncryptKey',  type: 'password', required: false, description: 'MD5 encryption key for callback verification' },
-    { key: 'encrypt_key',    label: 'EncryptKey',     type: 'password', required: false, description: 'AES encryption key for sensitive payloads' },
-    { key: 'delimiter',      label: 'Delimiter',      type: 'text',     required: false, description: 'Field delimiter used in signature construction' },
+    { key: 'api_account_token', label: 'Api Account Token', type: 'password', required: true,  description: 'API Account Token — used for H5 Login body (accessToken) and all outbound Operations API calls (header: token)' },
+    { key: 'operator_token',    label: 'Operator Token',    type: 'password', required: true,  description: 'Inbound token sent by MEGAH5 in callback HTTP header "token:" — used to authenticate all 9 callback types' },
+    { key: 'secret_key',        label: 'SecretKey',         type: 'password', required: true,  description: 'SecretKey — used in DES-CBC QS construction and MD5 signature (H5 Login)' },
+    { key: 'md5_key',           label: 'Md5EncryptKey',     type: 'password', required: true,  description: 'Md5EncryptKey — used in MD5 signature formula: MD5(QS + md5Key + currTime + secretKey)' },
+    { key: 'encrypt_key',       label: 'EncryptKey',        type: 'password', required: true,  description: 'EncryptKey (8 bytes) — DES-CBC key and IV for encrypting H5 Login QS into q parameter' },
+    { key: 'delimiter',         label: 'Delimiter',         type: 'text',     required: false, description: 'Field separator in signature QS string (default: | )' },
   ],
 };
 

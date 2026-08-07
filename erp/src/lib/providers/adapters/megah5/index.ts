@@ -12,7 +12,6 @@ AdapterRegistry.register(
   'MEGAH5',
   (creds, config, deps) => {
     const c: MegaH5Credentials = {
-      api_token:         creds['api_token']         ?? '',
       api_account_token: creds['api_account_token'] ?? '',
       operator_token:    creds['operator_token']    ?? '',
       secret_key:        creds['secret_key']        ?? '',
@@ -34,8 +33,14 @@ AdapterRegistry.register(
     };
     return new MegaH5Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo, deps.gpProviderId ?? 0);
   },
-  ['api_token', 'api_account_token', 'operator_token', 'secret_key', 'encrypt_key', 'md5_key', 'delimiter'],
-  ['api_base_url', 'h5_api_domain', 'h5_lobby_domain', 'postfix_id', 'currency'],
+  // Required credentials — must all be present in brand_provider_credentials for adapter to build.
+  // api_account_token: H5 Login body + all Operations API header calls.
+  // operator_token:    validates inbound MEGAH5 callback HTTP header "token:".
+  // secret_key / encrypt_key / md5_key: DES-CBC + MD5 signature for H5 Login QS.
+  ['api_account_token', 'operator_token', 'secret_key', 'encrypt_key', 'md5_key'],
+  // Required config — must all be present in brand_provider_config for adapter to build.
+  // h5_game_domain: base URL for Option 2 CallGame launch URL.
+  ['api_base_url', 'h5_api_domain', 'h5_game_domain', 'postfix_id', 'currency'],
   '1.0.0',
   'MegaH5',
 );
