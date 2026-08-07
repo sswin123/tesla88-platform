@@ -107,7 +107,7 @@ function getBaseCardStyle(style: QMStyle, custom?: CustomStyle): React.CSSProper
         background: 'rgba(255,255,255,0.05)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.10)',
+        border: '1px solid var(--border-mid)',
         boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
       };
       break;
@@ -143,7 +143,7 @@ function getBaseCardStyle(style: QMStyle, custom?: CustomStyle): React.CSSProper
         background: 'rgba(0,0,0,0.40)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid var(--border-dim)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       };
       break;

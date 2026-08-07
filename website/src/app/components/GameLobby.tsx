@@ -269,7 +269,7 @@ export default function GameLobby() {
         />
         <div
           className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center flex flex-col gap-4"
-          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)' }}
         >
           <div className="text-4xl">🎮</div>
           <div>
@@ -307,7 +307,7 @@ export default function GameLobby() {
         />
         <div
           className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center"
-          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)' }}
         >
           <div className="text-3xl mb-3">⚠️</div>
           <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>

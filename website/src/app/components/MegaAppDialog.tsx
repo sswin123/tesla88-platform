@@ -136,7 +136,7 @@ export function MegaAppDialog({
           />
           <div
             className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center"
-            style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))' }}
+            style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)' }}
           >
             <div className="text-4xl mb-3">📱</div>
             <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>
@@ -185,7 +185,7 @@ export function MegaAppDialog({
         {/* Dialog */}
         <div
           className="relative w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 overflow-y-auto"
-          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', zIndex: 1, maxHeight: '90dvh' }}
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)', zIndex: 1, maxHeight: '90dvh' }}
         >
 
           {/* Close button */}

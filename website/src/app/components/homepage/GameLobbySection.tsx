@@ -202,16 +202,16 @@ function getCardBackground(style: string, colorCard?: string, colorAccent?: stri
 function getCardBorderStyle(border: string, style: string, colorBorder?: string, colorAccent?: string): React.CSSProperties {
   const accent = colorAccent ?? 'var(--brand-primary)';
   switch (border) {
-    case 'solid':    return { border: `1px solid ${colorBorder ?? 'rgba(255,255,255,0.1)'}` };
+    case 'solid':    return { border: `1px solid ${colorBorder ?? 'var(--border-mid)'}` };
     case 'gradient': return { border: '1px solid transparent', backgroundClip: 'padding-box' };
     case 'glow':     return { border: `1px solid ${accent}`, boxShadow: `0 0 8px ${accent}40` };
     default: {
       // Style-specific defaults
-      if (style === 'glass')  return { border: '1px solid rgba(255,255,255,0.12)' };
+      if (style === 'glass')  return { border: '1px solid var(--border-mid)' };
       if (style === 'luxury') return { border: `1px solid ${accent}60` };
       if (style === 'neon')   return { border: `1px solid ${accent}` };
       if (style === 'cyber')  return { border: `1px solid ${accent}80` };
-      return { border: '1px solid rgba(255,255,255,0.06)' };
+      return { border: '1px solid var(--border-dim)' };
     }
   }
 }
@@ -261,7 +261,7 @@ function getTabStyle(tabStyle: string, isActive: boolean, colorTabActive?: strin
       case 'neon':
         return { background: 'transparent', color: activeColor, boxShadow: `0 0 12px ${activeColor}`, border: `1px solid ${activeColor}`, borderRadius: '8px' };
       case 'glass':
-        return { background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px' };
+        return { background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)', border: '1px solid var(--border-hi)', borderRadius: '10px' };
       case 'segment':
         return { background: '#fff', color: '#000', borderRadius: '8px', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' };
       case 'gradient':
@@ -851,8 +851,8 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <div style={{
-              width: 28, height: 28, border: '3px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff', borderRadius: '50%',
+              width: 28, height: 28, border: '3px solid var(--border-hi)',
+              borderTopColor: 'var(--text-base)', borderRadius: '50%',
               animation: 'gl-spin 0.7s linear infinite',
             }} />
           </div>
@@ -907,7 +907,7 @@ function ProviderFilter({ cards, activeCategory, activeProvider, onSelect, cfg, 
     gap:            6,
     padding:        providerSize === 'small' ? '4px 8px' : providerSize === 'large' ? '8px 14px' : '6px 10px',
     borderRadius:   providerStyle === 'pill' || providerStyle === 'chip' ? 999 : 8,
-    border:         isActive ? `1px solid ${accent}` : '1px solid rgba(255,255,255,0.1)',
+    border:         isActive ? `1px solid ${accent}` : '1px solid var(--border-mid)',
     background:     isActive ? `${accent}20` : 'rgba(255,255,255,0.04)',
     cursor:         'pointer',
     transition:     'all 0.2s ease',

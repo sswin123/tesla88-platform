@@ -87,7 +87,7 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
   return (
     <div className="rounded-2xl p-3.5" style={{
       background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
-      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
+      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid var(--border-dim)',
       borderRadius: config.border_radius || '16px',
       position: 'relative',
       overflow: 'hidden',
@@ -160,7 +160,7 @@ function WalletCard({
   return (
     <div className="rounded-2xl p-3.5" style={{
       background: hasMedia || hasGradient ? (hasGradient && !hasMedia ? config.bg_gradient : 'var(--bg-card)') : 'var(--bg-card)',
-      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid rgba(255,255,255,0.06)',
+      border: config.border_color ? `1px solid ${config.border_color}` : '1px solid var(--border-dim)',
       borderRadius: config.border_radius || '16px',
       position: 'relative',
       overflow: 'hidden',
@@ -239,7 +239,7 @@ function WalletCard({
 
           {/* Active promotion OR default config limits */}
           {profile.active_bonus_id ? (
-            <div className="mt-2 pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+            <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-dim)' }}>
               <div className="flex items-center gap-1 mb-1.5">
                 <span style={{ fontSize: 11 }}>🎁</span>
                 <span className="text-xs font-semibold" style={{ color: 'var(--brand-primary)' }}>Active Promotion</span>

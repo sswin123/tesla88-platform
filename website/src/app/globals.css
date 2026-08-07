@@ -20,9 +20,9 @@
   --bg-elevated: var(--bg-surface);  /* alias used by nav/header */
 
   /* ── Borders ─────────────────────────────────────────────────────── */
-  --border-dim:  rgba(255 255 255 / 0.06);
-  --border-mid:  rgba(255 255 255 / 0.11);
-  --border-hi:   rgba(255 255 255 / 0.20);
+  --border-dim:  rgba(255 255 255 / 0.10);
+  --border-mid:  rgba(255 255 255 / 0.18);
+  --border-hi:   rgba(255 255 255 / 0.30);
 
   /* ── Typography ──────────────────────────────────────────────────── */
   --text-base:   #e8e8f5;
@@ -235,7 +235,7 @@ input, select, textarea {
 /* ── Cards ───────────────────────────────────────────────────────────── */
 .casino-card {
   background-color: var(--bg-card, var(--bg-surface));
-  border: 1px solid var(--border-dim);
+  border: 1px solid var(--border-mid);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   transition: border-color calc(var(--dur-fast) * var(--anim-speed)) var(--ease-smooth),
@@ -328,13 +328,13 @@ input, select, textarea {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid var(--border-mid);
 }
 .glass-dark {
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-dim);
 }
 
 /* ── Brand helpers ────────────────────────────────────────────────────── */
@@ -357,7 +357,7 @@ input, select, textarea {
 /* ── Scrollbar (webkit) ───────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -504,7 +504,7 @@ input, select, textarea {
 /* ── Search input ─────────────────────────────────────────────────────── */
 .gp-search {
   background:    var(--bg-surface2);
-  border:        1.5px solid var(--border-dim);
+  border:        1.5px solid var(--border-mid);
   border-radius: var(--radius-sm);
   color:         var(--text-base);
   width:         100%;
@@ -531,7 +531,7 @@ input, select, textarea {
   border-radius: var(--radius-btn);
   font-size:     13px;
   font-weight:   600;
-  border:        1.5px solid var(--border-dim);
+  border:        1.5px solid var(--border-mid);
   background:    var(--bg-surface3);
   color:         var(--text-muted);
   cursor:        pointer;
@@ -556,7 +556,7 @@ input, select, textarea {
 /* ── Game card ────────────────────────────────────────────────────────── */
 .gp-card {
   background:     var(--bg-surface2);
-  border:         2px solid var(--border-dim);
+  border:         2px solid var(--border-mid);
   border-radius:  var(--radius-card);
   overflow:       hidden;
   display:        flex;

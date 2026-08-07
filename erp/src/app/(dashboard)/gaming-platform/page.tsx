@@ -1884,7 +1884,32 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
         {/* ── Overview ── */}
         {tab === 'overview' && (
           <div className="space-y-6">
-            {/* Status Dashboard — new providers (non-918KISS) */}
+            {/* Provider Status — ALL providers */}
+            <div>
+              <SectionHead title="Provider Status" />
+              <div className="flex flex-wrap gap-2">
+                {ALL_STATUSES.map(s => {
+                  const currentStatus = isLegacy ? provider.status : (detail.brand_config?.status ?? 'DISABLED');
+                  const busy = isLegacy ? statusBusy : enablingStatus;
+                  const isCurrent = currentStatus === s;
+                  return (
+                    <button key={s}
+                      onClick={() => isLegacy ? patchStatus(s) : setBrandStatus(s)}
+                      disabled={busy || isCurrent}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60
+                        ${isCurrent
+                          ? (STATUS_CFG[s]?.bg ?? '') + ' ring-2 ring-offset-2 ring-current dark:ring-offset-slate-900'
+                          : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                    >
+                      {(busy && !isCurrent) ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
+                      {STATUS_CFG[s]?.label ?? s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Runtime Status — non-legacy only (Connected / Launch Ready / Games Synced) */}
             {!isLegacy && (
               <ProviderStatusDashboard
                 provider={provider}
@@ -1893,25 +1918,6 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
                 onDisable={() => setBrandStatus('DISABLED')}
                 enablingStatus={enablingStatus}
               />
-            )}
-
-            {/* Status controls — legacy 918KISS only */}
-            {isLegacy && (
-            <div>
-              <SectionHead title="Provider Status" />
-              <div className="flex flex-wrap gap-2">
-                {ALL_STATUSES.map(s => (
-                  <button key={s} onClick={() => patchStatus(s)} disabled={statusBusy || provider.status === s}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60
-                      ${provider.status === s
-                        ? (STATUS_CFG[s]?.bg ?? '') + ' ring-2 ring-offset-2 ring-current dark:ring-offset-slate-900'
-                        : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                    {statusBusy && provider.status !== s ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
-                    {STATUS_CFG[s]?.label ?? s}
-                  </button>
-                ))}
-              </div>
-            </div>
             )}
 
             {/* Health info */}

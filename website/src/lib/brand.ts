@@ -59,7 +59,7 @@ export const BRAND_FALLBACK: PublicBrand = {
 
 let _cache: PublicBrand | null = null;
 let _cacheAt = 0;
-const TTL_MS = 30_000; // 30s — matches layout.tsx cache windows
+const TTL_MS = 5_000; // 5s — fast enough for near-instant theme propagation
 
 export function invalidateBrandCache(): void {
   _cache = null;

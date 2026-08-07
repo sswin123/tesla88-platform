@@ -318,8 +318,8 @@ function ReceiptUpload({ mediaId, preview, uploading, hasError, onFile, onDelete
 function TransferInstructions({ amount, phone, currency = 'RM', decimals = 2 }: { amount: number; phone: string; currency?: string; decimals?: number }) {
   return (
     <div className="rounded-xl px-4 py-3.5 space-y-2"
-      style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)' }}>
-      <p className="text-xs font-bold tracking-wider uppercase mb-1" style={{ color: '#3b82f6' }}>
+      style={{ background: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent)' }}>
+      <p className="text-xs font-bold tracking-wider uppercase mb-1" style={{ color: 'var(--brand-primary)' }}>
         📋 转账说明 Transfer Instructions
       </p>
       <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-muted)', lineHeight: 1.7 }}>
@@ -776,7 +776,7 @@ export default function DepositForm() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
+                style={{ background: 'color-mix(in srgb, var(--brand-primary) 15%, transparent)', color: 'var(--brand-primary)', border: '1px solid color-mix(in srgb, var(--brand-primary) 32%, transparent)' }}>
                 4
               </div>
               <p className="text-sm font-bold" style={{ color: 'var(--text-base)' }}>
