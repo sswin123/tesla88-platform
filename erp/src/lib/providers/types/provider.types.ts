@@ -3,6 +3,9 @@
  * Represents a game provider as stored in the gp_providers table.
  */
 
+import type { ProviderMetadata } from './metadata.types';
+import type { ProviderCapability } from './capability.types';
+
 export type ProviderStatus = 'ACTIVE' | 'TESTING' | 'DISABLED' | 'MAINTENANCE' | 'DEPRECATED';
 export type ProviderEnvironment = 'PRODUCTION' | 'SANDBOX';
 export type ProviderWalletType = 'SEAMLESS' | 'TRANSFER';
@@ -19,12 +22,13 @@ export interface ProviderRecord {
   status: ProviderStatus;
   environment: ProviderEnvironment;
   wallet_type: ProviderWalletType;
-  /** Array of ProviderCapability strings stored as JSONB. */
-  capabilities: string[];
+  /** Feature capability flags — check with capabilities.includes(PROVIDER_CAPABILITY.GAME_SYNC). */
+  capabilities: ProviderCapability[];
   health_status: ProviderHealthStatus;
   health_checked_at: string | null;
   last_success_at: string | null;
-  metadata: Record<string, unknown>;
+  /** Behavioral metadata — read via ProviderRegistryService, not directly. */
+  metadata: ProviderMetadata;
   created_at: string;
   updated_at: string;
 }

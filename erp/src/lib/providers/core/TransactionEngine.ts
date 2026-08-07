@@ -63,6 +63,7 @@ export class TransactionEngine {
           balance_after: parseFloat(tx.after_balance ?? '0'),
           currency: tx.currency,
           status: tx.status,
+          was_idempotent: true,
         };
       }
       throw new Error(

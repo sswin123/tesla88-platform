@@ -1,5 +1,6 @@
 /** Central re-export of all Gaming Platform type definitions. */
 
+export * from './metadata.types';
 export * from './provider.types';
 export * from './capability.types';
 export * from './config.types';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
+import { providerRegistry } from '@/lib/services/provider-registry';
 
 export async function GET(
   req: NextRequest,
@@ -143,8 +144,22 @@ export async function GET(
     total_activity_count:   actTotalCount.rows[0]?.total ?? 0,
   };
 
+  // Enrich provider_code with display_name for GAME_* category rows
+  const uniqueProviders = [...new Set(
+    activityRows.rows
+      .map((r: { provider_code?: string | null }) => r.provider_code)
+      .filter((c): c is string => Boolean(c)),
+  )];
+  const providerNames = await Promise.all(uniqueProviders.map(c => providerRegistry.getDisplayName(c)));
+  const providerNameMap = Object.fromEntries(uniqueProviders.map((c, i) => [c, providerNames[i]]));
+
   return NextResponse.json({
-    data:    activityRows.rows,
+    data:    activityRows.rows.map((r: Record<string, unknown>) => ({
+      ...r,
+      provider_name: r.provider_code
+        ? (providerNameMap[r.provider_code as string] ?? r.provider_code)
+        : null,
+    })),
     total:   countRes.rows[0]?.total ?? 0,
     page,
     limit,

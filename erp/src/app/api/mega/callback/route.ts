@@ -12,7 +12,8 @@ import type { MegaAppAdapter } from '@/lib/providers/adapters/megaapp/MegaAppAda
 import pool from '@/lib/db';
 import { adjustWallet } from '@/lib/services/wallet';
 import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
-import { ActivityLogService } from '@/lib/services/activity-log';
+import { GamingActivityService } from '@/lib/services/gaming-activity';
+import { GamingEventType } from '@/lib/providers/types/metadata.types';
 
 const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 const txRepo = new TransactionRepository();
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   console.log(`[mega/callback] rpcId="${rpcId}" method="${rpcMethod}"`);
   console.log(`[mega/callback] loginId="${rpcParams['loginId']}" sn="${rpcParams['sn']}"`);
 
-  // Find active MEGAAPP brand
+  // Find active MEGAAPP brand — Allowed Hardcode: protocol entry point
   const { rows: bpRows } = await pool.query<{ brand_code: string }>(
     `SELECT b.code AS brand_code
      FROM brand_providers bp
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     try {
       // Find internal userId + public_id from loginId
+      // Allowed Hardcode: MEGAAPP protocol entry — this SQL is scoped to the MEGAAPP callback URL
       const { rows: paRows } = await pool.query<{ user_id: number; user_public_id: string }>(
         `SELECT pa.user_id, u.public_id AS user_public_id
          FROM provider_accounts pa
@@ -186,24 +188,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               metadata:       { trigger: 'LOGIN_CALLBACK' },
             }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
-            // activity log
-            await ActivityLogService.log({
-              member_id:      userId,
-              category:       'BALANCE',
-              action:         'Transfer Out',
-              title:          'MEGA888(APP) — Transfer Out',
-              description:    `Recovered RM ${returned.toFixed(2)} from MEGA888(APP) on login`,
-              amount:         returned,
-              balance_before: balBefore,
-              balance_after:  balAfter,
-              reference_type: 'wallet_transaction',
-              reference_id:   parseInt(wtRow.id, 10) || null,
-              operator_type:  'SYSTEM',
-              operator_id:    SYSTEM_ADMIN_ID,
-              source:         'API',
-              level:          'INFO',
-              remark:         '[MEGAAPP] Transfer Out',
-              metadata:       { provider_code: 'MEGAAPP', returned, ref_id: wdRefId },
+            // AFTER COMMIT — fire-and-forget; display name resolved by GamingActivityService
+            void GamingActivityService.record({
+              memberId:      userId,
+              providerCode:  'MEGAAPP',
+              eventType:     GamingEventType.TransferOut,
+              amount:        returned,
+              balanceBefore: balBefore,
+              balanceAfter:  balAfter,
+              referenceType: 'wallet_transaction',
+              referenceId:   parseInt(wtRow.id, 10) || null,
+              operatorType:  'SYSTEM',
+              operatorId:    SYSTEM_ADMIN_ID,
+              metadata:      { ref_id: wdRefId },
             });
           } catch (e) {
             await wdClient.query('ROLLBACK').catch(() => undefined);
@@ -307,24 +304,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     metadata:       { trigger: 'LOGIN_CALLBACK', step: 'TOPUP', mega_balance: topUpResult.balance },
                   }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
-                  // Activity log — Transfer In success
-                  await ActivityLogService.log({
-                    member_id:      userId,
-                    category:       'BALANCE',
-                    action:         'Transfer In',
-                    title:          'MEGA888(APP) — Transfer In',
-                    description:    `Transferred RM ${balance.toFixed(2)} to MEGA888(APP) on login`,
-                    amount:         balance,
-                    balance_before: deductBalBefore,
-                    balance_after:  deductBalAfter,
-                    reference_type: 'wallet_transaction',
-                    reference_id:   parseInt(deductWtRow.id, 10) || null,
-                    operator_type:  'SYSTEM',
-                    operator_id:    SYSTEM_ADMIN_ID,
-                    source:         'API',
-                    level:          'INFO',
-                    remark:         '[MEGAAPP] Transfer In',
-                    metadata:       { provider_code: 'MEGAAPP', amount: balance, ref_id: refId, mega_balance_after: topUpResult.balance },
+                  // AFTER COMMIT — Transfer In success
+                  void GamingActivityService.record({
+                    memberId:      userId,
+                    providerCode:  'MEGAAPP',
+                    eventType:     GamingEventType.TransferIn,
+                    amount:        balance,
+                    balanceBefore: deductBalBefore,
+                    balanceAfter:  deductBalAfter,
+                    referenceType: 'wallet_transaction',
+                    referenceId:   parseInt(deductWtRow.id, 10) || null,
+                    operatorType:  'SYSTEM',
+                    operatorId:    SYSTEM_ADMIN_ID,
+                    metadata:      { ref_id: refId, mega_balance_after: topUpResult.balance },
                   });
                   break;
                 } catch (err) {
@@ -378,42 +370,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                   metadata:       { trigger: 'LOGIN_CALLBACK', original_ref: refId },
                 }).catch(e => console.warn('[mega/callback] provider_transactions write failed:', e));
 
-                // Activity log — Rollback
-                await ActivityLogService.log({
-                  member_id:      userId,
-                  category:       'BALANCE',
-                  action:         'Rollback',
-                  title:          'MEGA888(APP) — Transfer In Rollback',
-                  description:    `RM ${balance.toFixed(2)} restored after topUp failure: ${errMsg.slice(0, 100)}`,
-                  amount:         balance,
-                  balance_before: rbBalBefore,
-                  balance_after:  rbBalAfter,
-                  reference_type: 'wallet_transaction',
-                  reference_id:   parseInt(rbWtRow.id, 10) || null,
-                  operator_type:  'SYSTEM',
-                  operator_id:    SYSTEM_ADMIN_ID,
-                  source:         'API',
-                  level:          'WARNING',
-                  remark:         '[MEGAAPP] Rollback',
-                  metadata:       { provider_code: 'MEGAAPP', amount: balance, error: errMsg.slice(0, 255) },
+                // AFTER COMMIT — Transfer Rollback
+                void GamingActivityService.record({
+                  memberId:      userId,
+                  providerCode:  'MEGAAPP',
+                  eventType:     GamingEventType.TransferRollback,
+                  amount:        balance,
+                  balanceBefore: rbBalBefore,
+                  balanceAfter:  rbBalAfter,
+                  referenceType: 'wallet_transaction',
+                  referenceId:   parseInt(rbWtRow.id, 10) || null,
+                  operatorType:  'SYSTEM',
+                  operatorId:    SYSTEM_ADMIN_ID,
+                  metadata:      { error: errMsg.slice(0, 255), original_ref: refId },
                 });
               } catch (rbErr) {
                 await rbClient.query('ROLLBACK').catch(() => undefined);
                 console.error(`[mega/callback] ✗✗ CRITICAL: rollback FAILED userId=${userId} amount=${balance}:`, rbErr instanceof Error ? rbErr.message : String(rbErr));
                 console.error(`[mega/callback] MANUAL INTERVENTION REQUIRED: userId=${userId} missing ${balance} MYR`);
 
-                await ActivityLogService.log({
-                  member_id:      userId,
-                  category:       'BALANCE',
-                  action:         'Rollback',
-                  title:          'MEGA888(APP) — Rollback FAILED (CRITICAL)',
-                  description:    `CRITICAL: RM ${balance.toFixed(2)} lost — topUp failed AND rollback failed. Manual intervention required.`,
-                  amount:         balance,
-                  operator_type:  'SYSTEM',
-                  source:         'API',
-                  level:          'CRITICAL',
-                  remark:         '[MEGAAPP] Rollback — CRITICAL FAILURE',
-                  metadata:       { provider_code: 'MEGAAPP', amount: balance, topup_error: errMsg.slice(0, 255) },
+                // Transfer Failed — CRITICAL level; manual intervention required
+                void GamingActivityService.record({
+                  memberId:     userId,
+                  providerCode: 'MEGAAPP',
+                  eventType:    GamingEventType.TransferFailed,
+                  amount:       balance,
+                  operatorType: 'SYSTEM',
+                  operatorId:   SYSTEM_ADMIN_ID,
+                  metadata:     {
+                    critical: true,
+                    topup_error: errMsg.slice(0, 255),
+                    message: 'topUp failed AND rollback failed. Manual intervention required.',
+                  },
                 });
               } finally {
                 rbClient.release();

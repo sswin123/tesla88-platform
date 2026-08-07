@@ -168,37 +168,7 @@ export class ProviderRuntimeBuilder {
     // ── Step 1: brand_providers row ──────────────────────────────────────────
     let t = Date.now();
     let bpRow: ProviderRawRow;
-    type DiagRow = {
-      id: number; brand_id: number; provider_id: number;
-      brand_code: string; provider_code: string;
-      status: string; wallet_type: string; gp_wallet_type: string;
-    };
-    let allRows: DiagRow[] = [];
     try {
-      // [PRB-SQL] 打印 SQL 模板及绑定参数
-      const PRB_SQL = `SELECT bp.id, bp.brand_id, bp.provider_id, b.code AS brand_code, p.code AS provider_code, bp.status, bp.wallet_type, p.wallet_type AS gp_wallet_type FROM brand_providers bp JOIN brands b ON b.id = bp.brand_id JOIN gp_providers p ON p.id = bp.provider_id WHERE UPPER(b.code) = $1 AND UPPER(p.code) = $2 ORDER BY bp.id ASC`;
-      console.log('[PRB-SQL]', {
-        sql:         PRB_SQL,
-        params:      { $1_brandCode: brand, $2_providerCode: provider },
-      });
-
-      // [PRB-ALL-ROWS] 无 LIMIT 查出所有匹配行
-      const diagResult = await pool.query<DiagRow>(PRB_SQL, [brand, provider]);
-      allRows = diagResult.rows;
-      console.log('[PRB-ALL-ROWS]', {
-        count: allRows.length,
-        rows: allRows.map(r => ({
-          id:            r.id,
-          brand_id:      r.brand_id,
-          provider_id:   r.provider_id,
-          brand_code:    r.brand_code,
-          provider_code: r.provider_code,
-          status:        r.status,
-          wallet_type:   r.wallet_type,
-        })),
-      });
-
-      // [PRB-SELECTED] LIMIT 1 实际选中的行（生产 SQL 原样）
       const { rows } = await pool.query<ProviderRawRow>(
         `SELECT bp.id,
                 bp.status,
@@ -226,14 +196,6 @@ export class ProviderRuntimeBuilder {
         return empty(`Brand provider not found: ${brand}:${provider}`);
       }
       bpRow = rows[0];
-      const sel = allRows.find(r => r.id === bpRow.id);
-      console.log('[PRB-SELECTED]', {
-        id:          bpRow.id,
-        brand_id:    sel?.brand_id,
-        provider_id: bpRow.gp_provider_id,
-        status:      bpRow.status,
-        wallet_type: bpRow.wallet_type,
-      });
       step('read_brand_provider', 'ok', Date.now() - t, `bpId=${bpRow.id} status=${bpRow.status} gpId=${bpRow.gp_provider_id}`);
     } catch (err) {
       step('read_brand_provider', 'failed', Date.now() - t,
@@ -345,15 +307,6 @@ export class ProviderRuntimeBuilder {
           err instanceof Error ? err.message : String(err));
       }
     }
-
-    console.log('[PRB-FINAL]', {
-      brandCode:    brand,
-      providerCode: provider,
-      bpId:         bpRow.id,
-      bpWalletType: bpRow.wallet_type,
-      gpProviderId: bpRow.gp_provider_id,
-      gpWalletType: allRows.find(r => r.id === bpRow.id)?.gp_wallet_type,
-    });
 
     return {
       found: true,

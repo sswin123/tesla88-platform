@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
 import { createGamingPlatform } from '@/lib/providers';
+import { AdapterRegistry } from '@/lib/providers/adapters/AdapterFactory';
 
 type Params = { params: Promise<{ code: string; providerCode: string }> };
 
@@ -99,10 +100,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     [ids.brandProviderId],
   );
 
+  const upper = providerCode.toUpperCase();
   return NextResponse.json({
-    brand_provider: bpRows[0],
-    credentials: credRows,
-    config: cfgRows,
+    brand_provider:       bpRows[0],
+    credentials:          credRows,
+    config:               cfgRows,
+    required_credentials: AdapterRegistry.getRequiredCredentials(upper),
+    required_config:      AdapterRegistry.getRequiredConfig(upper),
   });
 }
 

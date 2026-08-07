@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requirePermission } from '@/lib/require_permission';
+import { providerRegistry } from '@/lib/services/provider-registry';
 
 export async function GET(
   req: NextRequest,
@@ -41,8 +42,16 @@ export async function GET(
     ),
   ]);
 
+  // Enrich gateway codes with display_name (ProviderRegistryService is cached + never throws)
+  const uniqueGateways = [...new Set(dataRes.rows.map((r: { gateway: string }) => r.gateway).filter(Boolean))];
+  const gatewayNames = await Promise.all(uniqueGateways.map(g => providerRegistry.getDisplayName(g)));
+  const nameMap = Object.fromEntries(uniqueGateways.map((g, i) => [g, gatewayNames[i]]));
+
   return NextResponse.json({
-    data:  dataRes.rows,
+    data:  dataRes.rows.map((r: Record<string, unknown>) => ({
+      ...r,
+      gateway_name: r.gateway ? (nameMap[r.gateway as string] ?? r.gateway) : null,
+    })),
     total: countRes.rows[0].total,
     page,
     limit,

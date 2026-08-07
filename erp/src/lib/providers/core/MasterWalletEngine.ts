@@ -23,6 +23,8 @@ import type {
 import { TRANSACTION_TYPE } from '../types/transaction.types';
 import { TransactionEngine } from './TransactionEngine';
 import pool from '@/lib/db';
+import { GamingActivityService } from '@/lib/services/gaming-activity';
+import { GamingEventType } from '@/lib/providers/types/metadata.types';
 
 
 const ERROR = {
@@ -49,6 +51,13 @@ const ERROR = {
  *
  * Provider adapters call formatXxxResponse() to convert the normalized
  * response back into the provider's expected JSON shape.
+ *
+ * Gaming Activity instrumentation (Phase 3 Task 2):
+ *  GamingActivityService.record() is called AFTER txEngine.process() returns
+ *  (AFTER COMMIT). It is void fire-and-forget and never throws.
+ *  Idempotent results (result.was_idempotent === true) are skipped to avoid
+ *  duplicate activity entries. handleGetBalance is intentionally not recorded
+ *  — it is a high-frequency polling call with no business audit value.
  */
 export class MasterWalletEngine implements IMasterWalletEngine {
   constructor(
@@ -72,6 +81,15 @@ export class MasterWalletEngine implements IMasterWalletEngine {
 
     const balance = await this.txEngine.getBalance(user.id);
 
+    // AFTER balance query — no wallet change, safe to record immediately
+    void GamingActivityService.record({
+      memberId:     user.id,
+      providerCode: req.provider,
+      eventType:    GamingEventType.Authenticate,
+      balanceBefore: balance,
+      balanceAfter:  balance,
+    });
+
     return {
       player_id: String(user.id),
       balance,
@@ -81,6 +99,10 @@ export class MasterWalletEngine implements IMasterWalletEngine {
   }
 
   async handleGetBalance(req: GetBalanceRequest): Promise<GetBalanceResponse> {
+    // Intentionally not recorded — GetBalance is a high-frequency polling
+    // call (every few seconds per active player). Recording it would create
+    // massive log volume with no audit value; balance changes are fully
+    // captured through Bet / Win / Refund events.
     const userId = parseInt(req.provider_player_id, 10);
     if (isNaN(userId)) {
       return { balance: 0, currency: req.currency, error_code: ERROR.PLAYER_NOT_FOUND };
@@ -119,6 +141,23 @@ export class MasterWalletEngine implements IMasterWalletEngine {
           raw: req.raw_payload,
         },
       });
+      // AFTER COMMIT — record free round as Win($0) with free_round flag
+      if (!result.was_idempotent) {
+        void GamingActivityService.record({
+          memberId:      userId,
+          providerCode:  req.provider,
+          eventType:     GamingEventType.Win,
+          amount:        0,
+          balanceBefore: result.balance_before,
+          balanceAfter:  result.balance_after,
+          metadata: {
+            transaction_id: result.transaction_id,
+            free_round: true,
+            game_id: req.game_id,
+            round_id: req.round_id ?? null,
+          },
+        });
+      }
       return {
         transaction_id: result.transaction_id,
         balance: result.balance_after,
@@ -139,6 +178,22 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         round_id: req.round_id ?? null,
         metadata: { round_details: req.round_details, raw: req.raw_payload },
       });
+      // AFTER COMMIT — Insufficient Balance path never reaches here
+      if (!result.was_idempotent) {
+        void GamingActivityService.record({
+          memberId:      userId,
+          providerCode:  req.provider,
+          eventType:     GamingEventType.Bet,
+          amount:        req.bet_amount,
+          balanceBefore: result.balance_before,
+          balanceAfter:  result.balance_after,
+          metadata: {
+            transaction_id: result.transaction_id,
+            game_id: req.game_id,
+            round_id: req.round_id ?? null,
+          },
+        });
+      }
 
       return {
         transaction_id: result.transaction_id,
@@ -147,6 +202,7 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         error_code: ERROR.OK,
       };
     } catch (err: unknown) {
+      // Insufficient Balance: ROLLBACK already occurred — do NOT record
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('Insufficient balance')) {
         return { transaction_id: '', balance: 0, currency: req.currency, error_code: ERROR.INSUFFICIENT_BALANCE };
@@ -177,6 +233,22 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         raw: req.raw_payload,
       },
     });
+    // AFTER COMMIT
+    if (!result.was_idempotent) {
+      void GamingActivityService.record({
+        memberId:      userId,
+        providerCode:  req.provider,
+        eventType:     GamingEventType.Win,
+        amount:        req.win_amount,
+        balanceBefore: result.balance_before,
+        balanceAfter:  result.balance_after,
+        metadata: {
+          transaction_id: result.transaction_id,
+          game_id: req.game_id,
+          round_id: req.round_id ?? null,
+        },
+      });
+    }
 
     return {
       transaction_id: result.transaction_id,
@@ -203,6 +275,22 @@ export class MasterWalletEngine implements IMasterWalletEngine {
       round_id: req.round_id ?? null,
       metadata: { bet_reference_id: req.bet_reference_id, raw: req.raw_payload },
     });
+    // AFTER COMMIT
+    if (!result.was_idempotent) {
+      void GamingActivityService.record({
+        memberId:      userId,
+        providerCode:  req.provider,
+        eventType:     GamingEventType.Refund,
+        amount:        req.refund_amount,
+        balanceBefore: result.balance_before,
+        balanceAfter:  result.balance_after,
+        metadata: {
+          transaction_id: result.transaction_id,
+          game_id: req.game_id,
+          round_id: req.round_id ?? null,
+        },
+      });
+    }
 
     return {
       transaction_id: result.transaction_id,
@@ -233,6 +321,23 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         raw: req.raw_payload,
       },
     });
+    // AFTER COMMIT
+    if (!result.was_idempotent) {
+      void GamingActivityService.record({
+        memberId:      userId,
+        providerCode:  req.provider,
+        eventType:     GamingEventType.JackpotWin,
+        amount:        req.win_amount,
+        balanceBefore: result.balance_before,
+        balanceAfter:  result.balance_after,
+        metadata: {
+          transaction_id: result.transaction_id,
+          game_id: req.game_id,
+          round_id: req.round_id ?? null,
+          jackpot_module: req.jackpot_module ?? null,
+        },
+      });
+    }
 
     return {
       transaction_id: result.transaction_id,
@@ -258,6 +363,18 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         reference_id: req.reference_id,
         metadata: { raw: req.raw_payload },
       });
+      // AFTER COMMIT — Insufficient Balance path never reaches here
+      if (!result.was_idempotent) {
+        void GamingActivityService.record({
+          memberId:      userId,
+          providerCode:  req.provider,
+          eventType:     GamingEventType.FundRequest,
+          amount:        req.request_amount,
+          balanceBefore: result.balance_before,
+          balanceAfter:  result.balance_after,
+          metadata: { transaction_id: result.transaction_id },
+        });
+      }
 
       return {
         transaction_id: result.transaction_id,
@@ -266,6 +383,7 @@ export class MasterWalletEngine implements IMasterWalletEngine {
         error_code: ERROR.OK,
       };
     } catch (err: unknown) {
+      // Insufficient Balance: ROLLBACK already occurred — do NOT record
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('Insufficient balance')) {
         return { transaction_id: '', balance: 0, currency: req.currency, error_code: ERROR.INSUFFICIENT_BALANCE };
@@ -289,6 +407,18 @@ export class MasterWalletEngine implements IMasterWalletEngine {
       reference_id: req.reference_id,
       metadata: { raw: req.raw_payload },
     });
+    // AFTER COMMIT
+    if (!result.was_idempotent) {
+      void GamingActivityService.record({
+        memberId:      userId,
+        providerCode:  req.provider,
+        eventType:     GamingEventType.FundReturn,
+        amount:        req.return_amount,
+        balanceBefore: result.balance_before,
+        balanceAfter:  result.balance_after,
+        metadata: { transaction_id: result.transaction_id },
+      });
+    }
 
     return {
       transaction_id: result.transaction_id,

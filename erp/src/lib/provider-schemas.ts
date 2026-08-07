@@ -143,6 +143,8 @@ function stub(code: string, displayName: string): ProviderSchema {
 const REGISTRY: Record<string, ProviderSchema> = {
   MEGAH5,
   MEGAAPP,
+  KISS918:    stub('KISS918',    '918KISS'),
+  '918KISS':  stub('918KISS',   '918KISS'),
   PG:         stub('PG',         'PG Soft'),
   PGSOFT:     stub('PGSOFT',     'PG Soft'),
   JILI:       stub('JILI',       'JILI Games'),
@@ -173,12 +175,11 @@ const REGISTRY: Record<string, ProviderSchema> = {
 };
 
 /**
- * Returns the schema for a given provider code, or null if unknown.
- * 918KISS / KISS918 are legacy providers handled separately — this function
- * intentionally returns null for them so the legacy UI path is preserved.
+ * Returns the schema for a given provider code.
+ * Unknown providers return a generic stub (isStub: true, empty fields).
+ * All providers — including 918KISS — are resolved via REGISTRY.
  */
 export function getProviderSchema(code: string): ProviderSchema | null {
   const upper = code.toUpperCase();
-  if (upper === '918KISS' || upper === 'KISS918') return null;
   return REGISTRY[upper] ?? stub(upper, upper);
 }

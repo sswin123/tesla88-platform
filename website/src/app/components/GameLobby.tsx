@@ -423,7 +423,7 @@ export default function GameLobby() {
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: 'linear-gradient(to top, rgba(10,11,20,0.95) 0%, rgba(10,11,20,0.15) 55%, transparent 100%)',
+                    background: 'linear-gradient(to top, color-mix(in srgb, var(--bg-base) 95%, transparent) 0%, color-mix(in srgb, var(--bg-base) 15%, transparent) 55%, transparent 100%)',
                   }}
                 />
 

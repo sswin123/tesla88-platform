@@ -97,4 +97,6 @@ export interface WalletOperationResult {
   balance_after: number;
   currency: string;
   status: TransactionStatus;
+  /** True when this result was served from the idempotency cache (duplicate request). */
+  was_idempotent?: boolean;
 }

@@ -45,6 +45,13 @@
   --shadow-lg:   0 8px 32px rgba(0,0,0,0.5);
   --shadow-glow: 0 0 20px color-mix(in srgb, var(--brand-primary) 25%, transparent);
 
+  /* ── Derived semantic tokens (auto-computed from brand tokens) ───── */
+  /* These update automatically when --brand-primary changes (theme switch) */
+  --border-focus:  color-mix(in srgb, var(--brand-primary) 55%, transparent);
+  --shadow-focus:  0 0 20px color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  --shadow-hover:  0 10px 28px rgba(0,0,0,0.5),
+                   0 0 18px color-mix(in srgb, var(--brand-primary) 28%, transparent);
+
   /* ── Animation ───────────────────────────────────────────────────── */
   --anim-speed:    1;    /* multiplier: 0.5 = fast, 1 = normal, 2 = slow */
   --dur-fast:      150ms;
@@ -438,4 +445,202 @@ input, select, textarea {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   GAME PICKER UI SYSTEM
+   All colors via CSS tokens — zero hardcodes. Theme switch = auto-update.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ─────────────────────────────────────────────────────────── */
+.gp-backdrop {
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 180ms ease;
+}
+.gp-backdrop[data-vis="0"] { opacity: 0; pointer-events: none; }
+.gp-backdrop[data-vis="1"] { opacity: 1; }
+
+/* ── Modal container ──────────────────────────────────────────────────── */
+.gp-modal {
+  background:    var(--bg-surface);
+  border:        2px solid var(--border-mid);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow:    0 24px 60px rgba(0,0,0,0.7), var(--shadow-glow);
+  transition:    opacity 180ms ease, transform 180ms ease;
+}
+.gp-modal[data-vis="0"] { opacity: 0; transform: translateY(24px) scale(0.96); }
+.gp-modal[data-vis="1"] { opacity: 1; transform: translateY(0) scale(1); }
+@media (min-width: 640px) {
+  .gp-modal {
+    border-radius: var(--radius-xl);
+    border-top-color: var(--border-focus);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.7),
+                var(--shadow-glow),
+                0 0 0 1px color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  }
+  .gp-modal[data-vis="0"] { transform: scale(0.95); }
+  .gp-modal[data-vis="1"] { transform: scale(1); }
+}
+
+/* ── Header divider ───────────────────────────────────────────────────── */
+.gp-header {
+  border-bottom: 1px solid var(--border-dim);
+}
+
+/* ── Close button ─────────────────────────────────────────────────────── */
+.gp-close-btn {
+  background:    color-mix(in srgb, var(--text-muted) 14%, transparent);
+  color:         var(--text-muted);
+  border-radius: var(--radius-full);
+  transition:    background 150ms, color 150ms;
+}
+.gp-close-btn:hover {
+  background: color-mix(in srgb, var(--text-muted) 22%, transparent);
+  color:      var(--text-base);
+}
+
+/* ── Search input ─────────────────────────────────────────────────────── */
+.gp-search {
+  background:    var(--bg-surface2);
+  border:        1.5px solid var(--border-dim);
+  border-radius: var(--radius-sm);
+  color:         var(--text-base);
+  width:         100%;
+  padding:       10px 12px 10px 36px;
+  font-size:     14px;
+  transition:    border-color 150ms, box-shadow 150ms;
+}
+.gp-search::placeholder { color: var(--text-muted); }
+.gp-search:focus {
+  outline:      none;
+  border-color: var(--border-focus);
+  box-shadow:   0 0 0 3px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
+/* ── Category tabs ────────────────────────────────────────────────────── */
+.gp-tabs::-webkit-scrollbar { display: none; }
+
+.gp-tab {
+  flex-shrink:   0;
+  white-space:   nowrap;
+  min-width:     88px;
+  height:        38px;
+  padding:       0 16px;
+  border-radius: var(--radius-btn);
+  font-size:     13px;
+  font-weight:   600;
+  border:        1.5px solid var(--border-dim);
+  background:    var(--bg-surface3);
+  color:         var(--text-muted);
+  cursor:        pointer;
+  transition:    background 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
+}
+.gp-tab:hover:not(.gp-tab-active) {
+  border-color: var(--border-focus);
+  color:        var(--text-base);
+  background:   color-mix(in srgb, var(--brand-primary) 8%, var(--bg-surface3));
+}
+.gp-tab-active {
+  background:   var(--brand-primary);
+  border-color: var(--brand-primary);
+  color:        #fff;
+  box-shadow:   0 0 14px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+/* ── Sticky header shadow ─────────────────────────────────────────────── */
+.gp-sticky-shadow   { box-shadow: 0 6px 18px rgba(0,0,0,0.40); transition: box-shadow 200ms ease; }
+.gp-sticky-noshadow { box-shadow: none;                         transition: box-shadow 200ms ease; }
+
+/* ── Game card ────────────────────────────────────────────────────────── */
+.gp-card {
+  background:     var(--bg-surface2);
+  border:         2px solid var(--border-dim);
+  border-radius:  var(--radius-card);
+  overflow:       hidden;
+  display:        flex;
+  flex-direction: column;
+  width:          100%;
+  cursor:         pointer;
+  text-align:     left;
+  transition:     transform 200ms var(--ease-smooth),
+                  border-color 200ms var(--ease-smooth),
+                  box-shadow 200ms var(--ease-smooth);
+  will-change:    transform;
+}
+.gp-card:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (hover: hover) {
+  .gp-card:hover:not(:disabled) {
+    transform:    translateY(-4px) scale(1.02);
+    border-color: var(--border-focus);
+    box-shadow:   var(--shadow-hover);
+  }
+}
+.gp-card:active:not(:disabled) {
+  transform:           scale(0.97);
+  transition-duration: 100ms;
+}
+
+/* ── Game image — fallback emoji ──────────────────────────────────────── */
+.gp-img-fallback {
+  width:           100%;
+  height:          100%;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       2rem;
+  user-select:     none;
+  background:      color-mix(in srgb, var(--brand-primary) 6%, var(--bg-surface3));
+}
+
+/* ── Game image — skeleton shimmer ───────────────────────────────────── */
+.gp-skeleton {
+  position:   absolute;
+  inset:      0;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface3) 25%,
+    color-mix(in srgb, var(--bg-surface3) 60%, var(--border-mid)) 50%,
+    var(--bg-surface3) 75%
+  );
+  background-size: 200% 100%;
+  animation:  shimmer 1.5s ease infinite;
+}
+
+/* ── Game image — load states ─────────────────────────────────────────── */
+.gp-img-hidden {
+  opacity:      0;
+  position:     absolute;
+  inset:        0;
+  width:        100%;
+  height:       100%;
+  object-fit:   contain;
+}
+.gp-img-visible {
+  opacity:    1;
+  position:   absolute;
+  inset:      0;
+  width:      100%;
+  height:     100%;
+  object-fit: contain;
+  transition: opacity 180ms ease;
+}
+
+/* ── Maintenance overlay ──────────────────────────────────────────────── */
+.gp-maintenance-overlay {
+  position:        absolute;
+  inset:           0;
+  background:      rgba(0, 0, 0, 0.62);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+}
+.gp-maintenance-badge {
+  background:    rgba(220, 38, 38, 0.85);
+  color:         #fff;
+  font-size:     11px;
+  font-weight:   600;
+  padding:       2px 8px;
+  border-radius: var(--radius-full);
 }

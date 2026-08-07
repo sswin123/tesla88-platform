@@ -28,6 +28,7 @@ interface GpProvider {
   health_status: string; health_checked_at: string | null;
   last_success_at: string | null; last_failed_at: string | null;
   last_reload_at: string | null; adapter_loaded: boolean;
+  metadata: Record<string, unknown> | null;
   updated_at: string; stats_24h: Stats24h; retry_queue_pending: number;
   // Website display settings
   website_visible: boolean; website_display_name: string | null;
@@ -1804,7 +1805,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   const { provider, config, credentials } = detail;
-  const isLegacy = provider.code.toUpperCase() === '918KISS' || provider.code.toUpperCase() === 'KISS918';
+  const isLegacy = (provider.metadata as { ui_mode?: string } | null)?.ui_mode === 'legacy';
   const cfgMap   = Object.fromEntries(config.map(r => [r.key, r]));
   const credMap  = Object.fromEntries(credentials.map(r => [r.key, r]));
   const providerSchema = isLegacy ? null : getProviderSchema(provider.code);

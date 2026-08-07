@@ -39,8 +39,6 @@ import {
   HEALTH_STATUS,
   WALLET_TYPES,
   ENVIRONMENTS,
-  CREDENTIAL_TEMPLATES,
-  CONFIG_TEMPLATES,
 } from '@/components/brand-center/constants';
 import type { RuntimeSnapshot, RuntimeCheck } from '@/lib/providers';
 import { ProviderLogoAvatar } from '@/components/brand-center/ProviderLogoAvatar';
@@ -107,20 +105,18 @@ type ToastState = { message: string; type: 'success' | 'error' } | null;
 // ─── calcCompletion ──────────────────────────────────────────────────────────
 
 function calcCompletion(
-  providerCode: string,
   creds: CredRow[],
   cfgs: CfgRow[],
+  requiredCreds: string[],
+  requiredCfg: string[],
 ): number | null {
-  const upper = providerCode.toUpperCase();
-  const credTemplate = CREDENTIAL_TEMPLATES[upper] ?? [];
-  const cfgTemplate = CONFIG_TEMPLATES[upper] ?? [];
-  const total = credTemplate.length + cfgTemplate.length;
+  const total = requiredCreds.length + requiredCfg.length;
   if (total === 0) return null;
   const credKeys = new Set(creds.map(c => c.key));
-  const cfgKeys = new Set(cfgs.map(c => c.key));
+  const cfgKeys  = new Set(cfgs.map(c => c.key));
   const filled =
-    credTemplate.filter(k => credKeys.has(k)).length +
-    cfgTemplate.filter(k => cfgKeys.has(k)).length;
+    requiredCreds.filter(k => credKeys.has(k)).length +
+    requiredCfg.filter(k => cfgKeys.has(k)).length;
   return Math.round((filled / total) * 100);
 }
 
@@ -729,16 +725,18 @@ function AddCredentialModal({
 // ─── CredentialsTab ──────────────────────────────────────────────────────────
 
 interface CredentialsTabProps {
-  providerCode: string;
-  credentials: CredRow[];
-  onReload: () => void;
-  showToast: (msg: string, type: 'success' | 'error') => void;
-  brandCode: string;
+  providerCode:        string;
+  credentials:         CredRow[];
+  requiredCredentials: string[];
+  onReload:            () => void;
+  showToast:           (msg: string, type: 'success' | 'error') => void;
+  brandCode:           string;
 }
 
 function CredentialsTab({
   providerCode,
   credentials,
+  requiredCredentials,
   onReload,
   showToast,
   brandCode,
@@ -750,7 +748,7 @@ function CredentialsTab({
   const [prefillKey, setPrefillKey] = useState<string | undefined>(undefined);
   const [openOverflowKey, setOpenOverflowKey] = useState<string | null>(null);
 
-  const templateKeys = CREDENTIAL_TEMPLATES[providerCode.toUpperCase()] ?? [];
+  const templateKeys = requiredCredentials;
   const credKeySet = new Set(credentials.map(c => c.key));
 
   function openAddModal(key?: string) {
@@ -1219,16 +1217,18 @@ function AddConfigModal({
 // ─── ConfigurationTab ────────────────────────────────────────────────────────
 
 interface ConfigurationTabProps {
-  providerCode: string;
-  config: CfgRow[];
-  onReload: () => void;
-  showToast: (msg: string, type: 'success' | 'error') => void;
-  brandCode: string;
+  providerCode:   string;
+  config:         CfgRow[];
+  requiredConfig: string[];
+  onReload:       () => void;
+  showToast:      (msg: string, type: 'success' | 'error') => void;
+  brandCode:      string;
 }
 
 function ConfigurationTab({
   providerCode,
   config,
+  requiredConfig,
   onReload,
   showToast,
   brandCode,
@@ -1240,7 +1240,7 @@ function ConfigurationTab({
   const [prefillCfgKey, setPrefillCfgKey] = useState<string | undefined>(undefined);
   const [openCfgOverflowKey, setOpenCfgOverflowKey] = useState<string | null>(null);
 
-  const templateKeys = CONFIG_TEMPLATES[providerCode.toUpperCase()] ?? [];
+  const templateKeys = requiredConfig;
   const cfgKeySet = new Set(config.map(c => c.key));
 
   function openAddModal(key?: string) {
@@ -2209,6 +2209,8 @@ export default function BrandProviderDetailPage() {
   const [bp, setBp] = useState<BrandProviderDetail | null>(null);
   const [credentials, setCredentials] = useState<CredRow[]>([]);
   const [config, setConfig] = useState<CfgRow[]>([]);
+  const [requiredCredentials, setRequiredCredentials] = useState<string[]>([]);
+  const [requiredConfig, setRequiredConfig] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -2243,13 +2245,17 @@ export default function BrandProviderDetailPage() {
       }
       if (!res.ok) throw new Error('Failed to load provider');
       const data = (await res.json()) as {
-        brand_provider: BrandProviderDetail;
-        credentials: CredRow[];
-        config: CfgRow[];
+        brand_provider:       BrandProviderDetail;
+        credentials:          CredRow[];
+        config:               CfgRow[];
+        required_credentials: string[];
+        required_config:      string[];
       };
       setBp(data.brand_provider);
       setCredentials(data.credentials);
       setConfig(data.config);
+      setRequiredCredentials(data.required_credentials ?? []);
+      setRequiredConfig(data.required_config ?? []);
 
       // Fetch snapshot in parallel (non-blocking — UI shows without it)
       fetch(`/api/brands/${code}/providers/${providerCode}/snapshot`)
@@ -2371,7 +2377,7 @@ export default function BrandProviderDetailPage() {
     );
   }
 
-  const completion = calcCompletion(providerCode, credentials, config);
+  const completion = calcCompletion(credentials, config, requiredCredentials, requiredConfig);
 
   function renderTabContent() {
     switch (activeTab) {
@@ -2397,6 +2403,7 @@ export default function BrandProviderDetailPage() {
           <CredentialsTab
             providerCode={providerCode}
             credentials={credentials}
+            requiredCredentials={requiredCredentials}
             onReload={load}
             showToast={showToast}
             brandCode={code}
@@ -2407,6 +2414,7 @@ export default function BrandProviderDetailPage() {
           <ConfigurationTab
             providerCode={providerCode}
             config={config}
+            requiredConfig={requiredConfig}
             onReload={load}
             showToast={showToast}
             brandCode={code}

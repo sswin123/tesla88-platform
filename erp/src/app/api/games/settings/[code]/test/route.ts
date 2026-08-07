@@ -4,6 +4,7 @@ import pool from '@/lib/db';
 import { Kiss918AuthService } from '@/lib/providers/adapters/kiss918/Kiss918AuthService';
 import { createGamingPlatform, ProviderRepository } from '@/lib/providers';
 import { ProviderRuntimeBuilder } from '@/lib/providers/core/ProviderRuntimeBuilder';
+import { providerRegistry } from '@/lib/services/provider-registry';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -321,11 +322,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
   );
 
   // ── Step 4: URL checks (dynamic — no hardcoded keys) ─────────────────────
-  // 918KISS h5_lobby_domain requires a real auth-token flow, not a plain GET.
+  const providerMeta = await providerRegistry.getMetadata(upperCode);
   const startAll = Date.now();
   const urlChecks = await Promise.all(
     result.urlConfigKeys.map(k => {
-      if (upperCode === '918KISS' && k === 'h5_lobby_domain') {
+      if (providerMeta.supports_lobby_auth_test === true && k === 'h5_lobby_domain') {
         return testKiss918H5LobbyFlow(result.config, result.credentials);
       }
       return checkUrl(k, result.config[k]);

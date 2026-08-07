@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { WEBSITE_LAUNCH_MODES } from '@/lib/providers/types/metadata.types';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -315,7 +316,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.type === 'website' && body.website) {
     const ws = body.website;
     const ALLOWED_CATEGORIES    = ['slot', 'live', 'sport', 'fishing'];
-    const ALLOWED_LAUNCH_MODES  = ['LOBBY', 'DIRECT', 'MEGAAPP_DIALOG'];
+    const ALLOWED_LAUNCH_MODES: readonly string[] = WEBSITE_LAUNCH_MODES;
     const ALLOWED_DISPLAY_MODES = ['PROVIDER_CARD', 'GAME_LIST', 'BOTH'];
 
     if (ws.website_category && !ALLOWED_CATEGORIES.includes(ws.website_category)) {

@@ -12,7 +12,8 @@ import pool from '@/lib/db';
 import { createGamingPlatform } from '@/lib/providers';
 import { adjustWallet } from '@/lib/services/wallet';
 import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
-import { ActivityLogService } from '@/lib/services/activity-log';
+import { GamingActivityService } from '@/lib/services/gaming-activity';
+import { GamingEventType } from '@/lib/providers/types/metadata.types';
 
 const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 const txRepo = new TransactionRepository();
@@ -251,24 +252,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       metadata:       { trigger: 'MEMBER_REFRESH', duration_ms: durationMs },
     }).catch(e => console.warn(`[member-wallet-sync] provider_transactions write failed:`, e));
 
-    // Write member activity log
-    await ActivityLogService.log({
-      member_id:      userId,
-      category:       'BALANCE',
-      action:         'Transfer Out',
-      title:          `${provider_name} — Transfer Out`,
-      description:    `Recovered RM ${returned.toFixed(2)} from ${provider_name} back to main wallet`,
-      amount:         returned,
-      balance_before: balanceBefore,
-      balance_after:  balanceAfter,
-      reference_type: 'wallet_transaction',
-      reference_id:   walletTxId ? parseInt(walletTxId, 10) : null,
-      operator_type:  'MEMBER',
-      operator_id:    userId,
-      source:         'WEBSITE',
-      level:          'INFO',
-      remark:         `[${provider_code}] Transfer Out — wallet sync (${durationMs}ms)`,
-      metadata:       { provider_code, returned, ref_id: refId, duration_ms: durationMs },
+    void GamingActivityService.record({
+      memberId:      userId,
+      providerCode:  provider_code,
+      eventType:     GamingEventType.TransferOut,
+      amount:        returned,
+      balanceBefore: balanceBefore,
+      balanceAfter:  balanceAfter,
+      referenceType: 'wallet_transaction',
+      referenceId:   walletTxId ? parseInt(walletTxId, 10) : null,
+      operatorType:  'MEMBER',
+      operatorId:    userId,
+      metadata:      { ref_id: refId, duration_ms: durationMs },
     });
 
     results.push({

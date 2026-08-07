@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { adjustWallet } from '@/lib/services/wallet';
 import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
-import { ActivityLogService } from '@/lib/services/activity-log';
+import { GamingActivityService } from '@/lib/services/gaming-activity';
+import { GamingEventType } from '@/lib/providers/types/metadata.types';
 
 const SYSTEM_ADMIN_ID = parseInt(process.env.GAME_SYSTEM_ADMIN_ID ?? '1', 10);
 const txRepo = new TransactionRepository();
@@ -58,7 +59,6 @@ export async function POST(req: NextRequest) {
   let adapter: import('@/lib/providers').IGameProvider;
   let activeBrandCode: string | null = null;
   let gpProviderId: number;
-  let gpDisplayName: string;
   let gpWebsiteLaunchMode: string;
   let walletType: string;
   let runtimeConfig: Record<string, string> = {};
@@ -99,14 +99,6 @@ export async function POST(req: NextRequest) {
 
     activeBrandCode = bpFindRows[0].brand_code;
 
-    if (upperCode === 'MEGAH5') {
-      console.log('[MEGAH5-STEP1] POST /api/games/launch entered', {
-        providerCode: upperCode,
-        brandCode:    activeBrandCode,
-        userId:       user_id,
-      });
-    }
-
     const { createGamingPlatform, ProviderRepository } = await import('@/lib/providers');
     const { ProviderRuntimeBuilder } = await import('@/lib/providers/core/ProviderRuntimeBuilder');
     const platform     = createGamingPlatform();
@@ -120,20 +112,6 @@ export async function POST(req: NextRequest) {
       false,
     );
 
-    if (upperCode === 'MEGAH5') {
-      console.log('[MEGAH5-STEP2] ProviderRuntimeBuilder.build() result', {
-        found:                result.found,
-        adapterBuilt:         result.adapterBuilt,
-        adapterError:         result.adapterError,
-        missingCredKeys:      result.missingCredKeys,
-        missingConfigKeys:    result.missingConfigKeys,
-        loadedCredentialKeys: Object.keys(result.credentials),
-        loadedConfigKeys:     Object.keys(result.config),
-        bpId:                 result.bpId,
-        bpStatus:             result.bpStatus,
-      });
-    }
-
     if (!result.found || !result.adapterBuilt || !result.adapter) {
       return NextResponse.json(
         { error: `Provider "${upperCode}" could not be initialized. Check credentials in Brand Center.` },
@@ -142,16 +120,8 @@ export async function POST(req: NextRequest) {
     }
 
     gpProviderId        = result.gpProviderId;
-    gpDisplayName       = result.gpDisplayName;
     gpWebsiteLaunchMode = result.gpWebsiteLaunchMode;
     walletType          = result.bpWalletType;
-    console.log('[LAUNCH-WALLETTYPE]', {
-      walletType: result.bpWalletType,
-      bpId: result.bpId,
-      providerCode: upperCode,
-      userId: user_id,
-      found: result.found,
-    });
     runtimeConfig       = result.config;
     adapter             = result.adapter;
   }
@@ -182,15 +152,6 @@ export async function POST(req: NextRequest) {
     // on first H5 Login — so a failed createPlayer/checkPlayer is non-fatal.
     // We still persist the local gp_players record so adapter.launch() can find
     // the account_id and proceed with getLoginToken().
-    if (upperCode === 'MEGAH5') {
-      console.log('[MEGAH5 CREATEPLAYER DB-BEFORE]', {
-        userId:               user_id,
-        gpProviderId,
-        accountId,
-        existingRecord:       'null — first launch, no gp_players record yet',
-        providerPlayerId_before: null,
-      });
-    }
     let providerPlayerId: string | null = null;
     try {
       const result = await adapter.createPlayer({
@@ -199,12 +160,6 @@ export async function POST(req: NextRequest) {
         currency,
       });
       providerPlayerId = result.provider_player_id;
-      if (upperCode === 'MEGAH5') {
-        console.log('[MEGAH5 CREATEPLAYER SUCCESS]', {
-          accountId,
-          providerPlayerId_returned: providerPlayerId,
-        });
-      }
     } catch (err) {
       // Player may already exist on provider side — try checkPlayer first.
       console.warn(`[games/launch] createPlayer failed: ${err instanceof Error ? err.message : String(err)} — attempting checkPlayer`);
@@ -235,16 +190,6 @@ export async function POST(req: NextRequest) {
       [gpProviderId, user_id, providerPlayerId, accountId, currency],
     );
     playerRecord = inserted[0];
-    if (upperCode === 'MEGAH5') {
-      console.log('[MEGAH5 CREATEPLAYER DB-AFTER]', {
-        providerPlayerId_before:  null,
-        providerPlayerId_after:   playerRecord?.provider_player_id ?? null,
-        provider_account_id:      playerRecord?.provider_account_id,
-        is_registered:            playerRecord?.is_registered,
-        gp_players_id:            playerRecord?.id,
-        saved_to_db:              playerRecord?.provider_player_id != null,
-      });
-    }
   } else if (!playerRecord.is_registered || !playerRecord.provider_player_id) {
     // Record exists but not properly registered — try checkPlayer to fill in IDs
     try {
@@ -260,21 +205,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  console.log('[LAUNCH-RUNTIME]', {
-    walletType,
-    upperCode,
-    userId: user_id,
-    gpProviderId,
+  // ── Record GAME_LAUNCH_START ───────────────────────────────────────────────
+  // Await here to get the traceId — all subsequent events in this session share it.
+  const { traceId: launchTraceId } = await GamingActivityService.record({
+    memberId:     user_id,
+    providerCode: upperCode,
+    eventType:    GamingEventType.LaunchStart,
+    operatorType: 'MEMBER',
+    operatorId:   user_id,
+    metadata:     { game_code: game_code ?? null, wallet_type: walletType },
   });
-  // ── [TRANSFER-DEBUG] Debug 1: playerRecord state BEFORE adapter.launch() ──
-  if (walletType === 'TRANSFER') {
-    console.log('[TRANSFER-DEBUG-1] before adapter.launch()', JSON.stringify({
-      userId:   user_id,
-      provider: upperCode,
-      'playerRecord.provider_player_id': playerRecord?.provider_player_id ?? null,
-      'playerRecord.is_registered':      playerRecord?.is_registered      ?? null,
-    }));
-  }
 
   // ── 4. Launch ─────────────────────────────────────────────────────────────
   let launchResult: import('@/lib/providers').LaunchResult;
@@ -287,64 +227,20 @@ export async function POST(req: NextRequest) {
       lobby_return_url: lobby_return_url || '',
     });
   } catch (err) {
-    if (upperCode === 'MEGAH5') {
-      console.error('[MEGAH5-STEP7] adapter.launch() threw exception', {
-        message:    err instanceof Error ? err.message      : String(err),
-        stack:      err instanceof Error ? err.stack        : undefined,
-        cause:      err instanceof Error && err.cause instanceof Error
-                      ? err.cause.message
-                      : (err instanceof Error && err.cause != null ? String(err.cause) : undefined),
-        httpStatus: 502,
-      });
-    }
     console.error('[games/launch] adapter.launch failed:', err);
+    void GamingActivityService.record({
+      memberId:     user_id,
+      providerCode: upperCode,
+      eventType:    GamingEventType.LaunchFailed,
+      traceId:      launchTraceId,
+      operatorType: 'MEMBER',
+      operatorId:   user_id,
+      metadata:     { error: err instanceof Error ? err.message : String(err) },
+    });
     return NextResponse.json(
       { error: `Launch failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 502 },
     );
-  }
-
-  // ── [TRANSFER-DEBUG] Debug 2 / 3 / 4: immediately AFTER adapter.launch() ─
-  if (walletType === 'TRANSFER') {
-    // Debug 2 — playerRecord still holds the pre-launch() snapshot (never refreshed)
-    console.log('[TRANSFER-DEBUG-2] after adapter.launch() — playerRecord in memory (snapshot, NOT re-fetched)', JSON.stringify({
-      userId:   user_id,
-      provider: upperCode,
-      'playerRecord.provider_player_id': playerRecord?.provider_player_id ?? null,
-    }));
-
-    // Debug 3 — query provider_accounts right now (adapter.launch() may have just created/updated it)
-    try {
-      const { rows: _paDbg } = await pool.query<{ provider_login_id: string }>(
-        `SELECT provider_login_id FROM provider_accounts
-         WHERE provider_code = $1 AND user_id = $2 LIMIT 1`,
-        [upperCode, user_id],
-      );
-      console.log('[TRANSFER-DEBUG-3] provider_accounts (queried after launch())', JSON.stringify({
-        userId:   user_id,
-        provider: upperCode,
-        'provider_accounts.provider_login_id': _paDbg[0]?.provider_login_id ?? null,
-        'row_exists': _paDbg.length > 0,
-      }));
-    } catch (_e) {
-      console.warn('[TRANSFER-DEBUG-3] provider_accounts query error:', _e);
-    }
-
-    // Debug 4 — full launchResult structure (password masked if present in session_token)
-    const _stRaw = launchResult.session_token;
-    let _stParsed: unknown = null;
-    try { _stParsed = _stRaw ? JSON.parse(_stRaw) : null; } catch { _stParsed = '(not JSON)'; }
-    if (_stParsed && typeof _stParsed === 'object' && _stParsed !== null) {
-      const _obj = _stParsed as Record<string, unknown>;
-      if ('password' in _obj) _obj['password'] = '***';
-    }
-    console.log('[TRANSFER-DEBUG-4] launchResult', JSON.stringify({
-      'launch_url_prefix':       launchResult.launch_url?.slice(0, 80) ?? null,
-      'session_id':              launchResult.session_id,
-      'session_token_is_null':   _stRaw === null,
-      'session_token_keys':      (_stParsed && typeof _stParsed === 'object') ? Object.keys(_stParsed as object) : null,
-      'session_token_parsed':    _stParsed,
-    }));
   }
 
   // ── 5. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
@@ -353,25 +249,8 @@ export async function POST(req: NextRequest) {
   //   Step B — Transfer In: move ALL wallet balance → provider
   // Login Callback: authentication only, never touches wallet.
   // Refresh Button: Transfer Out only (member-wallet-sync route).
-  console.log('[TRANSFER-GATE]', {
-    walletType,
-    providerPlayerId: playerRecord?.provider_player_id,
-    providerPlayerIdType: typeof playerRecord?.provider_player_id,
-    userId: user_id,
-  });
   if (walletType === 'TRANSFER') {
     const loginId = launchResult.provider_login_id ?? playerRecord.provider_player_id;
-    console.log('[TRANSFER-LOGINID]', {
-      loginId,
-    });
-    // ── [TRANSFER-DEBUG] Debug 5: final loginId at Transfer decision point ──
-    console.log('[TRANSFER-DEBUG-5] Transfer decision', JSON.stringify({
-      userId:   user_id,
-      provider: upperCode,
-      'loginId': loginId ?? null,
-      'will_transfer': loginId !== null && loginId !== '',
-      'source': loginId ? 'playerRecord.provider_player_id (pre-launch snapshot)' : 'NULL — Transfer WILL BE SKIPPED',
-    }));
     if (!loginId) {
       console.warn(`[games/launch] Transfer Wallet skipped: no provider_player_id for userId=${user_id}`);
     } else {
@@ -434,23 +313,20 @@ export async function POST(req: NextRequest) {
             metadata:       { trigger: 'PLAY_BUTTON', step: 'AUTO_WITHDRAW' },
           }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
 
-          await ActivityLogService.log({
-            member_id:      user_id,
-            category:       'BALANCE',
-            action:         'Transfer Out',
-            title:          `${gpDisplayName} — Transfer Out (before Play)`,
-            description:    `Recovered RM ${recovered.toFixed(2)} from ${gpDisplayName} before Transfer In`,
-            amount:         recovered,
-            balance_before: wdBefore,
-            balance_after:  wdAfter,
-            reference_type: 'wallet_transaction',
-            reference_id:   parseInt(wtRow.id, 10) || null,
-            operator_type:  'MEMBER',
-            operator_id:    user_id,
-            source:         'WEBSITE',
-            level:          'INFO',
-            remark:         `[${upperCode}] Transfer Out via Play Button`,
-            metadata:       { provider_code: upperCode, recovered, ref_id: wdRefId },
+          // AFTER COMMIT — Transfer Out (before Transfer In)
+          void GamingActivityService.record({
+            memberId:      user_id,
+            providerCode:  upperCode,
+            eventType:     GamingEventType.TransferOut,
+            traceId:       launchTraceId,
+            amount:        recovered,
+            balanceBefore: wdBefore,
+            balanceAfter:  wdAfter,
+            referenceType: 'wallet_transaction',
+            referenceId:   parseInt(wtRow.id, 10) || null,
+            operatorType:  'MEMBER',
+            operatorId:    user_id,
+            metadata:      { ref_id: wdRefId, trigger: 'PLAY_BUTTON' },
           });
         } catch (e) {
           await wdClient.query('ROLLBACK').catch(() => undefined);
@@ -547,23 +423,20 @@ export async function POST(req: NextRequest) {
                   metadata:       { trigger: 'PLAY_BUTTON', step: 'TOPUP', provider_balance: topUpResult.balance },
                 }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
 
-                await ActivityLogService.log({
-                  member_id:      user_id,
-                  category:       'BALANCE',
-                  action:         'Transfer In',
-                  title:          `${gpDisplayName} — Transfer In`,
-                  description:    `Transferred RM ${balance.toFixed(2)} to ${gpDisplayName}`,
-                  amount:         balance,
-                  balance_before: deductBalBefore,
-                  balance_after:  deductBalAfter,
-                  reference_type: 'wallet_transaction',
-                  reference_id:   parseInt(deductWtRow.id, 10) || null,
-                  operator_type:  'MEMBER',
-                  operator_id:    user_id,
-                  source:         'WEBSITE',
-                  level:          'INFO',
-                  remark:         `[${upperCode}] Transfer In via Play Button`,
-                  metadata:       { provider_code: upperCode, amount: balance, ref_id: refId },
+                // AFTER COMMIT — Transfer In success
+                void GamingActivityService.record({
+                  memberId:      user_id,
+                  providerCode:  upperCode,
+                  eventType:     GamingEventType.TransferIn,
+                  traceId:       launchTraceId,
+                  amount:        balance,
+                  balanceBefore: deductBalBefore,
+                  balanceAfter:  deductBalAfter,
+                  referenceType: 'wallet_transaction',
+                  referenceId:   parseInt(deductWtRow.id, 10) || null,
+                  operatorType:  'MEMBER',
+                  operatorId:    user_id,
+                  metadata:      { ref_id: refId, trigger: 'PLAY_BUTTON' },
                 });
                 break;
               } catch (err) {
@@ -597,23 +470,20 @@ export async function POST(req: NextRequest) {
               await rbClient.query('COMMIT');
               console.log(`[games/launch] ✓ rollback complete: balance restored to ${parseFloat(rbWtRow.balance_after)}`);
 
-              await ActivityLogService.log({
-                member_id:      user_id,
-                category:       'BALANCE',
-                action:         'Rollback',
-                title:          `${gpDisplayName} — Transfer In Rollback`,
-                description:    `RM ${balance.toFixed(2)} restored after topUp failure: ${errMsg.slice(0, 100)}`,
-                amount:         balance,
-                balance_before: parseFloat(rbWtRow.balance_before),
-                balance_after:  parseFloat(rbWtRow.balance_after),
-                reference_type: 'wallet_transaction',
-                reference_id:   parseInt(rbWtRow.id, 10) || null,
-                operator_type:  'SYSTEM',
-                operator_id:    SYSTEM_ADMIN_ID,
-                source:         'WEBSITE',
-                level:          'WARNING',
-                remark:         `[${upperCode}] Rollback`,
-                metadata:       { provider_code: upperCode, amount: balance, error: errMsg.slice(0, 255) },
+              // AFTER COMMIT — Transfer Rollback
+              void GamingActivityService.record({
+                memberId:      user_id,
+                providerCode:  upperCode,
+                eventType:     GamingEventType.TransferRollback,
+                traceId:       launchTraceId,
+                amount:        balance,
+                balanceBefore: parseFloat(rbWtRow.balance_before),
+                balanceAfter:  parseFloat(rbWtRow.balance_after),
+                referenceType: 'wallet_transaction',
+                referenceId:   parseInt(rbWtRow.id, 10) || null,
+                operatorType:  'SYSTEM',
+                operatorId:    SYSTEM_ADMIN_ID,
+                metadata:      { error: errMsg.slice(0, 255), original_ref: refId },
               });
             } catch (rbErr) {
               await rbClient.query('ROLLBACK').catch(() => undefined);
@@ -630,6 +500,17 @@ export async function POST(req: NextRequest) {
       }
     }
   }
+
+  // Record launch success — URL generated and all Transfer operations attempted
+  void GamingActivityService.record({
+    memberId:     user_id,
+    providerCode: upperCode,
+    eventType:    GamingEventType.LaunchSuccess,
+    traceId:      launchTraceId,
+    operatorType: 'MEMBER',
+    operatorId:   user_id,
+    metadata:     { launch_mode: gpWebsiteLaunchMode ?? 'LOBBY' },
+  });
 
   return NextResponse.json({
     ok:            true,

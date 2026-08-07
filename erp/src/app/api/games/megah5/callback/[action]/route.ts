@@ -38,14 +38,7 @@ async function dispatch(
     ?? request.headers.get('x-real-ip')
     ?? null;
 
-  // ── UAT Debug: log every inbound callback ────────────────────────────────
-  const authHeader = request.headers.get('token')
-    ?? request.headers.get('authorization')
-    ?? request.headers.get('x-operator-token')
-    ?? request.headers.get('x-client-token')
-    ?? '(none)';
-  console.log(`[megah5-callback] ▶ action=${action} method=${request.method} ip=${ip} auth=${authHeader.slice(0, 20)}***`);
-  console.log(`[megah5-callback] body=${JSON.stringify(rawBody).slice(0, 500)}`);
+  console.log(`[megah5-callback] ▶ action=${action} method=${request.method} ip=${ip}`);
 
   // Find active brand for MEGAH5 (ACTIVE or TESTING — both valid during UAT)
   const { rows: bpRows } = await pool.query<{ brand_code: string; bp_status: string }>(
@@ -89,15 +82,7 @@ async function dispatch(
 
   try {
     const result = await handler(rawBody, headers, ip);
-    const elapsed = Date.now() - t0;
-    console.log(`[megah5-callback] ◀ action=${action} elapsed=${elapsed}ms result=${JSON.stringify(result).slice(0, 200)}`);
-    console.log('================================');
-    console.log('[MEGAH5 FINAL RESPONSE]');
-    console.log('Action:', action);
-    console.log('Method:', request.method);
-    console.log('HTTP Status: 200');
-    console.log('Response JSON:', JSON.stringify(result));
-    console.log('================================');
+    console.log(`[megah5-callback] ◀ action=${action} elapsed=${Date.now() - t0}ms`);
     return NextResponse.json(result);
   } catch (err) {
     console.error(`[megah5-callback] handler threw for action="${action}":`, err);

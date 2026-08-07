@@ -11,7 +11,8 @@ import { logAudit } from '@/lib/repositories/audit_repo';
 import { createGamingPlatform } from '@/lib/providers';
 import { adjustWallet } from '@/lib/services/wallet';
 import { TransactionRepository } from '@/lib/providers/repositories/TransactionRepository';
-import { ActivityLogService } from '@/lib/services/activity-log';
+import { GamingActivityService } from '@/lib/services/gaming-activity';
+import { GamingEventType } from '@/lib/providers/types/metadata.types';
 
 const txRepo = new TransactionRepository();
 
@@ -166,25 +167,18 @@ export async function POST(_req: NextRequest, { params }: Params) {
         metadata:       { trigger: 'ADMIN_SYNC_ALL', admin_id: payload.sub },
       }).catch(e => console.warn(`[provider-accounts/sync-all] txRepo.create failed:`, e));
 
-      await ActivityLogService.log({
-        member_id:      uid,
-        category:       'BALANCE',
-        action:         'Admin Sync All',
-        title:          `${provider_name} — Admin Sync All`,
-        description:    returned > 0
-          ? `Admin recovered RM ${returned.toFixed(2)} from ${provider_name}`
-          : `Admin sync all triggered — no balance in ${provider_name}`,
-        amount:         returned > 0 ? returned : null,
-        balance_before: balanceBefore,
-        balance_after:  balanceAfter,
-        reference_type: 'wallet_transaction',
-        reference_id:   walletTxId ? parseInt(walletTxId, 10) : null,
-        operator_type:  'STAFF',
-        operator_id:    payload.sub,
-        source:         'ERP',
-        level:          'INFO',
-        remark:         `[${provider_code}] Admin Sync All — triggered by admin ${payload.sub}`,
-        metadata:       { provider_code, returned, ref_id: refId },
+      void GamingActivityService.record({
+        memberId:      uid,
+        providerCode:  provider_code,
+        eventType:     GamingEventType.TransferOut,
+        amount:        returned,
+        balanceBefore,
+        balanceAfter,
+        referenceType: 'wallet_transaction',
+        referenceId:   walletTxId ? parseInt(walletTxId, 10) : null,
+        operatorType:  'STAFF',
+        operatorId:    payload.sub,
+        metadata:      { provider_code, returned, ref_id: refId },
       });
 
       return { provider_code, provider_name, status: 'SUCCESS', returned };

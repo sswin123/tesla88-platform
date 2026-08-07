@@ -12,7 +12,10 @@ export type ActivityCategory =
   | 'REFERRAL'
   | 'TELEGRAM'
   | 'GAME_ACCOUNT'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  // Gaming Framework Phase 3 — new categories (migration 093)
+  | 'GAME'        // Game session lifecycle: launch start/success/failed, authenticate
+  | 'GAME_WALLET';// Wallet events within a gaming session: bet, win, refund, jackpot, sync
 
 export type ActivitySource =
   | 'WEBSITE'
@@ -44,6 +47,8 @@ export interface LogActivityInput {
   device?:         string | null;
   remark?:         string | null;
   metadata?:       Record<string, unknown> | null;
+  /** Gaming session trace ID (GS-{date}-{hex}). Groups all events in one game session. */
+  trace_id?:       string | null;
   client?:         PoolClient;
 }
 
@@ -78,8 +83,8 @@ const INSERT_SQL = `
     amount, balance_before, balance_after,
     reference_type, reference_id,
     operator_type, operator_id, operator_name,
-    source, level, ip_address, device, remark, metadata
-  ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+    source, level, ip_address, device, remark, metadata, trace_id
+  ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
   RETURNING activity_id, id
 `;
 
@@ -97,7 +102,7 @@ export class ActivityLogService {
       reference_type, reference_id,
       operator_type = 'SYSTEM', operator_id, operator_name,
       source = 'SYSTEM', level = 'INFO',
-      ip_address, device, remark, metadata,
+      ip_address, device, remark, metadata, trace_id,
       client: providedClient,
     } = input;
 
@@ -117,6 +122,7 @@ export class ActivityLogService {
       device      ?? null,
       remark      ?? null,
       metadata ? JSON.stringify(metadata) : null,
+      trace_id    ?? null,
     ];
 
     try {
