@@ -72,7 +72,7 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
+    <div className="p-4 sm:p-6 max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Change Password</h1>
         {me && (
@@ -83,7 +83,7 @@ export default function ChangePasswordPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-blue-50">
             <KeyRound size={20} className="text-blue-600" />

@@ -101,43 +101,45 @@ export default function PermissionsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-6 py-4">
+      <div className="border-b px-4 sm:px-6 py-4">
         <h1 className="text-lg font-semibold">Staff Permissions</h1>
         <p className="mt-0.5 text-sm text-gray-500">
           Configure which pages and actions each role can access.
         </p>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
         {/* ── Left: Role List ─────────────────────────────────────────────── */}
-        <aside className="w-52 shrink-0 border-r bg-gray-50 p-3">
-          {MANAGEABLE_ROLES.map((role) => (
-            <button
-              key={role.id}
-              onClick={() => !role.locked && setSelectedRole(role.id)}
-              disabled={role.locked}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                role.locked
-                  ? 'cursor-default text-gray-400'
-                  : selectedRole === role.id
-                  ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200'
-                  : 'text-gray-600 hover:bg-white hover:text-gray-900'
-              }`}
-            >
-              <span className="text-base">{role.icon}</span>
-              <span className="flex-1 text-left">{role.label}</span>
-              {role.locked && <Lock size={12} className="text-gray-300" />}
-            </button>
-          ))}
+        <aside className="w-full sm:w-52 sm:shrink-0 border-b sm:border-b-0 sm:border-r bg-gray-50 p-3">
+          <div className="flex sm:flex-col overflow-x-auto sm:overflow-visible gap-1 pb-1 sm:pb-0">
+            {MANAGEABLE_ROLES.map((role) => (
+              <button
+                key={role.id}
+                onClick={() => !role.locked && setSelectedRole(role.id)}
+                disabled={role.locked}
+                className={`flex shrink-0 sm:w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                  role.locked
+                    ? 'cursor-default text-gray-400'
+                    : selectedRole === role.id
+                    ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200'
+                    : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                }`}
+              >
+                <span className="text-base">{role.icon}</span>
+                <span className="flex-1 text-left">{role.label}</span>
+                {role.locked && <Lock size={12} className="text-gray-300" />}
+              </button>
+            ))}
+          </div>
 
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500">
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 hidden sm:block">
             <p className="font-medium text-gray-700">👑 Super Admin</p>
             <p className="mt-1">Full system access. Permissions cannot be restricted.</p>
           </div>
         </aside>
 
         {/* ── Right: Permission Matrix ─────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {selectedRoleDef && (
             <div className="mb-5 flex items-center gap-2">
               <span className="text-2xl">{selectedRoleDef.icon}</span>

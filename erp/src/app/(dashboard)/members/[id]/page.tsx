@@ -430,7 +430,7 @@ export default function MemberDetailPage() {
       )}
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Member #{member.id}</h1>
           <p className="text-sm text-gray-500">{member.public_id ?? ''} · {member.phone}</p>
@@ -802,25 +802,27 @@ export default function MemberDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Deposit History (last 20)</CardTitle></CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead className="text-gray-500">
-                <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Bonus</th><th>Promo</th><th>Status</th><th>Date</th></tr>
-              </thead>
-              <tbody className="divide-y">
-                {deposits.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50">
-                    <td className="py-1">#{d.id}</td>
-                    <td>{d.provider}</td>
-                    <td>{fmt(d.deposit_amount)}</td>
-                    <td>{parseFloat(d.bonus_amount) > 0 ? fmt(d.bonus_amount) : '—'}</td>
-                    <td>{d.promo_name ?? '—'}</td>
-                    <td><Badge variant={d.status === 'APPROVED' ? 'default' : d.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{d.status}</Badge></td>
-                    <td className="text-gray-400">{new Date(d.created_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-                {deposits.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-gray-400">No deposits.</td></tr>}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
+                <thead className="text-gray-500">
+                  <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Bonus</th><th>Promo</th><th>Status</th><th>Date</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {deposits.map(d => (
+                    <tr key={d.id} className="hover:bg-gray-50">
+                      <td className="py-1">#{d.id}</td>
+                      <td>{d.provider}</td>
+                      <td>{fmt(d.deposit_amount)}</td>
+                      <td>{parseFloat(d.bonus_amount) > 0 ? fmt(d.bonus_amount) : '—'}</td>
+                      <td>{d.promo_name ?? '—'}</td>
+                      <td><Badge variant={d.status === 'APPROVED' ? 'default' : d.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{d.status}</Badge></td>
+                      <td className="text-gray-400">{new Date(d.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                  {deposits.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-gray-400">No deposits.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -830,23 +832,25 @@ export default function MemberDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Withdrawal History (last 20)</CardTitle></CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead className="text-gray-500">
-                <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Status</th><th>Date</th></tr>
-              </thead>
-              <tbody className="divide-y">
-                {withdrawals.map(w => (
-                  <tr key={w.id} className="hover:bg-gray-50">
-                    <td className="py-1">#{w.id}</td>
-                    <td>{w.provider}</td>
-                    <td>{fmt(w.withdraw_amount)}</td>
-                    <td><Badge variant={w.status === 'PAID' ? 'default' : w.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{w.status}</Badge></td>
-                    <td className="text-gray-400">{new Date(w.created_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-                {withdrawals.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-gray-400">No withdrawals.</td></tr>}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[380px]">
+                <thead className="text-gray-500">
+                  <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {withdrawals.map(w => (
+                    <tr key={w.id} className="hover:bg-gray-50">
+                      <td className="py-1">#{w.id}</td>
+                      <td>{w.provider}</td>
+                      <td>{fmt(w.withdraw_amount)}</td>
+                      <td><Badge variant={w.status === 'PAID' ? 'default' : w.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{w.status}</Badge></td>
+                      <td className="text-gray-400">{new Date(w.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                  {withdrawals.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-gray-400">No withdrawals.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -856,24 +860,26 @@ export default function MemberDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Bonus History (last 20)</CardTitle></CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead className="text-gray-500">
-                <tr><th className="py-1 text-left">Promotion</th><th>Deposit</th><th>Bonus</th><th>Turnover</th><th>Status</th><th>Date</th></tr>
-              </thead>
-              <tbody className="divide-y">
-                {bonuses.map(b => (
-                  <tr key={b.id} className="hover:bg-gray-50">
-                    <td className="py-1">{b.promo_name}</td>
-                    <td>{fmt(b.deposit_amount)}</td>
-                    <td>{fmt(b.bonus_amount)}</td>
-                    <td>{fmt(b.turnover_completed)}/{fmt(b.turnover_required)}</td>
-                    <td><Badge className="text-xs" variant={b.status === 'COMPLETED' ? 'default' : 'secondary'}>{b.status}</Badge></td>
-                    <td className="text-gray-400">{new Date(b.claimed_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-                {bonuses.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-gray-400">No bonus claims.</td></tr>}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead className="text-gray-500">
+                  <tr><th className="py-1 text-left">Promotion</th><th>Deposit</th><th>Bonus</th><th>Turnover</th><th>Status</th><th>Date</th></tr>
+                </thead>
+                <tbody className="divide-y">
+                  {bonuses.map(b => (
+                    <tr key={b.id} className="hover:bg-gray-50">
+                      <td className="py-1">{b.promo_name}</td>
+                      <td>{fmt(b.deposit_amount)}</td>
+                      <td>{fmt(b.bonus_amount)}</td>
+                      <td>{fmt(b.turnover_completed)}/{fmt(b.turnover_required)}</td>
+                      <td><Badge className="text-xs" variant={b.status === 'COMPLETED' ? 'default' : 'secondary'}>{b.status}</Badge></td>
+                      <td className="text-gray-400">{new Date(b.claimed_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                  {bonuses.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-gray-400">No bonus claims.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}

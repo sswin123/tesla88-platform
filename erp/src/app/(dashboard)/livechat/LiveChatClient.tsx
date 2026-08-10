@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { ConversationList } from '@/components/livechat/ConversationList';
 import { ChatWindow } from '@/components/livechat/ChatWindow';
 import { ReplyBox } from '@/components/livechat/ReplyBox';
@@ -30,7 +31,9 @@ export default function LiveChatClient({
 
   // Sync with URL so back/forward navigation and direct links still work.
   useEffect(() => {
-    setSelectedId(sessionParam ? parseInt(sessionParam, 10) : null);
+    const id = sessionParam ? parseInt(sessionParam, 10) : null;
+    setSelectedId(id);
+    setMobilePanel(id !== null ? 'chat' : 'list');
   }, [sessionParam]);
 
   const [session, setSession] = useState<SupportSession | null>(null);
@@ -82,13 +85,27 @@ export default function LiveChatClient({
       .catch(() => setLoadingSession(false));
   }, [selectedId]);
 
+  // Mobile panel state — 'list' or 'chat'; initialized from URL for direct links
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'chat'>(
+    sessionParam ? 'chat' : 'list',
+  );
+
+  // When a session is selected, switch to chat panel on mobile
   const handleSelect = useCallback(
     (id: number) => {
       setSelectedId(id);
+      setMobilePanel('chat');
       router.push(`/livechat?session=${id}`, { scroll: false });
     },
     [router],
   );
+
+  // Mobile back button — return to conversation list
+  const handleMobileBack = useCallback(() => {
+    setMobilePanel('list');
+    setSelectedId(null);
+    router.push('/livechat', { scroll: false });
+  }, [router]);
 
   const handleMessageSent = useCallback((msg: SupportMessage) => {
     setMessages((prev) => {
@@ -98,9 +115,25 @@ export default function LiveChatClient({
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden">
-      {/* Left: conversation list */}
-      <ConversationList selectedId={selectedId} onSelect={handleSelect} currentUsername={currentUsername} />
+    <div className="flex h-full overflow-hidden">
+      {/* Left panel: conversation list
+          Desktop: w-80 always visible
+          Mobile: full-width when on list panel, hidden when on chat panel */}
+      <ConversationList
+        selectedId={selectedId}
+        onSelect={handleSelect}
+        currentUsername={currentUsername}
+        className={
+          mobilePanel === 'chat'
+            ? 'hidden lg:flex lg:w-80'
+            : 'w-full lg:w-80'
+        }
+      />
+
+      {/* Middle + Right: chat area + member card
+          Desktop: always visible (flex-1 + w-72)
+          Mobile: hidden when on list panel, full-width when on chat panel */}
+      <div className={`flex flex-1 overflow-hidden ${mobilePanel === 'list' ? 'hidden lg:flex' : 'flex'}`}>
 
       {/* Middle: chat area — also acts as a drop zone for files */}
       {selectedId && session ? (
@@ -125,9 +158,17 @@ export default function LiveChatClient({
           }}
         >
           {/* Session header */}
-          <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
-            <div>
-              <p className="text-sm font-semibold font-mono">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
+            {/* Mobile back button */}
+            <button
+              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+              onClick={handleMobileBack}
+              aria-label="Back to conversations"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold font-mono">
                 {session.guest_id
                   ? session.guest_id
                   : session.public_id
@@ -207,7 +248,14 @@ export default function LiveChatClient({
         </div>
       ) : loadingSession ? (
         <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex flex-shrink-0 items-center gap-3 border-b bg-white px-4 py-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
+            <button
+              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+              onClick={handleMobileBack}
+              aria-label="Back to conversations"
+            >
+              <ArrowLeft size={18} />
+            </button>
             <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
           </div>
           <ChatSkeleton />
@@ -218,8 +266,8 @@ export default function LiveChatClient({
         </div>
       )}
 
-      {/* Right: member card + notes */}
-      <div className="w-72 flex-shrink-0 overflow-y-auto border-l bg-white">
+      {/* Right: member card + notes — always hidden on mobile */}
+      <div className="hidden lg:flex w-72 flex-shrink-0 flex-col overflow-y-auto border-l bg-white">
         {member && session ? (
           <MemberCard
             member={member}
@@ -234,6 +282,8 @@ export default function LiveChatClient({
         )}
         {session && <NotesPanel sessionId={session.id} />}
       </div>
+
+      </div>{/* end chat+right wrapper */}
     </div>
   );
 }

@@ -1598,7 +1598,7 @@ function WebsiteDisplayTab({
 // Provider Detail Panel (tabs)
 // ══════════════════════════════════════════════════════════════
 
-function ProviderDetail({ id, onToast, userRole }: { id: number; onToast: (m: string, ok: boolean) => void; userRole: string }) {
+function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; onToast: (m: string, ok: boolean) => void; userRole: string; onMobileBack?: () => void }) {
   const [detail, setDetail]     = useState<ProviderDetail | null>(null);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<Tab>('overview');
@@ -1824,8 +1824,42 @@ function ProviderDetail({ id, onToast, userRole }: { id: number; onToast: (m: st
 
   return (
     <div className="flex flex-col h-full">
-      {/* Provider header */}
-      <div className="flex items-start justify-between gap-4 mb-4">
+      {/* Hidden file input — shared by mobile and desktop import buttons */}
+      <input ref={fileRef} type="file" accept=".json" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) void handleImport(f); e.target.value = ''; }} />
+
+      {/* Mobile header (< 1024px): Back + name + status, then full-width action row */}
+      <div className="lg:hidden flex flex-col gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          {onMobileBack && (
+            <button
+              onClick={onMobileBack}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            </button>
+          )}
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex-1 truncate">{provider.display_name || provider.name}</h2>
+          <Badge status={provider.status} />
+        </div>
+        <div className="text-xs text-slate-500 px-1 font-mono">{provider.code} · {provider.environment} · {provider.wallet_type}</div>
+        {isCredAdmin && (
+          <div className="flex gap-2">
+            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+              <Download className="w-3.5 h-3.5" /> 导出
+            </button>
+            <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50">
+              {importing ? <Spinner /> : <Upload className="w-3.5 h-3.5" />} 导入
+            </button>
+            <button onClick={handleReload} disabled={reloading} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50">
+              {reloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} 重置
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop header (≥ 1024px): original layout */}
+      <div className="hidden lg:flex items-start justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{provider.display_name || provider.name}</h2>
@@ -1845,8 +1879,6 @@ function ProviderDetail({ id, onToast, userRole }: { id: number; onToast: (m: st
               <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50">
                 {importing ? <Spinner /> : <Upload className="w-3.5 h-3.5" />} 导入
               </button>
-              <input ref={fileRef} type="file" accept=".json" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) void handleImport(f); e.target.value = ''; }} />
               <button onClick={handleReload} disabled={reloading}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50">
                 {reloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -2357,6 +2389,7 @@ export default function GamingPlatformPage() {
   const [duplicating,   setDuplicating]   = useState<{ id: number; code: string } | null>(null);
   const [deletingProvider, setDeletingProvider] = useState<{ id: number; code: string } | null>(null);
   const [deletingBusy,  setDeletingBusy]  = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'detail'>('list');
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok });
@@ -2404,7 +2437,7 @@ export default function GamingPlatformPage() {
   return (
     <div className="h-full flex flex-col px-4 py-6 max-w-7xl mx-auto gap-4">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Gaming Platform</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -2434,63 +2467,113 @@ export default function GamingPlatformPage() {
           暂无游戏提供商。请先执行数据库迁移脚本。
         </div>
       ) : (
-        <div className="flex gap-4 min-h-0 flex-1">
-          {/* Left: Provider list */}
-          <div className={`flex-none transition-all ${listExpanded ? 'w-64' : 'w-12'}`}>
-            <div className={`${listExpanded ? 'space-y-2' : 'space-y-2 flex flex-col items-center'}`}>
+        <>
+          {/* ── Mobile: Provider List (< 1024px) ── */}
+          <div className={`lg:hidden space-y-3 ${mobilePanel === 'detail' ? 'hidden' : 'block'}`}>
+            {providers.map(p => (
               <button
-                onClick={() => setListExpanded(e => !e)}
-                className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-1"
+                key={p.id}
+                onClick={() => { setSelectedId(p.id); setMobilePanel('detail'); }}
+                className={`w-full text-left p-4 rounded-xl border transition-all
+                  ${selectedId === p.id
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}
               >
-                {listExpanded ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                {listExpanded && <span>提供商列表</span>}
-              </button>
-              {providers.map(p => listExpanded ? (
-                <div key={p.id} className="relative group">
-                  <ProviderCard p={p} isSelected={selectedId === p.id} onClick={() => setSelectedId(p.id)} />
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={e => { e.stopPropagation(); setDuplicating({ id: p.id, code: p.code }); }}
-                      title="复制 Provider"
-                      className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 shadow-sm"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); setDeletingProvider({ id: p.id, code: p.code }); }}
-                      title="删除 Provider"
-                      className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 shadow-sm"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{p.display_name || p.name}</div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5">#{p.id} · {p.code}</div>
                   </div>
+                  <Badge status={p.status} />
                 </div>
-              ) : (
-                <button key={p.id} onClick={() => setSelectedId(p.id)} title={p.display_name || p.name}
-                  className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold
-                    ${selectedId === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'}`}>
-                  <span className={`w-2 h-2 rounded-full ${STATUS_CFG[p.status]?.dot ?? 'bg-slate-400'}`} />
-                </button>
-              ))}
-            </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <HealthBadge status={p.health_status} />
+                  {p.stats_24h.total_24h > 0 ? (
+                    <>
+                      <span>{p.stats_24h.total_24h} 请求</span>
+                      <span className={(() => { const r = Math.round((p.stats_24h.success_24h / p.stats_24h.total_24h) * 100); return r < 99 ? 'text-rose-500 font-medium' : 'text-emerald-500'; })()}>
+                        {Math.round((p.stats_24h.success_24h / p.stats_24h.total_24h) * 100)}% 成功
+                      </span>
+                    </>
+                  ) : <span className="text-slate-300">无请求</span>}
+                  {p.retry_queue_pending > 0 && <span className="text-amber-600 font-medium">⚠ {p.retry_queue_pending}</span>}
+                </div>
+              </button>
+            ))}
           </div>
 
-          {/* Right: Detail panel */}
-          <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 overflow-hidden flex flex-col">
+          {/* ── Mobile: Provider Detail (< 1024px) ── */}
+          <div className={`lg:hidden flex-col flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 overflow-hidden ${mobilePanel === 'list' ? 'hidden' : 'flex'}`}>
             {selectedId !== null && activeProvider ? (
               <ProviderDetail
                 key={selectedId}
                 id={selectedId}
                 onToast={showToast}
                 userRole={userRole}
+                onMobileBack={() => setMobilePanel('list')}
               />
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-                选择左侧提供商查看详情
-              </div>
-            )}
+            ) : null}
           </div>
-        </div>
+
+          {/* ── Desktop layout (≥ 1024px) ── */}
+          <div className="hidden lg:flex gap-4 min-h-0 flex-1">
+            {/* Left: Provider list */}
+            <div className={`flex-none transition-all ${listExpanded ? 'w-64' : 'w-12'}`}>
+              <div className={`${listExpanded ? 'space-y-2' : 'space-y-2 flex flex-col items-center'}`}>
+                <button
+                  onClick={() => setListExpanded(e => !e)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-1"
+                >
+                  {listExpanded ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  {listExpanded && <span>提供商列表</span>}
+                </button>
+                {providers.map(p => listExpanded ? (
+                  <div key={p.id} className="relative group">
+                    <ProviderCard p={p} isSelected={selectedId === p.id} onClick={() => setSelectedId(p.id)} />
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={e => { e.stopPropagation(); setDuplicating({ id: p.id, code: p.code }); }}
+                        title="复制 Provider"
+                        className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 shadow-sm"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeletingProvider({ id: p.id, code: p.code }); }}
+                        title="删除 Provider"
+                        className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 shadow-sm"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button key={p.id} onClick={() => setSelectedId(p.id)} title={p.display_name || p.name}
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold
+                      ${selectedId === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'}`}>
+                    <span className={`w-2 h-2 rounded-full ${STATUS_CFG[p.status]?.dot ?? 'bg-slate-400'}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Detail panel */}
+            <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 overflow-hidden flex flex-col">
+              {selectedId !== null && activeProvider ? (
+                <ProviderDetail
+                  key={selectedId}
+                  id={selectedId}
+                  onToast={showToast}
+                  userRole={userRole}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
+                  选择左侧提供商查看详情
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {showNewModal && (

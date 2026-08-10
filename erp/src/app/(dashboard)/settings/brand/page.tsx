@@ -91,12 +91,12 @@ function Section({ title, children, collapsible = false }: { title: string; chil
       <button
         type="button"
         onClick={() => collapsible && setOpen(o => !o)}
-        className={`w-full flex items-center justify-between px-6 py-4 ${collapsible ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
+        className={`w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 ${collapsible ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
       >
         <h2 className="text-base font-semibold text-gray-900">{title}</h2>
         {collapsible && (open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />)}
       </button>
-      {open && <div className="px-6 pb-6 space-y-4">{children}</div>}
+      {open && <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">{children}</div>}
     </div>
   );
 }
@@ -401,16 +401,16 @@ export default function BrandCenterPage() {
   ];
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-6">
       {toast && <ToastBanner toast={toast} onDismiss={clear} />}
 
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">品牌中心</h1>
           <p className="text-sm text-gray-500 mt-1">品牌身份、资产、域名、联系方式的单一配置源</p>
         </div>
         <button onClick={() => void handleSave()} disabled={saving}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 w-full sm:w-auto">
           {saving && <Loader2 size={14} className="animate-spin" />}
           保存
         </button>
@@ -418,7 +418,7 @@ export default function BrandCenterPage() {
 
       {/* 1. 品牌身份 */}
       <Section title="1. 品牌身份">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="品牌名称">
             <TextInput value={form.brand_name} onChange={v => set('brand_name', v)} placeholder="Opulux" />
           </Field>
@@ -456,7 +456,7 @@ export default function BrandCenterPage() {
 
       {/* 2. 品牌资产 */}
       <Section title="2. 品牌资产">
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <MediaAssetField label="Logo" hint="推荐 512×512 PNG，< 200 KB"
             mediaId={form.logo_media_id}
             onSelect={() => setPickerFor('logo')} onRemove={() => set('logo_media_id', null)} />
@@ -482,7 +482,7 @@ export default function BrandCenterPage() {
             mediaId={form.splash_image_media_id}
             onSelect={() => setPickerFor('splash_image')} onRemove={() => set('splash_image_media_id', null)} />
         </div>
-        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100">
           <Field label="Logo 尺寸">
             <select value={form.logo_size} onChange={e => set('logo_size', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
@@ -507,14 +507,14 @@ export default function BrandCenterPage() {
 
       {/* 3. 主题（仅跳转，颜色在设计系统管理）*/}
       <Section title="3. 主题">
-        <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-          <Palette size={28} className="text-blue-500 flex-shrink-0" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <Palette size={28} className="text-blue-500 shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-blue-900">品牌配色在设计系统中管理</p>
             <p className="text-xs text-blue-700 mt-0.5">主色、辅色、背景色、卡片色、文字色 → 在设计系统中统一配置，不在品牌中心重复设置</p>
           </div>
           <Link href="/design-system"
-            className="flex-shrink-0 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium">
+            className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium text-center w-full sm:w-auto">
             前往设计系统 →
           </Link>
         </div>
@@ -543,7 +543,7 @@ export default function BrandCenterPage() {
 
       {/* 5. 联系方式 */}
       <Section title="5. 联系方式" collapsible>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="WhatsApp">
             <TextInput value={form.support_whatsapp} onChange={v => set('support_whatsapp', v)} placeholder="+601234567890" />
           </Field>
@@ -609,7 +609,7 @@ export default function BrandCenterPage() {
         <Field label="关键词 (keywords)">
           <TextInput value={form.seo_keywords} onChange={v => set('seo_keywords', v)} placeholder="casino, slots, malaysia" />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="作者 (author)">
             <TextInput value={form.seo_author} onChange={v => set('seo_author', v)} placeholder="Opulux Team" />
           </Field>
@@ -661,7 +661,7 @@ export default function BrandCenterPage() {
 
       {/* 7. 品牌链接 */}
       <Section title="7. 品牌链接" collapsible>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <UrlField label="APK 下载链接" value={form.link_apk} onChange={v => set('link_apk', v)} error={urlErrors.link_apk} placeholder="https://cdn.apidemo.club/app.apk" />
           <UrlField label="iOS / App Store" value={form.link_ios} onChange={v => set('link_ios', v)} error={urlErrors.link_ios} placeholder="https://apps.apple.com/..." />
           <Field label="TG Bot 链接">
@@ -680,7 +680,7 @@ export default function BrandCenterPage() {
 
       {/* 8. 系统信息 */}
       <Section title="8. 系统信息" collapsible>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="时区">
             <select value={form.sys_timezone} onChange={e => set('sys_timezone', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
@@ -722,7 +722,7 @@ export default function BrandCenterPage() {
         </div>
 
         {/* Read-only system info */}
-        <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
+        <div className="pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             ['App Version', erpConfig.app_version ?? '—'],
             ['Environment', erpConfig.node_env ?? '—'],
@@ -738,7 +738,7 @@ export default function BrandCenterPage() {
       {/* 9. 变量（只读） */}
       <Section title="9. 模板变量（只读）" collapsible>
         <p className="text-xs text-gray-500">在 Widget 文字中使用这些变量，发布时自动替换为实际值</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {VARIABLES.map(v => <VarBadge key={v.name} name={v.name} value={v.value} />)}
         </div>
       </Section>
@@ -753,7 +753,7 @@ export default function BrandCenterPage() {
             <p className="text-xs text-gray-500 mb-2">
               How often the pending transaction beep repeats. Range: 1000–10000ms.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 type="number"
                 min={1000}
@@ -780,7 +780,7 @@ export default function BrandCenterPage() {
       {/* Save button (bottom) */}
       <div className="flex justify-end pb-8">
         <button onClick={() => void handleSave()} disabled={saving}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 w-full sm:w-auto">
           {saving && <Loader2 size={14} className="animate-spin" />}
           保存品牌设置
         </button>

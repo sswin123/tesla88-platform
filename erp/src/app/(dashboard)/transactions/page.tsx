@@ -225,13 +225,13 @@ export default function TransactionsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by Member ID, username, phone..."
-          className="border rounded-md px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-gray-300"
+          className="border rounded-md px-3 py-1.5 text-sm w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-gray-300"
         />
 
         {/* Status filter — hidden on pending tab */}
@@ -240,7 +240,7 @@ export default function TransactionsPage() {
             value={status || 'ALL'}
             onValueChange={v => { setStatus(v === 'ALL' ? '' : v); setPage(1); }}
           >
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -253,11 +253,11 @@ export default function TransactionsPage() {
           </Select>
         )}
 
-        <span className="text-sm text-gray-400">Total: {total}</span>
+        <span className="text-sm text-gray-400 sm:ml-auto">Total: {total}</span>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border bg-white overflow-x-auto">
+      {/* Desktop table (≥ 1024px) */}
+      <div className="hidden lg:block rounded-md border bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
@@ -283,13 +283,11 @@ export default function TransactionsPage() {
                 }`}
               >
                 <td className="px-3 py-3 font-mono text-xs text-gray-500">{row.id}</td>
-
                 <td className="px-3 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${TYPE_CLASS[row.type]}`}>
                     {row.type === 'deposit' ? '🟢 Deposit' : '🟠 Withdraw'}
                   </span>
                 </td>
-
                 <td className="px-3 py-3">
                   <MemberLink userId={row.user_id} name={row.first_name} />
                   {row.public_id && (
@@ -297,11 +295,9 @@ export default function TransactionsPage() {
                   )}
                   <div className="text-xs text-gray-400">{row.phone}</div>
                 </td>
-
                 <td className="px-3 py-3 whitespace-nowrap font-medium">
                   RM {parseFloat(row.amount).toFixed(2)}
                 </td>
-
                 <td className="px-3 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                     {row.status}
@@ -310,23 +306,17 @@ export default function TransactionsPage() {
                     <div className="text-xs text-blue-600 mt-0.5">by {row.processing_by_name}</div>
                   )}
                 </td>
-
                 <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
                   {new Date(row.created_at).toLocaleString()}
                 </td>
-
                 <td className="px-3 py-3">
                   {(row.status === 'PENDING' || row.status === 'PROCESSING') ? (
                     <Link href={`/transactions/${row.type}/${row.id}`}>
-                      <Button size="sm" variant="outline" className="text-xs h-7">
-                        Handle
-                      </Button>
+                      <Button size="sm" variant="outline" className="text-xs h-7">Handle</Button>
                     </Link>
                   ) : (
                     <Link href={`/transactions/${row.type}/${row.id}`}>
-                      <Button size="sm" variant="ghost" className="text-xs h-7 text-gray-400">
-                        View
-                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs h-7 text-gray-400">View</Button>
                     </Link>
                   )}
                 </td>
@@ -334,6 +324,74 @@ export default function TransactionsPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list (< 1024px) */}
+      <div className="lg:hidden space-y-3">
+        {loading ? (
+          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">
+            {tab === 'pending' ? 'No pending transactions.' : 'No transactions found.'}
+          </div>
+        ) : rows.map(row => (
+          <div
+            key={`${row.type}-${row.id}`}
+            className={`rounded-lg border bg-white p-4 ${highlightedIds.has(`${row.type}-${row.id}`) ? 'animate-highlight' : ''}`}
+          >
+            {/* Type + Status row */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${TYPE_CLASS[row.type]}`}>
+                  {row.type === 'deposit' ? '🟢 Deposit' : '🟠 Withdraw'}
+                </span>
+                <span className="font-mono text-xs text-gray-400">#{row.id}</span>
+              </div>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                {row.status}
+              </span>
+            </div>
+
+            {/* Info rows */}
+            <div className="space-y-1 text-sm mb-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Member</span>
+                <span className="font-medium">{row.first_name}</span>
+              </div>
+              {row.public_id && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Member ID</span>
+                  <span className="font-mono text-xs text-blue-500">{row.public_id}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Amount</span>
+                <span className="font-semibold">RM {parseFloat(row.amount).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Time</span>
+                <span className="text-xs text-gray-400">{new Date(row.created_at).toLocaleString()}</span>
+              </div>
+              {row.status === 'PROCESSING' && row.processing_by_name && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Handler</span>
+                  <span className="text-xs text-blue-600">{row.processing_by_name}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action button */}
+            <Link href={`/transactions/${row.type}/${row.id}`} className="block">
+              <Button
+                size="sm"
+                variant={(row.status === 'PENDING' || row.status === 'PROCESSING') ? 'default' : 'outline'}
+                className="w-full h-10"
+              >
+                {(row.status === 'PENDING' || row.status === 'PROCESSING') ? 'Handle →' : 'View →'}
+              </Button>
+            </Link>
+          </div>
+        ))}
       </div>
 
       {/* Pagination */}

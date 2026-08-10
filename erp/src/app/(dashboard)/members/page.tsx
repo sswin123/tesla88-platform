@@ -144,7 +144,8 @@ export default function MembersPage() {
         className="max-w-sm"
       />
 
-      <div className="rounded-md border bg-white">
+      {/* Desktop table (≥ 1024px) */}
+      <div className="hidden lg:block rounded-md border bg-white">
         <table className="w-full text-sm">
           <thead className="border-b bg-gray-50">
             <tr>
@@ -187,6 +188,37 @@ export default function MembersPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list (< 1024px) */}
+      <div className="lg:hidden space-y-3">
+        {loading ? (
+          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">No members found</div>
+        ) : rows.map((m) => (
+          <div key={m.id} className="rounded-lg border bg-white p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs text-gray-400">{m.public_id ?? `#${m.id}`}</p>
+                <p className="font-semibold text-sm mt-0.5">{m.first_name}</p>
+                <p className="text-sm text-gray-600 mt-0.5">{m.phone}</p>
+                {m.telegram_username && (
+                  <p className="text-xs text-gray-400 mt-0.5">@{m.telegram_username}</p>
+                )}
+              </div>
+              <Badge variant={m.status === 'ACTIVE' ? 'default' : 'destructive'} className="ml-3 flex-shrink-0">
+                {m.status}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400">{new Date(m.created_at).toLocaleDateString()}</span>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/members/${m.id}`}>View →</Link>
+              </Button>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex items-center justify-between text-sm">

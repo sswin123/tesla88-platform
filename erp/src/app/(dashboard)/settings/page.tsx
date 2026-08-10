@@ -124,7 +124,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-8">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
         <p className="mt-1 text-sm text-gray-500">Manage configurable system parameters. Changes take effect immediately.</p>
@@ -142,7 +142,7 @@ export default function SettingsPage() {
 
         return (
           <div key={section.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-semibold text-gray-800">{section.title}</h2>
               {latestMeta && (
                 <span className="text-xs text-gray-400">
@@ -219,7 +219,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => saveSection(section.id, section.keys)}
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 {isSaving ? (
                   <>

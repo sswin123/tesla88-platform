@@ -3785,7 +3785,7 @@ function EditModal({
           </label>
 
           {/* Schedule */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
               <span className="text-xs text-gray-500 mb-1 block font-medium">开始时间（可选）</span>
               <input type="datetime-local" className="w-full border rounded-xl px-3 py-2 text-sm"
@@ -3908,7 +3908,7 @@ function WidgetLibraryModal({
               value={search}
               onChange={e => { setSearch(e.target.value); setCat('all'); }}
               placeholder="搜索 Widget…"
-              className="border rounded-lg pl-8 pr-3 py-1.5 text-sm w-52 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+              className="border rounded-lg pl-8 pr-3 py-1.5 text-sm w-28 sm:w-52 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
               autoFocus
             />
           </div>
@@ -3917,11 +3917,27 @@ function WidgetLibraryModal({
           </button>
         </div>
 
+        {/* Mobile: horizontal category tabs (< sm) */}
+        <div className="sm:hidden flex overflow-x-auto border-b shrink-0 px-3 py-2 gap-1.5">
+          {CAT_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setCat(tab.key); setSearch(''); }}
+              className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
+                cat === tab.key ? 'bg-blue-600 text-white font-semibold' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Body */}
         <div className="flex flex-1 min-h-0">
 
-          {/* Sidebar */}
-          <div className="w-28 border-r shrink-0 overflow-y-auto py-2">
+          {/* Sidebar — desktop only */}
+          <div className="hidden sm:block w-28 border-r shrink-0 overflow-y-auto py-2">
             {CAT_TABS.map(tab => (
               <button
                 key={tab.key}
@@ -3950,7 +3966,7 @@ function WidgetLibraryModal({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {visible.map(w => {
                   const catDef = WIDGET_CATEGORIES[w.category];
                   const isThis = adding === w.type;
@@ -4291,12 +4307,12 @@ export default function WebsiteBuilderPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Website Builder</h1>
           <p className="text-sm text-gray-500 mt-0.5">管理网站首页区块，所有更改实时生效</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Undo / Redo */}
           <button
             onClick={undo}
@@ -4400,8 +4416,8 @@ export default function WebsiteBuilderPage() {
         <div className="fixed inset-0 z-50 bg-black/85 flex flex-col">
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 text-white flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold">网站预览</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="hidden sm:inline text-sm font-semibold">网站预览</span>
 
               {/* Device switcher */}
               <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
@@ -4409,13 +4425,14 @@ export default function WebsiteBuilderPage() {
                   <button
                     key={d}
                     onClick={() => { setPreviewDevice(d); setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-2 sm:px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
                   >
-                    {d === 'desktop' ? '🖥 桌面' : d === 'tablet' ? '📋 平板' : '📱 手机'}
+                    {d === 'desktop' ? '🖥' : d === 'tablet' ? '📋' : '📱'}
+                    <span className="hidden sm:inline">{d === 'desktop' ? ' 桌面' : d === 'tablet' ? ' 平板' : ' 手机'}</span>
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-gray-400">
+              <span className="hidden sm:inline text-xs text-gray-400">
                 {previewDevice === 'desktop' ? '全宽' : previewDevice === 'tablet' ? '768px' : '375px'}
               </span>
 

@@ -93,8 +93,8 @@ export default function BackupsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">备份管理</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -104,7 +104,7 @@ export default function BackupsPage() {
         <button
           onClick={() => void createBackup()}
           disabled={creating}
-          className="inline-flex items-center gap-2 rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-gray-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
         >
           {creating ? '备份中…' : '创建备份'}
         </button>
@@ -116,8 +116,8 @@ export default function BackupsPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto">
+        <table className="min-w-[600px] w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">文件名</th>
@@ -153,7 +153,7 @@ export default function BackupsPage() {
                       <button
                         onClick={() => void downloadBackup(b.id, b.filename)}
                         disabled={downloading === b.id}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50 inline-flex items-center px-2 py-3"
                       >
                         {downloading === b.id ? '下载中…' : '下载'}
                       </button>

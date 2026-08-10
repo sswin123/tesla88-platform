@@ -182,7 +182,7 @@ export default function PromotionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Promotion Manager</h1>
         <Button onClick={openCreate}>+ Add Promotion</Button>
       </div>
@@ -190,48 +190,107 @@ export default function PromotionsPage() {
       {loading ? (
         <div className="flex h-40 items-center justify-center text-gray-400">Loading...</div>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                {['Name','Claim Limit','Bonus','Min Deposit','Max Bonus','Turnover','Games','Expiry','Status','Actions'].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {promos.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 font-medium">{p.name}</td>
-                  <td className="px-3 py-2">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</td>
-                  <td className="px-3 py-2">{bonusModeLabel(p)}</td>
-                  <td className="px-3 py-2">RM {parseFloat(p.min_deposit).toFixed(0)}</td>
-                  <td className="px-3 py-2">{p.max_bonus ? `RM ${parseFloat(p.max_bonus).toFixed(0)}` : '—'}</td>
-                  <td className="px-3 py-2">{parseFloat(p.turnover_multiplier)}x</td>
-                  <td className="px-3 py-2">{p.allowed_games.length === 0 ? 'All' : p.allowed_games.join(', ')}</td>
-                  <td className="px-3 py-2">{p.expiry_date ? p.expiry_date.slice(0, 10) : '—'}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={p.is_active ? 'default' : 'secondary'}>
-                      {p.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => openEdit(p)}>Edit</Button>
-                      <Button size="sm" variant="outline" onClick={() => toggleActive(p)}>
-                        {p.is_active ? 'Disable' : 'Enable'}
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(p)}>Del</Button>
-                    </div>
-                  </td>
+        <>
+          {/* Desktop table (≥ 1024px) */}
+          <div className="hidden lg:block overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600">
+                <tr>
+                  {['Name','Claim Limit','Bonus','Min Deposit','Max Bonus','Turnover','Games','Expiry','Status','Actions'].map((h) => (
+                    <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
+                  ))}
                 </tr>
-              ))}
-              {promos.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No promotions yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {promos.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 font-medium">{p.name}</td>
+                    <td className="px-3 py-2">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</td>
+                    <td className="px-3 py-2">{bonusModeLabel(p)}</td>
+                    <td className="px-3 py-2">RM {parseFloat(p.min_deposit).toFixed(0)}</td>
+                    <td className="px-3 py-2">{p.max_bonus ? `RM ${parseFloat(p.max_bonus).toFixed(0)}` : '—'}</td>
+                    <td className="px-3 py-2">{parseFloat(p.turnover_multiplier)}x</td>
+                    <td className="px-3 py-2">{p.allowed_games.length === 0 ? 'All' : p.allowed_games.join(', ')}</td>
+                    <td className="px-3 py-2">{p.expiry_date ? p.expiry_date.slice(0, 10) : '—'}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={p.is_active ? 'default' : 'secondary'}>
+                        {p.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(p)}>Edit</Button>
+                        <Button size="sm" variant="outline" onClick={() => toggleActive(p)}>
+                          {p.is_active ? 'Disable' : 'Enable'}
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(p)}>Del</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {promos.length === 0 && (
+                  <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No promotions yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list (< 1024px) */}
+          <div className="lg:hidden space-y-3">
+            {promos.length === 0 ? (
+              <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">No promotions yet.</div>
+            ) : promos.map((p) => (
+              <div key={p.id} className="rounded-lg border bg-white p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm leading-snug">{p.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</p>
+                  </div>
+                  <Badge variant={p.is_active ? 'default' : 'secondary'} className="ml-3 flex-shrink-0">
+                    {p.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm mb-3">
+                  <div>
+                    <p className="text-xs text-gray-400">Bonus</p>
+                    <p className="font-medium">{bonusModeLabel(p)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Min Deposit</p>
+                    <p className="font-medium">RM {parseFloat(p.min_deposit).toFixed(0)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Turnover</p>
+                    <p className="font-medium">{parseFloat(p.turnover_multiplier)}x</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Games</p>
+                    <p className="font-medium">{p.allowed_games.length === 0 ? 'All' : p.allowed_games.join(', ')}</p>
+                  </div>
+                  {p.max_bonus && (
+                    <div>
+                      <p className="text-xs text-gray-400">Max Bonus</p>
+                      <p className="font-medium">RM {parseFloat(p.max_bonus).toFixed(0)}</p>
+                    </div>
+                  )}
+                  {p.expiry_date && (
+                    <div>
+                      <p className="text-xs text-gray-400">Expiry</p>
+                      <p className="font-medium">{p.expiry_date.slice(0, 10)}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openEdit(p)}>Edit</Button>
+                  <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => toggleActive(p)}>
+                    {p.is_active ? 'Disable' : 'Enable'}
+                  </Button>
+                  <Button size="sm" variant="destructive" className="flex-1 h-10" onClick={() => handleDelete(p)}>Del</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {showModal && (
@@ -252,7 +311,7 @@ export default function PromotionsPage() {
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="mb-1 block">Claim Limit</Label>
                   <select value={form.claim_limit} onChange={F('claim_limit')}
@@ -272,7 +331,7 @@ export default function PromotionsPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {form.bonus_mode !== 'BUY1FREE1' && (
                   <div>
                     <Label className="mb-1 block">
@@ -294,7 +353,7 @@ export default function PromotionsPage() {
                   <Input type="text" inputMode="decimal" value={form.turnover_multiplier} onChange={F('turnover_multiplier')} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="mb-1 block">Game Restriction</Label>
                   <select value={form.game_restriction} onChange={F('game_restriction')}

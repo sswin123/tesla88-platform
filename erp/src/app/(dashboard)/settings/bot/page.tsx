@@ -45,7 +45,7 @@ function SaveBtn({ busy, onClick }: { busy: boolean; onClick: () => void }) {
     <button
       onClick={onClick}
       disabled={busy}
-      className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
+      className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 w-full sm:w-auto"
     >
       {busy ? (
         <>
@@ -225,7 +225,7 @@ export default function BotSettingsPage() {
   const lastSynced    = settings['last_synced_at'];
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${toast.ok ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.msg}
@@ -233,12 +233,12 @@ export default function BotSettingsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Telegram Bot</h1>
           <p className="mt-1 text-sm text-gray-500">Bot configuration, relay settings, and notification preferences.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => void syncFromTelegram()}
             disabled={syncing}

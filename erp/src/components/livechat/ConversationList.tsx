@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { SessionCard } from './SessionCard';
 import type { SupportSession, LiveChatSSEEvent } from '@/lib/types';
@@ -33,10 +34,12 @@ export function ConversationList({
   selectedId,
   onSelect,
   currentUsername,
+  className,
 }: {
   selectedId: number | null;
   onSelect: (id: number) => void;
   currentUsername: string | null;
+  className?: string;
 }) {
   const [sessions, setSessions] = useState<SupportSession[]>([]);
   const [total, setTotal] = useState(0);
@@ -192,7 +195,7 @@ export function ConversationList({
   }
 
   return (
-    <div className="flex h-full flex-col border-r bg-white w-80 flex-shrink-0">
+    <div className={cn('flex h-full flex-col border-r bg-white w-80 flex-shrink-0', className)}>
       {/* Header */}
       <div className="border-b p-3">
         <div className="flex items-center justify-between mb-2">
