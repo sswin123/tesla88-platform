@@ -1889,12 +1889,12 @@ function ProviderDetail({ id, onToast, userRole }: { id: number; onToast: (m: st
               <SectionHead title="Provider Status" />
               <div className="flex flex-wrap gap-2">
                 {ALL_STATUSES.map(s => {
-                  const currentStatus = isLegacy ? provider.status : (detail.brand_config?.status ?? 'DISABLED');
-                  const busy = isLegacy ? statusBusy : enablingStatus;
+                  const currentStatus = provider.status;
+                  const busy = statusBusy;
                   const isCurrent = currentStatus === s;
                   return (
                     <button key={s}
-                      onClick={() => isLegacy ? patchStatus(s) : setBrandStatus(s)}
+                      onClick={() => patchStatus(s)}
                       disabled={busy || isCurrent}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60
                         ${isCurrent
