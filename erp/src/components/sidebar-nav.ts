@@ -35,6 +35,7 @@ import {
   Handshake,
   Tag,
   Store,
+  Eye,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -96,6 +97,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: '/settings/bot',          label: 'Telegram Bot',  icon: Bot,       permission: 'bot.settings' },
       { href: '/settings/bot/messages', label: 'Bot Messages',  icon: FileText,  permission: 'bot.messages' },
       { href: '/media-library',         label: 'Media Library', icon: Images,    permission: 'media.view' },
+      { href: '/settings/appearance',   label: 'Appearance',    icon: Palette },
+    ],
+  },
+  {
+    title: 'Staff',
+    items: [
+      { href: '/settings/staff',       label: 'Staff List',       icon: Users,       permission: 'staff.manage' },
+      { href: '/settings/permissions', label: 'Staff Permission', icon: ShieldCheck, permission: 'staff.manage' },
+      { href: '/staff/live-monitor',   label: 'Live Monitor',     icon: Eye,         permission: 'staff.livemonitor.view' },
     ],
   },
   {
@@ -124,10 +134,8 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     items: [
-      { href: '/settings/staff',       label: 'Staff Manager',     icon: Users,       permission: 'staff.manage' },
-      { href: '/settings/permissions', label: 'Staff Permissions', icon: ShieldCheck, permission: 'staff.manage' },
-      { href: '/settings',             label: 'Settings',          icon: Settings,    exact: true, permission: 'website.settings' },
-      { href: '/maintenance',          label: 'Maintenance',       icon: Wrench,      permission: 'maintenance.view' },
+      { href: '/settings',    label: 'Settings',    icon: Settings, exact: true, permission: 'website.settings' },
+      { href: '/maintenance', label: 'Maintenance', icon: Wrench,   permission: 'maintenance.view' },
     ],
   },
 ];

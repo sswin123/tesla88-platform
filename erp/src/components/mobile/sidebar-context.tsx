@@ -14,6 +14,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { subscribeSSE } from '@/lib/sse-manager';
 import { playNotification, unlockAudio, preloadAllNotifications } from '@/lib/notification-audio';
 import { NAV_GROUPS, filterNavGroups, type NavGroup } from '@/components/sidebar-nav';
+import { useHeartbeat } from '@/hooks/useHeartbeat';
 
 interface MeData { isSuperAdmin: boolean; permissions: string[] }
 interface BrandData { brand_name: string; logo_media_id: number | null }
@@ -49,6 +50,8 @@ export function SidebarStateProvider({ children }: { children: ReactNode }) {
   const reminderInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const notifIntervalMs  = useRef<number>(3000);
   const pendingCountRef  = useRef<number>(0);
+
+  useHeartbeat();
 
   const filteredNavGroups = useMemo(
     () => filterNavGroups(NAV_GROUPS, me.isSuperAdmin, me.permissions),

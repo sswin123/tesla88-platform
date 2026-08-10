@@ -98,6 +98,16 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    module: 'Staff Attendance & Monitoring',
+    permissions: [
+      { key: 'staff.attendance.view',   label: 'View Staff Attendance' },
+      { key: 'staff.livemonitor.view',  label: 'View Live Monitor' },
+      { key: 'staff.activity.view',     label: 'View Staff Activity Logs' },
+      { key: 'staff.attendance.export', label: 'Export Attendance Reports' },
+      { key: 'staff.schedule.manage',   label: 'Manage Staff Schedule' },
+    ],
+  },
+  {
     module: 'Security',
     permissions: [
       { key: 'settings.manage',          label: 'Registration Security Settings' },

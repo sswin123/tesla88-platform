@@ -108,7 +108,7 @@ describe('GET /api/transactions — new params (type=pending + search)', () => {
 
   it('search + type=deposit: ILIKE applied to deposit-only base', async () => {
     await GET(makeReq({ type: 'deposit', search: 'john' }));
-    const calls = vi.mocked(pool.query).mock.calls as [string, unknown[]][];
+    const calls = vi.mocked(pool.query).mock.calls as unknown as [string, unknown[]][];
     const [dataSql, dataParams] = calls[0];
     expect(dataSql).toContain('ILIKE');
     expect(dataParams).toContain('%john%');
@@ -119,7 +119,7 @@ describe('GET /api/transactions — new params (type=pending + search)', () => {
 
   it('search + type=withdrawal: ILIKE applied to withdrawal-only base', async () => {
     await GET(makeReq({ type: 'withdrawal', search: '0199' }));
-    const calls = vi.mocked(pool.query).mock.calls as [string, unknown[]][];
+    const calls = vi.mocked(pool.query).mock.calls as unknown as [string, unknown[]][];
     const [dataSql, dataParams] = calls[0];
     expect(dataSql).toContain('ILIKE');
     expect(dataParams).toContain('%0199%');

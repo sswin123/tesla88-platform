@@ -30,3 +30,28 @@ export async function requirePermission(permission: string): Promise<AuthPayload
     return null;
   }
 }
+
+export type PermissionCheckResult =
+  | { ok: true; payload: AuthPayload }
+  | { ok: false; status: 401 | 403 };
+
+/**
+ * Same checks as requirePermission(), but distinguishes "not logged in" (401)
+ * from "logged in, permission denied" (403) — used by the Staff Monitoring
+ * module, which requires 403 specifically. Existing callers of
+ * requirePermission() are unaffected.
+ */
+export async function requirePermissionStrict(
+  permission: string
+): Promise<PermissionCheckResult> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const payload = token ? await verifyJWT(token) : null;
+  if (!payload) return { ok: false, status: 401 };
+  try {
+    const allowed = await can(payload.role, permission);
+    return allowed ? { ok: true, payload: payload as AuthPayload } : { ok: false, status: 403 };
+  } catch {
+    return { ok: false, status: 403 };
+  }
+}
