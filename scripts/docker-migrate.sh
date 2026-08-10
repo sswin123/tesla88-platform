@@ -1,230 +1,187 @@
 #!/usr/bin/env sh
-# docker-migrate.sh  v2 — 智能预过滤，仅生成待执行文件的 SQL 块
+# docker-migrate.sh  v5
 #
-# 优化策略（相比 v1）：
-#   - v1：N 个文件 → 生成 N 个 BEGIN/INSERT/ROLLBACK/SKIP 块，O(n) psql mini-transaction
-#   - v2：预查询 schema_migrations → shell 层过滤 → 只生成 M 个待执行块（M << N）
-#         当所有 migration 已应用时：完全跳过 psql 执行（early exit）
+# Root cause (postgres:14-alpine + Docker Compose non-detached):
+#   psql compiled with GNU readline calls read(fd=0) during readline
+#   initialisation even when SQL comes from -f or -c. Docker Compose keeps
+#   the container's stdin connected to an open pipe (write-end held by
+#   Docker runtime, never closed). Any read(fd=0) therefore blocks forever.
+#   This occurs regardless of -f/-c flags — both leave fd=0 as Docker's pipe.
 #
-# 保留特性：
-#   - pg_advisory_lock：防止并发执行（Session 级，连接断开自动释放）
-#   - INSERT ON CONFLICT DO NOTHING RETURNING + \gset + \if：并发安全（双重保护）
-#   - BEGIN/COMMIT 包裹每个 Migration：失败自动回滚，其他不受影响
-#   - Bootstrap：支持旧版 DB 首次引入迁移系统
-#   - 支持部分应用（有空洞）：按文件名逐一比对，不依赖 MAX(filename)
+# Fix:
+#   1. exec < /dev/null — closes Docker's blocking pipe for sh itself and
+#      any child process that does not create its own pipe.
+#   2. ALL psql invocations receive SQL via an explicit shell pipe:
+#         cat file | psql        (migration files)
+#         printf "SQL" | psql   (one-off statements)
+#      A shell pipe replaces fd=0 with a self-terminating pipe: when the
+#      writer (cat/printf) exits, EOF is delivered to psql immediately.
+#      readline gets EOF on fd=0, does not block, and psql exits cleanly.
+#   3. No -f flag. No -c flag. Both leave fd=0 as Docker's blocking pipe.
+#
+# Transaction model:
+#   cat migration.sql | psql -1   (-1 wraps stdin in BEGIN…COMMIT; on
+#                                   error psql sends ROLLBACK and exits 1)
+#   printf "INSERT…" | psql       (separate call, simple INSERT, no CTE)
+#
+# Idempotency: ON CONFLICT DO NOTHING + IF NOT EXISTS in migration SQL.
+
 set -eu
+
+# Close Docker's blocking stdin pipe for this shell and all non-piped
+# children. Belt-and-suspenders on top of the explicit pipe fix.
+exec < /dev/null
 
 MIGRATIONS_DIR="/migrations"
 SEEDS_DIR="${MIGRATIONS_DIR}/seeds"
-TMP="/tmp/migrate-$$.sql"
-APPLIED_MIG_TMP="/tmp/applied-mig-$$.txt"
+APPLIED_TMP="/tmp/applied-mig-$$.txt"
 APPLIED_SEED_TMP="/tmp/applied-seed-$$.txt"
 
-trap 'rm -f "${TMP}" "${APPLIED_MIG_TMP}" "${APPLIED_SEED_TMP}"' EXIT
+trap 'rm -f "${APPLIED_TMP}" "${APPLIED_SEED_TMP}"' EXIT
 
-echo "=== OPULUX Migration Engine v2 ==="
-echo "数据库: ${DATABASE_URL%%@*}@***"
+log() { printf '[migrate] %s\n' "$*"; }
+die() { log "FATAL: $*"; exit 1; }
 
-# ════════════════════════════════════════════════════════════════════════════
-# Phase 1 — 预查询已应用列表（schema_migrations 不存在时返回空，不报错）
-# ════════════════════════════════════════════════════════════════════════════
+# Run a SQL statement — SQL piped via stdin, never via -c.
+run_sql() {
+    printf '%s\n' "$1" | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on
+}
+
+# Run a SQL query and capture plain rows (-t = tuples only, -A = unaligned).
+query_sql() {
+    printf '%s\n' "$1" | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -t -A
+}
+
+log "=== Tesla88 Migration Engine v5 ==="
+log "DB: ${DATABASE_URL%%@*}@***"
 echo ""
-echo ">>> [1/3] 查询已应用 Migration..."
 
-psql "${DATABASE_URL}" -t -A \
-    -c "SELECT filename FROM schema_migrations ORDER BY filename" \
-    > "${APPLIED_MIG_TMP}" 2>/dev/null \
-    || : > "${APPLIED_MIG_TMP}"   # 表不存在（首次部署）→ 空文件
+# ─── PHASE 1: 建立追踪表（幂等） ─────────────────────────────────────────────
+log "[1/4] 初始化追踪表..."
 
-psql "${DATABASE_URL}" -t -A \
-    -c "SELECT filename FROM schema_seeds ORDER BY filename" \
-    > "${APPLIED_SEED_TMP}" 2>/dev/null \
-    || : > "${APPLIED_SEED_TMP}"
+run_sql "CREATE TABLE IF NOT EXISTS schema_migrations (filename VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW());"
+run_sql "CREATE TABLE IF NOT EXISTS schema_seeds (filename VARCHAR(255) PRIMARY KEY, executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW());"
 
-APPLIED_MIG_COUNT=$(grep -c . "${APPLIED_MIG_TMP}" 2>/dev/null || echo "0")
-APPLIED_SEED_COUNT=$(grep -c . "${APPLIED_SEED_TMP}" 2>/dev/null || echo "0")
+# ─── PHASE 2: 查询已应用列表 ──────────────────────────────────────────────────
+log "[2/4] 查询已应用列表..."
 
-TOTAL_MIG_FILES=$(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | wc -l | tr -d ' ')
+query_sql "SELECT filename FROM schema_migrations ORDER BY filename;" \
+    > "${APPLIED_TMP}" 2>/dev/null || : > "${APPLIED_TMP}"
 
-LAST_APPLIED="(none)"
-[ "${APPLIED_MIG_COUNT}" -gt 0 ] && LAST_APPLIED=$(tail -1 "${APPLIED_MIG_TMP}")
+query_sql "SELECT filename FROM schema_seeds ORDER BY filename;" \
+    > "${APPLIED_SEED_TMP}" 2>/dev/null || : > "${APPLIED_SEED_TMP}"
 
-printf "    已应用 Migration : %s / %s  (最新: %s)\n" \
-    "${APPLIED_MIG_COUNT}" "${TOTAL_MIG_FILES}" "${LAST_APPLIED}"
-printf "    已应用 Seed       : %s\n" "${APPLIED_SEED_COUNT}"
+# CRLF 安全处理（musl libc psql 输出可能含 \r\n）
+tr -d '\r' < "${APPLIED_TMP}"      > "${APPLIED_TMP}.c"      && mv "${APPLIED_TMP}.c"      "${APPLIED_TMP}"      || true
+tr -d '\r' < "${APPLIED_SEED_TMP}" > "${APPLIED_SEED_TMP}.c" && mv "${APPLIED_SEED_TMP}.c" "${APPLIED_SEED_TMP}" || true
 
-# ════════════════════════════════════════════════════════════════════════════
-# Phase 2 — Shell 层过滤：确定待执行文件列表（支持空洞 / 部分应用）
-# ════════════════════════════════════════════════════════════════════════════
-echo ""
-echo ">>> [2/3] 分析待执行文件..."
+APPLIED_COUNT=$(grep -c . "${APPLIED_TMP}" 2>/dev/null || echo 0)
+TOTAL=$(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | wc -l | tr -d ' ')
+LAST="(none)"
+[ "${APPLIED_COUNT}" -gt 0 ] && LAST=$(tail -1 "${APPLIED_TMP}")
+log "    已应用: ${APPLIED_COUNT} / ${TOTAL}  (最新: ${LAST})"
 
-PENDING_MIG_COUNT=0
-for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
-    n=$(basename "${f}")
-    if ! grep -qx "${n}" "${APPLIED_MIG_TMP}" 2>/dev/null; then
-        PENDING_MIG_COUNT=$((PENDING_MIG_COUNT + 1))
-        printf "    → 待执行: %s\n" "${n}"
+# ─── PHASE 3: Bootstrap ──────────────────────────────────────────────────────
+# 触发条件：schema_migrations 为空 且 brand_settings.erp_domain 已存在
+# （旧库首次引入迁移系统时批量标记，不重复执行 SQL）
+if [ "${APPLIED_COUNT}" -eq 0 ]; then
+    HAS_BRAND=$(query_sql "SELECT COUNT(*) FROM information_schema.columns WHERE table_name='brand_settings' AND column_name='erp_domain';" 2>/dev/null || echo 0)
+    HAS_BRAND=$(printf '%s' "${HAS_BRAND}" | tr -d '[:space:]\r')
+
+    if [ "${HAS_BRAND}" = "1" ]; then
+        log "[Bootstrap] 检测到已有 Schema，逐一标记所有 Migration 为已应用..."
+        for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
+            n=$(basename "${f}")
+            printf "INSERT INTO schema_migrations (filename) VALUES ('%s') ON CONFLICT DO NOTHING;\n" "${n}" \
+                | psql "${DATABASE_URL}" > /dev/null 2>&1 || true
+            log "    标记: ${n}"
+        done
+        log "=== Bootstrap 完成，退出 0 ==="
+        exit 0
     fi
-done
-
-PENDING_SEED_COUNT=0
-if [ -d "${SEEDS_DIR}" ]; then
-    for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
-        n=$(basename "${f}")
-        if ! grep -qx "${n}" "${APPLIED_SEED_TMP}" 2>/dev/null; then
-            PENDING_SEED_COUNT=$((PENDING_SEED_COUNT + 1))
-        fi
-    done
 fi
 
-printf "    待执行 Migration  : %s\n" "${PENDING_MIG_COUNT}"
-printf "    待执行 Seed       : %s\n" "${PENDING_SEED_COUNT}"
+# ─── 计算待执行数量 ──────────────────────────────────────────────────────────
+PENDING=0
+for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
+    grep -qxF "$(basename "${f}")" "${APPLIED_TMP}" 2>/dev/null || PENDING=$((PENDING + 1))
+done
 
-# ════════════════════════════════════════════════════════════════════════════
-# Phase 3 — 早退出：全部已应用且表确实存在（最快路径，零 psql 执行）
-# ════════════════════════════════════════════════════════════════════════════
-if [ "${PENDING_MIG_COUNT}" -eq 0 ] && \
-   [ "${PENDING_SEED_COUNT}" -eq 0 ] && \
-   [ "${APPLIED_MIG_COUNT}" -gt 0 ]; then
-    echo ""
-    echo "=== 所有 Migration 均已应用（${APPLIED_MIG_COUNT} 个），跳过执行 ==="
-    echo "=== 迁移完成，退出 0 ==="
+if [ "${PENDING}" -eq 0 ] && [ "${APPLIED_COUNT}" -gt 0 ]; then
+    log "所有 ${APPLIED_COUNT} 个 Migration 均已应用，无需执行。"
+    log "=== 迁移完成，退出 0 ==="
     exit 0
 fi
 
-# ════════════════════════════════════════════════════════════════════════════
-# Phase 4 — 生成 SQL 脚本（仅包含待执行文件的块）
-# ════════════════════════════════════════════════════════════════════════════
+# ─── PHASE 4: 执行待执行 Migration ───────────────────────────────────────────
+#
+# 每个 Migration 两步，均通过 pipe 传输 SQL：
+#
+#   Step A: cat migration.sql | psql -1
+#     cat 写完后关闭 pipe 写端 → psql 收到 EOF → 自动 COMMIT → psql 退出
+#     -1 保证原子性：BEGIN + 所有 SQL + COMMIT；失败时自动 ROLLBACK
+#     fd 0 = cat 的管道，不是 Docker 的阻塞管道 → readline 不阻塞
+#
+#   Step B: printf "INSERT..." | psql
+#     记录已完成；简单 INSERT；无 CTE；无 RETURNING；无 \gset
+#     fd 0 = printf 的管道，printf 结束即 EOF → psql 立即退出
+#
+#   若 Step A 失败 → exit 1，未记录，可安全修复后重试
+#   若 Step A 成功但容器在 Step B 前被 kill → 下次启动重新执行（幂等）
 echo ""
-echo ">>> [3/3] 生成并执行 SQL（${PENDING_MIG_COUNT} Migration + ${PENDING_SEED_COUNT} Seed）..."
+log "[3/4] 执行 ${PENDING} 个待执行 Migration..."
+EXECUTED=0
 
-# ── Preamble：advisory lock + 建立追踪表 ─────────────────────────────────────
-cat > "${TMP}" << 'PREAMBLE'
-SELECT pg_advisory_lock(20250715);
-
-DO $tbl$
-BEGIN
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-        filename   VARCHAR(255) PRIMARY KEY,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-EXCEPTION WHEN unique_violation OR duplicate_table THEN NULL;
-END $tbl$;
-
-DO $tbl$
-BEGIN
-    CREATE TABLE IF NOT EXISTS schema_seeds (
-        filename    VARCHAR(255) PRIMARY KEY,
-        executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-EXCEPTION WHEN unique_violation OR duplicate_table THEN NULL;
-END $tbl$;
-PREAMBLE
-
-# ── Bootstrap：处理旧版 DB 首次引入迁移系统（VALUES 仍包含所有文件）──────────────
-# 触发条件：schema_migrations 为空 AND brand_settings.erp_domain 已存在
-# 目的：标记所有文件为"已应用"，避免在已有 Schema 的 DB 上重复运行
-bootstrap_vals=""
-for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
-    n=$(basename "${f}")
-    if [ -n "${bootstrap_vals}" ]; then
-        bootstrap_vals="${bootstrap_vals},"
-    fi
-    bootstrap_vals="${bootstrap_vals}
-            ('${n}')"
-done
-
-cat >> "${TMP}" << BOOTSTRAP
-
-DO \$boot\$
-BEGIN
-    IF (SELECT COUNT(*) FROM schema_migrations) = 0
-       AND EXISTS (
-           SELECT 1 FROM information_schema.columns
-           WHERE table_name = 'brand_settings' AND column_name = 'erp_domain'
-       ) THEN
-        INSERT INTO schema_migrations (filename) VALUES
-            ${bootstrap_vals}
-        ON CONFLICT DO NOTHING;
-        RAISE NOTICE '引导模式：已标记所有 Migration 为已执行';
-    END IF;
-END \$boot\$;
-BOOTSTRAP
-
-printf '\n' >> "${TMP}"
-printf "\\\\echo '=== 开始 Migration ==='\n" >> "${TMP}"
-
-# ── Migration 块：仅生成待执行文件的 SQL（跳过已应用文件，不生成任何 SQL）─────────
 for f in $(ls "${MIGRATIONS_DIR}"/[0-9][0-9][0-9]_*.sql 2>/dev/null | sort); do
     n=$(basename "${f}")
 
-    # 已应用的文件：完全跳过，不生成 BEGIN/ROLLBACK/SKIP（这是核心优化）
-    if grep -qx "${n}" "${APPLIED_MIG_TMP}" 2>/dev/null; then
+    # Shell 层过滤：已记录的跳过
+    if grep -qxF "${n}" "${APPLIED_TMP}" 2>/dev/null; then
         continue
     fi
 
-    # 待执行文件：生成 BEGIN/INSERT/\if/COMMIT 块
-    # 保留 ON CONFLICT 双重保护（应对极罕见的并发部署竞争）
-    printf '\nBEGIN;\n'                                                              >> "${TMP}"
-    printf 'WITH c AS (\n'                                                           >> "${TMP}"
-    printf "    INSERT INTO schema_migrations (filename) VALUES ('%s')\n" "${n}"     >> "${TMP}"
-    printf '    ON CONFLICT DO NOTHING RETURNING filename\n'                         >> "${TMP}"
-    printf ')\n'                                                                     >> "${TMP}"
-    printf 'SELECT (COUNT(*) > 0)::text AS run FROM c \\gset\n'                     >> "${TMP}"
-    printf '\\if :run\n'                                                             >> "${TMP}"
-    printf "\\\\echo '-> 执行: %s'\n" "${n}"                                        >> "${TMP}"
-    printf "\\\\i %s\n" "${f}"                                                       >> "${TMP}"
-    printf 'COMMIT;\n'                                                               >> "${TMP}"
-    printf "\\\\echo '  v 完成'\n"                                                   >> "${TMP}"
-    printf '\\else\n'                                                                >> "${TMP}"
-    printf 'ROLLBACK;\n'                                                             >> "${TMP}"
-    printf "\\\\echo '-> SKIP (并发保护): %s'\n" "${n}"                             >> "${TMP}"
-    printf '\\endif\n'                                                               >> "${TMP}"
+    log "-> 执行: ${n}"
+
+    # Step A: cat file | psql -1
+    # psql 的 fd 0 = cat 管道（自终止），readline 不阻塞
+    if ! cat "${f}" | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -1; then
+        die "Migration 执行失败: ${n}（-1 已自动 ROLLBACK，修复后可直接重试）"
+    fi
+
+    # Step B: printf | psql（简单 INSERT，via pipe）
+    printf "INSERT INTO schema_migrations (filename) VALUES ('%s') ON CONFLICT DO NOTHING;\n" "${n}" \
+        | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on \
+        || die "记录 Migration 失败: ${n}"
+
+    log "   v 完成: ${n}"
+    EXECUTED=$((EXECUTED + 1))
 done
 
-printf '\n' >> "${TMP}"
-printf "\\\\echo '=== Migration 完成 ==='\n" >> "${TMP}"
-
-# ── Seed 块：仅生成待执行 Seed 的 SQL ────────────────────────────────────────
+# ─── Seeds（与 Migration 完全相同的逻辑） ────────────────────────────────────
 if [ -d "${SEEDS_DIR}" ]; then
-    printf '\n' >> "${TMP}"
-    printf "\\\\echo '=== 开始 Seed 初始化 ==='\n" >> "${TMP}"
-
+    SEED_PENDING=0
     for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
-        n=$(basename "${f}")
-
-        if grep -qx "${n}" "${APPLIED_SEED_TMP}" 2>/dev/null; then
-            continue
-        fi
-
-        printf '\nBEGIN;\n'                                                              >> "${TMP}"
-        printf 'WITH c AS (\n'                                                           >> "${TMP}"
-        printf "    INSERT INTO schema_seeds (filename) VALUES ('%s')\n" "${n}"          >> "${TMP}"
-        printf '    ON CONFLICT DO NOTHING RETURNING filename\n'                         >> "${TMP}"
-        printf ')\n'                                                                     >> "${TMP}"
-        printf 'SELECT (COUNT(*) > 0)::text AS run FROM c \\gset\n'                     >> "${TMP}"
-        printf '\\if :run\n'                                                             >> "${TMP}"
-        printf "\\\\echo '-> Seed: %s'\n" "${n}"                                        >> "${TMP}"
-        printf "\\\\i %s\n" "${f}"                                                       >> "${TMP}"
-        printf 'COMMIT;\n'                                                               >> "${TMP}"
-        printf "\\\\echo '  v 完成'\n"                                                   >> "${TMP}"
-        printf '\\else\n'                                                                >> "${TMP}"
-        printf 'ROLLBACK;\n'                                                             >> "${TMP}"
-        printf "\\\\echo '-> SKIP (并发保护): %s'\n" "${n}"                             >> "${TMP}"
-        printf '\\endif\n'                                                               >> "${TMP}"
+        grep -qxF "$(basename "${f}")" "${APPLIED_SEED_TMP}" 2>/dev/null || SEED_PENDING=$((SEED_PENDING + 1))
     done
 
-    printf '\n' >> "${TMP}"
-    printf "\\\\echo '=== Seed 完成 ==='\n" >> "${TMP}"
+    if [ "${SEED_PENDING}" -gt 0 ]; then
+        echo ""
+        log "[4/4] 执行 ${SEED_PENDING} 个待执行 Seed..."
+        for f in $(ls "${SEEDS_DIR}"/seed_*.sql 2>/dev/null | sort); do
+            n=$(basename "${f}")
+            grep -qxF "${n}" "${APPLIED_SEED_TMP}" 2>/dev/null && continue
+            log "-> Seed: ${n}"
+            if ! cat "${f}" | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -1; then
+                die "Seed 执行失败: ${n}"
+            fi
+            printf "INSERT INTO schema_seeds (filename) VALUES ('%s') ON CONFLICT DO NOTHING;\n" "${n}" \
+                | psql "${DATABASE_URL}" -v ON_ERROR_STOP=on \
+                || die "记录 Seed 失败: ${n}"
+            log "   v 完成: ${n}"
+        done
+    fi
 fi
 
-# ── Footer：释放 advisory lock ────────────────────────────────────────────────
-cat >> "${TMP}" << 'FOOTER'
-
-SELECT pg_advisory_unlock(20250715);
-FOOTER
-
-# ── 单次 psql 会话执行（advisory lock 全程持有）─────────────────────────────────
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=on -f "${TMP}"
-echo "=== 迁移完成，退出 0 ==="
+echo ""
+log "共执行 Migration：${EXECUTED} 个"
+log "=== 迁移完成，退出 0 ==="
