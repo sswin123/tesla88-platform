@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -29,8 +30,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Import requires game.credentials permission' }, { status: 401 });
   }
 
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
   const ip = getIp(req);
 
   let body: ImportPayload;
@@ -44,11 +44,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'config object is required in JSON' }, { status: 400 });
   }
 
-  const { rows: provRows } = await pool.query<{ id: number; status: string }>(
-    `SELECT id, status FROM gp_providers WHERE code = $1 LIMIT 1`, [upperCode],
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const { id: providerId, code: upperCode } = resolved;
+
+  const { rows: provRows } = await pool.query<{ status: string }>(
+    `SELECT status FROM gp_providers WHERE id = $1`, [providerId],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
-  const { id: providerId, status: currentStatus } = provRows[0];
+  const { status: currentStatus } = provRows[0];
 
   // Upsert each config key
   const updatedKeys: string[] = [];

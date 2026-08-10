@@ -845,7 +845,7 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
 // Connection Test Panel
 // ══════════════════════════════════════════════════════════════
 
-function ConnectionTestPanel({ code, onToast }: { code: string; onToast: (m: string, ok: boolean) => void }) {
+function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string, ok: boolean) => void }) {
   const [result, setResult]   = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -853,7 +853,7 @@ function ConnectionTestPanel({ code, onToast }: { code: string; onToast: (m: str
     setTesting(true);
     setResult(null);
     try {
-      const r = await fetch(`/api/games/settings/${code}/test`, { method: 'POST' });
+      const r = await fetch(`/api/games/settings/${id}/test`, { method: 'POST' });
       const data = await r.json() as TestResult;
       setResult(data);
       onToast(data.overall === 'SUCCESS' ? '连接测试通过' : '连接测试部分失败', data.overall === 'SUCCESS');
@@ -981,17 +981,17 @@ function ConnectionTestPanel({ code, onToast }: { code: string; onToast: (m: str
 // Statistics Tab
 // ══════════════════════════════════════════════════════════════
 
-function StatsTab({ code }: { code: string }) {
+function StatsTab({ id }: { id: number }) {
   const [data, setData]       = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/games/settings/${code}/stats`)
+    fetch(`/api/games/settings/${id}/stats`)
       .then(r => r.json() as Promise<StatsData>)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [code]);
+  }, [id]);
 
   if (loading) return <div className="flex gap-2 text-slate-400"><Spinner /><span>加载统计…</span></div>;
   if (!data) return <div className="text-slate-400 text-sm">无统计数据</div>;
@@ -1052,7 +1052,7 @@ function StatsTab({ code }: { code: string }) {
 
 const LOG_ACTIONS = ['', 'authenticate', 'getbalance', 'bet', 'betresult', 'refund', 'jackpotwin', 'fundrequest', 'fundreturn', 'fundbetresult'];
 
-function LogsTab({ code }: { code: string }) {
+function LogsTab({ id }: { id: number }) {
   const [data, setData]         = useState<LogsData | null>(null);
   const [loading, setLoading]   = useState(true);
   const [page, setPage]         = useState(1);
@@ -1067,11 +1067,11 @@ function LogsTab({ code }: { code: string }) {
     if (action) sp.set('action', action);
     if (status) sp.set('status', status);
     if (search) sp.set('search', search);
-    fetch(`/api/games/settings/${code}/logs?${sp}`)
+    fetch(`/api/games/settings/${id}/logs?${sp}`)
       .then(r => r.json() as Promise<LogsData>)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [code, page, action, status, search]);
+  }, [id, page, action, status, search]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -1080,7 +1080,7 @@ function LogsTab({ code }: { code: string }) {
     if (action) sp.set('action', action);
     if (status) sp.set('status', status);
     if (search) sp.set('search', search);
-    window.open(`/api/games/settings/${code}/logs?${sp}`);
+    window.open(`/api/games/settings/${id}/logs?${sp}`);
   }
 
   function rowStatus(row: LogRow) {
@@ -1176,7 +1176,7 @@ function LogsTab({ code }: { code: string }) {
 // History Tab
 // ══════════════════════════════════════════════════════════════
 
-function HistoryTab({ code, isCredAdmin, onToast }: { code: string; isCredAdmin: boolean; onToast: (m: string, ok: boolean) => void }) {
+function HistoryTab({ id, isCredAdmin, onToast }: { id: number; isCredAdmin: boolean; onToast: (m: string, ok: boolean) => void }) {
   const [rows, setRows]           = useState<HistoryRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [rolling, setRolling]     = useState<number | null>(null);
@@ -1184,16 +1184,16 @@ function HistoryTab({ code, isCredAdmin, onToast }: { code: string; isCredAdmin:
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/games/settings/${code}/history`)
+    fetch(`/api/games/settings/${id}/history`)
       .then(r => r.json() as Promise<HistoryRow[]>)
       .then(d => { setRows(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [code]);
+  }, [id]);
 
   async function rollback(vn: number) {
     setRolling(vn);
     try {
-      const r = await fetch(`/api/games/settings/${code}/history/rollback`, {
+      const r = await fetch(`/api/games/settings/${id}/history/rollback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ version_number: vn }),
@@ -1203,7 +1203,7 @@ function HistoryTab({ code, isCredAdmin, onToast }: { code: string; isCredAdmin:
       onToast(`已回滚到版本 ${vn}，恢复 ${d.keys_restored ?? 0} 个配置项`, true);
       setConfirmRb(null);
       // Reload history
-      const r2 = await fetch(`/api/games/settings/${code}/history`);
+      const r2 = await fetch(`/api/games/settings/${id}/history`);
       setRows(await r2.json() as HistoryRow[]);
     } catch (e) {
       onToast(`回滚失败: ${e instanceof Error ? e.message : String(e)}`, false);
@@ -1267,7 +1267,7 @@ function HistoryTab({ code, isCredAdmin, onToast }: { code: string; isCredAdmin:
 
 const AUDIT_ACTIONS = ['', 'UPDATE_CONFIG', 'UPDATE_CREDENTIAL', 'STATUS_CHANGE', 'RELOAD', 'CONNECTION_TEST', 'EXPORT', 'IMPORT', 'ROLLBACK'];
 
-function AuditTab({ code }: { code: string }) {
+function AuditTab({ id }: { id: number }) {
   const [data, setData]       = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
@@ -1277,18 +1277,18 @@ function AuditTab({ code }: { code: string }) {
     setLoading(true);
     const sp = new URLSearchParams({ page: String(page), limit: '50' });
     if (action) sp.set('action', action);
-    fetch(`/api/games/settings/${code}/audit?${sp}`)
+    fetch(`/api/games/settings/${id}/audit?${sp}`)
       .then(r => r.json() as Promise<AuditData>)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [code, page, action]);
+  }, [id, page, action]);
 
   useEffect(() => { void load(); }, [load]);
 
   function exportCsv() {
     const sp = new URLSearchParams({ export_csv: '1' });
     if (action) sp.set('action', action);
-    window.open(`/api/games/settings/${code}/audit?${sp}`);
+    window.open(`/api/games/settings/${id}/audit?${sp}`);
   }
 
   const ACTION_LABELS: Record<string, string> = {
@@ -1598,7 +1598,7 @@ function WebsiteDisplayTab({
 // Provider Detail Panel (tabs)
 // ══════════════════════════════════════════════════════════════
 
-function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m: string, ok: boolean) => void; userRole: string }) {
+function ProviderDetail({ id, onToast, userRole }: { id: number; onToast: (m: string, ok: boolean) => void; userRole: string }) {
   const [detail, setDetail]     = useState<ProviderDetail | null>(null);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<Tab>('overview');
@@ -1621,17 +1621,17 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}`);
+      const r = await fetch(`/api/games/settings/${id}`);
       if (r.ok) setDetail(await r.json() as ProviderDetail);
     } finally {
       setLoading(false);
     }
-  }, [code]);
+  }, [id]);
 
   useEffect(() => { void reload(); }, [reload]);
 
   async function patchConfig(key: string, value: string) {
-    const r = await fetch(`/api/games/settings/${code}`, {
+    const r = await fetch(`/api/games/settings/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'config', key, value }),
     });
@@ -1642,7 +1642,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   async function patchCredential(key: string, value: string) {
-    const r = await fetch(`/api/games/settings/${code}`, {
+    const r = await fetch(`/api/games/settings/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'credential', key, value }),
     });
@@ -1655,7 +1655,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   async function patchStatus(s: string) {
     setStatusBusy(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}`, {
+      const r = await fetch(`/api/games/settings/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_status: s }),
       });
@@ -1673,7 +1673,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   async function handleReload() {
     setReloading(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}/reload`, { method: 'POST' });
+      const r = await fetch(`/api/games/settings/${id}/reload`, { method: 'POST' });
       const d = await r.json() as { ok?: boolean; message?: string; error?: string };
       if (!d.ok) throw new Error(d.error ?? 'Reload failed');
       onToast('适配器已重置', true);
@@ -1686,7 +1686,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   async function patchWebsite(patch: Record<string, unknown>) {
-    const r = await fetch(`/api/games/settings/${code}`, {
+    const r = await fetch(`/api/games/settings/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'website', website: patch }),
     });
@@ -1699,7 +1699,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
     if (brandCreds) return; // already loaded
     setBrandCredsLoading(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}/brand-creds`);
+      const r = await fetch(`/api/games/settings/${id}/brand-creds`);
       if (r.ok) {
         const d = await r.json() as { credentials: BrandCredRow[]; config: BrandCfgRow[] };
         setBrandCreds(d);
@@ -1710,7 +1710,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   async function patchBrandCred(key: string, value: string) {
-    const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+    const r = await fetch(`/api/games/settings/${id}/brand-creds`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'credential', key, value }),
     });
@@ -1722,7 +1722,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   async function patchBrandConfig(key: string, value: string) {
-    const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+    const r = await fetch(`/api/games/settings/${id}/brand-creds`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'config', key, value }),
     });
@@ -1736,7 +1736,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   async function setBrandStatus(status: string) {
     setEnablingStatus(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}/brand-creds`, {
+      const r = await fetch(`/api/games/settings/${id}/brand-creds`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'status', status }),
       });
@@ -1755,7 +1755,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
     setSyncing(true);
     setSyncResult(null);
     try {
-      const r = await fetch(`/api/games/settings/${code}/sync`, { method: 'POST' });
+      const r = await fetch(`/api/games/settings/${id}/sync`, { method: 'POST' });
       const d = await r.json() as {
         ok?: boolean; error?: string; total?: number;
         gp_games?: { inserted: number; updated: number; deactivated: number };
@@ -1776,7 +1776,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
   }
 
   function handleExport() {
-    window.open(`/api/games/settings/${code}/export`);
+    window.open(`/api/games/settings/${id}/export`);
     onToast('正在下载配置文件（不含凭证值）', true);
   }
 
@@ -1785,7 +1785,7 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
     try {
       const text = await file.text();
       const json = JSON.parse(text) as Record<string, unknown>;
-      const r = await fetch(`/api/games/settings/${code}/import`, {
+      const r = await fetch(`/api/games/settings/${id}/import`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(json),
       });
@@ -2066,21 +2066,21 @@ function ProviderDetail({ code, onToast, userRole }: { code: string; onToast: (m
         {tab === 'connection_test' && (
           <div className="space-y-3">
             <SectionHead title="Connection Test" sub="服务端发起的连通性测试，不经过浏览器" />
-            <ConnectionTestPanel code={code} onToast={onToast} />
+            <ConnectionTestPanel id={id} onToast={onToast} />
           </div>
         )}
 
         {/* ── Statistics ── */}
-        {tab === 'statistics' && <StatsTab code={code} />}
+        {tab === 'statistics' && <StatsTab id={id} />}
 
         {/* ── Logs ── */}
-        {tab === 'logs' && <LogsTab code={code} />}
+        {tab === 'logs' && <LogsTab id={id} />}
 
         {/* ── History ── */}
-        {tab === 'history' && <HistoryTab code={code} isCredAdmin={isCredAdmin} onToast={onToast} />}
+        {tab === 'history' && <HistoryTab id={id} isCredAdmin={isCredAdmin} onToast={onToast} />}
 
         {/* ── Audit ── */}
-        {tab === 'audit' && <AuditTab code={code} />}
+        {tab === 'audit' && <AuditTab id={id} />}
       </div>
     </div>
   );
@@ -2095,7 +2095,7 @@ const ALL_CAPABILITIES = [
   'JACKPOT','BONUS','FREE_SPIN','FUND_FLOAT','NICKNAME_UPDATE','LOGOUT',
 ] as const;
 
-function NewProviderModal({ onCreated, onClose }: { onCreated: (code: string) => void; onClose: () => void }) {
+function NewProviderModal({ onCreated, onClose }: { onCreated: (id: number, code: string) => void; onClose: () => void }) {
   const [code,        setCode]        = useState('');
   const [name,        setName]        = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -2126,9 +2126,9 @@ function NewProviderModal({ onCreated, onClose }: { onCreated: (code: string) =>
           capabilities: caps,
         }),
       });
-      const d = await r.json() as { ok?: boolean; code?: string; error?: string };
+      const d = await r.json() as { ok?: boolean; id?: number; code?: string; error?: string };
       if (!r.ok || !d.ok) { setError(d.error ?? '创建失败'); return; }
-      onCreated(d.code ?? code.toUpperCase());
+      onCreated(d.id ?? 0, d.code ?? code.toUpperCase());
     } catch (e) {
       setError(e instanceof Error ? e.message : '网络错误');
     } finally {
@@ -2223,9 +2223,10 @@ function NewProviderModal({ onCreated, onClose }: { onCreated: (code: string) =>
 // Duplicate Provider Modal
 // ══════════════════════════════════════════════════════════════
 
-function DuplicateModal({ sourceCode, onDuplicated, onClose }: {
+function DuplicateModal({ sourceId, sourceCode, onDuplicated, onClose }: {
+  sourceId: number;
   sourceCode: string;
-  onDuplicated: (newCode: string) => void;
+  onDuplicated: (newId: number, newCode: string) => void;
   onClose: () => void;
 }) {
   const [newCode, setNewCode] = useState('');
@@ -2238,14 +2239,14 @@ function DuplicateModal({ sourceCode, onDuplicated, onClose }: {
     setError('');
     setSaving(true);
     try {
-      const r = await fetch(`/api/games/settings/${sourceCode}/duplicate`, {
+      const r = await fetch(`/api/games/settings/${sourceId}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ new_code: newCode.toUpperCase(), new_name: newName.trim() || undefined }),
       });
-      const d = await r.json() as { ok?: boolean; new_code?: string; error?: string };
+      const d = await r.json() as { ok?: boolean; new_id?: number; new_code?: string; error?: string };
       if (!r.ok || !d.ok) { setError(d.error ?? '复制失败'); return; }
-      onDuplicated(d.new_code ?? newCode.toUpperCase());
+      onDuplicated(d.new_id ?? 0, d.new_code ?? newCode.toUpperCase());
     } catch (e) {
       setError(e instanceof Error ? e.message : '网络错误');
     } finally {
@@ -2348,13 +2349,13 @@ function ProviderCard({ p, isSelected, onClick }: { p: GpProvider; isSelected: b
 export default function GamingPlatformPage() {
   const [providers, setProviders]   = useState<GpProvider[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [selected, setSelected]     = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [toast, setToast]           = useState<{ msg: string; ok: boolean } | null>(null);
   const [userRole, setUserRole]     = useState<string>('ADMIN');
   const [listExpanded, setListExpanded] = useState(true);
   const [showNewModal,  setShowNewModal]  = useState(false);
-  const [duplicating,   setDuplicating]   = useState<string | null>(null);
-  const [deletingCode,  setDeletingCode]  = useState<string | null>(null);
+  const [duplicating,   setDuplicating]   = useState<{ id: number; code: string } | null>(null);
+  const [deletingProvider, setDeletingProvider] = useState<{ id: number; code: string } | null>(null);
   const [deletingBusy,  setDeletingBusy]  = useState(false);
 
   function showToast(msg: string, ok: boolean) {
@@ -2367,11 +2368,11 @@ export default function GamingPlatformPage() {
       .then(r => r.json() as Promise<GpProvider[]>)
       .then(data => {
         setProviders(data);
-        if (!selected && data.length > 0) setSelected(data[0].code);
+        if (!selectedId && data.length > 0) setSelectedId(data[0].id);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [selected]);
+  }, [selectedId]);
 
   useEffect(() => {
     void loadProviders();
@@ -2381,15 +2382,15 @@ export default function GamingPlatformPage() {
       .catch(() => {});
   }, [loadProviders]);
 
-  async function handleDelete(code: string) {
+  async function handleDelete(id: number, code: string) {
     setDeletingBusy(true);
     try {
-      const r = await fetch(`/api/games/settings/${code}`, { method: 'DELETE' });
+      const r = await fetch(`/api/games/settings/${id}`, { method: 'DELETE' });
       const d = await r.json() as { ok?: boolean; error?: string };
       if (!r.ok || !d.ok) { showToast(d.error ?? '删除失败', false); return; }
       showToast(`已删除 ${code}`, true);
-      setDeletingCode(null);
-      if (selected === code) setSelected(null);
+      setDeletingProvider(null);
+      if (selectedId === id) setSelectedId(null);
       void loadProviders();
     } catch (e) {
       showToast(e instanceof Error ? e.message : '网络错误', false);
@@ -2398,7 +2399,7 @@ export default function GamingPlatformPage() {
     }
   }
 
-  const activeProvider = providers.find(p => p.code === selected);
+  const activeProvider = providers.find(p => p.id === selectedId);
 
   return (
     <div className="h-full flex flex-col px-4 py-6 max-w-7xl mx-auto gap-4">
@@ -2445,18 +2446,18 @@ export default function GamingPlatformPage() {
                 {listExpanded && <span>提供商列表</span>}
               </button>
               {providers.map(p => listExpanded ? (
-                <div key={p.code} className="relative group">
-                  <ProviderCard p={p} isSelected={selected === p.code} onClick={() => setSelected(p.code)} />
+                <div key={p.id} className="relative group">
+                  <ProviderCard p={p} isSelected={selectedId === p.id} onClick={() => setSelectedId(p.id)} />
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={e => { e.stopPropagation(); setDuplicating(p.code); }}
+                      onClick={e => { e.stopPropagation(); setDuplicating({ id: p.id, code: p.code }); }}
                       title="复制 Provider"
                       className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 shadow-sm"
                     >
                       <Copy className="w-3 h-3" />
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); setDeletingCode(p.code); }}
+                      onClick={e => { e.stopPropagation(); setDeletingProvider({ id: p.id, code: p.code }); }}
                       title="删除 Provider"
                       className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 shadow-sm"
                     >
@@ -2465,9 +2466,9 @@ export default function GamingPlatformPage() {
                   </div>
                 </div>
               ) : (
-                <button key={p.code} onClick={() => setSelected(p.code)} title={p.display_name || p.name}
+                <button key={p.id} onClick={() => setSelectedId(p.id)} title={p.display_name || p.name}
                   className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold
-                    ${selected === p.code ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'}`}>
+                    ${selectedId === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'}`}>
                   <span className={`w-2 h-2 rounded-full ${STATUS_CFG[p.status]?.dot ?? 'bg-slate-400'}`} />
                 </button>
               ))}
@@ -2476,10 +2477,10 @@ export default function GamingPlatformPage() {
 
           {/* Right: Detail panel */}
           <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 overflow-hidden flex flex-col">
-            {selected && activeProvider ? (
+            {selectedId !== null && activeProvider ? (
               <ProviderDetail
-                key={selected}
-                code={selected}
+                key={selectedId}
+                id={selectedId}
                 onToast={showToast}
                 userRole={userRole}
               />
@@ -2494,11 +2495,11 @@ export default function GamingPlatformPage() {
 
       {showNewModal && (
         <NewProviderModal
-          onCreated={(code) => {
+          onCreated={(id, code) => {
             setShowNewModal(false);
             showToast(`Provider "${code}" 已创建，状态 DISABLED`, true);
             void loadProviders();
-            setSelected(code);
+            setSelectedId(id);
           }}
           onClose={() => setShowNewModal(false)}
         />
@@ -2506,34 +2507,35 @@ export default function GamingPlatformPage() {
 
       {duplicating && (
         <DuplicateModal
-          sourceCode={duplicating}
-          onDuplicated={(newCode) => {
+          sourceId={duplicating.id}
+          sourceCode={duplicating.code}
+          onDuplicated={(newId, newCode) => {
             setDuplicating(null);
             showToast(`已复制为 "${newCode}"（配置已复制，凭证需手动填写）`, true);
             void loadProviders();
-            setSelected(newCode);
+            setSelectedId(newId);
           }}
           onClose={() => setDuplicating(null)}
         />
       )}
 
-      {deletingCode && (
+      {deletingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">确认删除</h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              将永久删除 Provider <span className="font-mono font-bold">{deletingCode}</span> 及其所有配置。
+              将永久删除 Provider <span className="font-mono font-bold">{deletingProvider.code}</span> 及其所有配置。
               此操作不可撤销。
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-400">
               如果该 Provider 仍有关联游戏，删除将被拒绝。
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setDeletingCode(null)} disabled={deletingBusy}
+              <button onClick={() => setDeletingProvider(null)} disabled={deletingBusy}
                 className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
                 取消
               </button>
-              <button onClick={() => void handleDelete(deletingCode)} disabled={deletingBusy}
+              <button onClick={() => void handleDelete(deletingProvider.id, deletingProvider.code)} disabled={deletingBusy}
                 className="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5">
                 {deletingBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 {deletingBusy ? '删除中…' : '确认删除'}

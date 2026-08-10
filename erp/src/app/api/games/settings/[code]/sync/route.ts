@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
 import { createGamingPlatform } from '@/lib/providers';
 import type { GameListItem } from '@/lib/providers/types/game.types';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -20,15 +21,18 @@ export async function POST(_req: Request, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
 
   // ── 1. Find gp_providers record ───────────────────────────────────────────
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const upperCode = resolved.code;
+
   const { rows: provRows } = await pool.query<{
     id: number; code: string; display_name: string; status: string;
   }>(
-    `SELECT id, code, display_name, status FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+    `SELECT id, code, display_name, status FROM gp_providers WHERE id = $1`,
+    [resolved.id],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const provider = provRows[0];

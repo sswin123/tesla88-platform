@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -78,12 +79,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
+
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
 
   const { rows: provRows } = await pool.query<{ id: number; wallet_type: string }>(
-    `SELECT id, wallet_type FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+    `SELECT id, wallet_type FROM gp_providers WHERE id = $1`,
+    [resolved.id],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const providerId   = provRows[0].id;
@@ -134,8 +137,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
  *   { type: 'status', status }          — update brand_provider status
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
 
   const body = await req.json().catch(() => ({})) as {
     type?: 'credential' | 'config' | 'status';
@@ -149,9 +151,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const payload = await requirePermission(perm);
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const resolvedPatch = await resolveProvider(codeOrId);
+  if (!resolvedPatch) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const upperCode = resolvedPatch.code;
+
   const { rows: provRows } = await pool.query<{ id: number; wallet_type: string }>(
-    `SELECT id, wallet_type FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+    `SELECT id, wallet_type FROM gp_providers WHERE id = $1`,
+    [resolvedPatch.id],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const providerId   = provRows[0].id;

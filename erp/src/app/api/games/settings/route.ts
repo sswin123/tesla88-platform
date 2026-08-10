@@ -96,14 +96,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Provider code "${code}" already exists` }, { status: 409 });
   }
 
-  const { rows } = await pool.query<{ code: string }>(
+  const { rows } = await pool.query<{ id: number; code: string }>(
     `INSERT INTO gp_providers
        (code, name, display_name, version, priority, status, environment,
         wallet_type, capabilities, metadata)
      VALUES ($1,$2,$3,'1.0.0',$4,'DISABLED',$5,$6,$7,'{}')
-     RETURNING code`,
+     RETURNING id, code`,
     [code, name, displayName, priority, environment, walletType, JSON.stringify(capabilities)],
   );
 
-  return NextResponse.json({ ok: true, code: rows[0].code }, { status: 201 });
+  return NextResponse.json({ ok: true, id: rows[0].id, code: rows[0].code }, { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
 import { createGamingPlatform } from '@/lib/providers';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -27,17 +28,18 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
   const ip = getIp(req);
 
-  const { rows } = await pool.query<{ id: number; status: string }>(
-    `SELECT id, status FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
-  );
-  if (!rows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const prov = await resolveProvider(codeOrId);
+  if (!prov) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const { id: providerId, code: upperCode } = prov;
 
-  const { id: providerId, status } = rows[0];
+  const { rows } = await pool.query<{ status: string }>(
+    `SELECT status FROM gp_providers WHERE id = $1`,
+    [providerId],
+  );
+  const { status } = rows[0];
 
   // Mark adapter_loaded = false before reset (will be set true by next adapter init)
   await pool.query(

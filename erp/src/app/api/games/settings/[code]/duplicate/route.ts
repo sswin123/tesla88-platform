@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
+  const { code: codeOrId } = await params;
   const body = await req.json().catch(() => ({})) as {
     new_code?: unknown;
     new_name?: unknown;
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Fetch source provider
+  const resolvedSrc = await resolveProvider(codeOrId);
+  if (!resolvedSrc) return NextResponse.json({ error: 'Source provider not found' }, { status: 404 });
+
   const { rows: srcRows } = await pool.query<{
     id: number;
     name: string;
@@ -44,8 +48,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }>(
     `SELECT id, name, display_name, version, priority, environment,
             wallet_type, capabilities::text, metadata::text
-     FROM gp_providers WHERE code = $1`,
-    [code.toUpperCase()],
+     FROM gp_providers WHERE id = $1`,
+    [resolvedSrc.id],
   );
   if (srcRows.length === 0) {
     return NextResponse.json({ error: 'Source provider not found' }, { status: 404 });
@@ -131,7 +135,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await client.query('COMMIT');
     return NextResponse.json(
-      { ok: true, new_code: newRows[0].code, copied_credentials: credRows.map(r => r.key) },
+      { ok: true, new_id: newId, new_code: newRows[0].code, copied_credentials: credRows.map(r => r.key) },
       { status: 201 },
     );
   } catch (err) {

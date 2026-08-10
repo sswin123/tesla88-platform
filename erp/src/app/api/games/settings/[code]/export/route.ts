@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -16,13 +17,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Export requires game.credentials permission' }, { status: 401 });
   }
 
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
+
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const upperCode = resolved.code;
 
   const { rows: provRows } = await pool.query(
     `SELECT id, code, name, display_name, version, status, environment, wallet_type, updated_at
-     FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+     FROM gp_providers WHERE id = $1`,
+    [resolved.id],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const provider = provRows[0];

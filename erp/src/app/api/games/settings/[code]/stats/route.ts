@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -12,8 +13,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
-  const providerCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
+
+  // provider_callback_logs is keyed by code string; resolve id→code for numeric URLs
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const providerCode = resolved.code;
 
   // Per-action stats for today (last 24h)
   const { rows: byAction } = await pool.query(

@@ -95,7 +95,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
+  const { code: codeOrId } = await params;
+  const isNumericId = /^\d+$/.test(codeOrId);
 
   const { rows: provRows } = await pool.query(
     `SELECT id, code, name, display_name, version, status, environment,
@@ -105,8 +106,8 @@ export async function GET(req: NextRequest, { params }: Params) {
             website_visible, website_display_name, website_logo_url, website_banner_url,
             website_category, website_sort_order, website_is_hot, website_is_new,
             website_maintenance, website_launch_mode, website_display_mode, website_platforms
-     FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [code.toUpperCase()],
+     FROM gp_providers WHERE ${isNumericId ? 'id = $1' : 'code = $1 LIMIT 1'}`,
+    [isNumericId ? parseInt(codeOrId, 10) : codeOrId.toUpperCase()],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
 
@@ -186,8 +187,8 @@ export async function GET(req: NextRequest, { params }: Params) {
  *   - Credential changes:      game.credentials (SuperAdmin only by default)
  */
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const { code } = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
+  const isNumericId = /^\d+$/.test(codeOrId);
 
   const body = await req.json() as {
     type?: 'config' | 'credential' | 'website';
@@ -226,13 +227,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const adminUsername = payload.username;
   const adminId = payload.sub;
 
-  const { rows: provRows } = await pool.query<{ id: number; status: string }>(
-    `SELECT id, status FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+  const { rows: provRows } = await pool.query<{ id: number; code: string; status: string }>(
+    `SELECT id, code, status FROM gp_providers WHERE ${isNumericId ? 'id = $1' : 'code = $1 LIMIT 1'}`,
+    [isNumericId ? parseInt(codeOrId, 10) : codeOrId.toUpperCase()],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
 
-  const { id: providerId, status: currentStatus } = provRows[0];
+  const { id: providerId, code: upperCode, status: currentStatus } = provRows[0];
 
   // ── Status change ─────────────────────────────────────────────────────────
   if (body.provider_status !== undefined) {
@@ -386,11 +387,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
+  const { code: codeOrId } = await params;
+  const isNumericId = /^\d+$/.test(codeOrId);
 
   const { rows: provRows } = await pool.query<{ id: number; status: string }>(
-    `SELECT id, status FROM gp_providers WHERE code = $1`,
-    [code.toUpperCase()],
+    `SELECT id, status FROM gp_providers WHERE ${isNumericId ? 'id = $1' : 'code = $1'}`,
+    [isNumericId ? parseInt(codeOrId, 10) : codeOrId.toUpperCase()],
   );
   if (provRows.length === 0) {
     return NextResponse.json({ error: 'Provider not found' }, { status: 404 });

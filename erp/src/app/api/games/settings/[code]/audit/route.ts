@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/require_permission';
 import pool from '@/lib/db';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code } = await params;
+  const { code: codeOrId } = await params;
   const sp = req.nextUrl.searchParams;
 
   const page      = Math.max(1, parseInt(sp.get('page') ?? '1', 10));
@@ -30,11 +31,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const to        = sp.get('to') ?? null;
   const exportCsv = sp.get('export_csv') === '1';
 
-  const { rows: provRows } = await pool.query(
-    `SELECT id FROM gp_providers WHERE code = $1 LIMIT 1`, [code.toUpperCase()],
-  );
-  if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
-  const providerId = provRows[0].id;
+  const resolved = await resolveProvider(codeOrId);
+  if (!resolved) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const providerId = resolved.id;
 
   const conditions: string[] = [`provider_id = $1`];
   const args: (string | number)[] = [providerId];
@@ -62,7 +61,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return new NextResponse(header + lines.join('\n'), {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="audit_log_${code}_${Date.now()}.csv"`,
+        'Content-Disposition': `attachment; filename="audit_log_${resolved.code}_${Date.now()}.csv"`,
       },
     });
   }

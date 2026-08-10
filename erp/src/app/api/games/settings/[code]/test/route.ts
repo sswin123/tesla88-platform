@@ -5,6 +5,7 @@ import { Kiss918AuthService } from '@/lib/providers/adapters/kiss918/Kiss918Auth
 import { createGamingPlatform, ProviderRepository } from '@/lib/providers';
 import { ProviderRuntimeBuilder } from '@/lib/providers/core/ProviderRuntimeBuilder';
 import { providerRegistry } from '@/lib/services/provider-registry';
+import { resolveProvider } from '@/lib/games/resolve-provider';
 
 type Params = { params: Promise<{ code: string }> };
 
@@ -259,16 +260,19 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const payload = await requirePermission('game.manage');
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { code }  = await params;
-  const upperCode = code.toUpperCase();
+  const { code: codeOrId } = await params;
 
   // ── Step 1: Validate provider exists ─────────────────────────────────────
+  const resolvedProv = await resolveProvider(codeOrId);
+  if (!resolvedProv) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+  const upperCode = resolvedProv.code;
+
   const { rows: provRows } = await pool.query<{
     id: number; code: string; display_name: string; status: string; environment: string;
   }>(
     `SELECT id, code, display_name, status, environment
-     FROM gp_providers WHERE code = $1 LIMIT 1`,
-    [upperCode],
+     FROM gp_providers WHERE id = $1`,
+    [resolvedProv.id],
   );
   if (!provRows[0]) return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
   const provider = provRows[0];
