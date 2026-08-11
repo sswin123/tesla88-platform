@@ -77,6 +77,12 @@ async function handle(request: NextRequest, pathname: string): Promise<NextRespo
     return NextResponse.next();
   }
 
+  // Internal service-to-service Transfer In — called by the website, not the browser.
+  // Auth is handled inside the route handler via X-Service-Secret.
+  if (pathname === '/api/games/confirm-play' && request.method === 'POST') {
+    return NextResponse.next();
+  }
+
   // 918KISS Seamless Wallet callbacks — called by 918KISS servers, not ERP users.
   // Security is handled inside each handler via operatorToken validation.
   // Nginx additionally enforces IP whitelist before this middleware runs.
