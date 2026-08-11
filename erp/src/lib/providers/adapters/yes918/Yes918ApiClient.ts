@@ -99,22 +99,55 @@ export class Yes918ApiClient {
 
     const url = `${this.baseUrl}?${qs.toString()}`;
 
+    // Diagnostic: log sent param NAMES only — never log authcode / sign / secretKey values
+    const sentParamKeys = Object.keys(params).filter(k => !['authcode', 'sign', 'secretKey'].includes(k));
+    console.log(`[YES918-DIAG] → action=${String(params['action'])} sentParams=[${sentParamKeys.join(',')}] time=${time}`);
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    let res: Response;
+    let httpRes: Response;
     try {
-      res = await fetch(url, { method: 'GET', signal: controller.signal });
+      httpRes = await fetch(url, { method: 'GET', signal: controller.signal });
     } finally {
       clearTimeout(timer);
     }
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`YES918 HTTP ${res.status}: ${text.slice(0, 200)}`);
+    const httpStatus  = httpRes.status;
+    const contentType = httpRes.headers.get('content-type') ?? '(none)';
+
+    // Read body as TEXT first so we can log it before parsing
+    const rawBody    = await httpRes.text().catch(() => '');
+    const bodyPreview = rawBody.slice(0, 2000);
+
+    console.log(`[YES918-DIAG] ← HTTP ${httpStatus} | content-type: ${contentType} | body-length: ${rawBody.length}`);
+    console.log(`[YES918-DIAG] ← raw-body: ${bodyPreview}`);
+
+    if (!httpRes.ok) {
+      throw new Error(`YES918 HTTP ${httpStatus}: ${bodyPreview.slice(0, 200)}`);
     }
 
-    const data = (await res.json()) as T;
+    // Parse JSON from the already-consumed text body
+    let data: T;
+    try {
+      const parsed: unknown = JSON.parse(rawBody);
+      const parsedType = typeof parsed;
+      console.log(`[YES918-DIAG] ← typeof parsed: ${parsedType}`);
+      if (parsed !== null && parsedType === 'object' && !Array.isArray(parsed)) {
+        console.log(`[YES918-DIAG] ← Object.keys: [${Object.keys(parsed as object).join(', ')}]`);
+      } else if (parsedType === 'string') {
+        console.log(`[YES918-DIAG] ← parsed is string value (length=${(parsed as string).length})`);
+      } else if (parsedType === 'number') {
+        console.log(`[YES918-DIAG] ← parsed is number: ${parsed}`);
+      } else if (Array.isArray(parsed)) {
+        console.log(`[YES918-DIAG] ← parsed is array (length=${(parsed as unknown[]).length})`);
+      }
+      data = parsed as T;
+    } catch (e) {
+      throw new Error(
+        `YES918 JSON parse error for action=${String(params['action'])}: ${e instanceof Error ? e.message : String(e)}. Body: ${bodyPreview.slice(0, 200)}`,
+      );
+    }
 
     // code=-2 always means invalid signature — surface immediately
     if (data.code === YES918_ERROR.SIGN_ERROR) {
@@ -132,19 +165,40 @@ export class Yes918ApiClient {
    * Returns the generated player username.
    */
   async randomUserName(agentUsername: string): Promise<string> {
-    const res = await this.get<RandomUserNameResponse>(
+    const raw = await this.get<RandomUserNameResponse>(
       { action: YES918_ACTION.RANDOM_USERNAME, userName: agentUsername },
       agentUsername,
     );
 
-    if (!res.success && res.code !== YES918_ERROR.SUCCESS) {
-      throw new Error(`YES918 RandomUserName failed: code=${res.code} msg=${res.msg}`);
+    // Diagnostic: log exact shape of the parsed response
+    const rawType = typeof raw;
+    console.log(`[YES918-DIAG] randomUserName parsed type: ${rawType}`);
+    if (rawType === 'object' && raw !== null) {
+      console.log(`[YES918-DIAG] randomUserName keys: [${Object.keys(raw).join(', ')}]`);
+      console.log(`[YES918-DIAG] randomUserName .code=${raw.code} .success=${raw.success} .msg=${raw.msg} .userName=${raw.userName} .data=${raw.data}`);
+    } else {
+      // raw might be a plain string — YES918 may return the username directly
+      console.log(`[YES918-DIAG] randomUserName raw value: ${String(raw).slice(0, 100)}`);
+    }
+
+    // Handle plain-string response: some YES918 versions return the username directly
+    if (rawType === 'string') {
+      const direct = (raw as unknown as string).trim();
+      if (direct) {
+        console.log(`[YES918-DIAG] randomUserName: treating plain-string response as username`);
+        return direct;
+      }
+      throw new Error(`YES918 RandomUserName: plain-string response is empty.`);
+    }
+
+    if (!raw.success && raw.code !== YES918_ERROR.SUCCESS) {
+      throw new Error(`YES918 RandomUserName failed: code=${raw.code} msg=${raw.msg}`);
     }
 
     // Response field may be 'userName' or 'data' depending on version
-    const generated = res.userName ?? res.data ?? '';
+    const generated = raw.userName ?? raw.data ?? '';
     if (!generated) {
-      throw new Error(`YES918 RandomUserName: no username in response. code=${res.code} msg=${res.msg}`);
+      throw new Error(`YES918 RandomUserName: no username in response. code=${raw.code} msg=${raw.msg}`);
     }
     return generated;
   }
