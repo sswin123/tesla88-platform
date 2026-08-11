@@ -2,7 +2,7 @@
 export type DisplayStatus = 'ONLINE' | 'IDLE' | 'DISCONNECTED' | 'OFFLINE' | 'BREAK';
 
 const ONLINE_THRESHOLD_MS = 3 * 60_000;
-const IDLE_THRESHOLD_MS   = 10 * 60_000;
+export const IDLE_THRESHOLD_MS = 10 * 60_000;
 
 export interface ResolveDisplayStatusInput {
   storedStatus: string;

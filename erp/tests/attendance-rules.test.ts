@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAttendanceDate, resolveScheduledWindow, resolveAttendanceStatus } from '@/lib/attendance-rules';
+import { resolveAttendanceDate, resolveScheduledWindow, resolveAttendanceStatus, shouldFinalizeSessionAsTimeout } from '@/lib/attendance-rules';
+import { IDLE_THRESHOLD_MS } from '@/lib/staff-status';
 
 describe('resolveAttendanceDate', () => {
   it('1. Asia/Kuala_Lumpur — daytime instant resolves to the expected local calendar date', () => {
@@ -572,5 +573,86 @@ describe('resolveAttendanceStatus', () => {
     });
     expect(r.status).toBe('INCOMPLETE');
     expect(r.earlyLeaveMinutes).toBe(0);
+  });
+});
+
+describe('shouldFinalizeSessionAsTimeout', () => {
+  const NOW = '2026-08-11T12:00:00.000Z';
+  const minsAgo = (m: number) => new Date(new Date(NOW).getTime() - m * 60_000).toISOString();
+  const secsAgo = (s: number) => new Date(new Date(NOW).getTime() - s * 1_000).toISOString();
+
+  it('0. reuses Phase 1\'s exported IDLE_THRESHOLD_MS — confirms it is exactly 10 minutes, not a re-typed magic number', () => {
+    expect(IDLE_THRESHOLD_MS).toBe(10 * 60_000);
+  });
+
+  it('1. 9 minutes 59 seconds ago — not timed out', () => {
+    expect(shouldFinalizeSessionAsTimeout(secsAgo(9 * 60 + 59), NOW)).toBe(false);
+  });
+
+  it('2. exactly 10 minutes ago — not timed out (matches Phase 1 IDLE/DISCONNECTED boundary: <= threshold is not yet over)', () => {
+    expect(shouldFinalizeSessionAsTimeout(minsAgo(10), NOW)).toBe(false);
+  });
+
+  it('2b. exactly 10 minutes ago to the millisecond — still not timed out', () => {
+    const exactly10 = new Date(new Date(NOW).getTime() - IDLE_THRESHOLD_MS).toISOString();
+    expect(shouldFinalizeSessionAsTimeout(exactly10, NOW)).toBe(false);
+  });
+
+  it('3. 10 minutes 1 second ago — timed out', () => {
+    expect(shouldFinalizeSessionAsTimeout(secsAgo(10 * 60 + 1), NOW)).toBe(true);
+  });
+
+  it('3b. 10 minutes + 1 millisecond ago — timed out (millisecond precision, not rounded)', () => {
+    const justOver = new Date(new Date(NOW).getTime() - IDLE_THRESHOLD_MS - 1).toISOString();
+    expect(shouldFinalizeSessionAsTimeout(justOver, NOW)).toBe(true);
+  });
+
+  it('4. 20 minutes ago — timed out', () => {
+    expect(shouldFinalizeSessionAsTimeout(minsAgo(20), NOW)).toBe(true);
+  });
+
+  it('5. 5 hours ago — timed out', () => {
+    expect(shouldFinalizeSessionAsTimeout(minsAgo(5 * 60), NOW)).toBe(true);
+  });
+
+  it('6. a future lastActivityAt (clock skew) is never a timeout, and does not throw', () => {
+    expect(shouldFinalizeSessionAsTimeout(minsAgo(-1), NOW)).toBe(false);
+  });
+
+  it('7. null lastActivityAt (no heartbeat evidence at all) returns false — not automatically "10 minutes ago"', () => {
+    expect(shouldFinalizeSessionAsTimeout(null, NOW)).toBe(false);
+  });
+
+  it('8. invalid (unparseable) lastActivityAt throws explicitly, never silently compares as NaN', () => {
+    expect(() => shouldFinalizeSessionAsTimeout('not-a-timestamp', NOW)).toThrow(/invalid lastActivityAt/i);
+  });
+
+  it('8b. invalid (unparseable) now throws explicitly', () => {
+    expect(() => shouldFinalizeSessionAsTimeout(minsAgo(20), 'garbage')).toThrow(/invalid now/i);
+  });
+
+  it('9. zero elapsed time (lastActivityAt === now) is not timed out', () => {
+    expect(shouldFinalizeSessionAsTimeout(NOW, NOW)).toBe(false);
+  });
+
+  it('10. deterministic — repeated calls with the same input always return the same result', () => {
+    const a = shouldFinalizeSessionAsTimeout(minsAgo(20), NOW);
+    const b = shouldFinalizeSessionAsTimeout(minsAgo(20), NOW);
+    const c = shouldFinalizeSessionAsTimeout(minsAgo(20), NOW);
+    expect(a).toBe(true);
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+  });
+
+  it('11. millisecond-precision comparison is not affected by Math.round drift near the boundary', () => {
+    // 599_999ms elapsed (1ms under threshold) must be false; 600_001ms (1ms over) must be true.
+    const under = new Date(new Date(NOW).getTime() - (IDLE_THRESHOLD_MS - 1)).toISOString();
+    const over = new Date(new Date(NOW).getTime() - (IDLE_THRESHOLD_MS + 1)).toISOString();
+    expect(shouldFinalizeSessionAsTimeout(under, NOW)).toBe(false);
+    expect(shouldFinalizeSessionAsTimeout(over, NOW)).toBe(true);
+  });
+
+  it('12. exact threshold expressed directly in integer milliseconds matches IDLE_THRESHOLD_MS exactly', () => {
+    expect(IDLE_THRESHOLD_MS).toBe(600_000);
   });
 });

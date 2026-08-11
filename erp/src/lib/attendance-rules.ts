@@ -7,6 +7,7 @@
  * attendance-timezone.ts) themselves and pass plain values in — this
  * file must never import a repository, settings, or the DB pool.
  */
+import { IDLE_THRESHOLD_MS } from '@/lib/staff-status';
 
 /**
  * Calendar date (YYYY-MM-DD) that `instant` falls on, in the given IANA
@@ -255,4 +256,47 @@ export function resolveAttendanceStatus(input: ResolveAttendanceStatusInput): Re
   else status = 'PRESENT';
 
   return { status, lateMinutes, earlyLeaveMinutes };
+}
+
+/**
+ * Single decision point for lazy TIMEOUT finalization (spec §11/§23).
+ * Deliberately reuses Phase 1's exported IDLE_THRESHOLD_MS (10 minutes,
+ * the same boundary that already separates Live Monitor's IDLE from
+ * DISCONNECTED display status) rather than re-typing the magic number —
+ * see Task 5's BLOCKER/DECISION REQUIRED resolution: staff-status.ts's
+ * constant was exported (one-line, zero-behavior-change) specifically so
+ * Attendance and Live Monitor can never drift onto two different
+ * "10 minutes" definitions maintained separately.
+ *
+ * Pure and deterministic: both `lastActivityAt` and `now` are supplied by
+ * the caller — this function never reads the system clock itself, so
+ * lifecycle code (Task 7+) controls exactly what "now" means when it
+ * calls this (typically `new Date().toISOString()` at the call site, not
+ * inside this file).
+ *
+ * - null lastActivityAt (no heartbeat evidence at all) → false. Absence
+ *   of evidence is not evidence of a 10-minutes-ago heartbeat.
+ * - lastActivityAt in the future relative to now (clock skew) → false,
+ *   never throws — this is a plausible, non-exceptional runtime
+ *   condition, distinct from a genuinely malformed timestamp string.
+ * - unparseable timestamp strings throw explicitly — never silently
+ *   compared as NaN, which would otherwise make every comparison false
+ *   and hide a real bug behind an innocuous-looking "not timed out".
+ */
+export function shouldFinalizeSessionAsTimeout(lastActivityAt: string | null, now: string): boolean {
+  if (lastActivityAt === null) return false;
+
+  const lastActivityMs = new Date(lastActivityAt).getTime();
+  if (isNaN(lastActivityMs)) {
+    throw new Error(`shouldFinalizeSessionAsTimeout: invalid lastActivityAt: ${lastActivityAt}`);
+  }
+  const nowMs = new Date(now).getTime();
+  if (isNaN(nowMs)) {
+    throw new Error(`shouldFinalizeSessionAsTimeout: invalid now: ${now}`);
+  }
+
+  const elapsedMs = nowMs - lastActivityMs;
+  if (elapsedMs < 0) return false; // future timestamp / clock skew — not a timeout
+
+  return elapsedMs > IDLE_THRESHOLD_MS;
 }
