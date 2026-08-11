@@ -11,6 +11,7 @@ interface MegaAppDialogState {
   launchUrl:          string;
   downloadUrlAndroid: string | null;
   downloadUrlIos:     string | null;
+  confirmRefId:       string | null;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -530,6 +531,7 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         let downloadUrlAndroid: string | null = null;
         let downloadUrlIos: string | null = null;
 
+        let confirmRefId: string | null = null;
         if (d.session_token) {
           try {
             const tok = JSON.parse(d.session_token) as Record<string, unknown>;
@@ -537,6 +539,7 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
             password           = String(tok['password']             ?? '');
             downloadUrlAndroid = tok['download_url_android'] ? String(tok['download_url_android']) : null;
             downloadUrlIos     = tok['download_url_ios']     ? String(tok['download_url_ios'])     : null;
+            confirmRefId       = tok['confirm_ref_id']       ? String(tok['confirm_ref_id'])       : null;
           } catch { /* fall through to URL parse */ }
         }
 
@@ -550,7 +553,7 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         }
 
         if (loginId && password) {
-          setMegaAppDialog({ loginId, password, launchUrl: d.launch_url, downloadUrlAndroid, downloadUrlIos });
+          setMegaAppDialog({ loginId, password, launchUrl: d.launch_url, downloadUrlAndroid, downloadUrlIos, confirmRefId });
           return;
         }
       }
@@ -657,6 +660,8 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         launchUrl={megaAppDialog.launchUrl}
         downloadUrlAndroid={megaAppDialog.downloadUrlAndroid}
         downloadUrlIos={megaAppDialog.downloadUrlIos}
+        providerCode="MEGAAPP"
+        confirmRefId={megaAppDialog.confirmRefId}
         onClose={() => setMegaAppDialog(null)}
       />
     )}

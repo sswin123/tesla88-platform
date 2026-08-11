@@ -21,7 +21,15 @@ const txRepo = new TransactionRepository();
  *   { user_id, provider_code, game_code?, lobby_return_url? }
  *
  * Response:
- *   { ok: true, launch_url, provider_code, launch_mode }
+ *   { ok: true, launch_url, provider_code, launch_mode, session_token }
+ *
+ * For TRANSFER wallet providers (MEGAAPP, YES918):
+ *   - autoWithdrawAll runs here to recover any stranded provider balance.
+ *   - Transfer In (deduct + topUp) is NOT performed here.
+ *   - Transfer In is deferred to POST /api/games/confirm-play, which is
+ *     triggered when the member clicks "Main Sekarang" in the dialog.
+ *   - session_token includes confirm_ref_id (UUID) as the idempotency key
+ *     for confirm-play.
  *
  * Runtime source: ProviderRuntimeBuilder is the single source of truth for
  * all provider adapters, credentials, config, and metadata.
@@ -243,10 +251,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 5. Transfer Wallet: autoWithdrawAll (consolidate) + Transfer In ─────────
+  // session_token output — for TRANSFER wallet providers, confirm_ref_id is injected
+  // below so that confirm-play can use it as an idempotency key.
+  let sessionTokenOut: string | null = launchResult.session_token ?? null;
+
+  // ── 5. Transfer Wallet: autoWithdrawAll (consolidate stranded balance) ─────
   // Architecture:
   //   Step A — autoWithdrawAll: recover any remaining provider balance → wallet
-  //   Step B — Transfer In: move ALL wallet balance → provider
+  //   Transfer In is deferred to POST /api/games/confirm-play.
+  //   confirm-play is triggered when the member clicks "Main Sekarang" in the
+  //   App dialog, ensuring wallet deduction only happens on confirmed intent.
   // Login Callback: authentication only, never touches wallet.
   // Refresh Button: Transfer Out only (member-wallet-sync route).
   if (walletType === 'TRANSFER') {
@@ -336,12 +350,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // ── Inject confirm_ref_id (idempotency key for confirm-play) ────────────
+      // This UUID ties this dialog session to a single Transfer In in confirm-play.
+      // Done here so YES918 (503 path) also receives it for future use.
+      if (launchResult.session_token) {
+        try {
+          const tok = JSON.parse(launchResult.session_token) as Record<string, unknown>;
+          tok['confirm_ref_id'] = randomUUID();
+          sessionTokenOut = JSON.stringify(tok);
+        } catch { /* use original token */ }
+      }
+
       // ── Launch readiness check (TRANSFER providers only) ─────────────────
       // autoWithdrawAll has already recovered any prior provider balance above.
-      // Only proceed with Transfer In if the adapter produced a usable launch
-      // URL — an empty launch_url means the provider is not yet configured for
-      // web/app launch. Performing a new Transfer In would leave the member's
-      // wallet at 0 with no way to enter the game.
+      // Only proceed if the adapter produced a usable launch URL — an empty
+      // launch_url means the provider is not yet configured for web/app launch.
+      // Transfer In is intentionally NOT performed here (it lives in confirm-play).
       if (!launchResult.launch_url) {
         void GamingActivityService.record({
           memberId:     user_id,
@@ -350,180 +374,17 @@ export async function POST(req: NextRequest) {
           traceId:      launchTraceId,
           operatorType: 'MEMBER',
           operatorId:   user_id,
-          metadata:     { error: 'launch_url empty — Transfer In blocked, no game entry possible' },
+          metadata:     { error: 'launch_url empty — no game entry possible' },
         });
         return NextResponse.json(
-          { error: `${upperCode} 游戏启动尚未配置，请联系客服。` },
+          { error: `${upperCode} 游戏启动尚未配置，请联系客服。`, session_token: sessionTokenOut },
           { status: 503 },
         );
-      }
-
-      // ── Step B: read fresh balance (includes any recovered amount) ─────────
-      const { rows: balRows } = await pool.query<{ available_balance: string }>(
-        `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,
-        [user_id],
-      );
-      const balance = parseFloat(balRows[0]?.available_balance ?? '0');
-      console.log(`[games/launch] Transfer In: userId=${user_id} balance=${balance} loginId="${loginId}"`);
-
-      if (balance > 0) {
-        const refId = `${upperCode}UP-${user_id}-${ts}`;
-        let deductOk  = false;
-        let deductWtRow: Awaited<ReturnType<typeof adjustWallet>> | null = null;
-
-        const deductClient = await pool.connect();
-        try {
-          await deductClient.query('BEGIN');
-          deductWtRow = await adjustWallet(deductClient, {
-            userId:          user_id,
-            type:            'PAYMENT_GATEWAY',
-            direction:       'D',
-            amount:          balance,
-            gateway:         upperCode,
-            referenceNumber: refId,
-            remark:          `[${upperCode}] Transfer In`,
-            operatorAdminId: SYSTEM_ADMIN_ID,
-          });
-          await deductClient.query('COMMIT');
-          deductOk = true;
-          const balBefore = parseFloat(deductWtRow.balance_before);
-          const balAfter  = parseFloat(deductWtRow.balance_after);
-          console.log(`[games/launch] ✓ deduction: ${balBefore} → ${balAfter}`);
-
-          await txRepo.create({
-            provider:       upperCode,
-            transaction_id: deductWtRow.id,
-            reference_id:   refId,
-            type:           'FUND_REQUEST',
-            status:         'PENDING',
-            user_id:        user_id,
-            user_public_id: playerRecord.provider_account_id,
-            amount:         balance,
-            currency:       'MYR',
-            before_balance: balBefore,
-            after_balance:  balAfter,
-            metadata:       { trigger: 'PLAY_BUTTON', step: 'DEDUCT' },
-          }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
-        } catch (err) {
-          await deductClient.query('ROLLBACK').catch(() => undefined);
-          console.error(`[games/launch] ✗ deduction failed:`, err);
-        } finally {
-          deductClient.release();
-        }
-
-        if (deductOk && deductWtRow) {
-          const deductBalBefore = parseFloat(deductWtRow.balance_before);
-          const deductBalAfter  = parseFloat(deductWtRow.balance_after);
-          let topUpOk    = false;
-          let topUpError = '';
-
-          try {
-            for (let attempt = 1; attempt <= 3; attempt++) {
-              try {
-                console.log(`[games/launch] topUp attempt ${attempt}/3 loginId="${loginId}" amount=${balance}`);
-                const topUpResult = await xferAdapter.topUp({
-                  provider_player_id: loginId,
-                  amount:             balance,
-                  reference_id:       refId,
-                  currency:           'MYR',
-                });
-                topUpOk = true;
-                console.log(`[games/launch] ✓ topUp SUCCESS: provider balance=${topUpResult.balance}`);
-
-                await txRepo.create({
-                  provider:       upperCode,
-                  transaction_id: randomUUID(),
-                  reference_id:   refId,
-                  type:           'FUND_REQUEST',
-                  status:         'SUCCESS',
-                  user_id:        user_id,
-                  user_public_id: playerRecord.provider_account_id,
-                  amount:         balance,
-                  currency:       'MYR',
-                  before_balance: deductBalBefore,
-                  after_balance:  topUpResult.balance,
-                  metadata:       { trigger: 'PLAY_BUTTON', step: 'TOPUP', provider_balance: topUpResult.balance },
-                }).catch(e => console.warn('[games/launch] provider_transactions write failed:', e));
-
-                // AFTER COMMIT — Transfer In success
-                void GamingActivityService.record({
-                  memberId:      user_id,
-                  providerCode:  upperCode,
-                  eventType:     GamingEventType.TransferIn,
-                  traceId:       launchTraceId,
-                  amount:        balance,
-                  balanceBefore: deductBalBefore,
-                  balanceAfter:  deductBalAfter,
-                  referenceType: 'wallet_transaction',
-                  referenceId:   parseInt(deductWtRow.id, 10) || null,
-                  operatorType:  'MEMBER',
-                  operatorId:    user_id,
-                  metadata:      { ref_id: refId, trigger: 'PLAY_BUTTON' },
-                });
-                break;
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                console.error(`[games/launch] topUp attempt ${attempt} FAILED: ${msg}`);
-                if (msg.includes('37153') && attempt < 3) {
-                  await new Promise(r => setTimeout(r, 3000 * attempt));
-                  continue;
-                }
-                topUpError = msg;
-                throw err;
-              }
-            }
-          } catch (err) {
-            const errMsg = topUpError || (err instanceof Error ? err.message : String(err));
-            console.error(`[games/launch] ✗ topUp FAILED — rolling back userId=${user_id} amount=${balance}`);
-
-            const rbClient = await pool.connect();
-            try {
-              await rbClient.query('BEGIN');
-              const rbWtRow = await adjustWallet(rbClient, {
-                userId:          user_id,
-                type:            'CORRECTION',
-                direction:       'C',
-                amount:          balance,
-                gateway:         upperCode,
-                referenceNumber: `${upperCode}UP-ROLLBACK-${user_id}-${ts}`,
-                remark:          `[${upperCode}] Rollback`,
-                operatorAdminId: SYSTEM_ADMIN_ID,
-              });
-              await rbClient.query('COMMIT');
-              console.log(`[games/launch] ✓ rollback complete: balance restored to ${parseFloat(rbWtRow.balance_after)}`);
-
-              // AFTER COMMIT — Transfer Rollback
-              void GamingActivityService.record({
-                memberId:      user_id,
-                providerCode:  upperCode,
-                eventType:     GamingEventType.TransferRollback,
-                traceId:       launchTraceId,
-                amount:        balance,
-                balanceBefore: parseFloat(rbWtRow.balance_before),
-                balanceAfter:  parseFloat(rbWtRow.balance_after),
-                referenceType: 'wallet_transaction',
-                referenceId:   parseInt(rbWtRow.id, 10) || null,
-                operatorType:  'SYSTEM',
-                operatorId:    SYSTEM_ADMIN_ID,
-                metadata:      { error: errMsg.slice(0, 255), original_ref: refId },
-              });
-            } catch (rbErr) {
-              await rbClient.query('ROLLBACK').catch(() => undefined);
-              console.error(`[games/launch] ✗✗ CRITICAL: rollback FAILED userId=${user_id} amount=${balance} — MANUAL INTERVENTION REQUIRED: missing ${balance} MYR`);
-            } finally {
-              rbClient.release();
-            }
-          }
-
-          if (!topUpOk) {
-            console.warn(`[games/launch] Transfer In FAILED: userId=${user_id} amount=${balance} refId=${refId}`);
-          }
-        }
       }
     }
   }
 
-  // Record launch success — URL generated and all Transfer operations attempted
+  // Record launch success — credentials ready; Transfer In will follow in confirm-play
   void GamingActivityService.record({
     memberId:     user_id,
     providerCode: upperCode,
@@ -537,7 +398,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok:            true,
     launch_url:    launchResult.launch_url,
-    session_token: launchResult.session_token ?? null,
+    session_token: sessionTokenOut,
     provider_code: upperCode,
     launch_mode:   gpWebsiteLaunchMode ?? 'LOBBY',
   });

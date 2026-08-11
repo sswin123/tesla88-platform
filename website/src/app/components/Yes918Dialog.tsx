@@ -1,15 +1,14 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-interface MegaAppDialogProps {
-  loginId:             string | null;  // null while credentials are loading
-  password:            string | null;  // null while credentials are loading
-  launchUrl:           string | null;  // null while loading; disables "Main Sekarang"
-  downloadUrlAndroid:  string | null;
-  downloadUrlIos:      string | null;
-  providerCode:        string;         // e.g. 'MEGAAPP'
-  confirmRefId:        string | null;  // UUID from session_token; null while loading
-  onClose:             () => void;
+interface Yes918DialogProps {
+  loginId:            string | null;  // null while credentials are loading
+  password:           string | null;  // null while credentials are loading
+  launchUrl:          string | null;  // null = loading; '' = no deeplink yet; non-empty = deeplink ready
+  downloadUrlAndroid: string | null;
+  downloadUrlIos:     string | null;
+  confirmRefId:       string | null;  // UUID from session_token; reserved for when official deeplink is confirmed
+  onClose:            () => void;
 }
 
 function detectDownloadUrl(android: string | null, ios: string | null): string | null {
@@ -56,23 +55,24 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function MegaAppDialog({
+export function Yes918Dialog({
   loginId,
   password,
   launchUrl,
   downloadUrlAndroid,
   downloadUrlIos,
-  providerCode,
-  confirmRefId,
+  confirmRefId: _confirmRefId,  // reserved — will be used when official YES918 deeplink is configured
   onClose,
-}: MegaAppDialogProps) {
-  const isLoading   = loginId === null || password === null || launchUrl === null || confirmRefId === null;
+}: Yes918DialogProps) {
+  // isLoading is true only while any field is null (initial loading state).
+  // launchUrl='' (no deeplink yet) is NOT loading — credentials are ready.
+  const isLoading   = loginId === null || password === null || launchUrl === null;
+  const hasDeeplink = !!launchUrl;   // false when '' (no official deeplink yet)
   const downloadUrl = detectDownloadUrl(downloadUrlAndroid, downloadUrlIos);
   const [launching, setLaunching]                   = useState(false);
-  const [confirmError, setConfirmError]             = useState<string | null>(null);
   const [showAppNotDetected, setShowAppNotDetected] = useState(false);
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const leftRef   = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leftRef  = useRef(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -91,9 +91,11 @@ export function MegaAppDialog({
     };
   }, []);
 
-  // Navigate to the deeplink and start the app-detection timer.
-  // Called only after confirm-play (Transfer In) has succeeded.
-  const navigateToApp = (url: string) => {
+  // Try to open the 918KISS app via deeplink.
+  // If the page is still visible after 1200 ms the app was not detected.
+  const handlePlay = () => {
+    if (launching || !launchUrl) return;
+    setLaunching(true);
     leftRef.current = false;
 
     const markLeft   = () => { leftRef.current = true; };
@@ -103,7 +105,7 @@ export function MegaAppDialog({
     window.addEventListener('blur',             markLeft,    { once: true });
     window.addEventListener('visibilitychange', onVisChange);
 
-    window.location.href = url;
+    window.location.href = launchUrl;
 
     timerRef.current = setTimeout(() => {
       window.removeEventListener('pagehide',         markLeft);
@@ -112,49 +114,13 @@ export function MegaAppDialog({
       setLaunching(false);
 
       if (!leftRef.current) {
-        // App did not open — show "not detected" modal and auto-redirect to download
+        // App did not open — show overlay and auto-redirect to download after 3 s
         setShowAppNotDetected(true);
         if (downloadUrl) {
           setTimeout(() => { window.location.href = downloadUrl; }, 3000);
         }
       }
     }, 1200);
-  };
-
-  // MAIN SEKARANG handler.
-  // Flow: confirm-play API (Transfer In) → success → navigate to deeplink.
-  // The button is disabled while loading or while a previous click is in flight.
-  const handlePlay = async () => {
-    if (launching || isLoading || !launchUrl || !confirmRefId) return;
-    setLaunching(true);
-    setConfirmError(null);
-
-    try {
-      const res = await fetch('/api/public/games/confirm-play', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ provider_code: providerCode, confirm_ref_id: confirmRefId }),
-      });
-
-      if (res.status === 401) {
-        window.location.href = '/login';
-        return;
-      }
-
-      const data = await res.json() as { ok?: boolean; error?: string };
-
-      if (!res.ok || !data.ok) {
-        setConfirmError(data.error ?? '游戏充值失败，请稍后再试');
-        setLaunching(false);
-        return;
-      }
-
-      // Transfer In succeeded — navigate to deeplink
-      navigateToApp(launchUrl);
-    } catch {
-      setConfirmError('网络错误，请稍后再试');
-      setLaunching(false);
-    }
   };
 
   return (
@@ -179,7 +145,7 @@ export function MegaAppDialog({
           >
             <div className="text-4xl mb-3">📱</div>
             <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>
-              MEGA888 App not detected.
+              918KISS App not detected.
             </h4>
             <p className="text-sm mb-5" style={{ color: 'var(--text-muted, #aaa)', lineHeight: 1.6 }}>
               Please download the app first.
@@ -211,7 +177,7 @@ export function MegaAppDialog({
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
         role="dialog"
         aria-modal="true"
-        aria-label="MEGA888 游戏凭证"
+        aria-label="918KISS 游戏凭证"
       >
         {/* Backdrop */}
         <div
@@ -221,12 +187,16 @@ export function MegaAppDialog({
           aria-hidden="true"
         />
 
-        {/* Dialog */}
+        {/* Dialog card */}
         <div
           className="relative w-full max-w-sm rounded-3xl px-6 pt-6 pb-8 overflow-y-auto"
-          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)', zIndex: 1, maxHeight: '90dvh' }}
+          style={{
+            background:  'var(--bg-card, var(--bg-surface, #1a1b2e))',
+            border:      '1px solid var(--border-mid)',
+            zIndex:      1,
+            maxHeight:   '90dvh',
+          }}
         >
-
           {/* Close button */}
           <button
             onClick={onClose}
@@ -239,31 +209,24 @@ export function MegaAppDialog({
 
           {/* Title */}
           <div className="text-center mb-5">
-            <h3
-              className="text-xl font-bold mb-1"
-              style={{ color: 'var(--text-base, #fff)' }}
-            >
-              MEGA888
+            <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--text-base, #fff)' }}>
+              918KISS
             </h3>
-            <p
-              className="text-xs"
-              style={{ color: 'var(--text-muted, #888)' }}
-            >
-              Sila Muat Turun MEGA888 Untuk Main
+            <p className="text-xs" style={{ color: 'var(--text-muted, #888)' }}>
+              Sila Muat Turun 918KISS Untuk Main
             </p>
           </div>
 
           {/* Credential rows */}
           <div className="flex flex-col gap-3 mb-5">
-            {/* Username */}
+
+            {/* Login ID */}
             <div
               className="flex items-center gap-3 px-4 py-3 rounded-xl"
               style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
-                  Login ID
-                </p>
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>Login ID</p>
                 {loginId === null ? (
                   <div className="h-4 w-28 rounded animate-pulse" style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.12))' }} />
                 ) : (
@@ -284,9 +247,7 @@ export function MegaAppDialog({
               style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.06))' }}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>
-                  Password
-                </p>
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted, #888)' }}>Password</p>
                 {password === null ? (
                   <div className="h-4 w-24 rounded animate-pulse" style={{ background: 'var(--bg-surface2, rgba(255,255,255,0.12))' }} />
                 ) : (
@@ -302,18 +263,10 @@ export function MegaAppDialog({
             </div>
           </div>
 
-          {/* confirm-play error (shown when Transfer In fails) */}
-          {confirmError && (
-            <div
-              className="mb-4 px-3 py-2.5 rounded-xl text-xs text-center"
-              style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
-            >
-              {confirmError}
-            </div>
-          )}
-
           {/* Action buttons */}
           <div className="flex gap-3">
+
+            {/* Muat Turun — active when download URL is configured in Provider Registry */}
             {downloadUrl ? (
               <a
                 href={downloadUrl}
@@ -339,17 +292,23 @@ export function MegaAppDialog({
                 Muat Turun
               </span>
             )}
+
+            {/* Main Sekarang — active only when an official deeplink is configured.
+                Remains disabled (with muted style) until YES918 official deeplink is confirmed. */}
             <button
-              onClick={() => void handlePlay()}
-              disabled={isLoading || launching}
+              onClick={hasDeeplink ? handlePlay : undefined}
+              disabled={isLoading || launching || !hasDeeplink}
+              title={!hasDeeplink ? '918KISS App 启动链接尚未配置，敬请期待' : undefined}
               className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
               style={{
                 background: 'transparent',
-                color:      (isLoading || launching) ? 'var(--text-muted, #aaa)' : 'var(--text-base, #fff)',
-                border:     (isLoading || launching)
+                color:      (isLoading || launching || !hasDeeplink)
+                  ? 'var(--text-muted, #aaa)'
+                  : 'var(--text-base, #fff)',
+                border:     (isLoading || launching || !hasDeeplink)
                   ? '2px solid var(--bg-surface2, rgba(255,255,255,0.2))'
                   : '2px solid var(--text-base, rgba(255,255,255,0.6))',
-                cursor: (isLoading || launching) ? 'not-allowed' : 'pointer',
+                cursor:     (isLoading || launching || !hasDeeplink) ? 'not-allowed' : 'pointer',
               }}
             >
               {isLoading ? (
@@ -357,15 +316,7 @@ export function MegaAppDialog({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-              ) : launching ? (
-                <span className="flex items-center justify-center gap-1.5">
-                  <svg className="inline w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  处理中…
-                </span>
-              ) : 'Main Sekarang'}
+              ) : launching ? '…' : 'Main Sekarang'}
             </button>
           </div>
         </div>
