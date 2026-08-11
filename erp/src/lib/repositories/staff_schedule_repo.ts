@@ -586,7 +586,16 @@ export async function updateOverride(id: number, patch: UpdateOverrideInput): Pr
  * once this function exists).
  */
 
-export type ScheduleSourceType = 'OVERRIDE' | 'ASSIGNMENT' | 'NONE';
+/**
+ * Matches staff_attendance.schedule_source_type exactly (migration 094
+ * CHECK constraint: `IN ('TEMPLATE','OVERRIDE')`, spec §18: "标识来自
+ * Template 还是 Override，及其 id"). The Assignment-resolved case is
+ * labeled TEMPLATE — Assignment is just the staff↔Template link with an
+ * effective date range; the schedule VALUES (and the audit-traceable
+ * source, per spec §18) come from the Template, so sourceId below is the
+ * Template's id, not the Assignment's.
+ */
+export type ScheduleSourceType = 'OVERRIDE' | 'TEMPLATE' | 'NONE';
 
 export interface EffectiveSchedule {
   sourceType: ScheduleSourceType;
@@ -620,7 +629,7 @@ function toHourMinute(time: string): string {
 }
 
 interface AssignmentTemplateRow {
-  assignment_id: number;
+  template_id: number;
   start_time: string;
   end_time: string;
   late_grace_minutes: number;
@@ -674,7 +683,7 @@ export async function getEffectiveSchedule(staffId: number, attendanceDate: stri
   // than one row is treated as a data-integrity violation, not silently
   // resolved by picking one.
   const assignmentResult = await pool.query<AssignmentTemplateRow>(
-    `SELECT a.id AS assignment_id, t.start_time::text AS start_time, t.end_time::text AS end_time,
+    `SELECT t.id AS template_id, t.start_time::text AS start_time, t.end_time::text AS end_time,
             t.late_grace_minutes
        FROM staff_schedule_assignments a
        JOIN staff_schedule_templates t ON t.id = a.template_id
@@ -702,7 +711,7 @@ export async function getEffectiveSchedule(staffId: number, attendanceDate: stri
       timezone,
     });
     return {
-      sourceType: 'ASSIGNMENT', sourceId: assignment.assignment_id, isRestDay: false,
+      sourceType: 'TEMPLATE', sourceId: assignment.template_id, isRestDay: false,
       scheduledStart: window.scheduledStartAt, scheduledEnd: window.scheduledEndAt, isOvernight: window.isOvernight,
       lateGraceMinutes: assignment.late_grace_minutes,
     };

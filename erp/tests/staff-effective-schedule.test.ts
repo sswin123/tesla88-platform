@@ -139,13 +139,13 @@ describe('getEffectiveSchedule — D. Override takes priority over Assignment', 
   });
 });
 
-describe('getEffectiveSchedule — E/F/G/H/I/J/K/P. Assignment', () => {
-  it('E/F/P: an Assignment on a matching working day resolves via its Template, using the Template\'s late_grace_minutes', async () => {
+describe('getEffectiveSchedule — E/F/G/H/I/J/K/P. Assignment (resolves to sourceType=TEMPLATE, spec §18)', () => {
+  it('E/F/P: an Assignment on a matching working day resolves via its Template — sourceType/sourceId identify the TEMPLATE (spec §18: "标识来自 Template 还是 Override，及其 id"), not the Assignment row', async () => {
     mockNoOverride();
-    mockAssignment({ assignment_id: 30, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
+    mockAssignment({ assignment_id: 30, template_id: 99, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
     const result = await getEffectiveSchedule(5, '2026-08-17');
-    expect(result.sourceType).toBe('ASSIGNMENT');
-    expect(result.sourceId).toBe(30);
+    expect(result.sourceType).toBe('TEMPLATE');
+    expect(result.sourceId).toBe(99); // the Template's id, NOT the Assignment's id (30)
     expect(result.lateGraceMinutes).toBe(5);
     expect(resolveScheduledWindow).toHaveBeenCalledWith(
       expect.objectContaining({ scheduledStart: '09:00', scheduledEnd: '18:00' })
@@ -161,7 +161,7 @@ describe('getEffectiveSchedule — E/F/G/H/I/J/K/P. Assignment', () => {
 
   it('H/I/J: boundary and open-ended semantics are enforced entirely by the SQL WHERE clause (live-verified against real Postgres — see commit message), the repository just forwards the row it gets', async () => {
     mockNoOverride();
-    mockAssignment({ assignment_id: 31, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
+    mockAssignment({ assignment_id: 31, template_id: 100, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
     const [, params] = await (async () => {
       const result = await getEffectiveSchedule(5, '2026-08-01');
       return [result, vi.mocked(pool.query).mock.calls[1] as unknown as [string, unknown[]]];
@@ -183,7 +183,7 @@ describe('getEffectiveSchedule — E/F/G/H/I/J/K/P. Assignment', () => {
 
   it('N: an overnight Assignment Template is passed through resolveScheduledWindow() unchanged', async () => {
     mockNoOverride();
-    mockAssignment({ assignment_id: 32, start_time: '22:00:00', end_time: '06:00:00', late_grace_minutes: 5 });
+    mockAssignment({ assignment_id: 32, template_id: 101, start_time: '22:00:00', end_time: '06:00:00', late_grace_minutes: 5 });
     const result = await getEffectiveSchedule(5, '2026-08-17');
     expect(result.isOvernight).toBe(true);
     expect(resolveScheduledWindow).toHaveBeenCalledWith(
@@ -195,8 +195,8 @@ describe('getEffectiveSchedule — E/F/G/H/I/J/K/P. Assignment', () => {
     mockNoOverride();
     vi.mocked(pool.query).mockResolvedValueOnce({
       rows: [
-        { assignment_id: 40, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 },
-        { assignment_id: 41, start_time: '10:00:00', end_time: '19:00:00', late_grace_minutes: 5 },
+        { assignment_id: 40, template_id: 200, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 },
+        { assignment_id: 41, template_id: 201, start_time: '10:00:00', end_time: '19:00:00', late_grace_minutes: 5 },
       ],
     } as never);
     await expect(getEffectiveSchedule(5, '2026-08-17')).rejects.toThrow(/data integrity/);
@@ -244,7 +244,7 @@ describe('getEffectiveSchedule — invalid input', () => {
 describe('getEffectiveSchedule — X/Y. single source of truth for timezone/window math', () => {
   it('X: getAttendanceTimezone() is the only timezone source — no direct system_settings read, no second cache', async () => {
     mockNoOverride();
-    mockAssignment({ assignment_id: 50, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
+    mockAssignment({ assignment_id: 50, template_id: 102, start_time: '09:00:00', end_time: '18:00:00', late_grace_minutes: 5 });
     await getEffectiveSchedule(5, '2026-08-17');
     expect(getAttendanceTimezone).toHaveBeenCalledTimes(1);
   });
