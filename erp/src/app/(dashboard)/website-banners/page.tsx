@@ -60,11 +60,11 @@ function MediaCard({
 
   return (
     <div>
-      <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
 
       {hasMedia ? (
         <div
-          className="relative rounded-lg overflow-hidden border-2 border-gray-200 bg-black cursor-pointer group"
+          className="relative rounded-lg overflow-hidden border-2 border-border bg-black cursor-pointer group"
           style={{ height: 100 }}
           onClick={onPickClick}
           title="点击更换媒体"
@@ -87,7 +87,7 @@ function MediaCard({
         <button
           type="button"
           onClick={onPickClick}
-          className="w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-blue-400 hover:text-blue-500 bg-gray-50 hover:bg-blue-50 transition-colors"
+          className="w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-blue-400 hover:text-blue-500 bg-muted hover:bg-blue-50 transition-colors"
           style={{ height: 100 }}
         >
           <Plus className="w-5 h-5" />
@@ -105,7 +105,7 @@ function MediaCard({
         </button>
       )}
 
-      <p className="mt-1.5 text-[10px] text-gray-400">{hint}</p>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -215,7 +215,7 @@ export default function WebsiteBannersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400 text-sm">加载中…</div>
+        <div className="text-muted-foreground text-sm">加载中…</div>
       </div>
     );
   }
@@ -228,8 +228,8 @@ export default function WebsiteBannersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">横幅轮播管理</h1>
-          <p className="text-sm text-gray-500 mt-0.5">管理首页横幅图片，更改后立即生效</p>
+          <h1 className="text-xl font-bold text-foreground">横幅轮播管理</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">管理首页横幅图片，更改后立即生效</p>
         </div>
         <button
           onClick={addSlide}
@@ -240,9 +240,9 @@ export default function WebsiteBannersPage() {
       </div>
 
       {/* Global settings */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-wrap gap-5 items-center">
+      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-5 items-center">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">自动播放间隔（毫秒）</label>
+          <label className="block text-xs text-muted-foreground mb-1">自动播放间隔（毫秒）</label>
           <input
             type="text"
             inputMode="numeric"
@@ -293,22 +293,23 @@ export default function WebsiteBannersPage() {
           className="border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 py-16 cursor-pointer hover:border-blue-400 transition-colors"
           onClick={addSlide}
         >
-          <Plus className="w-8 h-8 text-gray-300" />
-          <p className="text-sm text-gray-400">暂无横幅，点击添加第一张</p>
+          <Plus className="w-8 h-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">暂无横幅，点击添加第一张</p>
         </div>
       ) : (
         <div className="space-y-4">
           {slides.map((slide, idx) => (
-            <div key={slide.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <div key={slide.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
 
               {/* Slide header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-muted border-b border-border">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">横幅 {idx + 1}</span>
+                  <span className="text-sm font-semibold text-foreground">横幅 {idx + 1}</span>
                   {!slide.desktop_media_url && (
                     <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">缺少桌面图片</span>
                   )}
                   {!slide.enabled && (
+                    // KEEP: disabled badge (rule 8) — gray signals "hidden" state
                     <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">已隐藏</span>
                   )}
                 </div>
@@ -317,23 +318,24 @@ export default function WebsiteBannersPage() {
                     type="button"
                     onClick={() => moveSlide(idx, 'up')}
                     disabled={idx === 0}
-                    className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+                    className="p-1.5 rounded hover:bg-muted disabled:opacity-30 transition-colors"
                     title="上移"
                   >
-                    <ChevronUp className="w-4 h-4 text-gray-500" />
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button
                     type="button"
                     onClick={() => moveSlide(idx, 'down')}
                     disabled={idx === slides.length - 1}
-                    className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+                    className="p-1.5 rounded hover:bg-muted disabled:opacity-30 transition-colors"
                     title="下移"
                   >
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <button
                     type="button"
                     onClick={() => updateSlide(slide.id, { enabled: !slide.enabled })}
+                    // KEEP: business status eye toggle (rule 6) — text-gray-300 signals "disabled/hidden"
                     className={`p-1.5 rounded transition-colors ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-gray-100'}`}
                     title={slide.enabled ? '已显示（点击隐藏）' : '已隐藏（点击显示）'}
                   >
@@ -378,37 +380,37 @@ export default function WebsiteBannersPage() {
                 {/* Text fields */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-gray-400 mb-0.5">标题（可选）</label>
+                    <label className="block text-[10px] text-muted-foreground mb-0.5">标题（可选）</label>
                     <input
                       placeholder="横幅标题"
-                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-muted focus:bg-background focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.title}
                       onChange={e => updateSlide(slide.id, { title: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-gray-400 mb-0.5">副标题（可选）</label>
+                    <label className="block text-[10px] text-muted-foreground mb-0.5">副标题（可选）</label>
                     <input
                       placeholder="横幅副标题"
-                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-muted focus:bg-background focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.subtitle}
                       onChange={e => updateSlide(slide.id, { subtitle: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-gray-400 mb-0.5">按钮文字（可选）</label>
+                    <label className="block text-[10px] text-muted-foreground mb-0.5">按钮文字（可选）</label>
                     <input
                       placeholder="例：立即游戏"
-                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-muted focus:bg-background focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.button_text}
                       onChange={e => updateSlide(slide.id, { button_text: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-gray-400 mb-0.5">按钮链接（可选）</label>
+                    <label className="block text-[10px] text-muted-foreground mb-0.5">按钮链接（可选）</label>
                     <input
                       placeholder="例：/promotions"
-                      className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-muted focus:bg-background focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.button_url}
                       onChange={e => updateSlide(slide.id, { button_url: e.target.value })}
                     />

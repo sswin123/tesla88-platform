@@ -15,7 +15,7 @@ export default function TimelineItem({ item, isLast }: Props) {
       {/* Dot + vertical connector line */}
       <div className="flex flex-col items-center shrink-0">
         <div className={`w-2.5 h-2.5 rounded-full mt-0.5 ${timelineDotClass(item.event)}`} />
-        {!isLast && <div className="w-px flex-1 bg-gray-200 mt-1 min-h-[16px]" />}
+        {!isLast && <div className="w-px flex-1 bg-border mt-1 min-h-[16px]" />}
       </div>
 
       {/* Content */}
@@ -23,10 +23,10 @@ export default function TimelineItem({ item, isLast }: Props) {
         <TimelineEventBadge event={item.event} />
 
         {item.description && (
-          <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
         )}
 
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {item.adminName && (
             <>
               <span>{item.adminName}</span>

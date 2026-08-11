@@ -60,7 +60,7 @@ export function NotesPanel({ sessionId }: { sessionId: number }) {
           📝 Internal Notes
         </p>
 
-        {loading && <p className="text-xs text-gray-400">Loading…</p>}
+        {loading && <p className="text-xs text-muted-foreground">Loading…</p>}
 
         <div className="space-y-2 max-h-48 overflow-y-auto mb-2">
           {notes.map((n) => (
@@ -98,7 +98,7 @@ export function NotesPanel({ sessionId }: { sessionId: number }) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Add a note… (supports **bold**, *italic*, `code`)"
-          className="w-full rounded border border-yellow-300 bg-white px-2 py-1.5 text-xs resize-none h-16 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+          className="w-full rounded border border-yellow-300 bg-background px-2 py-1.5 text-xs resize-none h-16 focus:outline-none focus:ring-1 focus:ring-yellow-400"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void handleAdd();
           }}

@@ -215,7 +215,7 @@ export default function BotSettingsPage() {
     setTimeout(() => { void loadHealth(); setRestarting(false); }, 6000);
   };
 
-  if (loading) return <div className="p-8 text-gray-400 animate-pulse">Loading…</div>;
+  if (loading) return <div className="p-8 text-muted-foreground animate-pulse">Loading…</div>;
 
   const relay    = health?.checks.bot_relay;
   const db       = health?.checks.database;
@@ -235,8 +235,8 @@ export default function BotSettingsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Telegram Bot</h1>
-          <p className="mt-1 text-sm text-gray-500">Bot configuration, relay settings, and notification preferences.</p>
+          <h1 className="text-2xl font-bold text-foreground">Telegram Bot</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Bot configuration, relay settings, and notification preferences.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -249,7 +249,7 @@ export default function BotSettingsPage() {
           <button
             onClick={() => void reload()}
             disabled={saving === 'reload'}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted disabled:opacity-50"
           >
             {saving === 'reload' ? 'Reloading…' : 'Reload Config'}
           </button>
@@ -264,70 +264,70 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Health Dashboard */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">System Health</h2>
-          <span className="text-xs text-gray-400">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted flex items-center justify-between">
+          <h2 className="text-base font-semibold text-foreground">System Health</h2>
+          <span className="text-xs text-muted-foreground">
             {health ? `Updated ${new Date(health.timestamp).toLocaleTimeString()}` : 'Loading…'}
           </span>
         </div>
         <div className="px-6 py-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {/* Telegram */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Telegram</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Telegram</p>
             {telegram ? (
               <>
                 <Badge ok={telegram.ok} sub={telegram.latency_ms ? `${telegram.latency_ms}ms` : undefined} />
-                {telegram.username && <p className="text-xs text-gray-500">{telegram.username}</p>}
+                {telegram.username && <p className="text-xs text-muted-foreground">{telegram.username}</p>}
                 {telegram.error && <p className="text-xs text-red-500 truncate">{telegram.error}</p>}
               </>
             ) : (
-              <span className="text-xs text-gray-400">{relay?.ok ? 'Checking…' : 'Unavailable'}</span>
+              <span className="text-xs text-muted-foreground">{relay?.ok ? 'Checking…' : 'Unavailable'}</span>
             )}
           </div>
           {/* Relay */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Relay</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Relay</p>
             {relay ? (
               <>
                 <Badge ok={relay.ok} sub={relay.latency_ms ? `${relay.latency_ms}ms` : undefined} />
                 {relay.ok && relay.uptime_seconds != null && (
-                  <p className="text-xs text-gray-500">Up {uptime(relay.uptime_seconds)}</p>
+                  <p className="text-xs text-muted-foreground">Up {uptime(relay.uptime_seconds)}</p>
                 )}
-                {relay.version && <p className="text-xs text-gray-400">v{relay.version}</p>}
+                {relay.version && <p className="text-xs text-muted-foreground">v{relay.version}</p>}
                 {relay.error && <p className="text-xs text-red-500 truncate">{relay.error}</p>}
               </>
             ) : (
-              <span className="text-xs text-gray-400">Checking…</span>
+              <span className="text-xs text-muted-foreground">Checking…</span>
             )}
           </div>
           {/* Database */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Database</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Database</p>
             {db ? (
               <>
                 <Badge ok={db.ok} sub={db.latency_ms ? `${db.latency_ms}ms` : undefined} />
                 {db.error && <p className="text-xs text-red-500 truncate">{db.error}</p>}
               </>
             ) : (
-              <span className="text-xs text-gray-400">Checking…</span>
+              <span className="text-xs text-muted-foreground">Checking…</span>
             )}
           </div>
           {/* ERP */}
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">ERP</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ERP</p>
             <Badge ok={true} />
-            <p className="text-xs text-gray-400">This instance</p>
+            <p className="text-xs text-muted-foreground">This instance</p>
           </div>
         </div>
       </div>
 
       {/* Bot Identity */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-800">Bot Identity</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted flex items-center justify-between">
+          <h2 className="text-base font-semibold text-foreground">Bot Identity</h2>
           {lastSynced && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               Last synced {new Date(lastSynced).toLocaleString()}
             </span>
           )}
@@ -335,35 +335,35 @@ export default function BotSettingsPage() {
         <div className="px-6 py-4 space-y-4">
           {/* Token — always read-only */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Bot Token</label>
             <input
               readOnly
               value={env.bot_token_masked}
-              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
-            <p className="mt-1 text-xs text-gray-400">Change in .env and redeploy to update the bot token.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Change in .env and redeploy to update the bot token.</p>
           </div>
 
           {/* Username — read-only */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Username</label>
             <input
               readOnly
               value={settings['bot_username'] ? `@${settings['bot_username']}` : ''}
               placeholder="@your_bot"
-              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
-            <p className="mt-1 text-xs text-gray-400">Username can only be changed in BotFather.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Username can only be changed in BotFather.</p>
           </div>
 
           {/* Bot ID — read-only */}
           {settings['bot_id'] && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bot ID</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Bot ID</label>
               <input
                 readOnly
                 value={settings['bot_id']}
-                className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+                className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
               />
             </div>
           )}
@@ -377,18 +377,18 @@ export default function BotSettingsPage() {
             ['support_chat_id',       'Support Group ID',    '0 (0 = disabled)'],
           ] as const).map(([key, label, placeholder]) => (
             <div key={key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{label}</label>
               <input
                 type="text"
                 value={settings[key] ?? ''}
                 placeholder={placeholder}
                 onChange={(e) => set(key, e.target.value)}
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           ))}
         </div>
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-muted flex justify-end">
           <SaveBtn
             busy={saving === 'identity'}
             onClick={() => void save('identity', ['bot_name', 'bot_description', 'bot_short_description', 'bot_language', 'support_chat_id'])}
@@ -397,9 +397,9 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Bot Avatar */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Bot Avatar</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">Bot Avatar</h2>
         </div>
         <div className="px-6 py-4 space-y-4">
           {avatarMediaId && (
@@ -408,14 +408,14 @@ export default function BotSettingsPage() {
               <img
                 src={`/api/media/${avatarMediaId}/thumbnail`}
                 alt="Bot avatar"
-                className="h-16 w-16 rounded-full object-cover border border-gray-200"
+                className="h-16 w-16 rounded-full object-cover border border-border"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
-              <span className="text-sm text-gray-500">Current avatar (media #{avatarMediaId})</span>
+              <span className="text-sm text-muted-foreground">Current avatar (media #{avatarMediaId})</span>
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Upload New Avatar</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Upload New Avatar</label>
             <input
               ref={avatarInputRef}
               type="file"
@@ -425,9 +425,9 @@ export default function BotSettingsPage() {
                 const file = e.target.files?.[0];
                 if (file) void uploadAvatar(file);
               }}
-              className="block text-sm text-gray-600 file:mr-4 file:rounded-md file:border file:border-gray-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-50 disabled:opacity-50"
+              className="block text-sm text-muted-foreground file:mr-4 file:rounded-md file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted disabled:opacity-50"
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               JPG or PNG only. Stored in Media Library.
               To update the actual Telegram profile photo, use BotFather.
             </p>
@@ -436,27 +436,27 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Relay Configuration */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Relay Configuration</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">Relay Configuration</h2>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Relay URL (from environment)</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Relay URL (from environment)</label>
             <input
               readOnly
               value={env.relay_url}
-              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Relay URL Override</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Relay URL Override</label>
             <input
               readOnly
               value={settings['bot_relay_url'] ?? ''}
-              className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
             />
-            <p className="mt-1 text-xs text-gray-400">ERP routes always use <code>BOT_RELAY_URL</code> from environment. This field is stored for future use.</p>
+            <p className="mt-1 text-xs text-muted-foreground">ERP routes always use <code>BOT_RELAY_URL</code> from environment. This field is stored for future use.</p>
           </div>
           {([
             ['relay_timeout_secs',     'Timeout (seconds)',     '30'],
@@ -464,19 +464,19 @@ export default function BotSettingsPage() {
             ['relay_retry_delay_secs', 'Retry Delay (seconds)', '1'],
           ] as const).map(([key, label, placeholder]) => (
             <div key={key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{label} <span className="text-gray-400 font-normal">(future use)</span></label>
+              <label className="block text-sm font-medium text-foreground mb-1">{label} <span className="text-muted-foreground font-normal">(future use)</span></label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={settings[key] ?? ''}
                 placeholder={placeholder}
                 onChange={(e) => set(key, e.target.value)}
-                className="block w-32 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="block w-32 rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           ))}
         </div>
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-muted flex justify-end">
           <SaveBtn
             busy={saving === 'relay'}
             onClick={() => void save('relay', ['bot_relay_url', 'relay_timeout_secs', 'relay_retry_count', 'relay_retry_delay_secs'])}
@@ -485,18 +485,18 @@ export default function BotSettingsPage() {
       </div>
 
       {/* Notification Switches */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Notification Switches</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Control which events trigger Telegram messages to customers.</p>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">Notification Switches</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">Control which events trigger Telegram messages to customers.</p>
         </div>
         <div className="px-6 py-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {NOTIFY.map(({ key, label }) => (
             <label
               key={key}
-              className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-4 py-3 cursor-pointer hover:bg-gray-50"
+              className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 cursor-pointer hover:bg-muted"
             >
-              <span className="text-sm font-medium text-gray-700">{label}</span>
+              <span className="text-sm font-medium text-foreground">{label}</span>
               <button
                 type="button"
                 role="switch"
@@ -511,7 +511,7 @@ export default function BotSettingsPage() {
             </label>
           ))}
         </div>
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-muted flex justify-end">
           <SaveBtn
             busy={saving === 'notifications'}
             onClick={() => void save('notifications', NOTIFY.map((n) => n.key))}

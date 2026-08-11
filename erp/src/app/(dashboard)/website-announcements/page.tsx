@@ -51,6 +51,7 @@ function announcementToForm(a: WebsiteAnnouncement): FormState {
 function StatusBadge({ item }: { item: WebsiteAnnouncement }) {
   const now = new Date();
   if (!item.is_active)
+    // KEEP: disabled/stopped badge (rule 8/9) — gray signals "deactivated" business status
     return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">已停用</span>;
   if (item.start_at && new Date(item.start_at) > now)
     return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">未开始</span>;
@@ -175,7 +176,7 @@ export default function WebsiteAnnouncementsPage() {
 
       {/* ── Create / Edit Form ── */}
       {showForm && (
-        <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
+        <div className="mb-6 bg-card border border-border rounded-xl p-5">
           <h2 className="text-base font-semibold mb-4">
             {editId ? 'Edit Announcement' : 'New Announcement'}
           </h2>
@@ -183,31 +184,31 @@ export default function WebsiteAnnouncementsPage() {
             <div className="grid grid-cols-2 gap-4">
               {/* Title */}
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Title *</label>
                 <input
                   value={form.title} onChange={e => setField('title', e.target.value)}
-                  required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  required className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="Announcement title"
                 />
               </div>
 
               {/* Message */}
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Message *</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Message *</label>
                 <textarea
                   value={form.message} onChange={e => setField('message', e.target.value)}
-                  required rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  required rows={2} className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="Announcement text shown in ticker"
                 />
               </div>
 
               {/* Type */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Type</label>
                 <select
                   value={form.type}
                   onChange={e => setField('type', e.target.value as 'info' | 'promotion' | 'warning')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 >
                   <option value="info">📢 Info</option>
                   <option value="promotion">🎁 Promotion</option>
@@ -217,21 +218,21 @@ export default function WebsiteAnnouncementsPage() {
 
               {/* Link URL */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Link URL (optional)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Link URL (optional)</label>
                 <input
                   value={form.link_url} onChange={e => setField('link_url', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="/promotions"
                 />
               </div>
 
               {/* Display order */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Display Order</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Display Order</label>
                 <input
                   type="text" inputMode="numeric" value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
 
@@ -239,25 +240,25 @@ export default function WebsiteAnnouncementsPage() {
               <div className="flex items-center gap-2 pt-5">
                 <input type="checkbox" id="is_active" checked={form.is_active}
                   onChange={e => setField('is_active', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300" />
-                <label htmlFor="is_active" className="text-sm font-medium text-gray-700">Active</label>
+                  className="h-4 w-4 rounded border-border" />
+                <label htmlFor="is_active" className="text-sm font-medium text-foreground">Active</label>
               </div>
 
               {/* Date scheduling */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Start At (optional)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Start At (optional)</label>
                 <input
                   type="datetime-local" value={form.start_at}
                   onChange={e => setField('start_at', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">End At (optional)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">End At (optional)</label>
                 <input
                   type="datetime-local" value={form.end_at}
                   onChange={e => setField('end_at', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -271,7 +272,7 @@ export default function WebsiteAnnouncementsPage() {
               </button>
               <button
                 type="button" onClick={cancelForm}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
@@ -283,25 +284,25 @@ export default function WebsiteAnnouncementsPage() {
       {/* ── Announcement List ── */}
       <div className="space-y-3">
         {items.length === 0 && (
-          <div className="text-center py-12 text-gray-500 text-sm">
+          <div className="text-center py-12 text-muted-foreground text-sm">
             No announcements yet. Click &quot;+ New Announcement&quot; to create one.
           </div>
         )}
         {items.map((a, idx) => (
-          <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-4">
+          <div key={a.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-4">
 
             {/* Reorder */}
             <div className="flex flex-col gap-1 shrink-0">
               <button
                 disabled={idx === 0}
                 onClick={() => reorder(a, -1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20"
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
                 title="Move up"
               >▲</button>
               <button
                 disabled={idx === items.length - 1}
                 onClick={() => reorder(a, 1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20"
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
                 title="Move down"
               >▼</button>
             </div>
@@ -310,18 +311,18 @@ export default function WebsiteAnnouncementsPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <StatusBadge item={a} />
-                <span className={`inline-block px-2 py-0.5 text-xs rounded-full border ${TYPE_COLORS[a.type] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                <span className={`inline-block px-2 py-0.5 text-xs rounded-full border ${TYPE_COLORS[a.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                   {TYPE_LABELS[a.type] ?? a.type}
                 </span>
-                <span className="text-xs text-gray-400">#{a.display_order}</span>
+                <span className="text-xs text-muted-foreground">#{a.display_order}</span>
               </div>
-              <p className="font-semibold text-sm text-gray-900">{a.title}</p>
-              <p className="text-xs text-gray-600 mt-0.5 truncate">{a.message}</p>
+              <p className="font-semibold text-sm text-foreground">{a.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{a.message}</p>
               {a.link_url && (
                 <p className="text-xs text-blue-600 mt-0.5 truncate">{a.link_url}</p>
               )}
               {(a.start_at || a.end_at) && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {a.start_at ? `From: ${new Date(a.start_at).toLocaleString()}` : ''}
                   {a.start_at && a.end_at ? ' — ' : ''}
                   {a.end_at ? `Until: ${new Date(a.end_at).toLocaleString()}` : ''}
@@ -336,6 +337,7 @@ export default function WebsiteAnnouncementsPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   a.is_active
                     ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                    // KEEP: business status toggle inactive state (rule 6) — gray signals "deactivated"
                     : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                 }`}
               >
@@ -343,7 +345,7 @@ export default function WebsiteAnnouncementsPage() {
               </button>
               <button
                 onClick={() => startEdit(a)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 hover:bg-gray-50"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted"
               >
                 Edit
               </button>

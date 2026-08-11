@@ -61,11 +61,11 @@ export default function ChangePasswordPage() {
 
   if (success) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <CheckCircle className="mx-auto text-green-500 mb-4" size={48} />
-          <h2 className="text-xl font-semibold text-gray-900">Password Changed</h2>
-          <p className="text-gray-500 mt-1 text-sm">Redirecting to login…</p>
+          <h2 className="text-xl font-semibold text-foreground">Password Changed</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Redirecting to login…</p>
         </div>
       </div>
     );
@@ -74,42 +74,42 @@ export default function ChangePasswordPage() {
   return (
     <div className="p-4 sm:p-6 max-w-lg mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Change Password</h1>
+        <h1 className="text-2xl font-bold text-foreground">Change Password</h1>
         {me && (
-          <p className="text-sm text-gray-500 mt-1">
-            Account: <span className="font-medium text-gray-700">{me.username}</span>
+          <p className="text-sm text-muted-foreground mt-1">
+            Account: <span className="font-medium text-foreground">{me.username}</span>
             <span className="ml-2 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{me.role}</span>
           </p>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg bg-blue-50">
             <KeyRound size={20} className="text-blue-600" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Update Password</h2>
-            <p className="text-xs text-gray-500">You will be logged out after changing your password</p>
+            <h2 className="text-sm font-semibold text-foreground">Update Password</h2>
+            <p className="text-xs text-muted-foreground">You will be logged out after changing your password</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Current Password</label>
             <input
               type="password"
               required
               autoComplete="current-password"
               value={form.current_password}
               onChange={e => setForm(f => ({ ...f, current_password: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label className="block text-sm font-medium text-foreground mb-1">New Password</label>
             <input
               type="password"
               required
@@ -117,14 +117,14 @@ export default function ChangePasswordPage() {
               minLength={8}
               value={form.new_password}
               onChange={e => setForm(f => ({ ...f, new_password: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"
             />
-            <p className="text-xs text-gray-400 mt-1">Minimum 8 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">Minimum 8 characters</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Confirm New Password</label>
             <input
               type="password"
               required
@@ -134,7 +134,7 @@ export default function ChangePasswordPage() {
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 form.confirm_password && form.new_password !== form.confirm_password
                   ? 'border-red-300 bg-red-50'
-                  : 'border-gray-300'
+                  : 'border-border'
               }`}
               placeholder="••••••••"
             />

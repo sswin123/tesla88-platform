@@ -27,7 +27,7 @@ export default function LiveMonitorPage() {
   const staff = useStaffMonitorStream(initial);
 
   if (checking) {
-    return <div className="flex h-64 items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <div className="flex h-64 items-center justify-center text-muted-foreground text-sm">Loading…</div>;
   }
   if (denied) {
     return <div className="flex h-64 items-center justify-center text-red-400 text-sm">403 — You don&apos;t have permission to view this page.</div>;
@@ -37,7 +37,7 @@ export default function LiveMonitorPage() {
     <div className="space-y-6 pb-8">
       <h1 className="text-2xl font-bold">Live Monitor</h1>
       {!loaded ? (
-        <p className="text-xs text-gray-400">Loading staff…</p>
+        <p className="text-xs text-muted-foreground">Loading staff…</p>
       ) : loadError ? (
         <div className="flex h-64 items-center justify-center text-red-400 text-sm">
           Failed to load staff monitor. Refresh to try again.

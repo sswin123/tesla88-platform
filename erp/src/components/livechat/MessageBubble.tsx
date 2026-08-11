@@ -45,7 +45,7 @@ function QuoteBlock({
         'border-l-2 rounded-r px-2 py-1 mb-2 text-xs',
         isAgentBubble
           ? 'border-white/40 bg-white/10 text-white/75'
-          : 'border-blue-400 bg-blue-50 text-gray-600'
+          : 'border-blue-400 bg-blue-50 text-muted-foreground'
       )}
     >
       <p className={cn('font-semibold text-[10px] mb-0.5', isAgentBubble ? 'text-white/60' : 'text-blue-500')}>
@@ -205,13 +205,13 @@ export function MessageBubble({
     return (
       <div className="flex justify-center group">
         <div className="flex items-center gap-1">
-          <div className="max-w-sm rounded-full bg-gray-100 text-gray-500 text-xs px-3 py-1.5 text-center">
+          <div className="max-w-sm rounded-full bg-muted text-muted-foreground text-xs px-3 py-1.5 text-center">
             {msg.content}
           </div>
           {onReply && (
             <button
               onClick={(e) => { e.stopPropagation(); onReply(msg); }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-blue-400 text-base px-1 flex-shrink-0"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-blue-400 text-base px-1 flex-shrink-0"
               title="Reply"
             >
               ↩
@@ -228,7 +228,7 @@ export function MessageBubble({
       {onReply && (
         <button
           onClick={(e) => { e.stopPropagation(); onReply(msg); }}
-          className="self-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-blue-400 text-base px-1 flex-shrink-0"
+          className="self-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-blue-400 text-base px-1 flex-shrink-0"
           title="Reply"
         >
           ↩
@@ -240,7 +240,7 @@ export function MessageBubble({
           'max-w-sm rounded-2xl px-4 py-2 text-sm shadow-sm',
           isAgent
             ? 'bg-blue-500 text-white rounded-tr-none'
-            : 'bg-white text-gray-800 rounded-tl-none border',
+            : 'bg-card text-foreground rounded-tl-none border',
         )}
       >
         {/* Quote block — shown when this message is a reply */}
@@ -253,7 +253,7 @@ export function MessageBubble({
         )}
 
         {!isAgent && senderName && (
-          <p className="mb-1 text-xs font-semibold text-gray-500">{senderName}</p>
+          <p className="mb-1 text-xs font-semibold text-muted-foreground">{senderName}</p>
         )}
         <MediaContent msg={msg} onPhotoClick={onPhotoClick} />
         <p className={cn('mt-1 text-right text-xs opacity-70')}>

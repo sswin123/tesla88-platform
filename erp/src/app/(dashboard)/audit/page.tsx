@@ -56,11 +56,11 @@ export default function AuditPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-muted text-muted-foreground">
               <tr>
                 {['Time', 'Admin', 'Action', 'Type', 'Target ID', 'Details'].map((h) => (
                   <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -69,8 +69,8 @@ export default function AuditPage() {
             </thead>
             <tbody className="divide-y">
               {logs.map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                <tr key={l.id} className="hover:bg-muted">
+                  <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                     {new Date(l.created_at).toLocaleString()}
                   </td>
                   <td className="px-3 py-2">{l.admin_username ?? `#${l.admin_id}`}</td>
@@ -79,16 +79,16 @@ export default function AuditPage() {
                       {l.action}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2 text-gray-500">{l.target_type}</td>
-                  <td className="px-3 py-2 text-gray-500">{l.target_id ?? '—'}</td>
-                  <td className="px-3 py-2 max-w-xs truncate text-xs font-mono text-gray-500">
+                  <td className="px-3 py-2 text-muted-foreground">{l.target_type}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{l.target_id ?? '—'}</td>
+                  <td className="px-3 py-2 max-w-xs truncate text-xs font-mono text-muted-foreground">
                     {l.new_value ? JSON.stringify(l.new_value) : '—'}
                   </td>
                 </tr>
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-gray-400">No audit logs yet.</td>
+                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No audit logs yet.</td>
                 </tr>
               )}
             </tbody>
@@ -96,7 +96,7 @@ export default function AuditPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>Total: {total}</span>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>

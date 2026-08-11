@@ -61,8 +61,8 @@ export function SessionCard({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-gray-50',
-        isActive && 'bg-blue-50 border-l-2 border-blue-500',
+        'flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-muted',
+        isActive && 'bg-blue-500/10 border-l-2 border-blue-500',
       )}
     >
       <Avatar name={name} />
@@ -78,12 +78,12 @@ export function SessionCard({
                   ? `@${session.telegram_username}`
                   : `UID ${session.user_id}`}
           </span>
-          <span className="flex-shrink-0 text-xs text-gray-400">
+          <span className="flex-shrink-0 text-xs text-muted-foreground">
             {timeAgo(session.last_message_at)}
           </span>
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
-          <span className="truncate text-xs text-gray-500">
+          <span className="truncate text-xs text-muted-foreground">
             {name}
           </span>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -99,7 +99,7 @@ export function SessionCard({
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 mt-1">
-          <p className="truncate text-xs text-gray-400">{preview}</p>
+          <p className="truncate text-xs text-muted-foreground">{preview}</p>
           {session.erp_unread_count > 0 && (
             <span className="flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
               {session.erp_unread_count > 99 ? '99+' : session.erp_unread_count}

@@ -35,21 +35,21 @@ function ServiceCard({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700">{name}</span>
+        <span className="text-sm font-medium text-foreground">{name}</span>
         {loading ? (
-          <span className="text-xs text-gray-400">检查中…</span>
+          <span className="text-xs text-muted-foreground">检查中…</span>
         ) : status ? (
           <StatusBadge ok={status.ok} />
         ) : (
-          <span className="text-xs text-gray-300">—</span>
+          <span className="text-xs text-muted-foreground">—</span>
         )}
       </div>
       {!loading && status && (
         <div className="mt-2 space-y-0.5">
-          <p className="text-xs text-gray-500">
-            响应时间: <span className="font-mono font-medium text-gray-700">{status.latency_ms} ms</span>
+          <p className="text-xs text-muted-foreground">
+            响应时间: <span className="font-mono font-medium text-foreground">{status.latency_ms} ms</span>
           </p>
           {status.error && (
             <p className="text-xs text-red-500 break-all">{status.error}</p>
@@ -105,9 +105,9 @@ export default function SystemHealthPage() {
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">系统健康监控</h1>
+          <h1 className="text-2xl font-bold text-foreground">系统健康监控</h1>
           {health && (
-            <p className="mt-0.5 text-xs text-gray-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               版本 {health.version}
             </p>
           )}
@@ -122,7 +122,7 @@ export default function SystemHealthPage() {
       </div>
 
       {lastChecked && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted-foreground">
           上次检查: {lastChecked.toLocaleString('zh-CN')}　每30秒自动刷新
         </p>
       )}
@@ -134,8 +134,8 @@ export default function SystemHealthPage() {
       </div>
 
       {health && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="text-xs text-gray-500">
+        <div className="rounded-lg border border-border bg-muted p-4">
+          <p className="text-xs text-muted-foreground">
             检查时间: {new Date(health.timestamp).toLocaleString('zh-CN')}
           </p>
         </div>

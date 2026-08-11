@@ -41,7 +41,7 @@ function fmt(n: string) { return `RM ${parseFloat(n).toFixed(2)}`; }
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
     </div>
   );
@@ -50,10 +50,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-md rounded-lg bg-card shadow-xl">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
         </div>
         <div className="p-4">{children}</div>
       </div>
@@ -345,8 +345,8 @@ export default function MemberDetailPage() {
     }
   }
 
-  if (loading) return <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>;
-  if (!data)   return <div className="flex h-40 items-center justify-center text-gray-400">{loadError || 'Member not found.'}</div>;
+  if (loading) return <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>;
+  if (!data)   return <div className="flex h-40 items-center justify-center text-muted-foreground">{loadError || 'Member not found.'}</div>;
 
   const { member, accounts, deposits, withdrawals, bonuses } = data;
   const referralCode     = (member as unknown as Record<string, string>).referral_code ?? null;
@@ -365,15 +365,15 @@ export default function MemberDetailPage() {
               ⚠️ 修改将完整记录至审计日志
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">银行名称</label>
-              <select className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+              <label className="block text-sm text-muted-foreground mb-1">银行名称</label>
+              <select className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-background"
                 value={bankForm.bank_name} onChange={e => setBankForm(p => ({ ...p, bank_name: e.target.value }))}>
                 <option value="">请选择银行</option>
                 {MALAYSIA_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">账号（仅限数字）</label>
+              <label className="block text-sm text-muted-foreground mb-1">账号（仅限数字）</label>
               <input className="w-full rounded border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                 inputMode="numeric" value={bankForm.bank_account}
                 onChange={e => setBankForm(p => ({ ...p, bank_account: stripNonDigits(e.target.value) }))}
@@ -381,12 +381,12 @@ export default function MemberDetailPage() {
               {bankForm.bank_account && (() => { const err = validateBankAccount(bankForm.bank_account); return err ? <p className="mt-1 text-xs text-red-500">{err}</p> : null; })()}
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">持卡人姓名</label>
+              <label className="block text-sm text-muted-foreground mb-1">持卡人姓名</label>
               <input className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 value={bankForm.bank_holder_name} onChange={e => setBankForm(p => ({ ...p, bank_holder_name: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">修改原因 <span className="text-red-500">*</span></label>
+              <label className="block text-sm text-muted-foreground mb-1">修改原因 <span className="text-red-500">*</span></label>
               <textarea className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" rows={2}
                 placeholder="例：会员申请更换银行，已核实身份证明"
                 value={bankForm.reason} onChange={e => setBankForm(p => ({ ...p, reason: e.target.value }))} />
@@ -417,7 +417,7 @@ export default function MemberDetailPage() {
         <Modal title={`编辑游戏账号 — ${editingGame.provider}`} onClose={() => setEditingGame(null)}>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">游戏账号用户名</label>
+              <label className="block text-sm text-muted-foreground mb-1">游戏账号用户名</label>
               <input className="w-full rounded border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300"
                 value={gameUsername} onChange={e => setGameUsername(e.target.value)} />
             </div>
@@ -433,7 +433,7 @@ export default function MemberDetailPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Member #{member.id}</h1>
-          <p className="text-sm text-gray-500">{member.public_id ?? ''} · {member.phone}</p>
+          <p className="text-sm text-muted-foreground">{member.public_id ?? ''} · {member.phone}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.back()}>← Back</Button>
@@ -465,7 +465,7 @@ export default function MemberDetailPage() {
       )}
 
       {/* ── Tab Navigation ──────────────────────────────────── */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <div className="flex gap-0 overflow-x-auto scrollbar-none">
           {TABS.map(tab => (
             <button
@@ -474,7 +474,7 @@ export default function MemberDetailPage() {
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               {tab.label}
@@ -494,7 +494,7 @@ export default function MemberDetailPage() {
               <Row label="Internal UID"     value={`#${member.id}`} />
               <Row label="Phone"            value={member.phone} />
               <div className="flex justify-between">
-                <span className="text-gray-500">Status</span>
+                <span className="text-muted-foreground">Status</span>
                 <Badge variant={member.status === 'ACTIVE' ? 'default' : 'destructive'}>{member.status}</Badge>
               </div>
               <Row label="VIP Level" value={(member as unknown as Record<string, number>).vip_level ?? 0} />
@@ -536,10 +536,10 @@ export default function MemberDetailPage() {
                 <div className="space-y-2 text-sm">
                   {accounts.map(a => (
                     <div key={`${a.provider}-${a.username}`} className="flex items-center justify-between gap-2">
-                      <span className="text-gray-500 w-24 shrink-0">{a.provider}</span>
+                      <span className="text-muted-foreground w-24 shrink-0">{a.provider}</span>
                       <span className="font-mono flex-1">{a.username}</span>
                       <div className="flex gap-1 shrink-0">
-                        <button className="rounded px-2 py-0.5 text-xs border border-gray-200 hover:bg-gray-50"
+                        <button className="rounded px-2 py-0.5 text-xs border border-border hover:bg-muted"
                           onClick={() => { setEditingGame(a); setGameUsername(a.username); }}>✏️</button>
                         <button className="rounded px-2 py-0.5 text-xs border border-red-200 text-red-500 hover:bg-red-50"
                           onClick={() => removeGameAccount(a.provider)} disabled={removingGame === a.provider}>
@@ -562,7 +562,7 @@ export default function MemberDetailPage() {
                   <button
                     onClick={() => void loadProviderAccounts(member.id)}
                     disabled={providerAccLoading}
-                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                   >
                     {providerAccLoading ? '刷新中…' : '↻ 刷新'}
                   </button>
@@ -570,15 +570,15 @@ export default function MemberDetailPage() {
               </CardHeader>
               <CardContent>
                 {providerAccounts.length === 0 ? (
-                  <p className="text-sm text-gray-400">该会员暂无 Provider 账号</p>
+                  <p className="text-sm text-muted-foreground">该会员暂无 Provider 账号</p>
                 ) : (
                   <div className="space-y-3">
                     {providerAccounts.map(acc => (
-                      <div key={acc.provider_code} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm space-y-2">
+                      <div key={acc.provider_code} className="rounded-lg border border-border bg-muted p-3 text-sm space-y-2">
                         {/* Header row */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-800">{acc.provider_name}</span>
+                            <span className="font-semibold text-foreground">{acc.provider_name}</span>
                             <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-mono">{acc.provider_code}</span>
                             {acc.wallet_type === 'TRANSFER' && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Transfer Wallet</span>
@@ -599,15 +599,15 @@ export default function MemberDetailPage() {
 
                         {/* Detail rows */}
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                          <div className="text-gray-500">Login ID</div>
+                          <div className="text-muted-foreground">Login ID</div>
                           <div className="font-mono">{acc.provider_login_id}</div>
                           {acc.provider_user_id !== null && (
                             <>
-                              <div className="text-gray-500">Provider UID</div>
+                              <div className="text-muted-foreground">Provider UID</div>
                               <div className="font-mono">{acc.provider_user_id}</div>
                             </>
                           )}
-                          <div className="text-gray-500">Password</div>
+                          <div className="text-muted-foreground">Password</div>
                           <div className="flex items-center gap-1">
                             {acc.password !== null ? (
                               <>
@@ -616,24 +616,24 @@ export default function MemberDetailPage() {
                                 </span>
                                 <button
                                   onClick={() => setShowPasswords(p => ({ ...p, [acc.provider_code]: !p[acc.provider_code] }))}
-                                  className="text-gray-400 hover:text-gray-700 text-[10px] underline ml-1"
+                                  className="text-muted-foreground hover:text-foreground text-[10px] underline ml-1"
                                 >
                                   {showPasswords[acc.provider_code] ? '隐藏' : '查看'}
                                 </button>
                               </>
                             ) : (
-                              <span className="text-gray-400 italic">无权查看</span>
+                              <span className="text-muted-foreground italic">无权查看</span>
                             )}
                           </div>
-                          <div className="text-gray-500">创建时间</div>
+                          <div className="text-muted-foreground">创建时间</div>
                           <div>{new Date(acc.created_at).toLocaleString()}</div>
-                          <div className="text-gray-500">最后更新</div>
+                          <div className="text-muted-foreground">最后更新</div>
                           <div>{new Date(acc.updated_at).toLocaleString()}</div>
                         </div>
 
                         {/* Sync result message */}
                         {syncResult[acc.provider_code] && (
-                          <p className="text-xs mt-1 text-gray-600">{syncResult[acc.provider_code]}</p>
+                          <p className="text-xs mt-1 text-muted-foreground">{syncResult[acc.provider_code]}</p>
                         )}
                       </div>
                     ))}
@@ -661,7 +661,7 @@ export default function MemberDetailPage() {
             <CardHeader><CardTitle className="text-base">Manual Remarks</CardTitle></CardHeader>
             <CardContent>
               <textarea value={remarks} onChange={e => setRemarks(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 rows={3} placeholder="Add admin remarks…" />
               <Button className="mt-2" size="sm" onClick={saveRemarks} disabled={savingRemarks}>
                 {savingRemarks ? 'Saving…' : 'Save Remarks'}
@@ -683,16 +683,16 @@ export default function MemberDetailPage() {
             </CardHeader>
             <CardContent>
               {walletLoading ? (
-                <div className="text-sm text-gray-400">Loading wallet summary…</div>
+                <div className="text-sm text-muted-foreground">Loading wallet summary…</div>
               ) : walletSummary ? (
                 <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   <div className="col-span-2 sm:col-span-1 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
                     <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Net Balance</p>
                     <p className="text-xl font-bold text-blue-700 mt-0.5">RM {parseFloat(walletSummary.balance).toFixed(2)}</p>
                   </div>
-                  <div className={`rounded-lg border px-3 py-2 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Locked (WD)</p>
-                    <p className={`text-lg font-bold mt-0.5 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                  <div className={`rounded-lg border px-3 py-2 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'border-amber-200 bg-amber-50' : 'border-border bg-muted'}`}>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Locked (WD)</p>
+                    <p className={`text-lg font-bold mt-0.5 ${parseFloat(walletSummary.pending_withdrawal ?? '0') > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
                       RM {parseFloat(walletSummary.pending_withdrawal ?? '0').toFixed(2)}
                     </p>
                   </div>
@@ -700,24 +700,24 @@ export default function MemberDetailPage() {
                     <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Available Balance</p>
                     <p className="text-xl font-bold text-green-700 mt-0.5">RM {parseFloat(walletSummary.available_balance ?? walletSummary.balance).toFixed(2)}</p>
                   </div>
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending Dep</p>
-                    <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_deposits > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{walletSummary.pending_deposits}</p>
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Pending Dep</p>
+                    <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_deposits > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>{walletSummary.pending_deposits}</p>
                   </div>
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pending WD</p>
-                    <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_withdrawals > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{walletSummary.pending_withdrawals}</p>
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Pending WD</p>
+                    <p className={`text-lg font-bold mt-0.5 ${walletSummary.pending_withdrawals > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>{walletSummary.pending_withdrawals}</p>
                   </div>
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Bonus</p>
-                    <p className="text-lg font-bold text-gray-700 mt-0.5">RM {parseFloat(walletSummary.total_bonus).toFixed(2)}</p>
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Total Bonus</p>
+                    <p className="text-lg font-bold text-foreground mt-0.5">RM {parseFloat(walletSummary.total_bonus).toFixed(2)}</p>
                   </div>
                   <Row label="Total Deposits"    value={`RM ${parseFloat(walletSummary.total_deposit).toFixed(2)}`} />
                   <Row label="Total Withdrawals" value={`RM ${parseFloat(walletSummary.total_withdraw).toFixed(2)}`} />
                   <Row label="Last Wallet Update" value={walletSummary.last_wallet_update ? new Date(walletSummary.last_wallet_update).toLocaleString() : '—'} />
                 </div>
               ) : (
-                <div className="text-sm text-gray-400">Wallet summary unavailable (requires member.wallet.view permission)</div>
+                <div className="text-sm text-muted-foreground">Wallet summary unavailable (requires member.wallet.view permission)</div>
               )}
             </CardContent>
           </Card>
@@ -745,7 +745,7 @@ export default function MemberDetailPage() {
                       Sync All 完成 — 共提回 RM {syncAllResults.reduce((s, r) => s + (r.returned ?? 0), 0).toFixed(2)}
                     </p>
                     {syncAllResults.map(r => (
-                      <p key={r.provider_code} className={r.status === 'SUCCESS' ? 'text-green-700' : r.status === 'SKIPPED' ? 'text-gray-500' : 'text-red-600'}>
+                      <p key={r.provider_code} className={r.status === 'SUCCESS' ? 'text-green-700' : r.status === 'SKIPPED' ? 'text-muted-foreground' : 'text-red-600'}>
                         {r.status === 'SUCCESS' ? '✅' : r.status === 'SKIPPED' ? '⏭' : '❌'}{' '}
                         {r.provider_name}
                         {r.status === 'SUCCESS'
@@ -759,12 +759,12 @@ export default function MemberDetailPage() {
                 {/* Per-provider individual sync buttons */}
                 <div className="space-y-2">
                   {providerAccounts.filter(a => a.wallet_type === 'TRANSFER').map(acc => (
-                    <div key={acc.provider_code} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                    <div key={acc.provider_code} className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2">
                       <div>
-                        <span className="text-sm font-medium text-gray-800">{acc.provider_name}</span>
-                        <span className="ml-2 text-xs font-mono text-gray-400">{acc.provider_login_id}</span>
+                        <span className="text-sm font-medium text-foreground">{acc.provider_name}</span>
+                        <span className="ml-2 text-xs font-mono text-muted-foreground">{acc.provider_login_id}</span>
                         {syncResult[acc.provider_code] && (
-                          <p className="text-xs mt-0.5 text-gray-600">{syncResult[acc.provider_code]}</p>
+                          <p className="text-xs mt-0.5 text-muted-foreground">{syncResult[acc.provider_code]}</p>
                         )}
                       </div>
                       <Button
@@ -804,22 +804,22 @@ export default function MemberDetailPage() {
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[500px]">
-                <thead className="text-gray-500">
+                <thead className="text-muted-foreground">
                   <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Bonus</th><th>Promo</th><th>Status</th><th>Date</th></tr>
                 </thead>
                 <tbody className="divide-y">
                   {deposits.map(d => (
-                    <tr key={d.id} className="hover:bg-gray-50">
+                    <tr key={d.id} className="hover:bg-muted">
                       <td className="py-1">#{d.id}</td>
                       <td>{d.provider}</td>
                       <td>{fmt(d.deposit_amount)}</td>
                       <td>{parseFloat(d.bonus_amount) > 0 ? fmt(d.bonus_amount) : '—'}</td>
                       <td>{d.promo_name ?? '—'}</td>
                       <td><Badge variant={d.status === 'APPROVED' ? 'default' : d.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{d.status}</Badge></td>
-                      <td className="text-gray-400">{new Date(d.created_at).toLocaleDateString()}</td>
+                      <td className="text-muted-foreground">{new Date(d.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                  {deposits.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-gray-400">No deposits.</td></tr>}
+                  {deposits.length === 0 && <tr><td colSpan={7} className="py-4 text-center text-muted-foreground">No deposits.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -834,20 +834,20 @@ export default function MemberDetailPage() {
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[380px]">
-                <thead className="text-gray-500">
+                <thead className="text-muted-foreground">
                   <tr><th className="py-1 text-left">ID</th><th>Platform</th><th>Amount</th><th>Status</th><th>Date</th></tr>
                 </thead>
                 <tbody className="divide-y">
                   {withdrawals.map(w => (
-                    <tr key={w.id} className="hover:bg-gray-50">
+                    <tr key={w.id} className="hover:bg-muted">
                       <td className="py-1">#{w.id}</td>
                       <td>{w.provider}</td>
                       <td>{fmt(w.withdraw_amount)}</td>
                       <td><Badge variant={w.status === 'PAID' ? 'default' : w.status === 'PENDING' ? 'secondary' : 'destructive'} className="text-xs">{w.status}</Badge></td>
-                      <td className="text-gray-400">{new Date(w.created_at).toLocaleDateString()}</td>
+                      <td className="text-muted-foreground">{new Date(w.created_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                  {withdrawals.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-gray-400">No withdrawals.</td></tr>}
+                  {withdrawals.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">No withdrawals.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -862,21 +862,21 @@ export default function MemberDetailPage() {
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[480px]">
-                <thead className="text-gray-500">
+                <thead className="text-muted-foreground">
                   <tr><th className="py-1 text-left">Promotion</th><th>Deposit</th><th>Bonus</th><th>Turnover</th><th>Status</th><th>Date</th></tr>
                 </thead>
                 <tbody className="divide-y">
                   {bonuses.map(b => (
-                    <tr key={b.id} className="hover:bg-gray-50">
+                    <tr key={b.id} className="hover:bg-muted">
                       <td className="py-1">{b.promo_name}</td>
                       <td>{fmt(b.deposit_amount)}</td>
                       <td>{fmt(b.bonus_amount)}</td>
                       <td>{fmt(b.turnover_completed)}/{fmt(b.turnover_required)}</td>
                       <td><Badge className="text-xs" variant={b.status === 'COMPLETED' ? 'default' : 'secondary'}>{b.status}</Badge></td>
-                      <td className="text-gray-400">{new Date(b.claimed_at).toLocaleDateString()}</td>
+                      <td className="text-muted-foreground">{new Date(b.claimed_at).toLocaleDateString()}</td>
                     </tr>
                   ))}
-                  {bonuses.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-gray-400">No bonus claims.</td></tr>}
+                  {bonuses.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-muted-foreground">No bonus claims.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -892,7 +892,7 @@ export default function MemberDetailPage() {
             <Row label="Referral Code"
               value={referralCode
                 ? <span className="font-mono text-purple-700 select-all">{referralCode}</span>
-                : <span className="text-gray-400">未生成</span>}
+                : <span className="text-muted-foreground">未生成</span>}
             />
             <Row label="Referred By"
               value={referredById
@@ -904,8 +904,8 @@ export default function MemberDetailPage() {
             <Row label="Total Referred" value={referralCount} />
             {referralCode && (
               <div className="pt-2 border-t">
-                <p className="text-xs text-gray-400 mb-1">Telegram 邀请链接</p>
-                <span className="text-xs font-mono text-gray-600 break-all select-all">
+                <p className="text-xs text-muted-foreground mb-1">Telegram 邀请链接</p>
+                <span className="text-xs font-mono text-muted-foreground break-all select-all">
                   https://t.me/{botUsername}?start={referralCode}
                 </span>
               </div>
@@ -925,7 +925,7 @@ export default function MemberDetailPage() {
             <Row label="Status"
               value={member.telegram_id
                 ? <span className="text-green-600 font-medium">✅ 已绑定</span>
-                : <span className="text-gray-400">未绑定</span>}
+                : <span className="text-muted-foreground">未绑定</span>}
             />
           </CardContent>
         </Card>

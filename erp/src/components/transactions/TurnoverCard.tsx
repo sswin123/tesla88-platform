@@ -12,22 +12,22 @@ export default function TurnoverCard({ required, completed }: TurnoverCardProps)
   const remaining = Math.max(0, required - completed);
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Active Turnover Requirement
       </h2>
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Required: RM {required.toFixed(2)}</span>
-          <span className="text-gray-500">Completed: RM {completed.toFixed(2)}</span>
+          <span className="text-muted-foreground">Required: RM {required.toFixed(2)}</span>
+          <span className="text-muted-foreground">Completed: RM {completed.toFixed(2)}</span>
         </div>
-        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-blue-500 transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-400">
+        <div className="flex justify-between text-xs text-muted-foreground">
           <span>{pct.toFixed(0)}% completed</span>
           <span>Remaining: RM {remaining.toFixed(2)}</span>
         </div>

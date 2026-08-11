@@ -94,10 +94,9 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Control Center',
     items: [
       { href: '/settings/brand',        label: 'Brand Center',  icon: Building2, permission: 'brand.settings' },
-      { href: '/settings/bot',          label: 'Telegram Bot',  icon: Bot,       permission: 'bot.settings' },
+      { href: '/settings/bot',          label: 'Telegram Bot',  icon: Bot,       permission: 'bot.settings', exact: true },
       { href: '/settings/bot/messages', label: 'Bot Messages',  icon: FileText,  permission: 'bot.messages' },
       { href: '/media-library',         label: 'Media Library', icon: Images,    permission: 'media.view' },
-      { href: '/settings/appearance',   label: 'Appearance',    icon: Palette },
     ],
   },
   {
@@ -134,8 +133,9 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     items: [
-      { href: '/settings',    label: 'Settings',    icon: Settings, exact: true, permission: 'website.settings' },
-      { href: '/maintenance', label: 'Maintenance', icon: Wrench,   permission: 'maintenance.view' },
+      { href: '/settings',            label: 'Settings',    icon: Settings, exact: true, permission: 'website.settings' },
+      { href: '/settings/appearance', label: 'Appearance',  icon: Palette },
+      { href: '/maintenance',         label: 'Maintenance', icon: Wrench,   permission: 'maintenance.view' },
     ],
   },
 ];

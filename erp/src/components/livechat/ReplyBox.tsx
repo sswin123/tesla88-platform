@@ -308,7 +308,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
 
   return (
     <div
-      className={`border-t bg-white p-3 flex-shrink-0 relative transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300' : ''}`}
+      className={`border-t bg-card p-3 flex-shrink-0 relative transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300' : ''}`}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -321,12 +321,12 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
             <p className="text-[10px] font-semibold text-blue-500 mb-0.5">
               {replyToMessage.sender_type === 'AGENT' ? 'Agent' : replyToMessage.sender_type === 'SYSTEM' ? 'System' : 'Customer'}
             </p>
-            <p className="text-xs text-gray-500 truncate">{getPreviewText(replyToMessage)}</p>
+            <p className="text-xs text-muted-foreground truncate">{getPreviewText(replyToMessage)}</p>
           </div>
           <button
             type="button"
             onClick={onClearReply}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-sm px-1"
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground text-sm px-1"
             title="Cancel reply"
           >
             ×
@@ -343,18 +343,18 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
 
       {/* Pending file preview */}
       {pendingFile && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg bg-gray-50 p-2 border">
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-muted p-2 border">
           {pendingFile.messageType === 'PHOTO' ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={pendingFile.previewUrl} alt="preview" className="h-16 w-16 rounded object-cover" />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded bg-gray-200 text-2xl">
+            <div className="flex h-16 w-16 items-center justify-center rounded bg-muted text-2xl">
               {getPreviewIcon(pendingFile.messageType, pendingFile.file.name)}
             </div>
           )}
           <div className="flex-1 min-w-0">
             <p className="truncate text-xs font-medium">{pendingFile.file.name}</p>
-            <p className="text-xs text-gray-400">{(pendingFile.file.size / 1024).toFixed(1)} KB</p>
+            <p className="text-xs text-muted-foreground">{(pendingFile.file.size / 1024).toFixed(1)} KB</p>
           </div>
           <button
             onClick={() => { URL.revokeObjectURL(pendingFile.previewUrl); setPendingFile(null); }}
@@ -366,7 +366,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
 
       {/* Upload progress */}
       {sendStatus === 'sending' && (
-        <div className="mb-2 h-1 w-full rounded-full bg-gray-200 overflow-hidden">
+        <div className="mb-2 h-1 w-full rounded-full bg-muted overflow-hidden">
           <div className="h-full bg-blue-500 rounded-full animate-pulse w-full" />
         </div>
       )}
@@ -379,11 +379,11 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         <div className="relative">
           <button
             onClick={() => setShowEmoji((v) => !v)}
-            className="p-1.5 rounded hover:bg-gray-100 text-lg leading-none"
+            className="p-1.5 rounded hover:bg-muted text-lg leading-none"
             title="Emoji" aria-label="Open emoji picker"
           >😊</button>
           {showEmoji && (
-            <div className="absolute bottom-10 left-0 z-10 flex flex-wrap gap-1 rounded-lg border bg-white p-2 shadow-lg w-48">
+            <div className="absolute bottom-10 left-0 z-10 flex flex-wrap gap-1 rounded-lg border bg-card p-2 shadow-lg w-48">
               {EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
@@ -399,7 +399,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         {/* Universal file upload (all types) */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-600"
+          className="p-1.5 rounded hover:bg-muted text-sm text-muted-foreground"
           title="Upload file (image/video/document)"
           aria-label="Upload file"
         >📎</button>
@@ -409,7 +409,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
         <div className="relative" ref={quickPickerRef}>
           <button
             onClick={() => { setShowQuickPicker((v) => !v); setQrSearch(''); }}
-            className="p-1.5 rounded hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-1"
+            className="p-1.5 rounded hover:bg-muted text-sm text-foreground flex items-center gap-1"
             title="Quick replies" aria-label="Open quick replies picker"
           >
             <span>⚡</span>
@@ -419,7 +419,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
           {showQuickPicker && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowQuickPicker(false)} />
-              <div className="absolute bottom-10 left-0 z-20 w-80 rounded-lg border bg-white shadow-xl">
+              <div className="absolute bottom-10 left-0 z-20 w-80 rounded-lg border bg-card shadow-xl">
                 <div className="p-2 border-b">
                   <input
                     type="text"
@@ -427,17 +427,17 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
                     value={qrSearch}
                     onChange={(e) => setQrSearch(e.target.value)}
                     autoFocus
-                    className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </div>
                 <div className="max-h-72 overflow-y-auto">
                   {filteredQr.length === 0 ? (
-                    <p className="text-center text-xs text-gray-400 py-4">No replies found</p>
+                    <p className="text-center text-xs text-muted-foreground py-4">No replies found</p>
                   ) : (
                     <>
                       {favorites.length > 0 && (
                         <div>
-                          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Favorites</p>
+                          <p className="px-3 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Favorites</p>
                           {favorites.map((r) => (
                             <QuickReplyItem key={r.id} reply={r} onSelect={() => void handleQuickReply(r)} />
                           ))}
@@ -446,7 +446,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
                       {nonFavorites.length > 0 && (
                         <div>
                           {favorites.length > 0 && (
-                            <p className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">All</p>
+                            <p className="px-3 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">All</p>
                           )}
                           {nonFavorites.map((r) => (
                             <QuickReplyItem key={r.id} reply={r} onSelect={() => void handleQuickReply(r)} />
@@ -461,7 +461,7 @@ export function ReplyBox({ sessionId, onMessageSent, externalFile, onExternalFil
           )}
         </div>
 
-        <span className="ml-auto text-xs text-gray-400 hidden sm:inline">
+        <span className="ml-auto text-xs text-muted-foreground hidden sm:inline">
           Enter to send · Shift+Enter for new line
         </span>
       </div>
@@ -517,13 +517,13 @@ function QuickReplyItem({ reply, onSelect }: { reply: QuickReply; onSelect: () =
       onClick={onSelect}
       className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
     >
-      <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+      <p className="text-sm font-medium text-foreground flex items-center gap-1">
         {reply.is_favorite && <span className="text-yellow-400">★</span>}
         <span>{icon}</span>
         {reply.title}
       </p>
       {reply.body && (
-        <p className="text-xs text-gray-500 truncate">{reply.body}</p>
+        <p className="text-xs text-muted-foreground truncate">{reply.body}</p>
       )}
     </button>
   );

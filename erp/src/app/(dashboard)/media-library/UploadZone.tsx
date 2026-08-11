@@ -17,7 +17,7 @@ const STATUS_LABEL: Record<UploadEntry['status'], string> = {
 };
 
 const STATUS_COLOR: Record<UploadEntry['status'], string> = {
-  uploading: 'text-gray-400',
+  uploading: 'text-muted-foreground',
   done:      'text-green-600',
   duplicate: 'text-blue-500',
   error:     'text-red-600',
@@ -95,14 +95,14 @@ export function UploadZone({ onUploadComplete }: { onUploadComplete: () => void 
         onClick={() => inputRef.current?.click()}
         className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors select-none ${
           dragging
-            ? 'border-gray-900 bg-gray-50'
-            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+            ? 'border-foreground bg-muted'
+            : 'border-border hover:border-border hover:bg-muted'
         }`}
       >
-        <p className="text-sm font-medium text-gray-600">
+        <p className="text-sm font-medium text-muted-foreground">
           Drag & drop files here, click to browse, or paste (Ctrl+V)
         </p>
-        <p className="text-xs text-gray-400 mt-1">Max 50 MB per file · Multiple files supported</p>
+        <p className="text-xs text-muted-foreground mt-1">Max 50 MB per file · Multiple files supported</p>
         <input
           ref={inputRef}
           type="file"
@@ -118,13 +118,13 @@ export function UploadZone({ onUploadComplete }: { onUploadComplete: () => void 
 
       {/* Per-file progress list */}
       {entries.length > 0 && (
-        <div className="rounded-lg border divide-y max-h-48 overflow-y-auto bg-white">
+        <div className="rounded-lg border divide-y max-h-48 overflow-y-auto bg-card">
           {entries.map(entry => (
             <div key={entry.id} className="flex items-center gap-2 px-3 py-2 text-sm">
               <span className={`w-4 text-center font-bold ${STATUS_COLOR[entry.status]}`}>
                 {STATUS_LABEL[entry.status]}
               </span>
-              <span className="flex-1 truncate text-gray-700">{entry.filename}</span>
+              <span className="flex-1 truncate text-foreground">{entry.filename}</span>
               {entry.status === 'duplicate' && (
                 <span className="text-xs text-blue-500 flex-shrink-0">Already exists</span>
               )}

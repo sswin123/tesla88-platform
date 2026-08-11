@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const SECURITY_HEADERS = [
   { key: 'X-Frame-Options',           value: 'DENY' },
   { key: 'X-Content-Type-Options',    value: 'nosniff' },
@@ -9,7 +11,8 @@ const SECURITY_HEADERS = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      // Dev: React Refresh / webpack HMR requires eval(); strip in production
+      isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "media-src 'self' blob:",

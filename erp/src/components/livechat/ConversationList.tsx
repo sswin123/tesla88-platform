@@ -195,13 +195,13 @@ export function ConversationList({
   }
 
   return (
-    <div className={cn('flex h-full flex-col border-r bg-white w-80 flex-shrink-0', className)}>
+    <div className={cn('flex h-full flex-col border-r bg-card w-80 flex-shrink-0', className)}>
       {/* Header */}
       <div className="border-b p-3">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-sm">Live Chat</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{total} {total === 1 ? 'customer' : 'customers'}</span>
+            <span className="text-xs text-muted-foreground">{total} {total === 1 ? 'customer' : 'customers'}</span>
             <NotificationSettings settings={notifSettings} onChange={setNotifSettings} />
           </div>
         </div>
@@ -213,7 +213,7 @@ export function ConversationList({
       </div>
 
       {/* Stats row */}
-      <div className="flex border-b px-3 py-1.5 gap-3 text-xs text-gray-500">
+      <div className="flex border-b px-3 py-1.5 gap-3 text-xs text-muted-foreground">
         <span className="font-medium text-orange-500">{stats.open} waiting</span>
         <span className="font-medium text-green-600">{stats.active} active</span>
         <span>{stats.closed_today} closed today</span>
@@ -237,7 +237,7 @@ export function ConversationList({
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                 activeFilters.has(f.key)
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
               {f.label}
@@ -254,7 +254,7 @@ export function ConversationList({
             className={`flex-1 py-2 text-xs font-medium transition-colors ${
               tab === t.value
                 ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {t.label}
@@ -265,10 +265,10 @@ export function ConversationList({
       {/* Session list */}
       <div className="flex-1 overflow-y-auto divide-y">
         {loading && (
-          <div className="p-4 text-center text-xs text-gray-400">Loading...</div>
+          <div className="p-4 text-center text-xs text-muted-foreground">Loading...</div>
         )}
         {!loading && sessions.length === 0 && (
-          <div className="p-4 text-center text-xs text-gray-400">No conversations.</div>
+          <div className="p-4 text-center text-xs text-muted-foreground">No conversations.</div>
         )}
         {sessions.map((s) => (
           <SessionCard

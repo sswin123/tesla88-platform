@@ -119,11 +119,11 @@ export default function TagManagerPage() {
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tag Management</h1>
-        <span className="text-sm text-gray-400">{tags.length} total · {tags.filter(t => t.is_active).length} active</span>
+        <span className="text-sm text-muted-foreground">{tags.length} total · {tags.filter(t => t.is_active).length} active</span>
       </div>
 
       {/* Add form */}
-      <div className="rounded-lg border bg-gray-50 p-4 space-y-3">
+      <div className="rounded-lg border bg-muted p-4 space-y-3">
         <h2 className="font-semibold text-sm">Add New Tag</h2>
         <div className="flex gap-2 items-center">
           <Input
@@ -134,12 +134,12 @@ export default function TagManagerPage() {
             onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd(); }}
           />
           <div className="flex items-center gap-1">
-            <label className="text-xs text-gray-600">Color</label>
+            <label className="text-xs text-muted-foreground">Color</label>
             <input
               type="color"
               value={newColor}
               onChange={(e) => setNewColor(e.target.value)}
-              className="h-8 w-10 cursor-pointer rounded border border-gray-300 p-0.5"
+              className="h-8 w-10 cursor-pointer rounded border border-border p-0.5"
             />
           </div>
           <Button onClick={() => void handleAdd()} disabled={adding} size="sm">
@@ -148,7 +148,7 @@ export default function TagManagerPage() {
         </div>
         {newName.trim() && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Preview:</span>
+            <span className="text-xs text-muted-foreground">Preview:</span>
             <TagBadge tag={{ id: 0, name: newName, color: newColor, sort_order: 0, is_active: true, created_at: '', updated_at: '' }} />
           </div>
         )}
@@ -165,14 +165,14 @@ export default function TagManagerPage() {
 
       {/* Tag list */}
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading…</p>
+        <p className="text-muted-foreground text-sm">Loading…</p>
       ) : sorted.length === 0 ? (
-        <p className="text-gray-400 text-sm">{search ? 'No matching tags.' : 'No tags yet. Add one above.'}</p>
+        <p className="text-muted-foreground text-sm">{search ? 'No matching tags.' : 'No tags yet. Add one above.'}</p>
       ) : (
         <div className="space-y-2">
           {sorted.map((tag, idx) =>
             editingId === tag.id ? (
-              <div key={tag.id} className="flex items-center gap-2 rounded-lg border bg-white p-3 shadow-sm">
+              <div key={tag.id} className="flex items-center gap-2 rounded-lg border bg-card p-3 shadow-sm">
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -182,7 +182,7 @@ export default function TagManagerPage() {
                   type="color"
                   value={editColor}
                   onChange={(e) => setEditColor(e.target.value)}
-                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 p-0.5"
+                  className="h-8 w-10 cursor-pointer rounded border border-border p-0.5"
                 />
                 <TagBadge tag={{ ...tag, name: editName || tag.name, color: editColor }} />
                 <Button size="sm" className="h-7 text-xs" onClick={() => void handleSave(tag.id)} disabled={saving}>
@@ -195,18 +195,18 @@ export default function TagManagerPage() {
             ) : (
               <div
                 key={tag.id}
-                className={`flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm ${!tag.is_active ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm ${!tag.is_active ? 'opacity-50' : ''}`}
               >
                 {/* Sort arrows */}
                 <div className="flex flex-col gap-0.5">
                   <button
-                    className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
+                    className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-20 leading-none text-xs"
                     disabled={idx === 0 || movingId !== null || !!search.trim()}
                     onClick={() => void handleMove(tag, 'up')}
                     title="Move up"
                   >▲</button>
                   <button
-                    className="text-gray-300 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
+                    className="text-muted-foreground/40 hover:text-muted-foreground disabled:opacity-20 leading-none text-xs"
                     disabled={idx === sorted.length - 1 || movingId !== null || !!search.trim()}
                     onClick={() => void handleMove(tag, 'down')}
                     title="Move down"
@@ -215,10 +215,10 @@ export default function TagManagerPage() {
 
                 <TagBadge tag={tag} />
                 <span className="flex-1 text-sm font-medium">{tag.name}</span>
-                <span className="text-xs text-gray-400 font-mono">{tag.color}</span>
+                <span className="text-xs text-muted-foreground font-mono">{tag.color}</span>
 
                 {!tag.is_active && (
-                  <span className="text-xs text-gray-400 border rounded px-1.5 py-0.5">Disabled</span>
+                  <span className="text-xs text-muted-foreground border border-border rounded px-1.5 py-0.5">Disabled</span>
                 )}
 
                 <Button

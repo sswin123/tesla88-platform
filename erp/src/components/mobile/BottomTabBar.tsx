@@ -24,7 +24,7 @@ export function BottomTabBar({ onOpenDrawer }: Props) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-stretch border-t bg-white lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-stretch border-t border-border bg-background lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Tab navigation"
     >
@@ -37,7 +37,7 @@ export function BottomTabBar({ onOpenDrawer }: Props) {
             href={href}
             className={cn(
               'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
-              active ? 'text-blue-600' : 'text-gray-500 hover:text-gray-800',
+              active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
             )}
             aria-current={active ? 'page' : undefined}
           >
@@ -57,7 +57,7 @@ export function BottomTabBar({ onOpenDrawer }: Props) {
       {/* More button opens the full sidebar drawer */}
       <button
         onClick={onOpenDrawer}
-        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-500 hover:text-gray-800 transition-colors"
+        className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
         aria-label="More options"
         aria-haspopup="dialog"
       >

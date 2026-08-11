@@ -35,17 +35,17 @@ function RiskSection({
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="rounded-md border bg-white">
+    <div className="rounded-md border border-border bg-card">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left font-medium hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-4 py-3 text-left font-medium hover:bg-muted"
       >
         <span>{title}</span>
         <div className="flex items-center gap-2">
           <Badge variant={count > 0 ? 'destructive' : 'secondary'} className="text-xs">
             {count}
           </Badge>
-          <span className="text-gray-400 text-xs">{open ? '▲' : '▼'}</span>
+          <span className="text-muted-foreground text-xs">{open ? '▲' : '▼'}</span>
         </div>
       </button>
       {open && <div className="border-t">{children}</div>}
@@ -236,8 +236,8 @@ export default function RiskPage() {
           { label: 'High Severity', value: stats.high, color: 'text-orange-600' },
           { label: 'Reviewed', value: stats.reviewed, color: 'text-green-600' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-md border bg-white px-4 py-3">
-            <p className="text-xs text-gray-500">{label}</p>
+          <div key={label} className="rounded-md border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">{label}</p>
             <p className={`text-2xl font-bold ${color}`}>{value}</p>
           </div>
         ))}
@@ -251,8 +251,8 @@ export default function RiskPage() {
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             {t === 'scan' ? 'Live Scan' : 'Saved Flags'}
@@ -264,7 +264,7 @@ export default function RiskPage() {
       {tab === 'scan' && (
         <div className="space-y-4">
           {scanLoading && (
-            <div className="flex h-40 items-center justify-center text-gray-400">Scanning…</div>
+            <div className="flex h-40 items-center justify-center text-muted-foreground">Scanning…</div>
           )}
 
           {!scanLoading && scan && (
@@ -272,10 +272,10 @@ export default function RiskPage() {
               {/* Duplicate Phones */}
               <RiskSection title="Duplicate Phone Numbers" count={scan.duplicate_phones.length}>
                 {scan.duplicate_phones.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No duplicates found.</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No duplicates found.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-muted text-muted-foreground">
                       <tr>
                         {['Phone', 'Users', 'Names', 'Severity', 'Actions'].map((h) => (
                           <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -284,15 +284,15 @@ export default function RiskPage() {
                     </thead>
                     <tbody className="divide-y">
                       {scan.duplicate_phones.map((row) => (
-                        <tr key={row.phone} className="hover:bg-gray-50">
+                        <tr key={row.phone} className="hover:bg-muted">
                           <td className="px-3 py-2 font-mono">{row.phone}</td>
                           <td className="px-3 py-2">{row.user_count}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.names.join(', ')}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.names.join(', ')}</td>
                           <td className="px-3 py-2"><SeverityBadge level="HIGH" /></td>
                           <td className="px-3 py-2">
                             {row.user_ids.map((uid, i) => (
                               <div key={uid} className="flex items-center gap-1 mb-1">
-                                <span className="text-xs text-gray-500 w-20 truncate">{row.names[i]}</span>
+                                <span className="text-xs text-muted-foreground w-20 truncate">{row.names[i]}</span>
                                 <ScanActions
                                   userId={uid}
                                   riskType="DUPLICATE_PHONE"
@@ -313,10 +313,10 @@ export default function RiskPage() {
               {/* Duplicate Banks */}
               <RiskSection title="Duplicate Bank Accounts" count={scan.duplicate_banks.length}>
                 {scan.duplicate_banks.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No duplicates found.</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No duplicates found.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-muted text-muted-foreground">
                       <tr>
                         {['Bank Account', 'Bank Name', 'Users', 'Names', 'Severity', 'Actions'].map((h) => (
                           <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -325,16 +325,16 @@ export default function RiskPage() {
                     </thead>
                     <tbody className="divide-y">
                       {scan.duplicate_banks.map((row) => (
-                        <tr key={`${row.bank_account}-${row.bank_name}`} className="hover:bg-gray-50">
+                        <tr key={`${row.bank_account}-${row.bank_name}`} className="hover:bg-muted">
                           <td className="px-3 py-2 font-mono">{row.bank_account}</td>
                           <td className="px-3 py-2">{row.bank_name}</td>
                           <td className="px-3 py-2">{row.user_count}</td>
-                          <td className="px-3 py-2 text-gray-600">{row.names.join(', ')}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.names.join(', ')}</td>
                           <td className="px-3 py-2"><SeverityBadge level="HIGH" /></td>
                           <td className="px-3 py-2">
                             {row.user_ids.map((uid, i) => (
                               <div key={uid} className="flex items-center gap-1 mb-1">
-                                <span className="text-xs text-gray-500 w-20 truncate">{row.names[i]}</span>
+                                <span className="text-xs text-muted-foreground w-20 truncate">{row.names[i]}</span>
                                 <ScanActions
                                   userId={uid}
                                   riskType="DUPLICATE_BANK"
@@ -355,10 +355,10 @@ export default function RiskPage() {
               {/* High Bonus Ratio */}
               <RiskSection title="High Bonus Ratio (>50% in 30 days)" count={scan.high_bonus_ratio.length}>
                 {scan.high_bonus_ratio.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No high bonus ratio users found.</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No high bonus ratio users found.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-muted text-muted-foreground">
                       <tr>
                         {['User', 'Total Deposit', 'Total Bonus', 'Bonus Ratio', 'Severity', 'Actions'].map((h) => (
                           <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -367,7 +367,7 @@ export default function RiskPage() {
                     </thead>
                     <tbody className="divide-y">
                       {scan.high_bonus_ratio.map((row) => (
-                        <tr key={row.id} className="hover:bg-gray-50">
+                        <tr key={row.id} className="hover:bg-muted">
                           <td className="px-3 py-2 font-medium">{row.first_name}</td>
                           <td className="px-3 py-2">{row.total_dep.toFixed(2)}</td>
                           <td className="px-3 py-2">{row.total_bonus.toFixed(2)}</td>
@@ -396,10 +396,10 @@ export default function RiskPage() {
               {/* Frequent Withdrawals */}
               <RiskSection title="Frequent Withdrawals (>3 in 7 days)" count={scan.frequent_withdrawals.length}>
                 {scan.frequent_withdrawals.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No frequent withdrawal users found.</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No frequent withdrawal users found.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-muted text-muted-foreground">
                       <tr>
                         {['User', 'Withdrawal Count (7d)', 'Severity', 'Actions'].map((h) => (
                           <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -408,7 +408,7 @@ export default function RiskPage() {
                     </thead>
                     <tbody className="divide-y">
                       {scan.frequent_withdrawals.map((row) => (
-                        <tr key={row.id} className="hover:bg-gray-50">
+                        <tr key={row.id} className="hover:bg-muted">
                           <td className="px-3 py-2 font-medium">{row.first_name}</td>
                           <td className="px-3 py-2">{row.withdrawal_count}</td>
                           <td className="px-3 py-2">
@@ -433,10 +433,10 @@ export default function RiskPage() {
               {/* Rapid Pattern */}
               <RiskSection title="Rapid Deposit→Withdrawal Pattern (within 24h, 30 days)" count={scan.rapid_pattern.length}>
                 {scan.rapid_pattern.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400">No rapid pattern users found.</p>
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No rapid pattern users found.</p>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 text-gray-600">
+                    <thead className="bg-muted text-muted-foreground">
                       <tr>
                         {['User', 'Rapid Cycles (30d)', 'Severity', 'Actions'].map((h) => (
                           <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -445,7 +445,7 @@ export default function RiskPage() {
                     </thead>
                     <tbody className="divide-y">
                       {scan.rapid_pattern.map((row) => (
-                        <tr key={row.id} className="hover:bg-gray-50">
+                        <tr key={row.id} className="hover:bg-muted">
                           <td className="px-3 py-2 font-medium">{row.first_name}</td>
                           <td className="px-3 py-2">{row.rapid_count}</td>
                           <td className="px-3 py-2">
@@ -470,7 +470,7 @@ export default function RiskPage() {
           )}
 
           {!scanLoading && !scan && (
-            <div className="flex h-40 items-center justify-center text-gray-400">
+            <div className="flex h-40 items-center justify-center text-muted-foreground">
               Click Re-scan to load risk data.
             </div>
           )}
@@ -487,8 +487,8 @@ export default function RiskPage() {
                 onClick={() => setFlagsFilter(s)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   flagsFilter === s
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
                 {s || 'All'}
@@ -497,11 +497,11 @@ export default function RiskPage() {
           </div>
 
           {flagsLoading ? (
-            <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+            <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
           ) : (
-            <div className="overflow-x-auto rounded-md border bg-white">
+            <div className="overflow-x-auto rounded-md border border-border bg-card">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600">
+                <thead className="bg-muted text-muted-foreground">
                   <tr>
                     {['ID', 'User', 'Risk Type', 'Severity', 'Status', 'Flagged By', 'Reviewed By', 'Created', 'Note', 'Actions'].map((h) => (
                       <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
@@ -510,18 +510,18 @@ export default function RiskPage() {
                 </thead>
                 <tbody className="divide-y">
                   {flags.map((f) => (
-                    <tr key={f.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-gray-400">#{f.id}</td>
+                    <tr key={f.id} className="hover:bg-muted">
+                      <td className="px-3 py-2 text-muted-foreground">#{f.id}</td>
                       <td className="px-3 py-2 font-medium">{f.user_name ?? `#${f.user_id}`}</td>
-                      <td className="px-3 py-2 text-xs font-mono text-gray-600">{f.risk_type}</td>
+                      <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{f.risk_type}</td>
                       <td className="px-3 py-2"><SeverityBadge level={f.severity} /></td>
                       <td className="px-3 py-2"><StatusBadge status={f.status} /></td>
-                      <td className="px-3 py-2 text-gray-500">{f.flagged_by ?? '—'}</td>
-                      <td className="px-3 py-2 text-gray-500">{f.reviewed_by ?? '—'}</td>
-                      <td className="px-3 py-2 text-gray-400 whitespace-nowrap">
+                      <td className="px-3 py-2 text-muted-foreground">{f.flagged_by ?? '—'}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{f.reviewed_by ?? '—'}</td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                         {new Date(f.created_at).toLocaleString()}
                       </td>
-                      <td className="px-3 py-2 max-w-xs truncate text-gray-500">{f.note ?? '—'}</td>
+                      <td className="px-3 py-2 max-w-xs truncate text-muted-foreground">{f.note ?? '—'}</td>
                       <td className="px-3 py-2">
                         {f.status === 'OPEN' && (
                           <div className="flex gap-1">
@@ -561,7 +561,7 @@ export default function RiskPage() {
                   ))}
                   {flags.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="px-3 py-8 text-center text-gray-400">
+                      <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
                         No flags found.
                       </td>
                     </tr>

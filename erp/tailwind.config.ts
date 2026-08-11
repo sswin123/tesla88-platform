@@ -49,6 +49,13 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-bg))',
+          border: 'hsl(var(--sidebar-border))',
+          'active-bg': 'hsl(var(--sidebar-item-active-bg))',
+          'active-text': 'hsl(var(--sidebar-item-active-text))',
+        },
+        page: 'hsl(var(--page-bg))',
       },
     },
   },

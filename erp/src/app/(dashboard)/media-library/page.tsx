@@ -122,30 +122,30 @@ export default function MediaLibraryPage() {
       {/* Stats bar */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-lg border bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Files</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.totalFiles.toLocaleString()}</div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Files</div>
+            <div className="text-2xl font-bold text-foreground">{stats.totalFiles.toLocaleString()}</div>
           </div>
-          <div className="rounded-lg border bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Storage Used</div>
-            <div className="text-2xl font-bold text-gray-900">{formatBytes(stats.totalSize)}</div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Storage Used</div>
+            <div className="text-2xl font-bold text-foreground">{formatBytes(stats.totalSize)}</div>
           </div>
-          <div className="rounded-lg border bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Storage Health</div>
-            <span className={`inline-block rounded px-2 py-0.5 text-sm font-semibold ${HEALTH_COLOR[stats.storageHealth] ?? 'text-gray-600'}`}>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Storage Health</div>
+            <span className={`inline-block rounded px-2 py-0.5 text-sm font-semibold ${HEALTH_COLOR[stats.storageHealth] ?? 'text-muted-foreground'}`}>
               {stats.storageHealth}
             </span>
           </div>
-          <div className="rounded-lg border bg-white p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">By Type</div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">By Type</div>
             <div className="space-y-0.5">
               {Object.entries(stats.byType)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 5)
                 .map(([type, count]) => (
                   <div key={type} className="flex justify-between text-xs">
-                    <span className="text-gray-500">{type}</span>
-                    <span className="font-medium text-gray-800">{count}</span>
+                    <span className="text-muted-foreground">{type}</span>
+                    <span className="font-medium text-foreground">{count}</span>
                   </div>
                 ))}
             </div>
@@ -174,7 +174,7 @@ export default function MediaLibraryPage() {
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 typeFilter === f.value
                   ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                  : 'bg-background text-muted-foreground border-border hover:border-border'
               }`}
             >
               {f.label}
@@ -184,7 +184,7 @@ export default function MediaLibraryPage() {
         <select
           value={sort}
           onChange={e => { setSort(e.target.value); setPage(1); }}
-          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {SORT_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -195,12 +195,12 @@ export default function MediaLibraryPage() {
           className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
             includeArchived
               ? 'bg-gray-800 text-white border-gray-800'
-              : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+              : 'bg-background text-muted-foreground border-border hover:border-border'
           }`}
         >
           {includeArchived ? 'Showing Archived' : 'Show Archived'}
         </button>
-        <span className="ml-auto text-sm text-gray-400 self-center">{total.toLocaleString()} files</span>
+        <span className="ml-auto text-sm text-muted-foreground self-center">{total.toLocaleString()} files</span>
       </div>
 
       {/* Main area: grid + optional detail panel */}
@@ -208,9 +208,9 @@ export default function MediaLibraryPage() {
         {/* Media grid */}
         <div className={selected ? 'flex-1 min-w-0' : 'w-full'}>
           {loading ? (
-            <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+            <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
           ) : media.length === 0 ? (
-            <div className="flex h-40 items-center justify-center text-gray-400">
+            <div className="flex h-40 items-center justify-center text-muted-foreground">
               {search || typeFilter ? 'No files match the current filters.' : 'No files uploaded yet.'}
             </div>
           ) : (
@@ -246,15 +246,15 @@ export default function MediaLibraryPage() {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-muted transition-colors"
           >
             Prev
           </button>
-          <span className="text-gray-500">Page {page} / {totalPages}</span>
+          <span className="text-muted-foreground">Page {page} / {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-muted transition-colors"
           >
             Next
           </button>

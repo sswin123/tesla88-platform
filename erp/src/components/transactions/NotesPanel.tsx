@@ -87,14 +87,14 @@ function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
       onClick={e => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="bg-white rounded-lg shadow-xl p-5 max-w-sm w-full mx-4">
-        <p id={titleId} className="text-sm text-gray-700 mb-5">{message}</p>
+      <div className="bg-card rounded-lg shadow-xl p-5 max-w-sm w-full mx-4">
+        <p id={titleId} className="text-sm text-foreground mb-5">{message}</p>
         <div className="flex justify-end gap-2">
           <button
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 text-sm rounded border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="px-3 py-1.5 text-sm rounded border border-border hover:bg-muted transition-colors"
           >
             Cancel
           </button>
@@ -117,7 +117,7 @@ function CharCounter({ current }: { current: number }) {
   const remaining = MAX_CHARS - current;
   const isWarning = remaining < 200;
   return (
-    <span className={`text-xs tabular-nums ${isWarning ? 'text-red-500' : 'text-gray-400'}`}>
+    <span className={`text-xs tabular-nums ${isWarning ? 'text-red-500' : 'text-muted-foreground'}`}>
       {remaining}/{MAX_CHARS}
     </span>
   );
@@ -180,7 +180,7 @@ function InlineNoteEditor({ initialValue, onSave, onCancel, saving }: InlineNote
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="text-xs px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="text-xs px-2 py-1 rounded border border-border hover:bg-muted transition-colors disabled:opacity-40"
           >
             Esc / Cancel
           </button>
@@ -226,7 +226,7 @@ function NoteCard({
   const wasEdited = note.updated_at !== note.created_at;
 
   return (
-    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-3">
+    <div className="rounded-md border border-border bg-muted px-3 py-3">
       {isEditing ? (
         <InlineNoteEditor
           initialValue={note.content}
@@ -237,7 +237,7 @@ function NoteCard({
       ) : (
         <>
           <div className="flex items-start gap-2">
-            <p className="flex-1 text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+            <p className="flex-1 text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
               {note.content}
             </p>
             {isOwn && (
@@ -247,7 +247,7 @@ function NoteCard({
                   onClick={() => onStartEdit(note.id)}
                   title="Edit note"
                   aria-label="Edit note"
-                  className="text-gray-400 hover:text-blue-600 transition-colors rounded p-0.5 text-sm leading-none"
+                  className="text-muted-foreground hover:text-blue-600 transition-colors rounded p-0.5 text-sm leading-none"
                 >
                   ✎
                 </button>
@@ -256,14 +256,14 @@ function NoteCard({
                   onClick={() => onRequestDelete(note.id)}
                   title="Delete note"
                   aria-label="Delete note"
-                  className="text-gray-400 hover:text-red-600 transition-colors rounded p-0.5 text-sm leading-none"
+                  className="text-muted-foreground hover:text-red-600 transition-colors rounded p-0.5 text-sm leading-none"
                 >
                   ✕
                 </button>
               </div>
             )}
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>Admin #{note.admin_id}</span>
             <span>·</span>
             <span title={note.created_at}>{timeAgo(note.created_at)}</span>
@@ -304,7 +304,7 @@ function NoteEditor({ onSubmit, submitting, editorRef }: NoteEditorProps) {
   };
 
   return (
-    <div className="space-y-2 pt-3 border-t border-gray-100 mt-1">
+    <div className="space-y-2 pt-3 border-t border-border mt-1">
       <textarea
         ref={editorRef}
         value={value}
@@ -315,7 +315,7 @@ function NoteEditor({ onSubmit, submitting, editorRef }: NoteEditorProps) {
         rows={3}
         disabled={submitting}
         aria-label="New internal note"
-        className="w-full text-sm rounded border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-white placeholder:text-gray-400 disabled:opacity-60"
+        className="w-full text-sm rounded border border-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-background placeholder:text-muted-foreground disabled:opacity-60"
       />
       <div className="flex items-center justify-between">
         <CharCounter current={value.length} />
@@ -338,10 +338,10 @@ function NotesSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
       {[0, 1].map(i => (
-        <div key={i} className="rounded-md border border-gray-200 bg-gray-50 px-3 py-3 space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-3/4" />
-          <div className="h-3 bg-gray-100 rounded w-1/2" />
-          <div className="h-3 bg-gray-100 rounded w-1/3" />
+        <div key={i} className="rounded-md border border-border bg-muted px-3 py-3 space-y-2">
+          <div className="h-4 bg-muted rounded w-3/4" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+          <div className="h-3 bg-muted rounded w-1/3" />
         </div>
       ))}
     </div>
@@ -547,7 +547,7 @@ export default function NotesPanel({ type, id }: NotesPanelProps) {
         ) : (
           <>
             {notes.length === 0 && (
-              <p className="text-sm text-gray-400 py-3 text-center">
+              <p className="text-sm text-muted-foreground py-3 text-center">
                 No internal notes yet
               </p>
             )}

@@ -261,7 +261,7 @@ type EditorTab = 'data' | 'style' | 'design' | 'colors';
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
       {children}
     </div>
   );
@@ -286,13 +286,13 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
       <input type="color" value={value || '#f59e0b'}
         onChange={e => onChange(e.target.value)}
         className="w-8 h-8 rounded border cursor-pointer flex-shrink-0" />
-      <span className="text-xs text-gray-600 flex-1">{label}</span>
+      <span className="text-xs text-muted-foreground flex-1">{label}</span>
       <input type="text" value={value} placeholder="空 = 跟随预设"
         onChange={e => onChange(e.target.value)}
         className="border rounded px-2 py-1 text-xs w-36 font-mono" />
       {value && (
         <button onClick={() => onChange('')}
-          className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">✕</button>
+          className="text-xs text-muted-foreground hover:text-red-500 flex-shrink-0">✕</button>
       )}
     </div>
   );
@@ -314,7 +314,7 @@ function SizeInput({
 }) {
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
       <div className="flex gap-1">
         <input
           type="number"
@@ -326,7 +326,7 @@ function SizeInput({
         <select
           value={unit}
           onChange={e => onUnit(e.target.value)}
-          className="border rounded-lg px-2 py-1.5 text-sm bg-white"
+          className="border rounded-lg px-2 py-1.5 text-sm bg-background"
         >
           {units.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
@@ -369,7 +369,7 @@ function CustomSizeEditor({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs text-gray-500 mb-1">最大宽度 Max Width <span className="opacity-50">(可选)</span></p>
+          <p className="text-xs text-muted-foreground mb-1">最大宽度 Max Width <span className="opacity-50">(可选)</span></p>
           <div className="flex gap-1">
             <input
               type="number"
@@ -378,11 +378,11 @@ function CustomSizeEditor({
               placeholder="无限制"
               className="flex-1 border rounded-lg px-2 py-1.5 text-sm"
             />
-            <span className="px-2 py-1.5 text-sm text-gray-400">px</span>
+            <span className="px-2 py-1.5 text-sm text-muted-foreground">px</span>
           </div>
         </div>
         <div>
-          <p className="text-xs text-gray-500 mb-1">最小高度 Min Height <span className="opacity-50">(可选)</span></p>
+          <p className="text-xs text-muted-foreground mb-1">最小高度 Min Height <span className="opacity-50">(可选)</span></p>
           <div className="flex gap-1">
             <input
               type="number"
@@ -391,17 +391,17 @@ function CustomSizeEditor({
               placeholder="无限制"
               className="flex-1 border rounded-lg px-2 py-1.5 text-sm"
             />
-            <span className="px-2 py-1.5 text-sm text-gray-400">px</span>
+            <span className="px-2 py-1.5 text-sm text-muted-foreground">px</span>
           </div>
         </div>
       </div>
 
       <div>
-        <p className="text-xs text-gray-500 mb-1">内边距 Padding (px)</p>
+        <p className="text-xs text-muted-foreground mb-1">内边距 Padding (px)</p>
         <div className="grid grid-cols-4 gap-1">
           {(['pad_top','pad_right','pad_bottom','pad_left'] as const).map((k, i) => (
             <div key={k}>
-              <p className="text-xs text-gray-400 text-center mb-0.5">
+              <p className="text-xs text-muted-foreground text-center mb-0.5">
                 {['上T','右R','下B','左L'][i]}
               </p>
               <input
@@ -416,7 +416,7 @@ function CustomSizeEditor({
       </div>
 
       <div>
-        <p className="text-xs text-gray-500 mb-1">圆角 Border Radius (px)</p>
+        <p className="text-xs text-muted-foreground mb-1">圆角 Border Radius (px)</p>
         <input
           type="number"
           value={spec.radius}
@@ -425,7 +425,7 @@ function CustomSizeEditor({
         />
       </div>
 
-      <div className="text-xs text-indigo-600 font-mono bg-white border border-indigo-100 rounded p-2">
+      <div className="text-xs text-indigo-600 font-mono bg-card border border-indigo-100 rounded p-2">
         {`width:${spec.width}${spec.width_unit}; `}
         {spec.height_unit !== 'auto' && `height:${spec.height}${spec.height_unit}; `}
         {spec.max_width  && `max-width:${spec.max_width}px; `}
@@ -613,7 +613,7 @@ function CounterEditor({
             className={`px-3 py-1 text-xs rounded-t font-medium transition-colors ${
               tab === t.key
                 ? 'bg-indigo-600 text-white'
-                : 'text-gray-500 hover:text-gray-800'
+                : 'text-muted-foreground hover:text-foreground'
             }`}>
             {t.label}
           </button>
@@ -679,7 +679,7 @@ function CounterEditor({
                     className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
                       counter.sync_interval === s
                         ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'border-gray-300 text-gray-600 hover:border-indigo-400'
+                        : 'border-border text-muted-foreground hover:border-indigo-400'
                     }`}>
                     {s}s
                   </button>
@@ -695,7 +695,7 @@ function CounterEditor({
                   className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
                     counter.decimal_places === d
                       ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'border-gray-300 text-gray-600 hover:border-indigo-400'
+                      : 'border-border text-muted-foreground hover:border-indigo-400'
                   }`}>
                   {d === 0 ? '整数' : `.${Array(d).fill('0').join('')}`}
                 </button>
@@ -739,7 +739,7 @@ function CounterEditor({
                   className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
                     counter.size === s.value
                       ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'border-gray-300 text-gray-600 hover:border-indigo-400'
+                      : 'border-border text-muted-foreground hover:border-indigo-400'
                   }`}
                 >
                   {s.label}
@@ -760,7 +760,7 @@ function CounterEditor({
                       className={`px-2 py-1 text-xs rounded-lg border font-medium transition-colors ${
                         bpTab === bp
                           ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'border-gray-300 text-gray-600 hover:border-indigo-300'
+                          : 'border-border text-muted-foreground hover:border-indigo-300'
                       }`}
                     >
                       {bp === 'desktop' ? '🖥 Desktop' : bp === 'tablet' ? '📱 ≤1024px' : '📱 ≤480px'}
@@ -859,7 +859,7 @@ function CounterEditor({
       {/* ── COLORS TAB ── */}
       {tab === 'colors' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-400">留空 = 跟随样式预设。填写后覆盖预设颜色。</p>
+          <p className="text-xs text-muted-foreground">留空 = 跟随样式预设。填写后覆盖预设颜色。</p>
           <ColorRow label="数字颜色 Number"   value={counter.number_color}   onChange={v => patch({ number_color: v })} />
           <ColorRow label="标题颜色 Title"    value={counter.title_color}    onChange={v => patch({ title_color: v })} />
           <ColorRow label="货币颜色 Currency" value={counter.currency_color} onChange={v => patch({ currency_color: v })} />
@@ -941,15 +941,15 @@ export default function JackpotEditor({
 
       {/* ── Global: Layout ── */}
       {counters.length > 1 && (
-        <div className="border rounded-xl p-3 bg-gray-50 space-y-2">
-          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">多计数器布局</p>
+        <div className="border rounded-xl p-3 bg-muted space-y-2">
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide">多计数器布局</p>
           <div className="flex gap-2">
             {(['vertical', 'horizontal', 'grid'] as const).map(l => (
               <button key={l} onClick={() => save(counters, l)}
                 className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
                   layout === l
                     ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'border-gray-300 text-gray-600 hover:border-indigo-400'
+                    : 'border-border text-muted-foreground hover:border-indigo-400'
                 }`}>
                 {l === 'vertical' ? '纵向' : l === 'horizontal' ? '横排' : '网格'}
               </button>
@@ -959,9 +959,9 @@ export default function JackpotEditor({
       )}
 
       {/* ── Counter list ── */}
-      <div className="border rounded-xl p-3 space-y-2 bg-gray-50">
+      <div className="border rounded-xl p-3 space-y-2 bg-muted">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">计数器列表</p>
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide">计数器列表</p>
           <button onClick={addCounter}
             className="px-2.5 py-1 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
             + 添加计数器
@@ -972,20 +972,20 @@ export default function JackpotEditor({
           <div key={c.id}
             onClick={() => setSelectedIdx(idx)}
             className={`flex items-center gap-2 rounded-lg p-2 cursor-pointer transition-colors ${
-              safeIdx === idx ? 'bg-indigo-50 border border-indigo-300' : 'bg-white border border-gray-200 hover:border-gray-300'
+              safeIdx === idx ? 'bg-indigo-50 border border-indigo-300' : 'bg-card border border-border hover:border-muted-foreground'
             }`}>
             <span className="text-base">{c.icon || '💰'}</span>
-            <span className="flex-1 text-sm font-medium text-gray-800 truncate">{c.title}</span>
-            <span className="text-xs text-gray-400 hidden sm:block">
+            <span className="flex-1 text-sm font-medium text-foreground truncate">{c.title}</span>
+            <span className="text-xs text-muted-foreground hidden sm:block">
               {DATA_SOURCES.find(d => d.value === c.data_source)?.label.split(' ')[0]}
             </span>
             <div className="flex gap-0.5 ml-1">
               <button onClick={e => { e.stopPropagation(); moveUp(idx); }}
                 disabled={idx === 0}
-                className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▲</button>
+                className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▲</button>
               <button onClick={e => { e.stopPropagation(); moveDown(idx); }}
                 disabled={idx === counters.length - 1}
-                className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▼</button>
+                className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▼</button>
               <button onClick={e => { e.stopPropagation(); deleteCounter(idx); }}
                 disabled={counters.length === 1}
                 className="p-1 text-red-400 hover:text-red-600 disabled:opacity-20 text-xs ml-1">✕</button>
@@ -996,13 +996,13 @@ export default function JackpotEditor({
 
       {/* ── Live Preview ── */}
       <div className="border rounded-xl p-3 space-y-2">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">实时预览</p>
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">实时预览</p>
         <MiniPreview c={selected} />
       </div>
 
       {/* ── Counter settings ── */}
       <div className="border rounded-xl p-3 space-y-3">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">
           设置：{selected.title}
         </p>
         <CounterEditor

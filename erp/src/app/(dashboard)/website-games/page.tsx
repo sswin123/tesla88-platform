@@ -195,7 +195,7 @@ export default function WebsiteGamesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">游戏库 Website Games</h1>
-          <p className="text-sm text-gray-500 mt-1">手动添加游戏供 Game Lobby Builder 使用</p>
+          <p className="text-sm text-muted-foreground mt-1">手动添加游戏供 Game Lobby Builder 使用</p>
         </div>
         <button onClick={startCreate}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
@@ -208,7 +208,7 @@ export default function WebsiteGamesPage() {
 
       {/* ── Form ── */}
       {showForm && (
-        <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
+        <div className="mb-6 bg-card border border-border rounded-xl p-5">
           <h2 className="text-base font-semibold mb-4">
             {editId ? '编辑游戏' : '新增游戏'}
           </h2>
@@ -216,28 +216,28 @@ export default function WebsiteGamesPage() {
             <div className="grid grid-cols-2 gap-4">
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">游戏名称 *</label>
+                <label className="block text-xs font-medium text-foreground mb-1">游戏名称 *</label>
                 <input
                   value={form.game_name} onChange={e => setField('game_name', e.target.value)}
-                  required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  required className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="水果老虎机"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">游戏代码 <span className="text-gray-400">(留空自动生成)</span></label>
+                <label className="block text-xs font-medium text-foreground mb-1">游戏代码 <span className="text-muted-foreground">(留空自动生成)</span></label>
                 <input
                   value={form.game_code} onChange={e => setField('game_code', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="fruit-slot-001"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">所属平台 (Provider)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">所属平台 (Provider)</label>
                 <select value={form.provider_id}
                   onChange={e => setField('provider_id', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm">
                   <option value="">— 无 —</option>
                   {providers.map(p => (
                     <option key={p.id} value={p.id}>{p.provider_name}</option>
@@ -246,14 +246,14 @@ export default function WebsiteGamesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">游戏类型</label>
+                <label className="block text-xs font-medium text-foreground mb-1">游戏类型</label>
                 <select
                   value={form.category_id ?? ''}
                   onChange={e => {
                     const id = e.target.value ? parseInt(e.target.value) : null;
                     setField('category_id', id);
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm">
                   <option value="">— 选择类型 —</option>
                   {categories.filter(c => c.category_code !== 'all' && c.category_code !== 'hot').map(c => (
                     <option key={c.id} value={c.id}>{c.category_name}</option>
@@ -262,22 +262,22 @@ export default function WebsiteGamesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">排序</label>
+                <label className="block text-xs font-medium text-foreground mb-1">排序</label>
                 <input type="text" inputMode="numeric" value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm" />
               </div>
 
               {/* Thumbnail */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">缩略图 (Thumbnail)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">缩略图 (Thumbnail)</label>
                 <div className="flex items-center gap-2">
                   {form.thumbnail_media_id && (
                     <img src={`/api/public/media/${form.thumbnail_media_id}`}
                       alt="" className="h-10 w-10 object-cover rounded border" />
                   )}
                   <button type="button" onClick={() => setPickerFor('thumbnail')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                    className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
                     {form.thumbnail_media_id ? `Media #${form.thumbnail_media_id}` : '选择图片'}
                   </button>
                   {form.thumbnail_media_id && (
@@ -289,14 +289,14 @@ export default function WebsiteGamesPage() {
 
               {/* Banner */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">横幅 (Banner)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">横幅 (Banner)</label>
                 <div className="flex items-center gap-2">
                   {form.banner_media_id && (
                     <img src={`/api/public/media/${form.banner_media_id}`}
                       alt="" className="h-10 w-16 object-cover rounded border" />
                   )}
                   <button type="button" onClick={() => setPickerFor('banner')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                    className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
                     {form.banner_media_id ? `Media #${form.banner_media_id}` : '选择图片'}
                   </button>
                   {form.banner_media_id && (
@@ -311,20 +311,20 @@ export default function WebsiteGamesPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_hot}
                     onChange={e => setField('is_hot', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">🔥 HOT</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">🔥 HOT</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_new}
                     onChange={e => setField('is_new', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">🆕 NEW</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">🆕 NEW</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_active}
                     onChange={e => setField('is_active', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">显示中</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">显示中</span>
                 </label>
               </div>
             </div>
@@ -335,7 +335,7 @@ export default function WebsiteGamesPage() {
                 {saving ? '保存中...' : '保存'}
               </button>
               <button type="button" onClick={cancelForm}
-                className="px-5 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+                className="px-5 py-2 border border-border rounded-lg text-sm font-medium hover:bg-muted">
                 取消
               </button>
             </div>
@@ -356,27 +356,27 @@ export default function WebsiteGamesPage() {
         <input
           type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="搜索游戏名 / 代码 / 平台..."
-          className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          className="w-full max-w-sm border border-border rounded-lg px-3 py-2 text-sm"
         />
-        <span className="ml-3 text-xs text-gray-400">共 {filtered.length} 款游戏</span>
+        <span className="ml-3 text-xs text-muted-foreground">共 {filtered.length} 款游戏</span>
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-muted border-b border-border">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">游戏</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">平台</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">类型</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">状态</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">排序</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">操作</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">游戏</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">平台</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">类型</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">状态</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">排序</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {filtered.map(g => (
-              <tr key={g.id} className="hover:bg-gray-50">
+              <tr key={g.id} className="hover:bg-muted">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {g.thumbnail_media_id ? (
@@ -384,18 +384,19 @@ export default function WebsiteGamesPage() {
                         alt={g.game_name}
                         className="h-10 w-8 object-cover rounded border flex-shrink-0" />
                     ) : (
-                      <div className="h-10 w-8 rounded border bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">🎮</div>
+                      // bg-muted for media placeholder (no-thumbnail box)
+                      <div className="h-10 w-8 rounded border bg-muted flex items-center justify-center text-lg flex-shrink-0">🎮</div>
                     )}
                     <div>
-                      <div className="font-medium text-gray-900">{g.game_name}</div>
-                      <div className="text-xs text-gray-400">{g.game_code}</div>
+                      <div className="font-medium text-foreground">{g.game_name}</div>
+                      <div className="text-xs text-muted-foreground">{g.game_code}</div>
                     </div>
                     {g.is_hot && <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-red-100 text-red-600">HOT</span>}
                     {g.is_new && !g.is_hot && <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-600">NEW</span>}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-600">{g.provider_name ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-muted-foreground">{g.provider_name ?? '—'}</td>
+                <td className="px-4 py-3 text-muted-foreground">
                   {categories.find(c => c.id === g.category_id)?.category_name ?? g.category}
                 </td>
                 <td className="px-4 py-3">
@@ -403,6 +404,7 @@ export default function WebsiteGamesPage() {
                     className={`px-2 py-0.5 text-xs rounded-full font-medium ${
                       g.is_active
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        // KEEP: business status inactive pill (rule 6/8) — gray signals "inactive/stopped"
                         : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}>
                     {g.is_active ? '显示中' : '已停用'}
@@ -410,16 +412,17 @@ export default function WebsiteGamesPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <span className="text-gray-600 w-8 text-center">{g.display_order}</span>
+                    <span className="text-muted-foreground w-8 text-center">{g.display_order}</span>
                     <button onClick={() => reorder(g, -1)}
-                      className="p-0.5 text-gray-400 hover:text-gray-700">▲</button>
+                      className="p-0.5 text-muted-foreground hover:text-foreground">▲</button>
                     <button onClick={() => reorder(g, 1)}
-                      className="p-0.5 text-gray-400 hover:text-gray-700">▼</button>
+                      className="p-0.5 text-muted-foreground hover:text-foreground">▼</button>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => toggleHot(g)}
+                      // KEEP: HOT business toggle — gray inactive state (rule 6)
                       className={`text-xs px-2 py-1 rounded ${g.is_hot ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'} hover:opacity-80`}>
                       🔥
                     </button>
@@ -437,7 +440,7 @@ export default function WebsiteGamesPage() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                   {search ? `没有找到"${search}"相关游戏` : '还没有游戏。点击"添加游戏"开始。'}
                 </td>
               </tr>

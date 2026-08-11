@@ -188,13 +188,13 @@ export default function PromotionsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">Loading...</div>
+        <div className="flex h-40 items-center justify-center text-muted-foreground">Loading...</div>
       ) : (
         <>
           {/* Desktop table (≥ 1024px) */}
           <div className="hidden lg:block overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="bg-muted text-muted-foreground">
                 <tr>
                   {['Name','Claim Limit','Bonus','Min Deposit','Max Bonus','Turnover','Games','Expiry','Status','Actions'].map((h) => (
                     <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -203,7 +203,7 @@ export default function PromotionsPage() {
               </thead>
               <tbody className="divide-y">
                 {promos.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} className="hover:bg-muted">
                     <td className="px-3 py-2 font-medium">{p.name}</td>
                     <td className="px-3 py-2">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</td>
                     <td className="px-3 py-2">{bonusModeLabel(p)}</td>
@@ -229,7 +229,7 @@ export default function PromotionsPage() {
                   </tr>
                 ))}
                 {promos.length === 0 && (
-                  <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No promotions yet.</td></tr>
+                  <tr><td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">No promotions yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -238,13 +238,13 @@ export default function PromotionsPage() {
           {/* Mobile card list (< 1024px) */}
           <div className="lg:hidden space-y-3">
             {promos.length === 0 ? (
-              <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">No promotions yet.</div>
+              <div className="rounded-lg border bg-card px-4 py-8 text-center text-muted-foreground">No promotions yet.</div>
             ) : promos.map((p) => (
-              <div key={p.id} className="rounded-lg border bg-white p-4">
+              <div key={p.id} className="rounded-lg border bg-card p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm leading-snug">{p.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{CLAIM_LABELS[p.promotion_type as ClaimLimit] ?? p.promotion_type}</p>
                   </div>
                   <Badge variant={p.is_active ? 'default' : 'secondary'} className="ml-3 flex-shrink-0">
                     {p.is_active ? 'Active' : 'Inactive'}
@@ -252,30 +252,30 @@ export default function PromotionsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm mb-3">
                   <div>
-                    <p className="text-xs text-gray-400">Bonus</p>
+                    <p className="text-xs text-muted-foreground">Bonus</p>
                     <p className="font-medium">{bonusModeLabel(p)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">Min Deposit</p>
+                    <p className="text-xs text-muted-foreground">Min Deposit</p>
                     <p className="font-medium">RM {parseFloat(p.min_deposit).toFixed(0)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">Turnover</p>
+                    <p className="text-xs text-muted-foreground">Turnover</p>
                     <p className="font-medium">{parseFloat(p.turnover_multiplier)}x</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">Games</p>
+                    <p className="text-xs text-muted-foreground">Games</p>
                     <p className="font-medium">{p.allowed_games.length === 0 ? 'All' : p.allowed_games.join(', ')}</p>
                   </div>
                   {p.max_bonus && (
                     <div>
-                      <p className="text-xs text-gray-400">Max Bonus</p>
+                      <p className="text-xs text-muted-foreground">Max Bonus</p>
                       <p className="font-medium">RM {parseFloat(p.max_bonus).toFixed(0)}</p>
                     </div>
                   )}
                   {p.expiry_date && (
                     <div>
-                      <p className="text-xs text-gray-400">Expiry</p>
+                      <p className="text-xs text-muted-foreground">Expiry</p>
                       <p className="font-medium">{p.expiry_date.slice(0, 10)}</p>
                     </div>
                   )}
@@ -295,7 +295,7 @@ export default function PromotionsPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl overflow-y-auto max-h-[90vh]">
+          <div className="w-full max-w-lg rounded-lg bg-card p-6 shadow-xl overflow-y-auto max-h-[90vh]">
             <h2 className="mb-4 text-lg font-semibold">{editing ? 'Edit Promotion' : 'Add Promotion'}</h2>
             <div className="space-y-3">
               <div>
@@ -369,7 +369,7 @@ export default function PromotionsPage() {
                 </div>
               </div>
 
-              <div className="rounded-md bg-gray-50 p-3">
+              <div className="rounded-md bg-muted p-3">
                 <p className="mb-2 text-sm font-medium">Bonus Preview</p>
                 <div className="flex gap-2">
                   <Input
@@ -384,9 +384,9 @@ export default function PromotionsPage() {
                 </div>
                 {preview && (
                   <div className="mt-2 space-y-1 text-sm">
-                    <div className="flex justify-between"><span className="text-gray-500">Bonus</span><span>RM {preview.bonus.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Total Credit</span><span>RM {preview.total.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Min Withdrawal</span><span>RM {preview.turnover.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Bonus</span><span>RM {preview.bonus.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Credit</span><span>RM {preview.total.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Min Withdrawal</span><span>RM {preview.turnover.toFixed(2)}</span></div>
                   </div>
                 )}
               </div>

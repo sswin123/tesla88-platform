@@ -198,31 +198,34 @@ export default function MaintenancePage() {
   ];
   const healthAllGreen = migStatus ? dbHealthItems.every(i => migStatus.health[i.key]) : false;
 
+  // suppress unused warning
+  void appliedSet;
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Backup &amp; Maintenance</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-foreground">Backup &amp; Maintenance</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Monitor system health, run database migrations, manage maintenance mode, and download backups.
         </p>
       </div>
 
       {/* ── System Health ───────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">System Health</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">System Health</h2>
         </div>
 
         <div className="px-6 py-5 space-y-4">
           {healthLoading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <SpinnerIcon />
               Running health check…
             </div>
           ) : health ? (
             <>
               <div className="flex items-center gap-6">
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                   Overall status:&nbsp;
                   <span
                     className={`font-semibold ${
@@ -236,17 +239,17 @@ export default function MaintenancePage() {
                     {health.status.toUpperCase()}
                   </span>
                 </span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   Checked at {new Date(health.timestamp).toLocaleString()}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-start gap-3 rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex items-start gap-3 rounded-md border border-border bg-muted px-4 py-3">
                   <StatusDot ok={health.checks.database.ok} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800">Database</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm font-medium text-foreground">Database</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {health.checks.database.ok
                         ? `Connected — ${health.checks.database.latency_ms} ms`
                         : `Unreachable — ${health.checks.database.latency_ms} ms`}
@@ -257,11 +260,11 @@ export default function MaintenancePage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex items-start gap-3 rounded-md border border-border bg-muted px-4 py-3">
                   <StatusDot ok={health.checks.bot_relay.ok} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800">Bot Relay</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm font-medium text-foreground">Bot Relay</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {health.checks.bot_relay.ok
                         ? `Reachable — ${health.checks.bot_relay.latency_ms} ms`
                         : `Unreachable — ${health.checks.bot_relay.latency_ms} ms`}
@@ -274,7 +277,7 @@ export default function MaintenancePage() {
               </div>
             </>
           ) : (
-            <p className="text-sm text-gray-400">No health check run yet. Click the button to check.</p>
+            <p className="text-sm text-muted-foreground">No health check run yet. Click the button to check.</p>
           )}
 
           <div>
@@ -290,11 +293,11 @@ export default function MaintenancePage() {
       </div>
 
       {/* ── Database Migration ──────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-800">Database Migration</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h2 className="text-base font-semibold text-foreground">Database Migration</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Apply all pending schema migrations. Each step is idempotent — safe to re-run.
             </p>
           </div>
@@ -323,7 +326,7 @@ export default function MaintenancePage() {
               <button
                 onClick={loadMigrationStatus}
                 disabled={migStatusLoading}
-                className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
               >
                 <svg className={`h-3.5 w-3.5 ${migStatusLoading ? 'animate-spin' : ''}`} viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
@@ -340,11 +343,11 @@ export default function MaintenancePage() {
             </div>
           )}
           {migResults && (
-            <div className="rounded-md bg-gray-50 border border-gray-200 divide-y divide-gray-100 text-sm">
+            <div className="rounded-md bg-muted border border-border divide-y divide-border text-sm">
               {migResults.map((r) => (
                 <div key={r.migration} className="flex items-center gap-3 px-4 py-2">
                   <CheckIcon ok={r.status === 'ok'} />
-                  <span className="font-mono text-xs text-gray-700 flex-1">{r.migration}</span>
+                  <span className="font-mono text-xs text-foreground flex-1">{r.migration}</span>
                   {r.status === 'error' && (
                     <span className="text-xs text-red-500 truncate max-w-xs">{r.detail}</span>
                   )}
@@ -355,34 +358,34 @@ export default function MaintenancePage() {
 
           {/* Migration status grid */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Migration Status
             </p>
             {migStatusLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <SpinnerIcon />
                 Loading…
               </div>
             ) : (
-              <div className="border border-gray-200 rounded-md overflow-hidden">
-                <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+              <div className="border border-border rounded-md overflow-hidden">
+                <div className="max-h-64 overflow-y-auto divide-y divide-border">
                   {migrationRows.map((row) => (
                     <div
                       key={row.num}
                       className={`flex items-center gap-3 px-4 py-1.5 ${
-                        row.applied ? 'bg-white' : 'bg-red-50'
+                        row.applied ? 'bg-card' : 'bg-red-50'
                       }`}
                     >
                       <CheckIcon ok={row.applied} />
-                      <span className="font-mono text-xs text-gray-600 w-8">{row.num}</span>
-                      <span className="text-xs text-gray-500 flex-1 truncate">
+                      <span className="font-mono text-xs text-muted-foreground w-8">{row.num}</span>
+                      <span className="text-xs text-muted-foreground flex-1 truncate">
                         {row.filename
                           ? row.filename.replace(/^\d{3}_/, '').replace(/\.sql$/, '')
-                          : <span className="text-gray-300 italic">not applied</span>
+                          : <span className="text-muted-foreground/50 italic">not applied</span>
                         }
                       </span>
                       {row.applied_at && (
-                        <span className="text-xs text-gray-300 hidden sm:block">
+                        <span className="text-xs text-muted-foreground hidden sm:block">
                           {new Date(row.applied_at).toLocaleDateString()}
                         </span>
                       )}
@@ -396,7 +399,7 @@ export default function MaintenancePage() {
           {/* Database Health */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Database Health
               </p>
               {migStatus && (
@@ -408,18 +411,18 @@ export default function MaintenancePage() {
               )}
             </div>
             {migStatusLoading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <SpinnerIcon />
                 Loading…
               </div>
             ) : migStatus ? (
-              <div className="border border-gray-200 rounded-md divide-y divide-gray-100 overflow-hidden">
+              <div className="border border-border rounded-md divide-y divide-border overflow-hidden">
                 {dbHealthItems.map((item) => (
                   <div key={item.key} className={`flex items-center gap-3 px-4 py-2 ${
-                    migStatus.health[item.key] ? 'bg-white' : 'bg-red-50'
+                    migStatus.health[item.key] ? 'bg-card' : 'bg-red-50'
                   }`}>
                     <CheckIcon ok={migStatus.health[item.key]} />
-                    <span className="text-sm text-gray-700">{item.label}</span>
+                    <span className="text-sm text-foreground">{item.label}</span>
                     <span className={`ml-auto text-xs font-medium ${
                       migStatus.health[item.key] ? 'text-green-600' : 'text-red-500'
                     }`}>
@@ -429,28 +432,28 @@ export default function MaintenancePage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">Click Refresh to check database health.</p>
+              <p className="text-sm text-muted-foreground">Click Refresh to check database health.</p>
             )}
           </div>
         </div>
       </div>
 
       {/* ── Maintenance Mode ────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Maintenance Mode</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">Maintenance Mode</h2>
         </div>
 
         <div className="px-6 py-5 space-y-4">
           {settingsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <SpinnerIcon />
               Loading…
             </div>
           ) : (
             <>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">Current status:</span>
+                <span className="text-sm font-medium text-foreground">Current status:</span>
                 {maintenanceOn ? (
                   <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">ON</span>
                 ) : (
@@ -488,15 +491,15 @@ export default function MaintenancePage() {
       </div>
 
       {/* ── Database Backup ─────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Database Backup</h2>
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-muted">
+          <h2 className="text-base font-semibold text-foreground">Database Backup</h2>
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Download a full SQL dump of the PostgreSQL database. Requires{' '}
-            <code className="rounded bg-gray-100 px-1 py-0.5 text-xs font-mono">pg_dump</code> to
+            <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">pg_dump</code> to
             be available on the server. Only available to Super Admins.
           </p>
 
@@ -519,7 +522,7 @@ export default function MaintenancePage() {
             </button>
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             Manual backup triggered. The file will be named{' '}
             <code className="font-mono">
               postgres-backup-{new Date().toISOString().split('T')[0]}.sql

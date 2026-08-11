@@ -142,7 +142,7 @@ const SECTION_TYPE_COLORS: Record<SectionType, string> = {
   providers:        'bg-orange-100 text-orange-700',
   live_tx:          'bg-teal-100 text-teal-700',
   member_zone:      'bg-indigo-100 text-indigo-700',
-  custom_html:      'bg-gray-100 text-gray-700',
+  custom_html:      'bg-muted text-foreground',
   game_lobby:       'bg-cyan-100 text-cyan-700',
   cta_card:         'bg-pink-100 text-pink-700',
   announcement:     'bg-amber-100 text-amber-700',
@@ -150,11 +150,11 @@ const SECTION_TYPE_COLORS: Record<SectionType, string> = {
   jackpot:          'bg-yellow-100 text-yellow-800',
   footer_banner:    'bg-slate-100 text-slate-700',
   floating_button:  'bg-violet-100 text-violet-700',
-  spacer:           'bg-gray-100 text-gray-500',
-  divider:          'bg-gray-100 text-gray-600',
+  spacer:           'bg-muted text-muted-foreground',
+  divider:          'bg-muted text-muted-foreground',
   button_group:     'bg-amber-100 text-amber-700',
-  gallery:          'bg-gray-100 text-gray-700',
-  video_block:      'bg-gray-100 text-gray-700',
+  gallery:          'bg-muted text-foreground',
+  video_block:      'bg-muted text-foreground',
   faq:              'bg-purple-100 text-purple-700',
   countdown:        'bg-amber-100 text-amber-800',
   vip_card:         'bg-yellow-100 text-yellow-800',
@@ -171,7 +171,7 @@ const WIDGET_CATEGORIES = {
   game:      { label: '游戏',  color: 'bg-cyan-100 text-cyan-700' },
   support:   { label: '客服',  color: 'bg-rose-100 text-rose-700' },
   marketing: { label: '营销',  color: 'bg-amber-100 text-amber-700' },
-  media:     { label: '媒体',  color: 'bg-gray-100 text-gray-700' },
+  media:     { label: '媒体',  color: 'bg-muted text-foreground' },
   layout:    { label: '布局',  color: 'bg-purple-100 text-purple-700' },
 } as const;
 
@@ -316,10 +316,10 @@ function UploadHint({ recSize, ratio, maxMB, formats, note }: {
   recSize: string; ratio?: string; maxMB: number; formats: string; note?: string;
 }) {
   return (
-    <div className="mt-1.5 rounded-md bg-gray-50 border border-gray-100 px-2.5 py-2 text-[10px] text-gray-400 leading-relaxed space-y-0.5">
-      <p><span className="font-semibold text-gray-500">推荐尺寸：</span>{recSize}{ratio && ` · ${ratio}`}</p>
-      <p><span className="font-semibold text-gray-500">最大：</span>{maxMB} MB · <span className="font-semibold text-gray-500">格式：</span>{formats}</p>
-      {note && <p className="text-gray-400">{note}</p>}
+    <div className="mt-1.5 rounded-md bg-muted border border-border px-2.5 py-2 text-[10px] text-muted-foreground leading-relaxed space-y-0.5">
+      <p><span className="font-semibold text-muted-foreground">推荐尺寸：</span>{recSize}{ratio && ` · ${ratio}`}</p>
+      <p><span className="font-semibold text-muted-foreground">最大：</span>{maxMB} MB · <span className="font-semibold text-muted-foreground">格式：</span>{formats}</p>
+      {note && <p className="text-muted-foreground">{note}</p>}
     </div>
   );
 }
@@ -358,7 +358,7 @@ function SectionCard({
   onDragEnd?: () => void;
 }) {
   const typeLabel = SECTION_TYPE_LABELS[section.section_type] ?? section.section_type;
-  const typeColor = SECTION_TYPE_COLORS[section.section_type] ?? 'bg-gray-100 text-gray-700';
+  const typeColor = SECTION_TYPE_COLORS[section.section_type] ?? 'bg-muted text-foreground';
 
   const now = new Date();
   const scheduled = section.start_at && new Date(section.start_at) > now;
@@ -374,17 +374,17 @@ function SectionCard({
       className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
         isDragging  ? 'opacity-40 scale-95' :
         isDragOver  ? 'border-blue-400 bg-blue-50 shadow-md' :
-        section.is_enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
+        section.is_enabled ? 'bg-card border-border' : 'bg-muted border-border opacity-60'
       }`}
     >
-      <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeColor}`}>
             {typeLabel}
           </span>
-          <span className="text-sm font-medium text-gray-800 truncate">{section.name}</span>
+          <span className="text-sm font-medium text-foreground truncate">{section.name}</span>
           {scheduled && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">定时</span>
           )}
@@ -393,7 +393,7 @@ function SectionCard({
           )}
         </div>
         {(section.start_at || section.end_at) && (
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {section.start_at && `开始: ${new Date(section.start_at).toLocaleDateString('zh-CN')}`}
             {section.start_at && section.end_at && ' · '}
             {section.end_at && `结束: ${new Date(section.end_at).toLocaleDateString('zh-CN')}`}
@@ -405,27 +405,27 @@ function SectionCard({
         <button
           onClick={() => onMove('up')}
           disabled={index === 0}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
           title="上移"
         >
-          <ChevronUp className="w-4 h-4 text-gray-500" />
+          <ChevronUp className="w-4 h-4 text-muted-foreground" />
         </button>
         <button
           onClick={() => onMove('down')}
           disabled={index === total - 1}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
           title="下移"
         >
-          <ChevronDown className="w-4 h-4 text-gray-500" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
         <button
           onClick={onToggle}
-          className="p-1.5 rounded hover:bg-gray-100"
+          className="p-1.5 rounded hover:bg-muted"
           title={section.is_enabled ? '隐藏' : '显示'}
         >
           {section.is_enabled
             ? <Eye className="w-4 h-4 text-green-600" />
-            : <EyeOff className="w-4 h-4 text-gray-400" />}
+            : <EyeOff className="w-4 h-4 text-muted-foreground" />}
         </button>
         <button
           onClick={onEdit}
@@ -436,7 +436,7 @@ function SectionCard({
         </button>
         <button
           onClick={onDuplicate}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+          className="p-1.5 rounded hover:bg-muted text-muted-foreground"
           title="复制"
         >
           <Copy className="w-4 h-4" />
@@ -486,12 +486,12 @@ function SlideMediaCard({
 
   return (
     <div>
-      <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
 
       {/* Preview / Upload area */}
       {hasMedia ? (
         <div
-          className="relative rounded-lg overflow-hidden border-2 border-gray-200 bg-black cursor-pointer group"
+          className="relative rounded-lg overflow-hidden border-2 border-border bg-black cursor-pointer group"
           style={{ height: 96 }}
           onClick={onPickClick}
           title="点击更换媒体"
@@ -516,7 +516,7 @@ function SlideMediaCard({
         <button
           type="button"
           onClick={onPickClick}
-          className="w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-blue-400 hover:text-blue-500 bg-gray-50 hover:bg-blue-50 transition-colors"
+          className="w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-blue-400 hover:text-blue-500 bg-muted hover:bg-blue-50 transition-colors"
           style={{ height: 96 }}
         >
           <Plus className="w-5 h-5" />
@@ -536,10 +536,10 @@ function SlideMediaCard({
       )}
 
       {/* Upload guidelines */}
-      <div className="mt-2 rounded-md bg-gray-50 border border-gray-100 px-2.5 py-2 text-[10px] text-gray-400 leading-relaxed space-y-0.5">
-        <p><span className="font-semibold text-gray-500">推荐：</span>{recTitle} / {recSize}</p>
-        <p><span className="font-semibold text-gray-500">最大：</span>{maxMB} MB</p>
-        <p><span className="font-semibold text-gray-500">{hint}</span></p>
+      <div className="mt-2 rounded-md bg-muted border border-border px-2.5 py-2 text-[10px] text-muted-foreground leading-relaxed space-y-0.5">
+        <p><span className="font-semibold text-muted-foreground">推荐：</span>{recTitle} / {recSize}</p>
+        <p><span className="font-semibold text-muted-foreground">最大：</span>{maxMB} MB</p>
+        <p><span className="font-semibold text-muted-foreground">{hint}</span></p>
       </div>
     </div>
   );
@@ -617,7 +617,7 @@ function HeroEditor({
       {/* Global settings */}
       <div className="flex flex-wrap gap-4 items-center">
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">自动播放间隔 (毫秒)</span>
+          <span className="text-xs text-muted-foreground mb-1 block">自动播放间隔 (毫秒)</span>
           <NumericInput
             className="w-32 border rounded-lg px-3 py-1.5 text-sm"
             value={(config.autoplay_interval as number) ?? 5000}
@@ -647,7 +647,7 @@ function HeroEditor({
 
       <div className="border-t pt-4">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-700">幻灯片列表（{slides.length} 张）</h4>
+          <h4 className="text-sm font-semibold text-foreground">幻灯片列表（{slides.length} 张）</h4>
           <button
             type="button"
             onClick={addSlide}
@@ -659,8 +659,8 @@ function HeroEditor({
 
         <div className="space-y-4">
           {slides.length === 0 && (
-            <div className="text-center py-8 border-2 border-dashed rounded-xl bg-gray-50">
-              <p className="text-sm text-gray-400 mb-2">暂无幻灯片</p>
+            <div className="text-center py-8 border-2 border-dashed rounded-xl bg-muted">
+              <p className="text-sm text-muted-foreground mb-2">暂无幻灯片</p>
               <button
                 type="button"
                 onClick={addSlide}
@@ -672,12 +672,12 @@ function HeroEditor({
           )}
 
           {slides.map((slide, idx) => (
-            <div key={slide.id} className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+            <div key={slide.id} className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
               {/* Slide header bar */}
-              <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+              <div className="flex items-center justify-between px-3 py-2 bg-muted border-b border-border">
                 <div className="flex items-center gap-2">
                   <GripVertical className="w-4 h-4 text-gray-300" />
-                  <span className="text-xs font-semibold text-gray-600">幻灯片 {idx + 1}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">幻灯片 {idx + 1}</span>
                   {!slide.desktop_media_url && (
                     <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">缺少桌面图片</span>
                   )}
@@ -685,17 +685,17 @@ function HeroEditor({
                 <div className="flex items-center gap-1">
                   {/* Up/Down */}
                   <button type="button" onClick={() => moveSlide(idx, 'up')} disabled={idx === 0}
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors" title="上移">
-                    <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
+                    className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors" title="上移">
+                    <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <button type="button" onClick={() => moveSlide(idx, 'down')} disabled={idx === slides.length - 1}
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors" title="下移">
-                    <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                    className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors" title="下移">
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   {/* Visible toggle */}
                   <button type="button"
                     onClick={() => updateSlide(slide.id, { enabled: !slide.enabled })}
-                    className={`p-1 rounded transition-colors ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                    className={`p-1 rounded transition-colors ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-muted'}`}
                     title={slide.enabled ? '已显示（点击隐藏）' : '已隐藏（点击显示）'}
                   >
                     {slide.enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -713,37 +713,37 @@ function HeroEditor({
                 {/* Text fields */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-gray-400 mb-0.5 block">标题（可选）</label>
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">标题（可选）</label>
                     <input
                       placeholder="幻灯片标题"
-                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.title}
                       onChange={e => updateSlide(slide.id, { title: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400 mb-0.5 block">副标题（可选）</label>
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">副标题（可选）</label>
                     <input
                       placeholder="幻灯片副标题"
-                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.subtitle}
                       onChange={e => updateSlide(slide.id, { subtitle: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400 mb-0.5 block">按钮文字（可选）</label>
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">按钮文字（可选）</label>
                     <input
                       placeholder="例：立即游戏"
-                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.button_text}
                       onChange={e => updateSlide(slide.id, { button_text: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400 mb-0.5 block">按钮链接（可选）</label>
+                    <label className="text-[10px] text-muted-foreground mb-0.5 block">按钮链接（可选）</label>
                     <input
                       placeholder="例：/promotions"
-                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-300"
                       value={slide.button_url}
                       onChange={e => updateSlide(slide.id, { button_url: e.target.value })}
                     />
@@ -871,13 +871,13 @@ function PopupSliderEditor({
     setPickerFor(null);
   }
 
-  const iField = 'w-full border rounded-lg px-2 py-1.5 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-300';
+  const iField = 'w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-300';
 
   return (
     <div className="space-y-5">
       {/* ── Global popup settings ─────────────────────────────────────── */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">弹窗全局设置</p>
+      <div className="rounded-xl border border-border bg-muted p-4 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">弹窗全局设置</p>
 
         {/* Row 1: autoplay + interval */}
         <div className="flex flex-wrap gap-4 items-end">
@@ -888,7 +888,7 @@ function PopupSliderEditor({
             自动播放
           </label>
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">间隔（毫秒）</span>
+            <span className="text-xs text-muted-foreground mb-1 block">间隔（毫秒）</span>
             <NumericInput className="w-28 border rounded-lg px-3 py-1.5 text-sm"
               value={(config.autoplay_interval as number) ?? 5000}
               min={1000} step={500}
@@ -923,7 +923,7 @@ function PopupSliderEditor({
             显示左右箭头
           </label>
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">动画效果</span>
+            <span className="text-xs text-muted-foreground mb-1 block">动画效果</span>
             <select className="border rounded-lg px-2 py-1.5 text-sm"
               value={(config.animation as string) ?? 'slide'}
               onChange={e => onChange({ ...config, animation: e.target.value })}>
@@ -933,7 +933,7 @@ function PopupSliderEditor({
             </select>
           </label>
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">显示频率</span>
+            <span className="text-xs text-muted-foreground mb-1 block">显示频率</span>
             <select className="border rounded-lg px-2 py-1.5 text-sm"
               value={(config.frequency as string) ?? 'session'}
               onChange={e => onChange({ ...config, frequency: e.target.value })}>
@@ -950,7 +950,7 @@ function PopupSliderEditor({
         <div className="flex gap-4 flex-wrap">
           {[['bg_color', '背景颜色', '#18181b'], ['text_color', '文字颜色', '#ffffff']].map(([key, label, def]) => (
             <div key={key}>
-              <label className="block text-xs text-gray-500 mb-1">{label}</label>
+              <label className="block text-xs text-muted-foreground mb-1">{label}</label>
               <div className="flex items-center gap-2">
                 <input type="color"
                   value={(config[key] as string) || def}
@@ -969,7 +969,7 @@ function PopupSliderEditor({
       {/* ── Slides list ───────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-700">Slides（{slides.length} 张）</h4>
+          <h4 className="text-sm font-semibold text-foreground">Slides（{slides.length} 张）</h4>
           <button type="button" onClick={addSlide}
             className="flex items-center gap-1 text-xs bg-rose-600 text-white px-3 py-1.5 rounded-lg hover:bg-rose-700 transition-colors">
             <Plus className="w-3 h-3" /> 添加 Slide
@@ -978,38 +978,38 @@ function PopupSliderEditor({
 
         <div className="space-y-3">
           {slides.length === 0 && (
-            <div className="text-center py-8 border-2 border-dashed rounded-xl bg-gray-50">
-              <p className="text-sm text-gray-400 mb-2">暂无 Slide，点击「添加 Slide」开始</p>
+            <div className="text-center py-8 border-2 border-dashed rounded-xl bg-muted">
+              <p className="text-sm text-muted-foreground mb-2">暂无 Slide，点击「添加 Slide」开始</p>
             </div>
           )}
 
           {slides.map((slide, idx) => {
             const isOpen = expanded === slide.id;
             return (
-              <div key={slide.id} className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+              <div key={slide.id} className="border border-border rounded-xl bg-card shadow-sm overflow-hidden">
                 {/* Header bar */}
-                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted border-b border-border">
                   <button type="button" className="flex items-center gap-2 flex-1 text-left"
                     onClick={() => setExpanded(isOpen ? null : slide.id)}>
                     <GripVertical className="w-4 h-4 text-gray-300" />
-                    <span className="text-xs font-semibold text-gray-600">Slide {idx + 1}</span>
-                    {slide.title && <span className="text-xs text-gray-400 truncate max-w-32">{slide.title}</span>}
+                    <span className="text-xs font-semibold text-muted-foreground">Slide {idx + 1}</span>
+                    {slide.title && <span className="text-xs text-muted-foreground truncate max-w-32">{slide.title}</span>}
                     {!slide.desktop_media_url && (
                       <span className="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">缺少图片</span>
                     )}
                   </button>
                   <div className="flex items-center gap-1">
                     <button type="button" onClick={() => moveSlide(idx, 'up')} disabled={idx === 0}
-                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30" title="上移">
-                      <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
+                      className="p-1 rounded hover:bg-muted disabled:opacity-30" title="上移">
+                      <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
                     </button>
                     <button type="button" onClick={() => moveSlide(idx, 'down')} disabled={idx === slides.length - 1}
-                      className="p-1 rounded hover:bg-gray-200 disabled:opacity-30" title="下移">
-                      <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                      className="p-1 rounded hover:bg-muted disabled:opacity-30" title="下移">
+                      <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                     </button>
                     <button type="button"
                       onClick={() => updateSlide(slide.id, { enabled: !slide.enabled })}
-                      className={`p-1 rounded ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                      className={`p-1 rounded ${slide.enabled ? 'text-green-500 hover:bg-green-50' : 'text-gray-300 hover:bg-muted'}`}
                       title={slide.enabled ? '已启用' : '已停用'}>
                       {slide.enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                     </button>
@@ -1030,19 +1030,19 @@ function PopupSliderEditor({
                     {/* Text fields */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">标题（可选）</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">标题（可选）</label>
                         <input className={iField} placeholder="弹窗标题"
                           value={slide.title ?? ''}
                           onChange={e => updateSlide(slide.id, { title: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">副标题（可选）</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">副标题（可选）</label>
                         <input className={iField} placeholder="副标题"
                           value={slide.subtitle ?? ''}
                           onChange={e => updateSlide(slide.id, { subtitle: e.target.value })} />
                       </div>
                       <div className="col-span-2">
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">说明文字（可选）</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">说明文字（可选）</label>
                         <textarea className={`${iField} resize-none`} rows={2} placeholder="弹窗内容"
                           value={slide.description ?? ''}
                           onChange={e => updateSlide(slide.id, { description: e.target.value })} />
@@ -1050,17 +1050,17 @@ function PopupSliderEditor({
                     </div>
 
                     {/* CTA Button */}
-                    <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 space-y-2">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase">CTA 按钮（留空则不显示）</p>
+                    <div className="rounded-lg border border-border bg-muted p-2 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">CTA 按钮（留空则不显示）</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-gray-400 mb-0.5 block">按钮文字</label>
+                          <label className="text-[10px] text-muted-foreground mb-0.5 block">按钮文字</label>
                           <input className={iField} placeholder="例：立即参与"
                             value={slide.button_text ?? ''}
                             onChange={e => updateSlide(slide.id, { button_text: e.target.value })} />
                         </div>
                         <div>
-                          <label className="text-[10px] text-gray-400 mb-0.5 block">打开方式</label>
+                          <label className="text-[10px] text-muted-foreground mb-0.5 block">打开方式</label>
                           <select className={iField}
                             value={slide.button_target ?? '_self'}
                             onChange={e => updateSlide(slide.id, { button_target: e.target.value as '_self' | '_blank' })}>
@@ -1069,7 +1069,7 @@ function PopupSliderEditor({
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="text-[10px] text-gray-400 mb-0.5 block">按钮链接</label>
+                          <label className="text-[10px] text-muted-foreground mb-0.5 block">按钮链接</label>
                           <input className={iField} placeholder="https://... 或 /页面路径"
                             value={slide.button_url ?? ''}
                             onChange={e => updateSlide(slide.id, { button_url: e.target.value })} />
@@ -1078,17 +1078,17 @@ function PopupSliderEditor({
                     </div>
 
                     {/* Image Click Link */}
-                    <div className="rounded-lg border border-gray-100 bg-gray-50 p-2 space-y-2">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase">图片点击链接（留空则图片不可点击）</p>
+                    <div className="rounded-lg border border-border bg-muted p-2 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase">图片点击链接（留空则图片不可点击）</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2">
-                          <label className="text-[10px] text-gray-400 mb-0.5 block">图片链接</label>
+                          <label className="text-[10px] text-muted-foreground mb-0.5 block">图片链接</label>
                           <input className={iField} placeholder="https://... 或 /页面路径"
                             value={slide.image_click_url ?? ''}
                             onChange={e => updateSlide(slide.id, { image_click_url: e.target.value })} />
                         </div>
                         <div>
-                          <label className="text-[10px] text-gray-400 mb-0.5 block">打开方式</label>
+                          <label className="text-[10px] text-muted-foreground mb-0.5 block">打开方式</label>
                           <select className={iField}
                             value={slide.image_click_target ?? '_self'}
                             onChange={e => updateSlide(slide.id, { image_click_target: e.target.value as '_self' | '_blank' })}>
@@ -1102,13 +1102,13 @@ function PopupSliderEditor({
                     {/* Schedule */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">上架时间（可选）</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">上架时间（可选）</label>
                         <input type="datetime-local" className={iField}
                           value={slide.start_time ?? ''}
                           onChange={e => updateSlide(slide.id, { start_time: e.target.value })} />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-400 mb-0.5 block">下架时间（可选）</label>
+                        <label className="text-[10px] text-muted-foreground mb-0.5 block">下架时间（可选）</label>
                         <input type="datetime-local" className={iField}
                           value={slide.end_time ?? ''}
                           onChange={e => updateSlide(slide.id, { end_time: e.target.value })} />
@@ -1191,7 +1191,7 @@ function MarqueeEditor({
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">文字颜色</span>
+          <span className="text-xs text-muted-foreground mb-1 block">文字颜色</span>
           <div className="flex items-center gap-2">
             <input type="color" value={(config.color as string) || '#f59e0b'}
               onChange={e => onChange({ ...config, color: e.target.value })}
@@ -1202,13 +1202,13 @@ function MarqueeEditor({
           </div>
         </label>
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">背景颜色（可选）</span>
+          <span className="text-xs text-muted-foreground mb-1 block">背景颜色（可选）</span>
           <input type="text" placeholder="透明" value={(config.bg_color as string) || ''}
             onChange={e => onChange({ ...config, bg_color: e.target.value })}
             className="w-full border rounded-lg px-3 py-2 text-sm font-mono" />
         </label>
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">滚动速度 (px/s)</span>
+          <span className="text-xs text-muted-foreground mb-1 block">滚动速度 (px/s)</span>
           <NumericInput min={10} max={200} value={(config.speed as number) ?? 40}
             onChange={n => onChange({ ...config, speed: n })}
             className="w-full border rounded-lg px-3 py-2 text-sm" />
@@ -1217,7 +1217,7 @@ function MarqueeEditor({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">前置图标（emoji）</span>
+          <span className="text-xs text-muted-foreground mb-1 block">前置图标（emoji）</span>
           <input type="text" value={(config.icon as string) || ''}
             onChange={e => onChange({ ...config, icon: e.target.value })}
             className="w-full border rounded-lg px-3 py-2 text-sm" />
@@ -1226,7 +1226,7 @@ function MarqueeEditor({
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-gray-700">公告内容 ({messages.length})</span>
+          <span className="text-sm font-semibold text-foreground">公告内容 ({messages.length})</span>
           <button onClick={addMessage}
             className="flex items-center gap-1 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
             <Plus className="w-3 h-3" /> 添加
@@ -1245,7 +1245,7 @@ function MarqueeEditor({
             </div>
           ))}
           {messages.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-3 border-2 border-dashed rounded-xl">
+            <p className="text-sm text-muted-foreground text-center py-3 border-2 border-dashed rounded-xl">
               暂无内容
             </p>
           )}
@@ -1406,25 +1406,25 @@ function QuickMenuEditor({
     <div className="space-y-5">
 
       {/* ── Style & Layout ── */}
-      <div className="border rounded-xl p-3 space-y-3 bg-gray-50">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">外观风格</p>
+      <div className="border rounded-xl p-3 space-y-3 bg-muted">
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">外观风格</p>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">卡片样式</span>
+            <span className="text-xs text-muted-foreground mb-1 block">卡片样式</span>
             <select value={style} onChange={e => set('style', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {QM_STYLE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
-            <span className="text-xs text-gray-400 mt-0.5 block">
+            <span className="text-xs text-muted-foreground mt-0.5 block">
               {QM_STYLE_OPTIONS.find(o => o.value === style)?.desc}
             </span>
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">布局模式</span>
+            <span className="text-xs text-muted-foreground mb-1 block">布局模式</span>
             <select value={layout} onChange={e => set('layout', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {QM_LAYOUT_OPTIONS.map(o => (
@@ -1436,7 +1436,7 @@ function QuickMenuEditor({
 
         <div className="grid grid-cols-3 gap-3">
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">每行列数</span>
+            <span className="text-xs text-muted-foreground mb-1 block">每行列数</span>
             <select value={(config.columns as number) ?? 4}
               onChange={e => set('columns', parseInt(e.target.value))}
               className="w-full border rounded-lg px-3 py-2 text-sm">
@@ -1445,7 +1445,7 @@ function QuickMenuEditor({
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">悬停效果</span>
+            <span className="text-xs text-muted-foreground mb-1 block">悬停效果</span>
             <select value={hover} onChange={e => set('hover', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {QM_HOVER_OPTIONS.map(o => (
@@ -1455,7 +1455,7 @@ function QuickMenuEditor({
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">间距</span>
+            <span className="text-xs text-muted-foreground mb-1 block">间距</span>
             <select value={spacing} onChange={e => set('spacing', e.target.value)}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {QM_SPACING_OPTIONS.map(o => (
@@ -1467,7 +1467,7 @@ function QuickMenuEditor({
 
         {/* Mini preview */}
         <div>
-          <p className="text-xs text-gray-500 mb-1.5">预览效果</p>
+          <p className="text-xs text-muted-foreground mb-1.5">预览效果</p>
           <QMStylePreview style={style} layout={layout} />
         </div>
       </div>
@@ -1476,15 +1476,15 @@ function QuickMenuEditor({
       <div className="border rounded-xl overflow-hidden">
         <button
           onClick={() => setShowCustom(v => !v)}
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700">
+          className="w-full flex items-center justify-between px-3 py-2.5 bg-muted hover:bg-muted text-sm font-medium text-foreground">
           <span>自定义样式覆盖</span>
-          <span className="text-xs text-gray-400">{showCustom ? '▲ 收起' : '▼ 展开'}</span>
+          <span className="text-xs text-muted-foreground">{showCustom ? '▲ 收起' : '▼ 展开'}</span>
         </button>
         {showCustom && (
           <div className="p-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">背景颜色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">背景颜色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.bg_color as string) || '#1f2937'}
                     onChange={e => setCustomField('bg_color', e.target.value)}
@@ -1495,7 +1495,7 @@ function QuickMenuEditor({
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">背景透明度 (0–1)</span>
+                <span className="text-xs text-muted-foreground mb-1 block">背景透明度 (0–1)</span>
                 <input type="text" inputMode="decimal"
                   placeholder="1" value={(customSt.bg_opacity as number) ?? ''}
                   onChange={e => {
@@ -1507,7 +1507,7 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">边框颜色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">边框颜色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.border_color as string) || '#374151'}
                     onChange={e => setCustomField('border_color', e.target.value)}
@@ -1518,7 +1518,7 @@ function QuickMenuEditor({
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">边框宽度</span>
+                <span className="text-xs text-muted-foreground mb-1 block">边框宽度</span>
                 <input type="text" placeholder="1px"
                   value={(customSt.border_width as string) ?? ''}
                   onChange={e => setCustomField('border_width', e.target.value)}
@@ -1527,14 +1527,14 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">圆角大小</span>
+                <span className="text-xs text-muted-foreground mb-1 block">圆角大小</span>
                 <input type="text" placeholder="12px"
                   value={(customSt.border_radius as string) ?? ''}
                   onChange={e => setCustomField('border_radius', e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-sm" />
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">发光颜色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">发光颜色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.glow_color as string) || '#7c3aed'}
                     onChange={e => setCustomField('glow_color', e.target.value)}
@@ -1547,7 +1547,7 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">悬停背景色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">悬停背景色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.hover_color as string) || '#374151'}
                     onChange={e => setCustomField('hover_color', e.target.value)}
@@ -1558,7 +1558,7 @@ function QuickMenuEditor({
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">文字颜色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">文字颜色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.text_color as string) || '#e5e7eb'}
                     onChange={e => setCustomField('text_color', e.target.value)}
@@ -1571,7 +1571,7 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">图标颜色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">图标颜色</span>
                 <div className="flex gap-1">
                   <input type="color" value={(customSt.icon_color as string) || '#ffffff'}
                     onChange={e => setCustomField('icon_color', e.target.value)}
@@ -1582,7 +1582,7 @@ function QuickMenuEditor({
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">图标大小 (px)</span>
+                <span className="text-xs text-muted-foreground mb-1 block">图标大小 (px)</span>
                 <input type="text" inputMode="numeric" placeholder="28"
                   value={(customSt.icon_size as number) ?? ''}
                   onChange={e => {
@@ -1594,7 +1594,7 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">文字大小 (px)</span>
+                <span className="text-xs text-muted-foreground mb-1 block">文字大小 (px)</span>
                 <input type="text" inputMode="numeric" placeholder="12"
                   value={(customSt.font_size as number) ?? ''}
                   onChange={e => {
@@ -1604,7 +1604,7 @@ function QuickMenuEditor({
                   className="w-full border rounded-lg px-3 py-2 text-sm" />
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">内间距</span>
+                <span className="text-xs text-muted-foreground mb-1 block">内间距</span>
                 <input type="text" placeholder="8px 6px"
                   value={(customSt.padding as string) ?? ''}
                   onChange={e => setCustomField('padding', e.target.value)}
@@ -1613,14 +1613,14 @@ function QuickMenuEditor({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">卡片高度</span>
+                <span className="text-xs text-muted-foreground mb-1 block">卡片高度</span>
                 <input type="text" placeholder="80px"
                   value={(customSt.card_height as string) ?? ''}
                   onChange={e => setCustomField('card_height', e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-sm" />
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">卡片宽度</span>
+                <span className="text-xs text-muted-foreground mb-1 block">卡片宽度</span>
                 <input type="text" placeholder="auto"
                   value={(customSt.card_width as string) ?? ''}
                   onChange={e => setCustomField('card_width', e.target.value)}
@@ -1641,7 +1641,7 @@ function QuickMenuEditor({
       {/* ── Menu Items ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-gray-700">菜单项 ({items.length})</span>
+          <span className="text-sm font-semibold text-foreground">菜单项 ({items.length})</span>
           <button onClick={addItem}
             className="flex items-center gap-1 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
             <Plus className="w-3 h-3" /> 添加
@@ -1649,16 +1649,16 @@ function QuickMenuEditor({
         </div>
         <div className="space-y-2">
           {items.map((item, idx) => (
-            <div key={item.id} className="border rounded-xl p-3 bg-gray-50">
+            <div key={item.id} className="border rounded-xl p-3 bg-muted">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0}
-                    className="p-1 rounded hover:bg-white disabled:opacity-30">
-                    <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                    className="p-1 rounded hover:bg-card disabled:opacity-30">
+                    <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <button onClick={() => moveItem(idx, 'down')} disabled={idx === items.length - 1}
-                    className="p-1 rounded hover:bg-white disabled:opacity-30">
-                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                    className="p-1 rounded hover:bg-card disabled:opacity-30">
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <label className="flex items-center gap-1 text-xs cursor-pointer">
                     <input type="checkbox" checked={item.enabled}
@@ -1675,19 +1675,19 @@ function QuickMenuEditor({
               <div className="grid grid-cols-4 gap-2">
                 <input placeholder="图标" value={item.emoji}
                   onChange={e => updateItem(item.id, { emoji: e.target.value })}
-                  className="border rounded-lg px-2 py-1.5 text-sm text-center bg-white" />
+                  className="border rounded-lg px-2 py-1.5 text-sm text-center bg-background text-foreground" />
                 <input placeholder="标签名称" value={item.label}
                   onChange={e => updateItem(item.id, { label: e.target.value })}
-                  className="border rounded-lg px-2 py-1.5 text-sm bg-white col-span-2" />
+                  className="border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground col-span-2" />
                 <input placeholder="徽章（可选）" value={item.badge ?? ''}
                   onChange={e => updateItem(item.id, { badge: e.target.value })}
-                  className="border rounded-lg px-2 py-1.5 text-sm bg-white" />
+                  className="border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground" />
               </div>
               <input placeholder="跳转链接，例如 /deposit" value={item.url}
                 onChange={e => updateItem(item.id, { url: e.target.value })}
-                className="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm bg-white" />
+                className="mt-2 w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground" />
               <div className="mt-2 space-y-2">
-                <p className="text-xs text-gray-500">自定义图片（覆盖emoji）</p>
+                <p className="text-xs text-muted-foreground">自定义图片（覆盖emoji）</p>
 
                 {/* ── Image picker ── */}
                 {item.media_id ? (
@@ -1727,7 +1727,7 @@ function QuickMenuEditor({
                   <div className="space-y-2">
                     {/* Image Mode */}
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">图片模式 Image Mode</p>
+                      <p className="text-xs text-muted-foreground mb-1">图片模式 Image Mode</p>
                       <div className="grid grid-cols-2 gap-1">
                         {([
                           { v: 'fill_container', l: '🖼 填满按钮 Fill' },
@@ -1741,13 +1741,13 @@ function QuickMenuEditor({
                             className={`py-1.5 px-2 text-xs rounded-lg border font-medium transition-colors text-left ${
                               (item.image_mode == null ? 'fill_container' : (item.image_mode === 'full_button' || item.image_mode === 'banner') ? 'cover' : item.image_mode) === m.v
                                 ? 'bg-blue-600 text-white border-blue-600'
-                                : 'border-gray-300 text-gray-600 hover:border-blue-300 bg-white'
+                                : 'border-border text-muted-foreground hover:border-blue-300 bg-background'
                             }`}>
                             {m.l}
                           </button>
                         ))}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {!item.image_mode || item.image_mode === 'fill_container'
                           ? 'object-fit: fill — 图片完全填满卡片，可能拉伸'
                           : item.image_mode === 'cover' ? 'object-fit: cover — 保持比例填充，边缘裁剪'
@@ -1762,7 +1762,7 @@ function QuickMenuEditor({
                       <div className="space-y-2 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
                         {/* Card Height — auto by default (image drives container height) */}
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">卡片高度 Card Height</p>
+                          <p className="text-xs text-muted-foreground mb-1">卡片高度 Card Height</p>
                           <div className="flex gap-1 flex-wrap">
                             {[
                               { v: 'auto',   label: 'Auto（推荐）' },
@@ -1775,7 +1775,7 @@ function QuickMenuEditor({
                                 className={`px-2 py-0.5 rounded text-xs border transition-colors ${
                                   (item.card_height ?? 'auto') === opt.v
                                     ? 'bg-blue-500 text-white border-blue-500'
-                                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                                    : 'bg-background text-muted-foreground border-border hover:border-blue-400'
                                 }`}>
                                 {opt.label}
                               </button>
@@ -1789,27 +1789,27 @@ function QuickMenuEditor({
                               className={`px-2 py-0.5 rounded text-xs border transition-colors ${
                                 item.card_height && !['auto','small','medium','large'].includes(item.card_height)
                                   ? 'bg-blue-500 text-white border-blue-500'
-                                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                                  : 'bg-background text-muted-foreground border-border hover:border-blue-400'
                               }`}>
                               Custom
                             </button>
                           </div>
                           {item.card_height && !['auto','small','medium','large'].includes(item.card_height) && (
                             <div className="mt-1.5">
-                              <p className="text-xs text-gray-500 mb-0.5">高度 Height</p>
+                              <p className="text-xs text-muted-foreground mb-0.5">高度 Height</p>
                               <input type="text" placeholder="200px"
                                 value={item.card_height}
                                 onChange={e => updateItem(item.id, { card_height: e.target.value })}
-                                className="w-full border rounded px-2 py-1 text-xs bg-white font-mono" />
-                              <p className="text-xs text-gray-400 mt-0.5">支持: 120px · 180px · 240px · 320px · 400px</p>
+                                className="w-full border rounded px-2 py-1 text-xs bg-background text-foreground font-mono" />
+                              <p className="text-xs text-muted-foreground mt-0.5">支持: 120px · 180px · 240px · 320px · 400px</p>
                             </div>
                           )}
                           <div className="mt-1 space-y-0.5">
-                            <p className="text-xs text-gray-400">
-                              <span className="font-medium text-gray-500">Auto:</span> 卡片高度跟随图片自动调整
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-muted-foreground">Auto:</span> 卡片高度跟随图片自动调整
                             </p>
-                            <p className="text-xs text-gray-400">
-                              <span className="font-medium text-gray-500">固定高度:</span> 图片按选择的模式填充卡片
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-muted-foreground">固定高度:</span> 图片按选择的模式填充卡片
                             </p>
                           </div>
                         </div>
@@ -1817,28 +1817,28 @@ function QuickMenuEditor({
                         {/* Border radius + padding */}
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <p className="text-xs text-gray-500 mb-0.5">圆角 Radius</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">圆角 Radius</p>
                             <input type="text" placeholder="12px（跟随卡片）"
                               value={item.btn_radius ?? ''}
                               onChange={e => updateItem(item.id, { btn_radius: e.target.value })}
-                              className="w-full border rounded px-2 py-1 text-xs bg-white" />
+                              className="w-full border rounded px-2 py-1 text-xs bg-background text-foreground" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500 mb-0.5">内边距 Padding</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">内边距 Padding</p>
                             <input type="text" placeholder="0"
                               value={item.btn_padding ?? ''}
                               onChange={e => updateItem(item.id, { btn_padding: e.target.value })}
-                              className="w-full border rounded px-2 py-1 text-xs bg-white" />
+                              className="w-full border rounded px-2 py-1 text-xs bg-background text-foreground" />
                           </div>
                         </div>
 
                         {/* Background */}
                         <div>
-                          <p className="text-xs text-gray-500 mb-0.5">背景 Background</p>
+                          <p className="text-xs text-muted-foreground mb-0.5">背景 Background</p>
                           <select
                             value={item.btn_bg_type ?? 'transparent'}
                             onChange={e => updateItem(item.id, { btn_bg_type: e.target.value as QuickMenuItem['btn_bg_type'] })}
-                            className="w-full border rounded px-2 py-1.5 text-xs bg-white">
+                            className="w-full border rounded px-2 py-1.5 text-xs bg-background text-foreground">
                             <option value="transparent">透明 Transparent</option>
                             <option value="solid">纯色 Solid</option>
                             <option value="gradient">渐变 Gradient</option>
@@ -1851,20 +1851,20 @@ function QuickMenuEditor({
                                 className="w-7 h-7 rounded border cursor-pointer" />
                               <input type="text" value={item.btn_bg_color ?? ''}
                                 onChange={e => updateItem(item.id, { btn_bg_color: e.target.value })}
-                                className="flex-1 border rounded px-2 py-1 text-xs font-mono bg-white" />
+                                className="flex-1 border rounded px-2 py-1 text-xs font-mono bg-background text-foreground" />
                             </div>
                           )}
                           {item.btn_bg_type === 'gradient' && (
                             <input type="text" placeholder="linear-gradient(135deg, #000 0%, #222 100%)"
                               value={item.btn_bg_gradient ?? ''}
                               onChange={e => updateItem(item.id, { btn_bg_gradient: e.target.value })}
-                              className="mt-1 w-full border rounded px-2 py-1 text-xs font-mono bg-white" />
+                              className="mt-1 w-full border rounded px-2 py-1 text-xs font-mono bg-background text-foreground" />
                           )}
                         </div>
 
                         {/* Image Position */}
                         <div>
-                          <p className="text-xs text-gray-500 mb-0.5">图片位置 Position</p>
+                          <p className="text-xs text-muted-foreground mb-0.5">图片位置 Position</p>
                           <div className="grid grid-cols-3 gap-1">
                             {[
                               { v: 'top center',    l: '↑ 上' },
@@ -1878,7 +1878,7 @@ function QuickMenuEditor({
                                 className={`py-1 text-xs rounded border transition-colors ${
                                   (item.img_position ?? 'center') === pos.v
                                     ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'border-gray-300 text-gray-600 hover:border-blue-300 bg-white'
+                                    : 'border-border text-muted-foreground hover:border-blue-300 bg-background'
                                 }`}>
                                 {pos.l}
                               </button>
@@ -1888,14 +1888,14 @@ function QuickMenuEditor({
 
                         {/* Image Scale */}
                         <div>
-                          <p className="text-xs text-gray-500 mb-0.5">
+                          <p className="text-xs text-muted-foreground mb-0.5">
                             缩放 Scale: <span className="font-semibold text-blue-600">{item.img_scale ?? 100}%</span>
                           </p>
                           <input type="range" min={50} max={200} step={5}
                             value={item.img_scale ?? 100}
                             onChange={e => updateItem(item.id, { img_scale: parseInt(e.target.value) })}
                             className="w-full" />
-                          <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                          <div className="flex justify-between text-xs text-muted-foreground mt-0.5">
                             <span>50%</span><span>100%</span><span>150%</span><span>200%</span>
                           </div>
                         </div>
@@ -1970,25 +1970,25 @@ function PromotionsEditor({ config, onChange }: { config: Record<string, unknown
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">副标题（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">副标题（可选）</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.subtitle as string) ?? ''}
           onChange={e => onChange({ ...config, subtitle: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">查看全部链接</span>
+        <span className="text-xs text-muted-foreground mb-1 block">查看全部链接</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.show_all_link as string) ?? '/promotions'}
           onChange={e => onChange({ ...config, show_all_link: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">最多显示数量</span>
+        <span className="text-xs text-muted-foreground mb-1 block">最多显示数量</span>
         <input type="number" min={1} max={20} className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.max_items as number) ?? 6}
           onChange={e => onChange({ ...config, max_items: parseInt(e.target.value) || 6 })} />
@@ -2001,13 +2001,13 @@ function ProvidersEditor({ config, onChange }: { config: Record<string, unknown>
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">每行列数</span>
+        <span className="text-xs text-muted-foreground mb-1 block">每行列数</span>
         <select className="border rounded-lg px-3 py-2 text-sm"
           value={(config.columns as number) ?? 4}
           onChange={e => onChange({ ...config, columns: parseInt(e.target.value) })}>
@@ -2189,18 +2189,18 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
     <div className="space-y-4">
 
       {/* ── 基础设置 ── */}
-      <div className="border rounded-xl p-3 space-y-3 bg-gray-50">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">基础设置</p>
+      <div className="border rounded-xl p-3 space-y-3 bg-muted">
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">基础设置</p>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">标题</span>
+          <span className="text-xs text-muted-foreground mb-1 block">标题</span>
           <input className="w-full border rounded-lg px-3 py-2 text-sm"
             value={(config.title as string) ?? ''}
             onChange={e => onChange({ ...config, title: e.target.value })} />
         </label>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">显示条数（每列，1–20）</span>
+          <span className="text-xs text-muted-foreground mb-1 block">显示条数（每列，1–20）</span>
           <input
             type="number" min={1} max={20}
             className="w-full border rounded-lg px-3 py-2 text-sm"
@@ -2222,17 +2222,17 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
 
       {/* ── 数据源模式 ── */}
       <div className="border rounded-xl p-3 space-y-3">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">数据源模式</p>
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">数据源模式</p>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">活动数据来源</span>
+          <span className="text-xs text-muted-foreground mb-1 block">活动数据来源</span>
           <select value={dataSource} onChange={e => onChange({ ...config, data_source: e.target.value })}
             className="w-full border rounded-lg px-3 py-2 text-sm">
             {LTX_DATA_SOURCE_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <span className="text-xs text-gray-400 mt-0.5 block">
+          <span className="text-xs text-muted-foreground mt-0.5 block">
             {LTX_DATA_SOURCE_OPTIONS.find(o => o.value === dataSource)?.desc}
           </span>
         </label>
@@ -2240,7 +2240,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
         {(dataSource === 'smart_mix' || dataSource === 'auto_generated') && (
           <>
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">生成金额档次</span>
+              <span className="text-xs text-muted-foreground mb-1 block">生成金额档次</span>
               <select value={generationProfile}
                 onChange={e => onChange({ ...config, generation_profile: e.target.value })}
                 className="w-full border rounded-lg px-3 py-2 text-sm">
@@ -2251,29 +2251,29 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
             </label>
 
             {generationProfile === 'custom_range' && (
-              <div className="border rounded-xl p-3 space-y-3 bg-white">
-                <p className="text-xs font-semibold text-gray-700">自定义金额范围</p>
+              <div className="border rounded-xl p-3 space-y-3 bg-card">
+                <p className="text-xs font-semibold text-foreground">自定义金额范围</p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="text-xs text-gray-500 mb-1 block">存款最低 (RM)</span>
+                    <span className="text-xs text-muted-foreground mb-1 block">存款最低 (RM)</span>
                     <NumericInput min={1} className="w-full border rounded-lg px-3 py-2 text-sm"
                       value={(config.custom_dep_min as number) ?? 50}
                       onChange={n => onChange({ ...config, custom_dep_min: n })} />
                   </label>
                   <label className="block">
-                    <span className="text-xs text-gray-500 mb-1 block">存款最高 (RM)</span>
+                    <span className="text-xs text-muted-foreground mb-1 block">存款最高 (RM)</span>
                     <NumericInput min={1} className="w-full border rounded-lg px-3 py-2 text-sm"
                       value={(config.custom_dep_max as number) ?? 2000}
                       onChange={n => onChange({ ...config, custom_dep_max: n })} />
                   </label>
                   <label className="block">
-                    <span className="text-xs text-gray-500 mb-1 block">取款最低 (RM)</span>
+                    <span className="text-xs text-muted-foreground mb-1 block">取款最低 (RM)</span>
                     <NumericInput min={1} className="w-full border rounded-lg px-3 py-2 text-sm"
                       value={(config.custom_wth_min as number) ?? 100}
                       onChange={n => onChange({ ...config, custom_wth_min: n })} />
                   </label>
                   <label className="block">
-                    <span className="text-xs text-gray-500 mb-1 block">取款最高 (RM)</span>
+                    <span className="text-xs text-muted-foreground mb-1 block">取款最高 (RM)</span>
                     <NumericInput min={1} className="w-full border rounded-lg px-3 py-2 text-sm"
                       value={(config.custom_wth_max as number) ?? 5000}
                       onChange={n => onChange({ ...config, custom_wth_max: n })} />
@@ -2292,11 +2292,11 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
       </div>
 
       {/* ── 供应商来源 ── */}
-      <div className="border rounded-xl p-3 space-y-3 bg-gray-50">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">游戏供应商来源</p>
+      <div className="border rounded-xl p-3 space-y-3 bg-muted">
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">游戏供应商来源</p>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">供应商数据来源</span>
+          <span className="text-xs text-muted-foreground mb-1 block">供应商数据来源</span>
           <select
             value={(config.provider_source as string) ?? 'website_providers'}
             onChange={e => onChange({ ...config, provider_source: e.target.value })}
@@ -2305,7 +2305,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
             <option value="website_providers">网站已配置供应商（自动同步）</option>
             <option value="custom_list">自定义列表</option>
           </select>
-          <span className="text-xs text-gray-400 mt-0.5 block">
+          <span className="text-xs text-muted-foreground mt-0.5 block">
             {(config.provider_source as string) === 'custom_list'
               ? '手动输入供应商名称，每行一个'
               : '自动读取 Website CMS → 游戏平台 中启用的供应商'}
@@ -2314,7 +2314,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
 
         {(config.provider_source as string) === 'custom_list' && (
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">供应商列表（每行一个）</span>
+            <span className="text-xs text-muted-foreground mb-1 block">供应商列表（每行一个）</span>
             <textarea
               rows={6}
               placeholder={'MEGA888\nPussy888\nJOKER\nLive22\nXE88'}
@@ -2332,7 +2332,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
                 onChange({ ...config, custom_providers: lines });
               }}
             />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               已输入 {((config.custom_providers as string[]) ?? []).filter(Boolean).length} 个供应商
             </span>
           </label>
@@ -2341,18 +2341,18 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
 
       {/* ── 生成设置（Smart Mix & Auto Generated） ── */}
       {(dataSource === 'smart_mix' || dataSource === 'auto_generated') && (
-        <div className="border rounded-xl p-3 space-y-3 bg-gray-50">
-          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">生成设置</p>
+        <div className="border rounded-xl p-3 space-y-3 bg-muted">
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide">生成设置</p>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">存款出现概率 %</span>
+              <span className="text-xs text-muted-foreground mb-1 block">存款出现概率 %</span>
               <NumericInput min={0} max={100} className="w-full border rounded-lg px-3 py-2 text-sm"
                 value={(config.deposit_chance as number) ?? 70}
                 onChange={n => onChange({ ...config, deposit_chance: n })} />
             </label>
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">取款出现概率 %</span>
+              <span className="text-xs text-muted-foreground mb-1 block">取款出现概率 %</span>
               <NumericInput min={0} max={100} className="w-full border rounded-lg px-3 py-2 text-sm"
                 value={(config.withdraw_chance as number) ?? 25}
                 onChange={n => onChange({ ...config, withdraw_chance: n })} />
@@ -2360,38 +2360,38 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </div>
 
           <div>
-            <span className="text-xs text-gray-500 mb-1 block">存款刷新间隔（秒）</span>
+            <span className="text-xs text-muted-foreground mb-1 block">存款刷新间隔（秒）</span>
             <div className="flex items-center gap-2">
               <NumericInput min={2} max={120} placeholder="最小"
                 className="flex-1 border rounded-lg px-3 py-2 text-sm"
                 value={(config.deposit_interval_min as number) ?? 6}
                 onChange={n => onChange({ ...config, deposit_interval_min: n })} />
-              <span className="text-gray-400 text-xs">~</span>
+              <span className="text-muted-foreground text-xs">~</span>
               <NumericInput min={2} max={120} placeholder="最大"
                 className="flex-1 border rounded-lg px-3 py-2 text-sm"
                 value={(config.deposit_interval_max as number) ?? 12}
                 onChange={n => onChange({ ...config, deposit_interval_max: n })} />
-              <span className="text-xs text-gray-400">秒</span>
+              <span className="text-xs text-muted-foreground">秒</span>
             </div>
           </div>
 
           <div>
-            <span className="text-xs text-gray-500 mb-1 block">取款刷新间隔（秒）</span>
+            <span className="text-xs text-muted-foreground mb-1 block">取款刷新间隔（秒）</span>
             <div className="flex items-center gap-2">
               <NumericInput min={2} max={300} placeholder="最小"
                 className="flex-1 border rounded-lg px-3 py-2 text-sm"
                 value={(config.withdraw_interval_min as number) ?? 15}
                 onChange={n => onChange({ ...config, withdraw_interval_min: n })} />
-              <span className="text-gray-400 text-xs">~</span>
+              <span className="text-muted-foreground text-xs">~</span>
               <NumericInput min={2} max={300} placeholder="最大"
                 className="flex-1 border rounded-lg px-3 py-2 text-sm"
                 value={(config.withdraw_interval_max as number) ?? 45}
                 onChange={n => onChange({ ...config, withdraw_interval_max: n })} />
-              <span className="text-xs text-gray-400">秒</span>
+              <span className="text-xs text-muted-foreground">秒</span>
             </div>
           </div>
 
-          <div className="text-xs text-gray-400 bg-white border rounded-lg px-3 py-2 space-y-0.5">
+          <div className="text-xs text-muted-foreground bg-card border rounded-lg px-3 py-2 space-y-0.5">
             <p>📊 默认行为：存款 70% / 取款 25%</p>
             <p>⏱ 存款 6-12 秒独立刷新，取款 15-45 秒独立刷新</p>
             <p>✅ 两列完全独立生成，不会同步出现</p>
@@ -2401,10 +2401,10 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
 
       {/* ── 主题 & 字体 ── */}
       <div className="border rounded-xl p-3 space-y-3">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">主题 & 字体</p>
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">主题 & 字体</p>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">主题样式</span>
+          <span className="text-xs text-muted-foreground mb-1 block">主题样式</span>
           <select className="w-full border rounded-lg px-3 py-2 text-sm"
             value={themeId} onChange={e => onChange({ ...config, theme: e.target.value })}>
             {LIVE_TX_THEME_OPTIONS.map(opt => (
@@ -2414,7 +2414,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
         </label>
 
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">字体风格</span>
+          <span className="text-xs text-muted-foreground mb-1 block">字体风格</span>
           <select className="w-full border rounded-lg px-3 py-2 text-sm"
             value={fontStyle} onChange={e => onChange({ ...config, font_style: e.target.value })}>
             {LIVE_TX_FONT_OPTIONS.map(opt => (
@@ -2424,14 +2424,14 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
         </label>
 
         {themeId === 'custom' && (
-          <div className="border rounded-xl p-3 space-y-2 bg-gray-50">
-            <p className="text-xs font-semibold text-gray-600 mb-2">自定义颜色</p>
+          <div className="border rounded-xl p-3 space-y-2 bg-muted">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">自定义颜色</p>
             {CUSTOM_COLOR_FIELDS.map(({ key, label }) => (
               <div key={key} className="flex items-center gap-2">
                 <input type="color" className="w-8 h-8 rounded border cursor-pointer flex-shrink-0"
                   value={customTheme[key] || '#000000'}
                   onChange={e => setCustomColor(key, e.target.value)} />
-                <span className="text-xs text-gray-600 flex-1">{label}</span>
+                <span className="text-xs text-muted-foreground flex-1">{label}</span>
                 <input type="text" className="border rounded px-2 py-1 text-xs w-32"
                   value={customTheme[key] || ''} placeholder="rgba / hex / var(…)"
                   onChange={e => setCustomColor(key, e.target.value)} />
@@ -2441,18 +2441,18 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
         )}
 
         <div>
-          <p className="text-xs text-gray-500 mb-1">效果预览</p>
+          <p className="text-xs text-muted-foreground mb-1">效果预览</p>
           <LiveTxMiniPreview themeId={themeId} customTheme={customTheme} fontStyle={fontStyle} />
         </div>
       </div>
 
       {/* ── 外观选项 ── */}
       <div className="border rounded-xl p-3 space-y-3">
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">外观 & 动效</p>
+        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">外观 & 动效</p>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">刷新速度</span>
+            <span className="text-xs text-muted-foreground mb-1 block">刷新速度</span>
             <select value={activitySpeed} onChange={e => onChange({ ...config, activity_speed: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_SPEED_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2460,7 +2460,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">行动画</span>
+            <span className="text-xs text-muted-foreground mb-1 block">行动画</span>
             <select value={animStyle} onChange={e => onChange({ ...config, animation_style: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_ANIMATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2468,7 +2468,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">金额显示</span>
+            <span className="text-xs text-muted-foreground mb-1 block">金额显示</span>
             <select value={amountStyle} onChange={e => onChange({ ...config, amount_style: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_AMOUNT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2476,7 +2476,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">游戏商标签</span>
+            <span className="text-xs text-muted-foreground mb-1 block">游戏商标签</span>
             <select value={providerStyle} onChange={e => onChange({ ...config, provider_style: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_PROVIDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2484,7 +2484,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">时间戳显示</span>
+            <span className="text-xs text-muted-foreground mb-1 block">时间戳显示</span>
             <select value={timestampStyle} onChange={e => onChange({ ...config, timestamp_style: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_TIMESTAMP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2492,7 +2492,7 @@ function LiveTxEditor({ config, onChange }: { config: Record<string, unknown>; o
           </label>
 
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">LIVE 指示器</span>
+            <span className="text-xs text-muted-foreground mb-1 block">LIVE 指示器</span>
             <select value={indicatorStyle} onChange={e => onChange({ ...config, indicator_style: e.target.value })}
               className="w-full border rounded-lg px-3 py-2 text-sm">
               {LTX_INDICATOR_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -2536,17 +2536,17 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
     <div className="space-y-5">
       {/* Background */}
       <div className="border rounded-xl p-4 space-y-3">
-        <h4 className="text-sm font-semibold text-gray-700">卡片背景</h4>
+        <h4 className="text-sm font-semibold text-foreground">卡片背景</h4>
         <div className="grid grid-cols-2 gap-3">
           <label className="block col-span-2">
-            <span className="text-xs text-gray-500 mb-1 block">渐变背景（CSS gradient）</span>
+            <span className="text-xs text-muted-foreground mb-1 block">渐变背景（CSS gradient）</span>
             <input placeholder="linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)"
               className="w-full border rounded-lg px-3 py-2 text-sm font-mono text-xs"
               value={(bg.bg_gradient as string) ?? ''}
               onChange={e => onChange({ ...config, bg_gradient: e.target.value })} />
           </label>
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">边框颜色</span>
+            <span className="text-xs text-muted-foreground mb-1 block">边框颜色</span>
             <div className="flex items-center gap-2">
               <input type="color" value={(bg.border_color as string) || '#ffffff'}
                 onChange={e => onChange({ ...config, border_color: e.target.value })}
@@ -2557,14 +2557,14 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
             </div>
           </label>
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">圆角</span>
+            <span className="text-xs text-muted-foreground mb-1 block">圆角</span>
             <input placeholder="16px" className="w-full border rounded-lg px-3 py-2 text-sm"
               value={(bg.border_radius as string) ?? '16px'}
               onChange={e => onChange({ ...config, border_radius: e.target.value })} />
           </label>
         </div>
         <div>
-          <p className="text-xs text-gray-500 mb-1">背景图片/GIF/视频（可选）</p>
+          <p className="text-xs text-muted-foreground mb-1">背景图片/GIF/视频（可选）</p>
           {bg.bg_media_url ? (
             <div className="flex items-center gap-2">
               <img src={bg.bg_media_url as string} alt="" className="w-16 h-10 rounded-lg object-cover border" />
@@ -2584,14 +2584,14 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
 
       {/* Login / Register buttons */}
       <div className="border rounded-xl p-4 space-y-4">
-        <h4 className="text-sm font-semibold text-gray-700">登录 / 注册按钮（未登录时显示）</h4>
+        <h4 className="text-sm font-semibold text-foreground">登录 / 注册按钮（未登录时显示）</h4>
         {([
           ['login_button',    loginBtn,    '登录按钮'] as const,
           ['register_button', registerBtn, '注册按钮'] as const,
         ] as const).map(([key, btn, label]) => (
-          <div key={key} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+          <div key={key} className="border rounded-lg p-3 space-y-2 bg-muted">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-600">{label}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{label}</span>
               <label className="flex items-center gap-1 text-xs cursor-pointer">
                 <input type="checkbox" checked={(btn.enabled as boolean) !== false}
                   onChange={e => updateButton(key, { enabled: e.target.checked })} className="rounded" />
@@ -2601,13 +2601,13 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
             <div className="grid grid-cols-2 gap-2">
               <input placeholder="按钮文字" value={(btn.text as string) ?? ''}
                 onChange={e => updateButton(key, { text: e.target.value })}
-                className="border rounded-lg px-2 py-1.5 text-sm bg-white" />
+                className="border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground" />
               <input placeholder="跳转链接" value={(btn.url as string) ?? ''}
                 onChange={e => updateButton(key, { url: e.target.value })}
-                className="border rounded-lg px-2 py-1.5 text-sm bg-white" />
+                className="border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground" />
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">按钮图片/GIF（覆盖文字按钮）</p>
+              <p className="text-xs text-muted-foreground mb-1">按钮图片/GIF（覆盖文字按钮）</p>
               {btn.media_url ? (
                 <div className="flex items-center gap-2">
                   <img src={btn.media_url as string} alt="" className="h-10 rounded-lg object-cover border" />
@@ -2629,14 +2629,14 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
 
       {/* Deposit / Withdraw buttons */}
       <div className="border rounded-xl p-4 space-y-4">
-        <h4 className="text-sm font-semibold text-gray-700">存款 / 提款按钮（已登录时显示）</h4>
+        <h4 className="text-sm font-semibold text-foreground">存款 / 提款按钮（已登录时显示）</h4>
         {([
           ['deposit_button',  depositBtn,  '存款按钮'] as const,
           ['withdraw_button', withdrawBtn, '提款按钮'] as const,
         ] as const).map(([key, btn, label]) => (
-          <div key={key} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+          <div key={key} className="border rounded-lg p-3 space-y-2 bg-muted">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-600">{label}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{label}</span>
               <label className="flex items-center gap-1 text-xs cursor-pointer">
                 <input type="checkbox" checked={(btn.enabled as boolean) !== false}
                   onChange={e => updateButton(key, { enabled: e.target.checked })} className="rounded" />
@@ -2645,9 +2645,9 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
             </div>
             <input placeholder={label} value={(btn.text as string) ?? ''}
               onChange={e => updateButton(key, { text: e.target.value })}
-              className="w-full border rounded-lg px-2 py-1.5 text-sm bg-white" />
+              className="w-full border rounded-lg px-2 py-1.5 text-sm bg-background text-foreground" />
             <div>
-              <p className="text-xs text-gray-500 mb-1">按钮图片（可选）</p>
+              <p className="text-xs text-muted-foreground mb-1">按钮图片（可选）</p>
               {btn.media_url ? (
                 <div className="flex items-center gap-2">
                   <img src={btn.media_url as string} alt="" className="h-10 rounded-lg object-cover border" />
@@ -2669,9 +2669,9 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
 
       {/* Auto-refresh */}
       <div className="border rounded-xl p-4 space-y-2">
-        <h4 className="text-sm font-semibold text-gray-700">自动刷新余额</h4>
+        <h4 className="text-sm font-semibold text-foreground">自动刷新余额</h4>
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">刷新间隔</span>
+          <span className="text-xs text-muted-foreground mb-1 block">刷新间隔</span>
           <select
             className="w-full border rounded-lg px-3 py-2 text-sm"
             value={(config.auto_refresh as number) ?? 0}
@@ -2706,14 +2706,14 @@ function CustomHtmlEditor({ config, onChange }: { config: Record<string, unknown
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题（可选）</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-500">HTML 内容</span>
+          <span className="text-xs text-muted-foreground">HTML 内容</span>
           <button type="button" onClick={() => setShowPreview(p => !p)}
             className="text-xs text-blue-600 hover:underline">
             {showPreview ? '隐藏预览' : '显示预览'}
@@ -2725,7 +2725,7 @@ function CustomHtmlEditor({ config, onChange }: { config: Record<string, unknown
       </div>
       {showPreview && (
         <div>
-          <p className="text-xs text-gray-500 mb-1">实时预览（沙盒渲染）</p>
+          <p className="text-xs text-muted-foreground mb-1">实时预览（沙盒渲染）</p>
           <iframe
             srcDoc={(config.html as string) ?? ''}
             sandbox="allow-scripts"
@@ -2743,13 +2743,13 @@ function SpacerEditor({ config, onChange }: { config: Record<string, unknown>; o
   return (
     <div className="flex items-center gap-3">
       <label className="block flex-1">
-        <span className="text-xs text-gray-500 mb-1 block">高度</span>
+        <span className="text-xs text-muted-foreground mb-1 block">高度</span>
         <input type="number" min={0} max={400} className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.height as string) ?? '40'}
           onChange={e => onChange({ ...config, height: e.target.value })} />
       </label>
       <label className="block w-24">
-        <span className="text-xs text-gray-500 mb-1 block">单位</span>
+        <span className="text-xs text-muted-foreground mb-1 block">单位</span>
         <select className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.height_unit as string) ?? 'px'}
           onChange={e => onChange({ ...config, height_unit: e.target.value })}>
@@ -2767,19 +2767,19 @@ function DividerEditor({ config, onChange }: { config: Record<string, unknown>; 
   return (
     <div className="grid grid-cols-2 gap-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">颜色</span>
+        <span className="text-xs text-muted-foreground mb-1 block">颜色</span>
         <input type="text" placeholder="var(--border-mid)" className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.color as string) ?? ''}
           onChange={e => onChange({ ...config, color: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">粗细 (px)</span>
+        <span className="text-xs text-muted-foreground mb-1 block">粗细 (px)</span>
         <input type="number" min={1} max={20} className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.thickness as string) ?? '1'}
           onChange={e => onChange({ ...config, thickness: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">样式</span>
+        <span className="text-xs text-muted-foreground mb-1 block">样式</span>
         <select className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.style as string) ?? 'solid'}
           onChange={e => onChange({ ...config, style: e.target.value })}>
@@ -2789,7 +2789,7 @@ function DividerEditor({ config, onChange }: { config: Record<string, unknown>; 
         </select>
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">上下间距 (px)</span>
+        <span className="text-xs text-muted-foreground mb-1 block">上下间距 (px)</span>
         <input type="number" min={0} max={80} className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.margin as string) ?? '8'}
           onChange={e => onChange({ ...config, margin: e.target.value })} />
@@ -2811,7 +2811,7 @@ function ButtonGroupEditor({ config, onChange }: { config: Record<string, unknow
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题（可选）</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
@@ -2819,17 +2819,17 @@ function ButtonGroupEditor({ config, onChange }: { config: Record<string, unknow
       {buttons.map((btn, i) => (
         <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-end">
           <label className="block">
-            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>}
+            {i === 0 && <span className="text-xs text-muted-foreground mb-1 block">按钮文字</span>}
             <input className="w-full border rounded-lg px-3 py-2 text-sm"
               value={btn.text} onChange={e => updateBtn(i, { text: e.target.value })} />
           </label>
           <label className="block">
-            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">链接</span>}
+            {i === 0 && <span className="text-xs text-muted-foreground mb-1 block">链接</span>}
             <input className="w-full border rounded-lg px-3 py-2 text-sm"
               value={btn.url} onChange={e => updateBtn(i, { url: e.target.value })} />
           </label>
           <label className="block">
-            {i === 0 && <span className="text-xs text-gray-500 mb-1 block">颜色</span>}
+            {i === 0 && <span className="text-xs text-muted-foreground mb-1 block">颜色</span>}
             <input type="color" className="h-9 w-10 border rounded-lg cursor-pointer"
               value={btn.color || '#7c3aed'} onChange={e => updateBtn(i, { color: e.target.value })} />
           </label>
@@ -2850,13 +2850,13 @@ function GalleryEditor({ config, onChange }: { config: Record<string, unknown>; 
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题（可选）</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">列数</span>
+        <span className="text-xs text-muted-foreground mb-1 block">列数</span>
         <select className="w-full border rounded-lg px-3 py-2 text-sm"
           value={String(config.columns ?? 3)}
           onChange={e => onChange({ ...config, columns: Number(e.target.value) })}>
@@ -2874,7 +2874,7 @@ function GalleryEditor({ config, onChange }: { config: Record<string, unknown>; 
           </div>
         ))}
         <button onClick={() => setPickerOpen(true)}
-          className="border-2 border-dashed rounded flex items-center justify-center h-20 text-gray-400 hover:text-gray-600 text-2xl">+</button>
+          className="border-2 border-dashed rounded flex items-center justify-center h-20 text-muted-foreground hover:text-muted-foreground text-2xl">+</button>
       </div>
       {pickerOpen && (
         <MediaPicker
@@ -2900,19 +2900,19 @@ function VideoBlockEditor({ config, onChange }: { config: Record<string, unknown
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题（可选）</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? ''}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">视频 URL（YouTube embed 或直接链接）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">视频 URL（YouTube embed 或直接链接）</span>
         <input placeholder="https://www.youtube.com/embed/..." className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.video_url as string) ?? ''}
           onChange={e => onChange({ ...config, video_url: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">封面图 URL（可选）</span>
+        <span className="text-xs text-muted-foreground mb-1 block">封面图 URL（可选）</span>
         <input placeholder="https://..." className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.poster_url as string) ?? ''}
           onChange={e => onChange({ ...config, poster_url: e.target.value })} />
@@ -2950,7 +2950,7 @@ function FaqEditor({ config, onChange }: { config: Record<string, unknown>; onCh
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? '常见问题'}
           onChange={e => onChange({ ...config, title: e.target.value })} />
@@ -2974,26 +2974,26 @@ function CountdownEditor({ config, onChange }: { config: Record<string, unknown>
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? '距活动结束'}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">目标时间</span>
+        <span className="text-xs text-muted-foreground mb-1 block">目标时间</span>
         <input type="datetime-local" className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.target_date as string) ?? ''}
           onChange={e => onChange({ ...config, target_date: e.target.value })} />
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">文字颜色</span>
+          <span className="text-xs text-muted-foreground mb-1 block">文字颜色</span>
           <input type="text" placeholder="var(--text-base)" className="w-full border rounded-lg px-3 py-2 text-sm"
             value={(config.text_color as string) ?? ''}
             onChange={e => onChange({ ...config, text_color: e.target.value })} />
         </label>
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">背景颜色</span>
+          <span className="text-xs text-muted-foreground mb-1 block">背景颜色</span>
           <input type="text" placeholder="var(--bg-card)" className="w-full border rounded-lg px-3 py-2 text-sm"
             value={(config.bg_color as string) ?? ''}
             onChange={e => onChange({ ...config, bg_color: e.target.value })} />
@@ -3015,7 +3015,7 @@ function VipCardEditor({ config, onChange }: { config: Record<string, unknown>; 
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? 'VIP 会员特权'}
           onChange={e => onChange({ ...config, title: e.target.value })} />
@@ -3047,31 +3047,31 @@ function TelegramJoinEditor({ config, onChange }: { config: Record<string, unkno
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.title as string) ?? '加入我们的 Telegram'}
           onChange={e => onChange({ ...config, title: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">副标题</span>
+        <span className="text-xs text-muted-foreground mb-1 block">副标题</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.subtitle as string) ?? ''}
           onChange={e => onChange({ ...config, subtitle: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">Telegram 链接</span>
+        <span className="text-xs text-muted-foreground mb-1 block">Telegram 链接</span>
         <input placeholder="https://t.me/..." className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.telegram_url as string) ?? ''}
           onChange={e => onChange({ ...config, telegram_url: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">按钮文字</span>
+        <span className="text-xs text-muted-foreground mb-1 block">按钮文字</span>
         <input className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.button_text as string) ?? '立即加入'}
           onChange={e => onChange({ ...config, button_text: e.target.value })} />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-500 mb-1 block">背景颜色</span>
+        <span className="text-xs text-muted-foreground mb-1 block">背景颜色</span>
         <input type="text" placeholder="var(--bg-card)" className="w-full border rounded-lg px-3 py-2 text-sm"
           value={(config.bg_color as string) ?? ''}
           onChange={e => onChange({ ...config, bg_color: e.target.value })} />
@@ -3140,13 +3140,13 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
   }
 
   // ── shared input style ──────────────────────────────────────────────────────
-  const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
-  const sel = `${inp} bg-white`;
+  const inp = 'w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
+  const sel = `${inp} bg-background text-foreground`;
 
   // ── media thumbnail helper ─────────────────────────────────────────────────
   function MediaThumb({ url, onClear, onPick }: { url: string; onClear: () => void; onPick: () => void }) {
     return url ? (
-      <div className="relative group h-20 rounded-lg overflow-hidden border bg-gray-100">
+      <div className="relative group h-20 rounded-lg overflow-hidden border bg-muted">
         {url.match(/\.(mp4|webm)/i)
           ? <video src={url} className="w-full h-full object-cover" muted />
           : <img src={url} alt="" className="w-full h-full object-cover" />}
@@ -3157,7 +3157,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
       </div>
     ) : (
       <button type="button" onClick={onPick}
-        className="w-full h-20 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-blue-500 transition-colors text-xs">
+        className="w-full h-20 rounded-lg border-2 border-dashed border-border hover:border-blue-400 bg-muted flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-blue-500 transition-colors text-xs">
         <span className="text-xl">🖼</span>从 Media Library 选择
       </button>
     );
@@ -3165,7 +3165,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
   // ── section label helper ───────────────────────────────────────────────────
   function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-3 pb-1 border-t border-gray-100">{children}</p>;
+    return <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-3 pb-1 border-t border-border">{children}</p>;
   }
 
   return (
@@ -3184,7 +3184,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
       {(config.banner_enabled as boolean) !== false && (<>
         {/* Desktop Banner */}
         <div>
-          <span className="text-xs text-gray-500 mb-1 block">🖥 Desktop Banner</span>
+          <span className="text-xs text-muted-foreground mb-1 block">🖥 Desktop Banner</span>
           <MediaThumb
             url={(config.banner_desktop_media_url as string) ?? ''}
             onPick={() => setPickerTarget({ section: 'banner', field: 'desktop' })}
@@ -3195,7 +3195,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
         {/* Tablet Banner */}
         <div>
-          <span className="text-xs text-gray-500 mb-1 block">📋 Tablet Banner <span className="text-gray-400">（不设置则用 Desktop 图片）</span></span>
+          <span className="text-xs text-muted-foreground mb-1 block">📋 Tablet Banner <span className="text-muted-foreground">（不设置则用 Desktop 图片）</span></span>
           <MediaThumb
             url={(config.banner_tablet_media_url as string) ?? ''}
             onPick={() => setPickerTarget({ section: 'banner', field: 'tablet' })}
@@ -3205,7 +3205,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
         {/* Mobile Banner */}
         <div>
-          <span className="text-xs text-gray-500 mb-1 block">📱 Mobile Banner <span className="text-gray-400">（不设置则用 Desktop 图片）</span></span>
+          <span className="text-xs text-muted-foreground mb-1 block">📱 Mobile Banner <span className="text-muted-foreground">（不设置则用 Desktop 图片）</span></span>
           <MediaThumb
             url={(config.banner_mobile_media_url as string) ?? ''}
             onPick={() => setPickerTarget({ section: 'banner', field: 'mobile' })}
@@ -3216,21 +3216,21 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
         {/* Alt text */}
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">Alt 文字（SEO）</span>
+          <span className="text-xs text-muted-foreground mb-1 block">Alt 文字（SEO）</span>
           <input className={inp} value={(config.banner_desktop_alt as string) ?? ''}
             onChange={e => onChange({ ...config, banner_desktop_alt: e.target.value })} />
         </label>
 
         {/* Link */}
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">点击 Banner 跳转 URL</span>
+          <span className="text-xs text-muted-foreground mb-1 block">点击 Banner 跳转 URL</span>
           <input className={inp} placeholder="https:// 或 /路径" value={(config.banner_link_url as string) ?? ''}
             onChange={e => onChange({ ...config, banner_link_url: e.target.value })} />
         </label>
 
         {/* Open target */}
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">打开方式</span>
+          <span className="text-xs text-muted-foreground mb-1 block">打开方式</span>
           <select className={sel} value={(config.banner_link_target as string) ?? 'self'}
             onChange={e => onChange({ ...config, banner_link_target: e.target.value })}>
             <option value="self">当前窗口</option>
@@ -3243,10 +3243,10 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
       <SectionTitle>Section 2 — Quick Actions（功能按钮）</SectionTitle>
 
       {buttons.map((btn, idx) => (
-        <div key={btn.id} className="border border-gray-200 rounded-xl p-3 space-y-2.5 bg-gray-50">
+        <div key={btn.id} className="border border-border rounded-xl p-3 space-y-2.5 bg-muted">
           {/* Button header */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-600">Button {idx + 1}  <span className="text-gray-400">#{btn.id}</span></span>
+            <span className="text-xs font-semibold text-muted-foreground">Button {idx + 1}  <span className="text-muted-foreground">#{btn.id}</span></span>
             <label className="flex items-center gap-1.5 text-xs cursor-pointer">
               <input type="checkbox" checked={btn.enabled}
                 onChange={e => updBtn(btn.id, { enabled: e.target.checked })} />
@@ -3256,7 +3256,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
               {/* Button Mode */}
           <div>
-            <span className="text-xs text-gray-500 mb-1 block">Button Mode</span>
+            <span className="text-xs text-muted-foreground mb-1 block">Button Mode</span>
             <div className="flex gap-2">
               {(['text', 'image', 'gif'] as const).map(m => (
                 <button
@@ -3266,7 +3266,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
                   className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors ${
                     (btn.button_mode ?? 'text') === m
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                      : 'bg-background text-muted-foreground border-border hover:border-blue-400'
                   }`}
                 >
                   {m === 'text' ? '📝 Text' : m === 'image' ? '🖼 Image' : '🎞 GIF'}
@@ -3278,7 +3278,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
           {/* Image / GIF mode: button IS the image */}
           {(btn.button_mode === 'image' || btn.button_mode === 'gif') && (
             <div>
-              <span className="text-xs text-gray-500 mb-1 block">
+              <span className="text-xs text-muted-foreground mb-1 block">
                 {btn.button_mode === 'gif' ? 'GIF Button Image' : 'Button Image (PNG/JPG/WEBP)'}
               </span>
               <MediaThumb
@@ -3286,7 +3286,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
                 onPick={() => setPickerTarget({ section: 'button-image', buttonId: btn.id })}
                 onClear={() => updBtn(btn.id, { image_media_id: null, image_media_url: '', button_mode: 'text' })}
               />
-              <p className="text-[10px] text-gray-400 mt-1">图片将完整显示为按钮，不添加任何样式包装</p>
+              <p className="text-[10px] text-muted-foreground mt-1">图片将完整显示为按钮，不添加任何样式包装</p>
             </div>
           )}
 
@@ -3295,12 +3295,12 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
             {/* Title + Icon */}
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">标题</span>
+                <span className="text-xs text-muted-foreground mb-1 block">标题</span>
                 <input className={inp} value={btn.text}
                   onChange={e => updBtn(btn.id, { text: e.target.value })} />
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">图标（Emoji）</span>
+                <span className="text-xs text-muted-foreground mb-1 block">图标（Emoji）</span>
                 <input className={inp} placeholder="📤" value={btn.icon}
                   onChange={e => updBtn(btn.id, { icon: e.target.value })} />
               </label>
@@ -3309,9 +3309,9 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
             {/* Colors */}
             <div className="grid grid-cols-3 gap-2">
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">背景色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">背景色</span>
                 <div className="flex gap-1">
-                  <input type="color" className="h-9 w-9 rounded border border-gray-200 cursor-pointer p-0.5"
+                  <input type="color" className="h-9 w-9 rounded border border-border cursor-pointer p-0.5"
                     value={btn.bg_color || '#4F46E5'}
                     onChange={e => updBtn(btn.id, { bg_color: e.target.value })} />
                   <input className={`${inp} flex-1`} placeholder="留空用品牌色" value={btn.bg_color}
@@ -3319,9 +3319,9 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">文字色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">文字色</span>
                 <div className="flex gap-1">
-                  <input type="color" className="h-9 w-9 rounded border border-gray-200 cursor-pointer p-0.5"
+                  <input type="color" className="h-9 w-9 rounded border border-border cursor-pointer p-0.5"
                     value={btn.text_color || '#ffffff'}
                     onChange={e => updBtn(btn.id, { text_color: e.target.value })} />
                   <input className={`${inp} flex-1`} placeholder="#ffffff" value={btn.text_color}
@@ -3329,7 +3329,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 mb-1 block">边框色</span>
+                <span className="text-xs text-muted-foreground mb-1 block">边框色</span>
                 <input className={inp} placeholder="留空无边框" value={btn.border_color ?? ''}
                   onChange={e => updBtn(btn.id, { border_color: e.target.value })} />
               </label>
@@ -3337,7 +3337,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
             {/* Background Image (behind text) */}
             <div>
-              <span className="text-xs text-gray-500 mb-1 block">背景图片（可选，覆盖背景色）</span>
+              <span className="text-xs text-muted-foreground mb-1 block">背景图片（可选，覆盖背景色）</span>
               <MediaThumb
                 url={btn.bg_media_url ?? ''}
                 onPick={() => setPickerTarget({ section: 'button', buttonId: btn.id })}
@@ -3348,7 +3348,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
           {/* Action Type */}
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block">Action</span>
+            <span className="text-xs text-muted-foreground mb-1 block">Action</span>
             <select className={sel} value={btn.action_type}
               onChange={e => updBtn(btn.id, { action_type: e.target.value })}>
               <option value="share">Share（分享）</option>
@@ -3369,7 +3369,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
           {/* URL (shown for relevant action types) */}
           {['open_url', 'open_external_url', 'copy_link', 'telegram', 'whatsapp', 'open_popup'].includes(btn.action_type) && (
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">URL / 内容</span>
+              <span className="text-xs text-muted-foreground mb-1 block">URL / 内容</span>
               <input className={inp} placeholder="/路径 或 https://" value={btn.url}
                 onChange={e => updBtn(btn.id, { url: e.target.value })} />
             </label>
@@ -3378,7 +3378,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
           {/* Open target */}
           {['open_url', 'copy_link'].includes(btn.action_type) && (
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block">打开方式</span>
+              <span className="text-xs text-muted-foreground mb-1 block">打开方式</span>
               <select className={sel} value={btn.open_target}
                 onChange={e => updBtn(btn.id, { open_target: e.target.value })}>
                 <option value="self">当前窗口</option>
@@ -3394,7 +3394,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">Layout</span>
+          <span className="text-xs text-muted-foreground mb-1 block">Layout</span>
           <select className={sel} value={(config.button_layout as string) ?? '2x2'}
             onChange={e => onChange({ ...config, button_layout: e.target.value })}>
             <option value="2x2">2×2 Grid</option>
@@ -3403,7 +3403,7 @@ function ReferralCenterEditor({ config, onChange }: { config: Record<string, unk
           </select>
         </label>
         <label className="block">
-          <span className="text-xs text-gray-500 mb-1 block">圆角 (px)</span>
+          <span className="text-xs text-muted-foreground mb-1 block">圆角 (px)</span>
           <input type="number" min={0} max={32} className={inp}
             value={(config.button_border_radius as string) ?? '12'}
             onChange={e => onChange({ ...config, button_border_radius: e.target.value })} />
@@ -3474,7 +3474,7 @@ function GenericEditor({
         <div className="grid grid-cols-2 gap-3">
           {sectionType !== 'floating_button' && (
             <div className={sectionType === 'announcement' ? 'col-span-2' : ''}>
-              <label className="block text-xs text-gray-500 mb-1">
+              <label className="block text-xs text-muted-foreground mb-1">
                 {sectionType === 'announcement' ? '公告内容' : '标题'}
               </label>
               <input
@@ -3489,7 +3489,7 @@ function GenericEditor({
           )}
           {['cta_card', 'notice_popup'].includes(sectionType) && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">副标题 / 内容</label>
+              <label className="block text-xs text-muted-foreground mb-1">副标题 / 内容</label>
               <input
                 className="w-full border rounded-xl px-3 py-2 text-sm"
                 value={(config.subtitle as string) ?? (config.content as string) ?? ''}
@@ -3503,19 +3503,19 @@ function GenericEditor({
           {sectionType === 'floating_button' && (
             <>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">按钮文字</label>
+                <label className="block text-xs text-muted-foreground mb-1">按钮文字</label>
                 <input className="w-full border rounded-xl px-3 py-2 text-sm"
                   value={(config.text as string) ?? ''}
                   onChange={e => onChange({ ...config, text: e.target.value })} />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">图标 (emoji)</label>
+                <label className="block text-xs text-muted-foreground mb-1">图标 (emoji)</label>
                 <input className="w-full border rounded-xl px-3 py-2 text-sm"
                   value={(config.icon as string) ?? ''}
                   onChange={e => onChange({ ...config, icon: e.target.value })} />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">位置</label>
+                <label className="block text-xs text-muted-foreground mb-1">位置</label>
                 <select className="w-full border rounded-xl px-3 py-2 text-sm"
                   value={(config.position as string) ?? 'bottom-right'}
                   onChange={e => onChange({ ...config, position: e.target.value })}>
@@ -3556,7 +3556,7 @@ function GenericEditor({
               const hint = hints[field];
               return (
                 <div key={field}>
-                  <p className="text-xs text-gray-500 mb-1">
+                  <p className="text-xs text-muted-foreground mb-1">
                     {field === 'desktop' ? '桌面端媒体' : '手机端媒体'}
                   </p>
                   {url ? (
@@ -3572,7 +3572,7 @@ function GenericEditor({
                     </div>
                   ) : (
                     <button onClick={() => setPickerFor(field)}
-                      className="w-full border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 bg-gray-50 transition-colors"
+                      className="w-full border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground hover:border-blue-400 hover:text-blue-500 bg-muted transition-colors"
                       style={{ height: 80 }}>
                       <span className="text-xs">+ 选择媒体</span>
                     </button>
@@ -3589,13 +3589,13 @@ function GenericEditor({
       {showButton && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">按钮文字</label>
+            <label className="block text-xs text-muted-foreground mb-1">按钮文字</label>
             <input className="w-full border rounded-xl px-3 py-2 text-sm"
               value={(config.button_text as string) ?? ''}
               onChange={e => onChange({ ...config, button_text: e.target.value })} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">按钮链接</label>
+            <label className="block text-xs text-muted-foreground mb-1">按钮链接</label>
             <input className="w-full border rounded-xl px-3 py-2 text-sm"
               value={(config.button_url as string) ?? (config.link_url as string) ?? ''}
               onChange={e => onChange({
@@ -3607,7 +3607,7 @@ function GenericEditor({
           </div>
           {sectionType === 'notice_popup' && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">弹窗频率</label>
+              <label className="block text-xs text-muted-foreground mb-1">弹窗频率</label>
               <select className="w-full border rounded-xl px-3 py-2 text-sm"
                 value={(config.frequency as string) ?? 'session'}
                 onChange={e => onChange({ ...config, frequency: e.target.value })}>
@@ -3623,7 +3623,7 @@ function GenericEditor({
       {/* Link for footer_banner and floating_button */}
       {showLink && (
         <div>
-          <label className="block text-xs text-gray-500 mb-1">跳转链接</label>
+          <label className="block text-xs text-muted-foreground mb-1">跳转链接</label>
           <input className="w-full border rounded-xl px-3 py-2 text-sm"
             value={(config.link_url as string) ?? ''}
             onChange={e => onChange({ ...config, link_url: e.target.value })} />
@@ -3634,7 +3634,7 @@ function GenericEditor({
       {showColors && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">背景颜色</label>
+            <label className="block text-xs text-muted-foreground mb-1">背景颜色</label>
             <div className="flex items-center gap-2">
               <input type="color" value={(config.bg_color as string) || '#1e293b'}
                 onChange={e => onChange({ ...config, bg_color: e.target.value })}
@@ -3646,7 +3646,7 @@ function GenericEditor({
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">文字颜色</label>
+            <label className="block text-xs text-muted-foreground mb-1">文字颜色</label>
             <div className="flex items-center gap-2">
               <input type="color" value={(config.text_color as string) || '#ffffff'}
                 onChange={e => onChange({ ...config, text_color: e.target.value })}
@@ -3663,7 +3663,7 @@ function GenericEditor({
       {/* Announcement: icon */}
       {sectionType === 'announcement' && (
         <div>
-          <label className="block text-xs text-gray-500 mb-1">前置图标 (emoji)</label>
+          <label className="block text-xs text-muted-foreground mb-1">前置图标 (emoji)</label>
           <input className="w-full border rounded-xl px-3 py-2 text-sm"
             value={(config.icon as string) ?? ''}
             onChange={e => onChange({ ...config, icon: e.target.value })} />
@@ -3673,7 +3673,7 @@ function GenericEditor({
       {/* CTA card: align */}
       {sectionType === 'cta_card' && (
         <div>
-          <label className="block text-xs text-gray-500 mb-1">对齐方式</label>
+          <label className="block text-xs text-muted-foreground mb-1">对齐方式</label>
           <select className="w-full border rounded-xl px-3 py-2 text-sm"
             value={(config.align as string) ?? 'center'}
             onChange={e => onChange({ ...config, align: e.target.value })}>
@@ -3763,23 +3763,23 @@ function EditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8">
-      <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 shadow-2xl">
+      <div className="bg-card rounded-2xl w-full max-w-2xl mx-4 shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">编辑区块</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h2 className="text-base font-semibold text-foreground">编辑区块</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               {SECTION_TYPE_LABELS[section.section_type] ?? section.section_type}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted">
+            <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 
         <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
           {/* Name */}
           <label className="block">
-            <span className="text-xs text-gray-500 mb-1 block font-medium">区块名称</span>
+            <span className="text-xs text-muted-foreground mb-1 block font-medium">区块名称</span>
             <input className="w-full border rounded-xl px-3 py-2 text-sm"
               value={name} onChange={e => setName(e.target.value)} />
           </label>
@@ -3787,12 +3787,12 @@ function EditModal({
           {/* Schedule */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block font-medium">开始时间（可选）</span>
+              <span className="text-xs text-muted-foreground mb-1 block font-medium">开始时间（可选）</span>
               <input type="datetime-local" className="w-full border rounded-xl px-3 py-2 text-sm"
                 value={startAt} onChange={e => setStartAt(e.target.value)} />
             </label>
             <label className="block">
-              <span className="text-xs text-gray-500 mb-1 block font-medium">结束时间（可选）</span>
+              <span className="text-xs text-muted-foreground mb-1 block font-medium">结束时间（可选）</span>
               <input type="datetime-local" className="w-full border rounded-xl px-3 py-2 text-sm"
                 value={endAt} onChange={e => setEndAt(e.target.value)} />
             </label>
@@ -3800,7 +3800,7 @@ function EditModal({
 
           {/* Type-specific config */}
           <div className="border-t pt-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">内容设置</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">内容设置</h3>
             <ConfigEditor
               sectionType={section.section_type}
               config={config}
@@ -3809,9 +3809,9 @@ function EditModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-muted rounded-b-2xl">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 border rounded-xl hover:bg-gray-100">
+            className="px-4 py-2 text-sm text-muted-foreground border rounded-xl hover:bg-muted">
             取消
           </button>
           <button onClick={handleSave} disabled={saving}
@@ -3896,13 +3896,13 @@ function WidgetLibraryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col" style={{ height: '82vh' }}>
+      <div className="bg-card rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col" style={{ height: '82vh' }}>
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b shrink-0">
-          <h2 className="text-base font-bold text-gray-900 flex-1">Widget 库</h2>
+          <h2 className="text-base font-bold text-foreground flex-1">Widget 库</h2>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="text"
               value={search}
@@ -3912,8 +3912,8 @@ function WidgetLibraryModal({
               autoFocus
             />
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
-            <X className="w-4 h-4 text-gray-500" />
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted">
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
@@ -3924,7 +3924,7 @@ function WidgetLibraryModal({
               key={tab.key}
               onClick={() => { setCat(tab.key); setSearch(''); }}
               className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
-                cat === tab.key ? 'bg-blue-600 text-white font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                cat === tab.key ? 'bg-blue-600 text-white font-semibold' : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               <span>{tab.icon}</span>
@@ -3945,7 +3945,7 @@ function WidgetLibraryModal({
                 className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left transition-colors ${
                   cat === tab.key
                     ? 'bg-blue-50 text-blue-700 font-semibold border-r-2 border-blue-500'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <span className="text-sm">{tab.icon}</span>
@@ -3957,7 +3957,7 @@ function WidgetLibraryModal({
           {/* Widget Grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {visible.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
                 <span className="text-4xl">📭</span>
                 <p className="text-sm">
                   {cat === 'favorites' ? '暂无收藏，鼠标悬停 Widget 可点击 ☆ 收藏' :
@@ -3979,8 +3979,8 @@ function WidgetLibraryModal({
                         isThis
                           ? 'border-blue-400 bg-blue-50 shadow-md'
                           : adding
-                            ? 'opacity-50 cursor-not-allowed border-gray-200 bg-white'
-                            : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md hover:bg-blue-50/20'
+                            ? 'opacity-50 cursor-not-allowed border-border bg-card'
+                            : 'border-border bg-card hover:border-blue-300 hover:shadow-md hover:bg-blue-50/20'
                       }`}
                     >
                       {/* Favorite star — visible on hover */}
@@ -4001,14 +4001,14 @@ function WidgetLibraryModal({
 
                       {/* Name */}
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className="font-semibold text-sm text-gray-900">{w.label}</span>
+                        <span className="font-semibold text-sm text-foreground">{w.label}</span>
                         {w.isNew && (
                           <span className="text-[9px] font-bold bg-green-500 text-white px-1.5 py-0.5 rounded-full leading-none">NEW</span>
                         )}
                       </div>
 
                       {/* Description */}
-                      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{w.description}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{w.description}</p>
 
                       {/* Category badge */}
                       <div className={`mt-2.5 inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full ${catDef.color}`}>
@@ -4030,7 +4030,7 @@ function WidgetLibraryModal({
         </div>
 
         {/* Footer hint */}
-        <div className="px-5 py-3 border-t shrink-0 text-xs text-gray-400 bg-gray-50 rounded-b-2xl">
+        <div className="px-5 py-3 border-t shrink-0 text-xs text-muted-foreground bg-muted rounded-b-2xl">
           点击 Widget 即可添加 · 鼠标悬停可收藏 ⭐ · 已添加的 Widget 可在列表中 Drag 排序
         </div>
       </div>
@@ -4309,15 +4309,15 @@ export default function WebsiteBuilderPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Website Builder</h1>
-          <p className="text-sm text-gray-500 mt-0.5">管理网站首页区块，所有更改实时生效</p>
+          <h1 className="text-xl font-bold text-foreground">Website Builder</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">管理网站首页区块，所有更改实时生效</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Undo / Redo */}
           <button
             onClick={undo}
             disabled={!canUndo}
-            className="p-2 rounded-xl border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 rounded-xl border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
             title="撤销 (Ctrl+Z)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -4327,7 +4327,7 @@ export default function WebsiteBuilderPage() {
           <button
             onClick={redo}
             disabled={!canRedo}
-            className="p-2 rounded-xl border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 rounded-xl border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
             title="重做 (Ctrl+Y)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -4336,7 +4336,7 @@ export default function WebsiteBuilderPage() {
           </button>
           <button
             onClick={() => { setPreviewOpen(true); setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
-            className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border hover:bg-gray-50 font-medium"
+            className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border hover:bg-muted font-medium"
             title="预览网站"
           >
             <Monitor className="w-4 h-4" /> 预览
@@ -4360,12 +4360,12 @@ export default function WebsiteBuilderPage() {
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />
           ))}
         </div>
       ) : sections.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed rounded-2xl">
-          <p className="text-gray-400 text-sm mb-3">暂无区块</p>
+          <p className="text-muted-foreground text-sm mb-3">暂无区块</p>
           <button onClick={() => setShowAdd(true)}
             className="text-blue-600 text-sm hover:underline">
             + 添加第一个区块
@@ -4425,14 +4425,14 @@ export default function WebsiteBuilderPage() {
                   <button
                     key={d}
                     onClick={() => { setPreviewDevice(d); setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
-                    className={`px-2 sm:px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-2 sm:px-3 py-1 rounded text-xs font-medium transition-colors ${previewDevice === d ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-white'}`}
                   >
                     {d === 'desktop' ? '🖥' : d === 'tablet' ? '📋' : '📱'}
                     <span className="hidden sm:inline">{d === 'desktop' ? ' 桌面' : d === 'tablet' ? ' 平板' : ' 手机'}</span>
                   </button>
                 ))}
               </div>
-              <span className="hidden sm:inline text-xs text-gray-400">
+              <span className="hidden sm:inline text-xs text-muted-foreground">
                 {previewDevice === 'desktop' ? '全宽' : previewDevice === 'tablet' ? '768px' : '375px'}
               </span>
 
@@ -4440,7 +4440,7 @@ export default function WebsiteBuilderPage() {
               {websiteUrl && (
                 <button
                   onClick={() => { setPreviewKey(k => k + 1); setPreviewLoading(true); setPreviewError(false); }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-muted-foreground hover:text-white hover:bg-gray-800 transition-colors"
                   title="刷新预览"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -4452,7 +4452,7 @@ export default function WebsiteBuilderPage() {
               )}
             </div>
 
-            <button onClick={() => setPreviewOpen(false)} className="p-1 text-gray-400 hover:text-white">
+            <button onClick={() => setPreviewOpen(false)} className="p-1 text-muted-foreground hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -4461,7 +4461,7 @@ export default function WebsiteBuilderPage() {
           <div className="flex-1 flex items-center justify-center bg-gray-800 overflow-auto p-4">
             {!websiteUrl ? (
               /* No URL configured */
-              <div className="text-gray-400 text-sm text-center">
+              <div className="text-muted-foreground text-sm text-center">
                 <Monitor className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p>未配置 WEBSITE_URL，无法预览</p>
                 <p className="text-xs mt-1 opacity-60">请在服务器 .env 中设置 WEBSITE_URL</p>
@@ -4485,7 +4485,7 @@ export default function WebsiteBuilderPage() {
                 {previewLoading && !previewError && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gray-900">
                     <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-xs text-gray-400">正在加载预览…</p>
+                    <p className="text-xs text-muted-foreground">正在加载预览…</p>
                   </div>
                 )}
 
@@ -4499,8 +4499,8 @@ export default function WebsiteBuilderPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-white mb-1">Website Preview Failed</p>
-                      <p className="text-xs text-gray-400 mb-0.5">Unable to load preview.</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground mb-0.5">Unable to load preview.</p>
+                      <p className="text-xs text-muted-foreground">
                         可能原因：Website 未运行 / CSP frame-ancestors 未包含 ERP 域名 / WEBSITE_URL 配置错误
                       </p>
                     </div>
@@ -4534,15 +4534,15 @@ export default function WebsiteBuilderPage() {
       {/* Delete Confirm */}
       {deleteConfirm !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle className="w-6 h-6 text-red-500" />
               <h3 className="text-base font-semibold">确认删除</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">删除后无法恢复，确认删除此区块？</p>
+            <p className="text-sm text-muted-foreground mb-6">删除后无法恢复，确认删除此区块？</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm border rounded-xl hover:bg-gray-100">
+                className="px-4 py-2 text-sm border rounded-xl hover:bg-muted">
                 取消
               </button>
               <button onClick={() => deleteSection(deleteConfirm)}

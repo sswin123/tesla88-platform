@@ -176,8 +176,8 @@ export default function StaffPage() {
       {/* Page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Staff Manager</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage staff accounts and role assignments</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Staff Manager</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage staff accounts and role assignments</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -190,23 +190,23 @@ export default function StaffPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <Loader2 className="animate-spin text-gray-400" size={32} />
+          <Loader2 className="animate-spin text-muted-foreground" size={32} />
         </div>
       ) : (
         <>
           {/* ── Mobile: Staff Cards (< 1024px) ── */}
           <div className="lg:hidden space-y-3">
             {staff.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 px-4 py-12 text-center text-gray-400">
+              <div className="bg-card rounded-xl border border-border px-4 py-12 text-center text-muted-foreground">
                 No staff members found
               </div>
             ) : staff.map(m => (
-              <div key={m.id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={m.id} className="bg-card rounded-xl border border-border p-4">
                 {/* Name + Status */}
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm text-gray-900 truncate">{m.display_name ?? m.erp_username}</p>
-                    <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">{m.erp_username}</p>
+                    <p className="font-semibold text-sm text-foreground truncate">{m.display_name ?? m.erp_username}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{m.erp_username}</p>
                   </div>
                   <StatusBadge active={m.is_active} />
                 </div>
@@ -215,16 +215,16 @@ export default function StaffPage() {
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <RoleBadge role={m.role} />
                   {m.telegram_id && (
-                    <span className="text-xs text-gray-400 font-mono">TG: {m.telegram_id}</span>
+                    <span className="text-xs text-muted-foreground font-mono">TG: {m.telegram_id}</span>
                   )}
                 </div>
 
                 {/* Last login */}
                 {m.last_login_at && (
-                  <p className="text-xs text-gray-400 mb-3">Last login: {fmt(m.last_login_at)}</p>
+                  <p className="text-xs text-muted-foreground mb-3">Last login: {fmt(m.last_login_at)}</p>
                 )}
                 {!m.last_login_at && (
-                  <p className="text-xs text-gray-400 mb-3">Never logged in</p>
+                  <p className="text-xs text-muted-foreground mb-3">Never logged in</p>
                 )}
 
                 {/* Actions */}
@@ -232,7 +232,7 @@ export default function StaffPage() {
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => openEdit(m)}
-                      className="flex flex-1 items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 active:bg-gray-100"
+                      className="flex flex-1 items-center justify-center gap-1.5 h-11 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted active:bg-muted"
                     >
                       <Pencil size={14} />
                       Edit
@@ -256,38 +256,38 @@ export default function StaffPage() {
           </div>
 
           {/* ── Desktop: Staff Table (≥ 1024px) ── */}
-          <div className="hidden lg:block overflow-x-auto rounded-xl border border-gray-200">
+          <div className="hidden lg:block overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-muted border-b border-border">
                 <tr>
                   {['Name', 'Username', 'Telegram ID', 'Role', 'Status', 'Last Login', 'Created At', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {staff.map(m => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{m.display_name ?? m.erp_username}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.erp_username}</td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.telegram_id ?? '—'}</td>
+                  <tr key={m.id} className="hover:bg-muted">
+                    <td className="px-4 py-3 font-medium text-foreground">{m.display_name ?? m.erp_username}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{m.erp_username}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{m.telegram_id ?? '—'}</td>
                     <td className="px-4 py-3"><RoleBadge role={m.role} /></td>
                     <td className="px-4 py-3"><StatusBadge active={m.is_active} /></td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{fmt(m.last_login_at)}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{fmt(m.created_at)}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{fmt(m.last_login_at)}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{fmt(m.created_at)}</td>
                     <td className="px-4 py-3">
                       {m.role !== 'SUPER_ADMIN' && (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => openEdit(m)}
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600"
+                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-blue-600"
                             title="Edit"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => toggleActive(m)}
-                            className={`p-1.5 rounded hover:bg-gray-100 ${m.is_active ? 'text-gray-500 hover:text-red-600' : 'text-gray-500 hover:text-green-600'}`}
+                            className={`p-1.5 rounded hover:bg-muted ${m.is_active ? 'text-muted-foreground hover:text-red-600' : 'text-muted-foreground hover:text-green-600'}`}
                             title={m.is_active ? 'Disable' : 'Enable'}
                           >
                             {m.is_active ? <Ban size={14} /> : <CheckCircle size={14} />}
@@ -299,7 +299,7 @@ export default function StaffPage() {
                 ))}
                 {staff.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-gray-400">No staff members found</td>
+                    <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No staff members found</td>
                   </tr>
                 )}
               </tbody>
@@ -311,60 +311,60 @@ export default function StaffPage() {
       {/* ── Create Modal ── */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-lg font-semibold mb-4">Add Staff Member</h2>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Username</label>
                   <input
                     type="text"
                     required
                     value={createForm.erp_username}
                     onChange={e => setCreateForm(f => ({ ...f, erp_username: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g. john_doe"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Display Name</label>
                   <input
                     type="text"
                     value={createForm.display_name}
                     onChange={e => setCreateForm(f => ({ ...f, display_name: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Optional — defaults to username"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telegram ID <span className="text-gray-400 font-normal">(optional)</span>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Telegram ID <span className="text-muted-foreground font-normal">(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={createForm.telegram_id}
                     onChange={e => setCreateForm(f => ({ ...f, telegram_id: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g. 123456789"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Password</label>
                   <input
                     type="password"
                     required
                     minLength={6}
                     value={createForm.password}
                     onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Role</label>
                   <select
                     value={createForm.role}
                     onChange={e => setCreateForm(f => ({ ...f, role: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {ASSIGNABLE_ROLES.map(r => (
                       <option key={r} value={r}>{r}</option>
@@ -375,7 +375,7 @@ export default function StaffPage() {
                   <button
                     type="button"
                     onClick={() => setShowCreate(false)}
-                    className="flex-1 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50"
+                    className="flex-1 border border-border text-foreground px-4 py-2.5 rounded-lg text-sm hover:bg-muted"
                   >
                     Cancel
                   </button>
@@ -397,38 +397,38 @@ export default function StaffPage() {
       {/* ── Edit Modal ── */}
       {editTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-lg font-semibold mb-1">Edit Staff Member</h2>
-              <p className="text-sm text-gray-500 mb-4">{editTarget.erp_username}</p>
+              <p className="text-sm text-muted-foreground mb-4">{editTarget.erp_username}</p>
               <form onSubmit={handleEdit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Display Name</label>
                   <input
                     type="text"
                     value={editForm.display_name}
                     onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telegram ID <span className="text-gray-400 font-normal">(leave blank to clear)</span>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Telegram ID <span className="text-muted-foreground font-normal">(leave blank to clear)</span>
                   </label>
                   <input
                     type="text"
                     value={editForm.telegram_id}
                     onChange={e => setEditForm(f => ({ ...f, telegram_id: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="e.g. 123456789"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Role</label>
                   <select
                     value={editForm.role}
                     onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {ASSIGNABLE_ROLES.map(r => (
                       <option key={r} value={r}>{r}</option>
@@ -436,14 +436,14 @@ export default function StaffPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password <span className="text-gray-400 font-normal">(leave blank to keep current)</span>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    New Password <span className="text-muted-foreground font-normal">(leave blank to keep current)</span>
                   </label>
                   <input
                     type="password"
                     value={editForm.password}
                     onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="••••••"
                   />
                 </div>
@@ -453,16 +453,16 @@ export default function StaffPage() {
                       type="checkbox"
                       checked={editForm.is_active}
                       onChange={e => setEditForm(f => ({ ...f, is_active: e.target.checked }))}
-                      className="rounded border-gray-300"
+                      className="rounded border-border"
                     />
-                    <span className="text-sm font-medium text-gray-700">Account Active</span>
+                    <span className="text-sm font-medium text-foreground">Account Active</span>
                   </label>
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setEditTarget(null)}
-                    className="flex-1 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm hover:bg-gray-50"
+                    className="flex-1 border border-border text-foreground px-4 py-2.5 rounded-lg text-sm hover:bg-muted"
                   >
                     Cancel
                   </button>

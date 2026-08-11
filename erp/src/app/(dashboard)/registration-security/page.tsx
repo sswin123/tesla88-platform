@@ -28,10 +28,10 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 // ── Section card ──────────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
+    <div className="rounded-lg border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-3">
         <Icon size={15} className="text-blue-600" />
-        <span className="text-sm font-semibold text-gray-800">{title}</span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
       </div>
       <div className="px-5 py-4 space-y-4">{children}</div>
     </div>
@@ -42,7 +42,7 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-4">
-      <span className="w-40 shrink-0 pt-0.5 text-xs font-medium text-gray-500">{label}</span>
+      <span className="w-40 shrink-0 pt-0.5 text-xs font-medium text-muted-foreground">{label}</span>
       <div className="flex-1">{children}</div>
     </div>
   );
@@ -69,7 +69,7 @@ function Num({ value, onChange, min = 0, max = 99 }: { value: number; onChange: 
       type="number" min={min} max={max}
       value={value}
       onChange={e => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || 0)))}
-      className="w-20 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+      className="w-20 rounded border border-border px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
     />
   );
 }
@@ -274,11 +274,12 @@ export default function RegistrationSecurityPage() {
         <div className="flex items-center gap-3">
           <ShieldCheck size={22} className="text-blue-600" />
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Registration Security Center</h1>
-            <p className="text-xs text-gray-500">统一管理 Website · ERP · Bot · API 注册风控</p>
+            <h1 className="text-lg font-bold text-foreground">Registration Security Center</h1>
+            <p className="text-xs text-muted-foreground">统一管理 Website · ERP · Bot · API 注册风控</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* KEEP: bg-gray-100 text-gray-500 — disabled badge (rule 8) */}
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${bool('security_enabled') ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${bool('security_enabled') ? 'bg-green-500' : 'bg-gray-400'}`} />
             {bool('security_enabled') ? `模式: ${val('registration_mode') || 'STANDARD'}` : '安全检查已禁用'}
@@ -292,10 +293,10 @@ export default function RegistrationSecurityPage() {
       )}
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-border">
         {([['policy','政策配置'],['whitelist','白名单'],['brand','品牌覆盖'],['report','重复报告']] as const).map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
             {label}
             {t === 'report' && report && (report.totals.phones + report.totals.banks + report.totals.telegrams + report.totals.emails) > 0 && (
               <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
@@ -314,7 +315,7 @@ export default function RegistrationSecurityPage() {
           <Section icon={ShieldCheck} title="Section 1 — 全局政策">
             <Row label="启用安全检查">
               <Toggle checked={bool('security_enabled')} onChange={v => set('security_enabled', v ? 'true' : 'false')} />
-              <p className="mt-1 text-xs text-gray-400">关闭后所有检查均跳过（仅限紧急维护）</p>
+              <p className="mt-1 text-xs text-muted-foreground">关闭后所有检查均跳过（仅限紧急维护）</p>
             </Row>
             <Row label="注册模式">
               <RadioGroup
@@ -350,7 +351,7 @@ export default function RegistrationSecurityPage() {
             <Row label="最大账号数">
               <div className="flex items-center gap-2">
                 <Num value={parseInt(val('phone_max_accounts') || '1')} onChange={n => { set('phone_max_accounts', String(n)); set('registration_mode', 'CUSTOM'); }} min={0} max={99} />
-                <span className="text-xs text-gray-400">（0 = 无限制）</span>
+                <span className="text-xs text-muted-foreground">（0 = 无限制）</span>
               </div>
             </Row>
           </Section>
@@ -376,11 +377,11 @@ export default function RegistrationSecurityPage() {
             <Row label="最大会员数">
               <div className="flex items-center gap-2">
                 <Num value={parseInt(val('bank_max_members') || '1')} onChange={n => { set('bank_max_members', String(n)); set('registration_mode', 'CUSTOM'); }} min={0} max={99} />
-                <span className="text-xs text-gray-400">（0 = 无限制）</span>
+                <span className="text-xs text-muted-foreground">（0 = 无限制）</span>
               </div>
             </Row>
             <Row label="Normalize">
-              <div className="rounded bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-600">
+              <div className="rounded bg-muted border border-border px-3 py-2 text-xs text-muted-foreground">
                 自动去除空格、<code>-</code>、<code>.</code>（例：<code>1234 5678</code> → <code>12345678</code>）
               </div>
             </Row>
@@ -392,7 +393,7 @@ export default function RegistrationSecurityPage() {
               <Toggle checked={bool('telegram_check_enabled')} onChange={v => { set('telegram_check_enabled', v ? 'true' : 'false'); set('registration_mode', 'CUSTOM'); }} />
             </Row>
             <Row label="检查字段">
-              <div className="text-xs text-gray-500 bg-blue-50 rounded px-3 py-2">
+              <div className="text-xs text-muted-foreground bg-blue-50 rounded px-3 py-2">
                 Bot 注册：检查 <strong>Telegram User ID</strong>（唯一标识）<br />
                 Website 注册：检查 <strong>Username</strong>（最佳努力，用户名可更改）
               </div>
@@ -414,7 +415,7 @@ export default function RegistrationSecurityPage() {
             <Row label="24h 注册上限">
               <div className="flex items-center gap-2">
                 <Num value={parseInt(val('device_max_per_24h') || '3')} onChange={n => set('device_max_per_24h', String(n))} min={1} max={99} />
-                <span className="text-xs text-gray-400">次 / 设备 / 24 小时</span>
+                <span className="text-xs text-muted-foreground">次 / 设备 / 24 小时</span>
               </div>
             </Row>
           </Section>
@@ -427,7 +428,7 @@ export default function RegistrationSecurityPage() {
             <Row label="24h 注册上限">
               <div className="flex items-center gap-2">
                 <Num value={parseInt(val('ip_max_per_24h') || '10')} onChange={n => set('ip_max_per_24h', String(n))} min={1} max={999} />
-                <span className="text-xs text-gray-400">次 / IP / 24 小时</span>
+                <span className="text-xs text-muted-foreground">次 / IP / 24 小时</span>
               </div>
             </Row>
           </Section>
@@ -480,22 +481,22 @@ export default function RegistrationSecurityPage() {
           <Section icon={Phone} title="Section 8 — 手机号白名单（允许重复注册）">
             <div className="flex gap-2">
               <input placeholder="60111234567" value={newPhone} onChange={e => setNewPhone(e.target.value)}
-                className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                className="flex-1 rounded border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
               <input placeholder="备注（可选）" value={newPhoneNote} onChange={e => setNewPhoneNote(e.target.value)}
-                className="w-40 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-40 rounded border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
               <button onClick={() => void addPhone()}
                 className="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
                 <Plus size={14} />加入
               </button>
             </div>
-            <div className="divide-y divide-gray-100 rounded border border-gray-200 mt-2">
+            <div className="divide-y divide-border rounded border border-border mt-2">
               {wlPhones.length === 0 ? (
-                <p className="py-4 text-center text-xs text-gray-400">暂无白名单号码</p>
+                <p className="py-4 text-center text-xs text-muted-foreground">暂无白名单号码</p>
               ) : wlPhones.map(p => (
                 <div key={p.id} className="flex items-center justify-between px-3 py-2">
                   <div>
                     <span className="text-sm font-mono font-medium">{p.phone}</span>
-                    {p.note && <span className="ml-2 text-xs text-gray-400">{p.note}</span>}
+                    {p.note && <span className="ml-2 text-xs text-muted-foreground">{p.note}</span>}
                   </div>
                   <button onClick={() => void removePhone(p.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={14} />
@@ -509,25 +510,25 @@ export default function RegistrationSecurityPage() {
           <Section icon={Landmark} title="Section 9 — 银行账号白名单（允许重复使用）">
             <div className="flex gap-2">
               <input placeholder="银行名称" value={newBankName} onChange={e => setNewBankName(e.target.value)}
-                className="w-36 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-36 rounded border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
               <input placeholder="账号" value={newBankAcct} onChange={e => setNewBankAcct(e.target.value)}
-                className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                className="flex-1 rounded border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
               <input placeholder="备注" value={newBankNote} onChange={e => setNewBankNote(e.target.value)}
-                className="w-32 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-32 rounded border border-border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
               <button onClick={() => void addBank()}
                 className="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
                 <Plus size={14} />加入
               </button>
             </div>
-            <div className="divide-y divide-gray-100 rounded border border-gray-200 mt-2">
+            <div className="divide-y divide-border rounded border border-border mt-2">
               {wlBanks.length === 0 ? (
-                <p className="py-4 text-center text-xs text-gray-400">暂无白名单账号</p>
+                <p className="py-4 text-center text-xs text-muted-foreground">暂无白名单账号</p>
               ) : wlBanks.map(b => (
                 <div key={b.id} className="flex items-center justify-between px-3 py-2">
                   <div>
-                    <span className="text-xs text-gray-500">{b.bank_name}</span>
+                    <span className="text-xs text-muted-foreground">{b.bank_name}</span>
                     <span className="ml-2 text-sm font-mono font-medium">{b.account_number}</span>
-                    {b.note && <span className="ml-2 text-xs text-gray-400">{b.note}</span>}
+                    {b.note && <span className="ml-2 text-xs text-muted-foreground">{b.note}</span>}
                   </div>
                   <button onClick={() => void removeBank(b.id)} className="text-red-400 hover:text-red-600">
                     <Trash2 size={14} />
@@ -543,45 +544,45 @@ export default function RegistrationSecurityPage() {
       {tab === 'brand' && (
         <div className="space-y-4">
           <Section icon={Building2} title="Section 10 — 品牌覆盖（各品牌独立政策）">
-            <p className="text-xs text-gray-500">未设定的字段将继承全局政策。<code>NULL</code> = 跟随全局。</p>
+            <p className="text-xs text-muted-foreground">未设定的字段将继承全局政策。<code>NULL</code> = 跟随全局。</p>
 
             {/* Add form */}
-            <div className="rounded border border-dashed border-gray-300 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-600">新增品牌覆盖</p>
+            <div className="rounded border border-dashed border-border p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground">新增品牌覆盖</p>
               <div className="flex flex-wrap gap-3">
                 <input placeholder="品牌名称（如 OPULUX）" value={newBrand} onChange={e => setNewBrand(e.target.value.toUpperCase())}
-                  className="w-40 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                  className="w-40 rounded border border-border px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 w-24">手机检查:</span>
+                  <span className="text-muted-foreground w-24">手机检查:</span>
                   <select value={nbPhoneChk === null ? '' : String(nbPhoneChk)} onChange={e => setNbPhoneChk(e.target.value === '' ? null : e.target.value === 'true')}
-                    className="rounded border border-gray-300 px-2 py-1 text-sm">
+                    className="rounded border border-border px-2 py-1 text-sm">
                     <option value="">继承全局</option>
                     <option value="true">开启</option>
                     <option value="false">关闭</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 w-24">手机最大数:</span>
+                  <span className="text-muted-foreground w-24">手机最大数:</span>
                   <input type="number" min={0} max={99} placeholder="继承"
                     value={nbPhoneMax ?? ''}
                     onChange={e => setNbPhoneMax(e.target.value === '' ? null : parseInt(e.target.value))}
-                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm" />
+                    className="w-16 rounded border border-border px-2 py-1 text-sm" />
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 w-24">银行检查:</span>
+                  <span className="text-muted-foreground w-24">银行检查:</span>
                   <select value={nbBankChk === null ? '' : String(nbBankChk)} onChange={e => setNbBankChk(e.target.value === '' ? null : e.target.value === 'true')}
-                    className="rounded border border-gray-300 px-2 py-1 text-sm">
+                    className="rounded border border-border px-2 py-1 text-sm">
                     <option value="">继承全局</option>
                     <option value="true">开启</option>
                     <option value="false">关闭</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 w-24">银行最大数:</span>
+                  <span className="text-muted-foreground w-24">银行最大数:</span>
                   <input type="number" min={0} max={99} placeholder="继承"
                     value={nbBankMax ?? ''}
                     onChange={e => setNbBankMax(e.target.value === '' ? null : parseInt(e.target.value))}
-                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm" />
+                    className="w-16 rounded border border-border px-2 py-1 text-sm" />
                 </label>
                 <button onClick={() => void addOverride()}
                   className="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
@@ -594,7 +595,7 @@ export default function RegistrationSecurityPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-xs font-semibold text-gray-500">
+                  <tr className="border-b text-left text-xs font-semibold text-muted-foreground">
                     <th className="pb-2 pr-4">品牌</th>
                     <th className="pb-2 pr-4">手机检查</th>
                     <th className="pb-2 pr-4">手机最大</th>
@@ -603,9 +604,9 @@ export default function RegistrationSecurityPage() {
                     <th className="pb-2">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {overrides.length === 0 ? (
-                    <tr><td colSpan={6} className="py-4 text-center text-xs text-gray-400">暂无品牌覆盖（使用全局政策）</td></tr>
+                    <tr><td colSpan={6} className="py-4 text-center text-xs text-muted-foreground">暂无品牌覆盖（使用全局政策）</td></tr>
                   ) : overrides.map(o => (
                     <tr key={o.id}>
                       <td className="py-2 pr-4 font-semibold">{o.brand_name}</td>
@@ -630,7 +631,7 @@ export default function RegistrationSecurityPage() {
         <div className="space-y-4">
           <Section icon={List} title="Section 12 — 重复数据报告">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">扫描所有会员，找出重复手机号、银行账号、Telegram ID、Email</p>
+              <p className="text-xs text-muted-foreground">扫描所有会员，找出重复手机号、银行账号、Telegram ID、Email</p>
               <button onClick={() => void loadReport()} disabled={reportLoading}
                 className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50">
                 <RefreshCw size={13} className={reportLoading ? 'animate-spin' : ''} />刷新
@@ -641,7 +642,7 @@ export default function RegistrationSecurityPage() {
               <div className="flex gap-4 text-sm">
                 {([['phones','手机','text-red-600'],['banks','银行','text-orange-600'],['telegrams','Telegram','text-blue-600'],['emails','Email','text-purple-600']] as const).map(([k, label, color]) => (
                   <button key={k} onClick={() => setReportTab(k)}
-                    className={`px-3 py-1.5 rounded border text-xs font-medium transition-colors ${reportTab === k ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                    className={`px-3 py-1.5 rounded border text-xs font-medium transition-colors ${reportTab === k ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-border'}`}>
                     {label}
                     {report.totals[k] > 0 && <span className={`ml-1 ${color} font-bold`}>{report.totals[k]}</span>}
                   </button>
@@ -650,30 +651,30 @@ export default function RegistrationSecurityPage() {
             )}
 
             {!report && !reportLoading && (
-              <p className="py-6 text-center text-xs text-gray-400">点击「刷新」扫描重复数据</p>
+              <p className="py-6 text-center text-xs text-muted-foreground">点击「刷新」扫描重复数据</p>
             )}
 
-            {reportLoading && <p className="py-6 text-center text-xs text-gray-400">扫描中…</p>}
+            {reportLoading && <p className="py-6 text-center text-xs text-muted-foreground">扫描中…</p>}
 
             {report && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-xs font-semibold text-gray-500">
+                    <tr className="border-b text-left text-xs font-semibold text-muted-foreground">
                       <th className="pb-2 pr-4">{reportTab === 'phones' ? '手机号' : reportTab === 'banks' ? '银行账号' : reportTab === 'telegrams' ? 'Telegram ID' : 'Email'}</th>
                       <th className="pb-2 pr-4">重复数</th>
                       <th className="pb-2 pr-4">会员 ID</th>
                       <th className="pb-2">姓名</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {(report[reportTab] as DupRow[]).length === 0 ? (
                       <tr><td colSpan={4} className="py-4 text-center text-xs text-green-600">✓ 无重复数据</td></tr>
                     ) : (report[reportTab] as DupRow[]).map((row, i) => (
-                      <tr key={i} className="hover:bg-gray-50">
+                      <tr key={i} className="hover:bg-muted">
                         <td className="py-2 pr-4 font-mono text-xs">{row.phone ?? row.bank_account ?? row.telegram_id ?? row.email}</td>
                         <td className="py-2 pr-4"><span className="rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">{row.count}</span></td>
-                        <td className="py-2 pr-4 text-xs text-gray-500">{row.user_ids.join(', ')}</td>
+                        <td className="py-2 pr-4 text-xs text-muted-foreground">{row.user_ids.join(', ')}</td>
                         <td className="py-2 text-xs">{row.names.join(', ')}</td>
                       </tr>
                     ))}

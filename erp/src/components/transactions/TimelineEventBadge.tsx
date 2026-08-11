@@ -12,21 +12,21 @@ function classify(event: string): EventCategory {
 }
 
 const BADGE_CLASS: Record<EventCategory, string> = {
-  created:    'bg-gray-100    text-gray-600   border border-gray-200',
+  created:    'bg-muted          text-muted-foreground border border-border',
   processing: 'bg-blue-100   text-blue-700   border border-blue-200',
   approved:   'bg-green-100  text-green-700  border border-green-200',
   rejected:   'bg-red-100    text-red-700    border border-red-200',
   note:       'bg-purple-100 text-purple-700 border border-purple-200',
-  system:     'bg-gray-100   text-gray-500   border border-gray-300',
+  system:     'bg-muted          text-muted-foreground border border-border',
 };
 
 const DOT_CLASS: Record<EventCategory, string> = {
-  created:    'bg-gray-400',
+  created:    'bg-muted-foreground',
   processing: 'bg-blue-500',
   approved:   'bg-green-500',
   rejected:   'bg-red-500',
   note:       'bg-purple-500',
-  system:     'bg-gray-500',
+  system:     'bg-muted-foreground',
 };
 
 function formatEvent(event: string): string {

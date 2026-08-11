@@ -117,13 +117,13 @@ export function MediaDetailPanel({
   }
 
   return (
-    <div className="rounded-lg border bg-white flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+    <div className="rounded-lg border bg-card flex flex-col overflow-hidden" style={{ maxHeight: 'calc(100vh - 180px)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50 flex-shrink-0">
-        <span className="text-sm font-semibold text-gray-700 truncate flex-1 min-w-0 mr-2">
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted flex-shrink-0">
+        <span className="text-sm font-semibold text-foreground truncate flex-1 min-w-0 mr-2">
           {item.displayName}
         </span>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 flex-shrink-0">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground flex-shrink-0">
           <X size={16} />
         </button>
       </div>
@@ -132,7 +132,7 @@ export function MediaDetailPanel({
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
 
         {/* Preview */}
-        <div className="rounded-md bg-gray-50 border flex items-center justify-center overflow-hidden" style={{ minHeight: 140, maxHeight: 240 }}>
+        <div className="rounded-md bg-muted border flex items-center justify-center overflow-hidden" style={{ minHeight: 140, maxHeight: 240 }}>
           {isImage && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -160,13 +160,13 @@ export function MediaDetailPanel({
             />
           )}
           {!isImage && !isVideo && !isAudio && !isPDF && (
-            <div className="text-gray-400 text-sm py-6">{item.mediaType} — no preview</div>
+            <div className="text-muted-foreground text-sm py-6">{item.mediaType} — no preview</div>
           )}
         </div>
 
         {/* Display name */}
         <div className="space-y-1">
-          <Label className="text-xs text-gray-500">Display Name</Label>
+          <Label className="text-xs text-muted-foreground">Display Name</Label>
           {editingName ? (
             <div className="flex gap-1">
               <Input
@@ -181,11 +181,11 @@ export function MediaDetailPanel({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-800 flex-1">{item.displayName}</span>
+              <span className="text-sm text-foreground flex-1">{item.displayName}</span>
               {!isDeleted && (
                 <button
                   onClick={() => setEditingName(true)}
-                  className="text-xs text-gray-400 hover:text-gray-700 flex-shrink-0"
+                  className="text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
                 >
                   Edit
                 </button>
@@ -214,8 +214,8 @@ export function MediaDetailPanel({
             .filter((row): row is [string, string] => row !== null)
             .map(([label, value]) => (
               <div key={label} className="flex justify-between gap-2">
-                <span className="text-gray-400 flex-shrink-0">{label}</span>
-                <span className="text-gray-700 text-right truncate max-w-[60%]" title={String(value)}>{value}</span>
+                <span className="text-muted-foreground flex-shrink-0">{label}</span>
+                <span className="text-foreground text-right truncate max-w-[60%]" title={String(value)}>{value}</span>
               </div>
             ))
           }
@@ -224,7 +224,7 @@ export function MediaDetailPanel({
         {/* Image URL — shown for image/GIF media */}
         {isImage && (
           <div className="space-y-2">
-            <Label className="text-xs text-gray-500">Image URL</Label>
+            <Label className="text-xs text-muted-foreground">Image URL</Label>
             {[
               {
                 label: 'ERP Public URL',
@@ -236,12 +236,12 @@ export function MediaDetailPanel({
               },
             ].map(({ label, url }) => (
               <div key={label} className="space-y-0.5">
-                <div className="text-xs text-gray-400">{label}</div>
+                <div className="text-xs text-muted-foreground">{label}</div>
                 <div className="flex items-center gap-1">
                   <input
                     readOnly
                     value={url}
-                    className="flex-1 h-6 text-xs bg-gray-50 border rounded px-1.5 text-gray-600 min-w-0"
+                    className="flex-1 h-6 text-xs bg-background border rounded px-1.5 text-muted-foreground min-w-0"
                   />
                   <button
                     onClick={() => {
@@ -249,7 +249,7 @@ export function MediaDetailPanel({
                       setActionMsg(`已复制 ${label}`);
                       setTimeout(() => setActionMsg(''), 1500);
                     }}
-                    className="flex-shrink-0 h-6 px-2 text-xs rounded border bg-white hover:bg-gray-50 text-gray-600"
+                    className="flex-shrink-0 h-6 px-2 text-xs rounded border bg-card hover:bg-muted text-muted-foreground"
                   >
                     Copy
                   </button>
@@ -261,16 +261,16 @@ export function MediaDetailPanel({
 
         {/* Action feedback */}
         {actionMsg && (
-          <p className="text-xs text-gray-600 bg-gray-50 rounded p-2 border">{actionMsg}</p>
+          <p className="text-xs text-muted-foreground bg-muted rounded p-2 border">{actionMsg}</p>
         )}
       </div>
 
       {/* Action buttons */}
-      <div className="border-t p-3 space-y-2 flex-shrink-0 bg-white">
+      <div className="border-t p-3 space-y-2 flex-shrink-0 bg-card">
         {/* Download — always available */}
         <a
           href={`/api/media/${item.id}/file?download=1`}
-          className="flex items-center gap-2 w-full rounded px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 border transition-colors"
+          className="flex items-center gap-2 w-full rounded px-3 py-1.5 text-sm text-foreground hover:bg-muted border transition-colors"
         >
           <Download size={14} />
           Download
@@ -281,7 +281,7 @@ export function MediaDetailPanel({
             {/* Replace */}
             <button
               onClick={() => replaceRef.current?.click()}
-              className="flex items-center gap-2 w-full rounded px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 border transition-colors"
+              className="flex items-center gap-2 w-full rounded px-3 py-1.5 text-sm text-foreground hover:bg-muted border transition-colors"
             >
               <RefreshCw size={14} />
               Replace File

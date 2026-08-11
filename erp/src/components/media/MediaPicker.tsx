@@ -424,7 +424,7 @@ export function MediaPicker({
         {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
-            className="aspect-square rounded-lg bg-gray-200 animate-pulse"
+            className="aspect-square rounded-lg bg-muted animate-pulse"
           />
         ))}
       </div>
@@ -435,12 +435,12 @@ export function MediaPicker({
     if (loading) return renderSkeletonGrid();
     if (items.length === 0) {
       return (
-        <div className="h-48 flex flex-col items-center justify-center gap-2 text-gray-400 text-sm">
+        <div className="h-48 flex flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
           <span>{emptyMessage}</span>
           {showUploadLink && (
             <button
               onClick={() => setTab('upload')}
-              className="text-gray-700 underline text-xs"
+              className="text-foreground underline text-xs"
             >
               Upload something
             </button>
@@ -471,7 +471,7 @@ export function MediaPicker({
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                     isSelected(item)
                       ? 'bg-gray-900 border-gray-900'
-                      : 'bg-white border-gray-300'
+                      : 'bg-background border-border'
                   }`}
                 >
                   {isSelected(item) && (
@@ -516,14 +516,14 @@ export function MediaPicker({
       aria-modal="true"
       aria-label="Media Picker"
     >
-      <div className="bg-white rounded-xl shadow-2xl w-[900px] max-h-[88vh] flex flex-col">
+      <div className="bg-card rounded-xl shadow-2xl w-[900px] max-h-[88vh] flex flex-col">
         {/* ---- Header ---- */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <h2 className="text-lg font-semibold">Choose Media</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-gray-400 hover:text-gray-700 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -546,7 +546,7 @@ export function MediaPicker({
               className={`flex items-center gap-1.5 py-2.5 px-4 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.id
                   ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-gray-400 hover:text-gray-700'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               {t.icon}
@@ -564,7 +564,7 @@ export function MediaPicker({
               {/* Filters row */}
               <div className="flex flex-wrap gap-2 items-center">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                   <Input
                     placeholder="Search…"
                     defaultValue=""
@@ -580,7 +580,7 @@ export function MediaPicker({
                       className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                         browseTypeChip === chip.value
                           ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                          : 'bg-background text-muted-foreground border-border hover:border-border'
                       }`}
                     >
                       {chip.label}
@@ -598,15 +598,15 @@ export function MediaPicker({
                   <button
                     onClick={() => setBrowsePage(p => Math.max(1, p - 1))}
                     disabled={browsePage === 1}
-                    className="flex items-center gap-1 rounded px-2 py-1 border text-xs disabled:opacity-40 hover:bg-gray-50"
+                    className="flex items-center gap-1 rounded px-2 py-1 border text-xs disabled:opacity-40 hover:bg-muted"
                   >
                     <ChevronLeft className="w-3 h-3" /> Prev
                   </button>
-                  <span className="text-gray-400">Page {browsePage} of {browseTotalPages}</span>
+                  <span className="text-muted-foreground">Page {browsePage} of {browseTotalPages}</span>
                   <button
                     onClick={() => setBrowsePage(p => Math.min(browseTotalPages, p + 1))}
                     disabled={browsePage === browseTotalPages}
-                    className="flex items-center gap-1 rounded px-2 py-1 border text-xs disabled:opacity-40 hover:bg-gray-50"
+                    className="flex items-center gap-1 rounded px-2 py-1 border text-xs disabled:opacity-40 hover:bg-muted"
                   >
                     Next <ChevronRight className="w-3 h-3" />
                   </button>
@@ -618,7 +618,7 @@ export function MediaPicker({
           {/* Recent Tab */}
           {tab === 'recent' && (
             <div className="space-y-3">
-              <p className="text-xs text-gray-400">Last 20 uploaded items</p>
+              <p className="text-xs text-muted-foreground">Last 20 uploaded items</p>
               {renderGrid(recentMedia, recentLoading, 'No recent media', true)}
             </div>
           )}
@@ -626,7 +626,7 @@ export function MediaPicker({
           {/* Popular Tab */}
           {tab === 'popular' && (
             <div className="space-y-3">
-              <p className="text-xs text-gray-400">Most frequently used media</p>
+              <p className="text-xs text-muted-foreground">Most frequently used media</p>
               {renderGrid(popularMedia, popularLoading, 'No popular media yet', false)}
             </div>
           )}
@@ -644,14 +644,14 @@ export function MediaPicker({
                 onClick={() => fileInputRef.current?.click()}
                 className={`relative border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors ${
                   isDragOver
-                    ? 'border-gray-500 bg-gray-50'
-                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50/50'
+                    ? 'border-border bg-muted'
+                    : 'border-border hover:border-border hover:bg-muted/50'
                 }`}
               >
-                <Upload className="w-8 h-8 text-gray-400" />
+                <Upload className="w-8 h-8 text-muted-foreground" />
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-700">Drop files here or click to browse</p>
-                  <p className="text-xs text-gray-400 mt-1">or Ctrl+V to paste from clipboard</p>
+                  <p className="text-sm font-medium text-foreground">Drop files here or click to browse</p>
+                  <p className="text-xs text-muted-foreground mt-1">or Ctrl+V to paste from clipboard</p>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -667,20 +667,20 @@ export function MediaPicker({
               {/* Per-file upload status */}
               {uploadFiles.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Upload progress</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Upload progress</p>
                   <div className="rounded-lg border divide-y overflow-hidden">
                     {uploadFiles.map((f, i) => (
                       <div key={i} className="flex items-center gap-3 px-3 py-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate text-gray-800">{f.name}</p>
+                          <p className="text-sm truncate text-foreground">{f.name}</p>
                           {f.error && (
                             <p className="text-xs text-red-500 truncate">{f.error}</p>
                           )}
                         </div>
                         <div className="shrink-0">
                           {f.status === 'uploading' && (
-                            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <div className="w-3 h-3 rounded-full border-2 border-border border-t-foreground animate-spin" />
                               Uploading…
                             </div>
                           )}
@@ -702,8 +702,8 @@ export function MediaPicker({
 
         {/* ---- Footer (all tabs except Upload) ---- */}
         {footerVisible && (
-          <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50 rounded-b-xl shrink-0">
-            <span className="text-sm text-gray-500 truncate max-w-xs">
+          <div className="flex items-center justify-between px-5 py-3 border-t bg-muted rounded-b-xl shrink-0">
+            <span className="text-sm text-muted-foreground truncate max-w-xs">
               {mode === 'single'
                 ? (selectedSingle ? selectedSingle.displayName : 'No media selected')
                 : (selectedMultiple.length > 0

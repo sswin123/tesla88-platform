@@ -24,8 +24,8 @@ interface WithdrawalPaymentCardProps {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{children}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground">{children}</span>
     </div>
   );
 }
@@ -44,8 +44,8 @@ export function DepositPaymentCard({
   const bankDisplay = receivingBankName ?? paymentBank ?? '—';
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Deposit Details</h2>
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deposit Details</h2>
       <div className="space-y-2">
         <Row label="Amount">RM {parseFloat(depositAmount ?? '0').toFixed(2)}</Row>
         {parseFloat(bonusAmount ?? '0') > 0 && (
@@ -68,7 +68,7 @@ export function DepositPaymentCard({
       {(receivingBankName || paymentBank) && (
         <>
           <div className="border-t pt-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Payment Bank</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Payment Bank</h3>
             <div className="space-y-1.5">
               <Row label="Bank">{bankDisplay}</Row>
               {receivingBankAccountNumber && (
@@ -83,7 +83,7 @@ export function DepositPaymentCard({
           </div>
           {receivingBankQrMediaId && (
             <div className="pt-2">
-              <p className="text-xs text-gray-400 mb-2">QR Code</p>
+              <p className="text-xs text-muted-foreground mb-2">QR Code</p>
               <img
                 src={`/api/public/media/${receivingBankQrMediaId}`}
                 alt="QR"
@@ -106,8 +106,8 @@ export function WithdrawalPaymentCard({
   bankHolderName,
 }: WithdrawalPaymentCardProps) {
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Withdrawal Details</h2>
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Withdrawal Details</h2>
       <div className="space-y-2">
         <Row label="Amount">
           <span className="font-semibold">RM {parseFloat(withdrawAmount ?? '0').toFixed(2)}</span>
@@ -118,7 +118,7 @@ export function WithdrawalPaymentCard({
 
       {(bankName || bankAccount) && (
         <div className="border-t pt-3 space-y-1">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Bank Account</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Bank Account</p>
           {bankName && <Row label="Bank">{bankName}</Row>}
           {bankAccount && <Row label="Account"><span className="font-mono">{bankAccount}</span></Row>}
           {bankHolderName && <Row label="Holder">{bankHolderName}</Row>}

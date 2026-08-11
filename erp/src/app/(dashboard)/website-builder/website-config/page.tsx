@@ -148,12 +148,12 @@ export default function WebsiteConfigPage() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">网站参数配置</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Website Config · 全局货币、存提款限额 — 所有设置立即生效</p>
+        <h1 className="text-xl font-bold text-foreground">网站参数配置</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Website Config · 全局货币、存提款限额 — 所有设置立即生效</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-muted rounded-xl p-1">
         {TABS.map(({ key, label, Icon }) => (
           <button
             key={key}
@@ -161,8 +161,8 @@ export default function WebsiteConfigPage() {
             onClick={() => setTab(key)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${
               tab === key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -175,14 +175,14 @@ export default function WebsiteConfigPage() {
 
         {/* ── Currency Tab ─────────────────────────────────────────────────── */}
         {tab === 'currency' && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-5">
-            <h2 className="text-sm font-semibold text-gray-700 border-b pb-2">货币设置</h2>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-5">
+            <h2 className="text-sm font-semibold text-foreground border-b pb-2">货币设置</h2>
 
             {/* Currency dropdown */}
             <label className="block">
-              <span className="text-xs text-gray-500 font-medium block mb-1">货币</span>
+              <span className="text-xs text-muted-foreground font-medium block mb-1">货币</span>
               <select
-                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white"
+                className="w-full border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground"
                 value={form.currency_code}
                 onChange={e => selectCurrency(e.target.value)}
               >
@@ -195,21 +195,21 @@ export default function WebsiteConfigPage() {
             {/* Symbol + decimal in a row */}
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">货币符号（自动）</span>
-                <div className="flex items-center border rounded-xl overflow-hidden bg-gray-50">
-                  <span className="px-3 py-2.5 text-lg font-bold text-gray-800 min-w-[52px] text-center">
+                <span className="text-xs text-muted-foreground font-medium block mb-1">货币符号（自动）</span>
+                <div className="flex items-center border rounded-xl overflow-hidden bg-muted">
+                  <span className="px-3 py-2.5 text-lg font-bold text-foreground min-w-[52px] text-center">
                     {sym}
                   </span>
-                  <span className="px-3 py-2.5 text-xs text-gray-400 border-l">
+                  <span className="px-3 py-2.5 text-xs text-muted-foreground border-l">
                     {form.currency_code}
                   </span>
                 </div>
               </label>
 
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">小数位数</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">小数位数</span>
                 <select
-                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white"
+                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground"
                   value={form.website_decimal_places}
                   onChange={e => set('website_decimal_places', e.target.value)}
                 >
@@ -224,9 +224,9 @@ export default function WebsiteConfigPage() {
             {/* Separators */}
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">千位分隔符</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">千位分隔符</span>
                 <select
-                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white"
+                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground"
                   value={form.thousands_separator}
                   onChange={e => set('thousands_separator', e.target.value)}
                 >
@@ -238,9 +238,9 @@ export default function WebsiteConfigPage() {
               </label>
 
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">小数分隔符</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">小数分隔符</span>
                 <select
-                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white"
+                  className="w-full border rounded-xl px-3 py-2.5 text-sm bg-background text-foreground"
                   value={form.decimal_separator}
                   onChange={e => set('decimal_separator', e.target.value)}
                 >
@@ -252,11 +252,11 @@ export default function WebsiteConfigPage() {
 
             {/* Preview */}
             <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4">
-              <p className="text-xs text-gray-500 mb-1">显示效果预览</p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-xs text-muted-foreground mb-1">显示效果预览</p>
+              <p className="text-xl font-bold text-foreground">
                 {preview(sym, thouSep, decSep, decs)}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 存款 · 提款 · 余额 · 奖池 · 实时交易 · Jackpot 全部同步此格式
               </p>
             </div>
@@ -265,13 +265,13 @@ export default function WebsiteConfigPage() {
 
         {/* ── Deposit Tab ──────────────────────────────────────────────────── */}
         {tab === 'deposit' && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700 border-b pb-2">存款限额</h2>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+            <h2 className="text-sm font-semibold text-foreground border-b pb-2">存款限额</h2>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">最低存款金额</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">最低存款金额</span>
                 <div className="flex items-center border rounded-xl overflow-hidden">
-                  <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r font-medium">{sym}</span>
+                  <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r font-medium">{sym}</span>
                   <input
                     type="text" inputMode="numeric"
                     className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -281,9 +281,9 @@ export default function WebsiteConfigPage() {
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">最高存款金额</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">最高存款金额</span>
                 <div className="flex items-center border rounded-xl overflow-hidden">
-                  <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r font-medium">{sym}</span>
+                  <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r font-medium">{sym}</span>
                   <input
                     type="text" inputMode="numeric"
                     className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -293,19 +293,19 @@ export default function WebsiteConfigPage() {
                 </div>
               </label>
             </div>
-            <p className="text-xs text-gray-400">0 = 不限制</p>
+            <p className="text-xs text-muted-foreground">0 = 不限制</p>
           </div>
         )}
 
         {/* ── Withdraw Tab ─────────────────────────────────────────────────── */}
         {tab === 'withdraw' && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700 border-b pb-2">提款限额</h2>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+            <h2 className="text-sm font-semibold text-foreground border-b pb-2">提款限额</h2>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">最低提款金额</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">最低提款金额</span>
                 <div className="flex items-center border rounded-xl overflow-hidden">
-                  <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r font-medium">{sym}</span>
+                  <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r font-medium">{sym}</span>
                   <input
                     type="text" inputMode="numeric"
                     className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -315,9 +315,9 @@ export default function WebsiteConfigPage() {
                 </div>
               </label>
               <label className="block">
-                <span className="text-xs text-gray-500 font-medium block mb-1">最高提款金额</span>
+                <span className="text-xs text-muted-foreground font-medium block mb-1">最高提款金额</span>
                 <div className="flex items-center border rounded-xl overflow-hidden">
-                  <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r font-medium">{sym}</span>
+                  <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r font-medium">{sym}</span>
                   <input
                     type="text" inputMode="numeric"
                     className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -329,7 +329,7 @@ export default function WebsiteConfigPage() {
             </div>
 
             <label className="block">
-              <span className="text-xs text-gray-500 font-medium block mb-1">每日最大提款次数</span>
+              <span className="text-xs text-muted-foreground font-medium block mb-1">每日最大提款次数</span>
               <div className="flex gap-2 flex-wrap mb-2">
                 {['0','1','2','3','5','10'].map(v => (
                   <button
@@ -338,7 +338,7 @@ export default function WebsiteConfigPage() {
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                       form.max_withdrawals_per_day === v
                         ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                        : 'bg-background text-muted-foreground border-border hover:border-blue-300'
                     }`}
                   >
                     {v === '0' ? '不限制' : `${v} 次`}
@@ -346,7 +346,7 @@ export default function WebsiteConfigPage() {
                 ))}
               </div>
               <div className="flex items-center border rounded-xl overflow-hidden">
-                <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r whitespace-nowrap">自定义</span>
+                <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r whitespace-nowrap">自定义</span>
                 <input
                   type="text" inputMode="numeric" placeholder="0 = 不限制"
                   className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -354,15 +354,15 @@ export default function WebsiteConfigPage() {
                   onChange={e => set('max_withdrawals_per_day', e.target.value)}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">0 = 不限制；每日 00:00 UTC 自动重置</p>
+              <p className="text-xs text-muted-foreground mt-1">0 = 不限制；每日 00:00 UTC 自动重置</p>
             </label>
           </div>
         )}
 
         {/* ── Wallet Tab ───────────────────────────────────────────────────── */}
         {tab === 'wallet' && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700 border-b pb-2">钱包余额上限</h2>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+            <h2 className="text-sm font-semibold text-foreground border-b pb-2">钱包余额上限</h2>
 
             <div className="flex gap-3 p-3 rounded-xl text-xs bg-blue-50 text-blue-700 border border-blue-100">
               <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -370,9 +370,9 @@ export default function WebsiteConfigPage() {
             </div>
 
             <label className="block">
-              <span className="text-xs text-gray-500 font-medium block mb-1">最高余额限制（0 = 不限制）</span>
+              <span className="text-xs text-muted-foreground font-medium block mb-1">最高余额限制（0 = 不限制）</span>
               <div className="flex items-center border rounded-xl overflow-hidden">
-                <span className="px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border-r font-medium">{sym}</span>
+                <span className="px-3 py-2.5 text-xs text-muted-foreground bg-muted border-r font-medium">{sym}</span>
                 <input
                   type="text" inputMode="numeric"
                   className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
@@ -388,7 +388,7 @@ export default function WebsiteConfigPage() {
                     className={`text-xs px-3 py-1 rounded-lg border transition-colors ${
                       form.wallet_max_balance_deposit === v
                         ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                        : 'bg-background text-muted-foreground border-border hover:border-blue-300'
                     }`}
                   >
                     {v === '0' ? '不限制' : `${sym}${v}`}

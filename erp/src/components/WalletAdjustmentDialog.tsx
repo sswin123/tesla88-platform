@@ -130,17 +130,17 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden">
+      <div className="w-full max-w-lg rounded-xl bg-card shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-5 py-4 bg-gray-50">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-muted">
           <div>
-            <h2 className="font-bold text-gray-800">Wallet Adjustment</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{memberName} · Current balance: <strong>RM {balance.toFixed(2)}</strong></p>
+            <h2 className="font-bold text-foreground">Wallet Adjustment</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{memberName} · Current balance: <strong>RM {balance.toFixed(2)}</strong></p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none font-light"
+            className="text-muted-foreground hover:text-foreground text-xl leading-none font-light"
             disabled={submitting}
           >
             ✕
@@ -156,14 +156,14 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Adjustment Type <span className="text-red-500">*</span>
             </label>
             <select
               value={type}
               onChange={(e) => { setType(e.target.value); setGateway(''); setRefNumber(''); }}
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="">— Select type —</option>
               {TYPE_OPTIONS.map(t => (
@@ -178,7 +178,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
           {/* Direction — only for CORRECTION / OTHERS */}
           {needsDir && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Direction <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-3">
@@ -188,7 +188,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                   className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
                     direction === 'C'
                       ? 'bg-green-600 border-green-600 text-white'
-                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      : 'border-border text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   + Credit (Add)
@@ -199,7 +199,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                   className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
                     direction === 'D'
                       ? 'bg-red-600 border-red-600 text-white'
-                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      : 'border-border text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   − Debit (Deduct)
@@ -211,7 +211,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
           {/* Payment Gateway (only for PAYMENT_GATEWAY type) */}
           {needsGateway && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Payment Gateway <span className="text-red-500">*</span>
               </label>
               {gateways.length > 0 ? (
@@ -219,7 +219,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                   value={gateway}
                   onChange={(e) => setGateway(e.target.value)}
                   required
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                  className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">— Select gateway —</option>
                   {gateways.map(g => (
@@ -236,11 +236,11 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Amount (RM) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">RM</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">RM</span>
               <input
                 type="number"
                 value={amount}
@@ -249,16 +249,16 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                 step="0.01"
                 required
                 placeholder="0.00"
-                className="w-full rounded-md border border-gray-300 pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full rounded-md border border-border bg-background text-foreground pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
           </div>
 
           {/* Reference Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Reference Number {needsGateway && <span className="text-red-500">*</span>}
-              {!needsGateway && <span className="text-gray-400 text-xs"> (optional)</span>}
+              {!needsGateway && <span className="text-muted-foreground text-xs"> (optional)</span>}
             </label>
             <input
               type="text"
@@ -266,13 +266,13 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
               onChange={(e) => setRefNumber(e.target.value)}
               required={needsGateway}
               placeholder={needsGateway ? 'Transaction / payment reference' : 'Optional reference'}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
 
           {/* Remark */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Remark <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -281,14 +281,14 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
               required
               rows={2}
               placeholder="Describe the reason for this adjustment (recorded in audit log)"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              className="w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
             />
           </div>
 
           {/* Attachment */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Attachment <span className="text-gray-400 text-xs">(optional)</span>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Attachment <span className="text-muted-foreground text-xs">(optional)</span>
             </label>
             {attachMediaId ? (
               <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2">
@@ -297,13 +297,13 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                 <button
                   type="button"
                   onClick={() => { setAttachMediaId(null); setAttachName(''); }}
-                  className="text-gray-400 hover:text-gray-600 text-xs"
+                  className="text-muted-foreground hover:text-foreground text-xs"
                 >
                   Remove
                 </button>
               </div>
             ) : (
-              <label className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm text-gray-500">
+              <label className="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 cursor-pointer hover:bg-muted text-sm text-muted-foreground">
                 {uploading ? 'Uploading…' : '📎 Click to attach file'}
                 <input
                   type="file"
@@ -324,11 +324,11 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
                 : 'border-red-200 bg-red-50'
             }`}>
               <div className="flex justify-between">
-                <span className="text-gray-600">Current Balance</span>
+                <span className="text-muted-foreground">Current Balance</span>
                 <span className="font-mono font-medium">RM {balance.toFixed(2)}</span>
               </div>
               <div className="flex justify-between mt-0.5">
-                <span className="text-gray-600">{effectiveDir === 'C' ? '+ Credit' : '− Debit'}</span>
+                <span className="text-muted-foreground">{effectiveDir === 'C' ? '+ Credit' : '− Debit'}</span>
                 <span className={`font-mono font-medium ${effectiveDir === 'C' ? 'text-green-700' : 'text-red-700'}`}>
                   {effectiveDir === 'C' ? '+' : '−'} RM {numAmount.toFixed(2)}
                 </span>
@@ -354,7 +354,7 @@ export default function WalletAdjustmentDialog({ memberId, memberName, currentBa
             </Button>
           </div>
 
-          <p className="text-xs text-center text-gray-400">
+          <p className="text-xs text-center text-muted-foreground">
             This adjustment will be permanently recorded in the audit log with operator identity and IP address.
           </p>
         </form>

@@ -14,8 +14,8 @@ interface StatusCardProps {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-xs font-medium text-gray-700">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium text-foreground">{value}</span>
     </div>
   );
 }
@@ -29,11 +29,11 @@ export default function StatusCard({
   rejectReason,
 }: StatusCardProps) {
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Status</h2>
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</h2>
       <div className="flex items-center gap-2">
         <span
-          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CLASS[status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}
+          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CLASS[status] ?? 'bg-muted text-foreground border-border'}`}
         >
           {status === 'AWAITING_RECEIPT' ? 'AWAITING RECEIPT' : status}
         </span>

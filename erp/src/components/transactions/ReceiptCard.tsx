@@ -41,13 +41,13 @@ export default function ReceiptCard({
     ? 'border-amber-300 bg-amber-50'
     : isProcessing && !receiptMediaId
       ? 'border-blue-200 bg-blue-50/40'
-      : 'bg-white';
+      : 'bg-card';
 
   return (
     <div className={`rounded-lg border p-4 ${borderClass}`}>
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
         Payment Receipt
-        {isPaid && <span className="ml-2 text-gray-300 font-normal normal-case tracking-normal">(read-only)</span>}
+        {isPaid && <span className="ml-2 text-muted-foreground/50 font-normal normal-case tracking-normal">(read-only)</span>}
       </h2>
 
       {/* Hidden file input — only rendered when uploads are allowed */}
@@ -81,11 +81,11 @@ export default function ReceiptCard({
               href={receiptUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 rounded border border-gray-200 bg-gray-50 w-fit hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-muted w-fit hover:bg-muted/80 transition-colors"
             >
               <span className="text-2xl">📄</span>
-              <span className="text-sm text-gray-700 font-medium">PDF Document</span>
-              <span className="text-xs text-gray-400">↗ Open</span>
+              <span className="text-sm text-foreground font-medium">PDF Document</span>
+              <span className="text-xs text-muted-foreground">↗ Open</span>
             </a>
           )}
 
@@ -96,7 +96,7 @@ export default function ReceiptCard({
               View Full Size ↗
             </a>
             <a href={receiptUrl} download={`receipt-wd-${transactionId}`}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 underline">
+              className="text-sm font-medium text-muted-foreground hover:text-foreground underline">
               Download
             </a>
             {canUpload && (
@@ -104,7 +104,7 @@ export default function ReceiptCard({
                 <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
                   {uploading ? 'Uploading…' : 'Replace Receipt'}
                 </Button>
-                {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
+                {!uploading && <span className="text-xs text-muted-foreground">or paste (Ctrl+V)</span>}
               </>
             )}
           </div>
@@ -117,7 +117,7 @@ export default function ReceiptCard({
           <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
             {uploading ? 'Uploading…' : 'Upload Receipt'}
           </Button>
-          {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
+          {!uploading && <span className="text-xs text-muted-foreground">or paste (Ctrl+V)</span>}
         </div>
       ) : isAwaitingReceipt ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -127,11 +127,11 @@ export default function ReceiptCard({
           <Button size="sm" variant="outline" disabled={uploading} onClick={onTriggerUpload}>
             {uploading ? 'Uploading…' : 'Upload Receipt'}
           </Button>
-          {!uploading && <span className="text-xs text-gray-400">or paste (Ctrl+V)</span>}
+          {!uploading && <span className="text-xs text-muted-foreground">or paste (Ctrl+V)</span>}
         </div>
       ) : (
         /* isPaid, no receipt — read-only empty state */
-        <p className="text-sm text-gray-400">No payment receipt was uploaded.</p>
+        <p className="text-sm text-muted-foreground">No payment receipt was uploaded.</p>
       )}
     </div>
   );

@@ -220,11 +220,11 @@ function MediaUploadHint({ rec, ratio, maxMB, formats, note }: {
   rec: string; ratio: string; maxMB: number; formats: string[]; note?: string;
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-600 bg-gray-800/50 px-3 py-2 text-[10px] text-gray-500 space-y-0.5">
-      <p><span className="text-gray-400 font-medium">推荐尺寸：</span>{rec}</p>
-      <p><span className="text-gray-400 font-medium">宽高比：</span>{ratio}</p>
-      <p><span className="text-gray-400 font-medium">最大：</span>{maxMB}MB</p>
-      <p><span className="text-gray-400 font-medium">格式：</span>{formats.join(' • ')}</p>
+    <div className="rounded-lg border border-dashed border-gray-600 bg-gray-800/50 px-3 py-2 text-[10px] text-muted-foreground space-y-0.5">
+      <p><span className="text-muted-foreground font-medium">推荐尺寸：</span>{rec}</p>
+      <p><span className="text-muted-foreground font-medium">宽高比：</span>{ratio}</p>
+      <p><span className="text-muted-foreground font-medium">最大：</span>{maxMB}MB</p>
+      <p><span className="text-muted-foreground font-medium">格式：</span>{formats.join(' • ')}</p>
       {note && <p className="text-amber-500">{note}</p>}
     </div>
   );
@@ -263,7 +263,7 @@ function ImageUploadField({ label, mediaId, previewUrl, onUpload, onRemove, hint
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-semibold text-gray-400">{label}</label>
+      <label className="block text-xs font-semibold text-muted-foreground">{label}</label>
       {displayUrl ? (
         <div className="relative group">
           <img src={displayUrl} alt="logo" className="h-14 object-contain rounded-lg bg-gray-800 px-2 py-1" />
@@ -278,7 +278,7 @@ function ImageUploadField({ label, mediaId, previewUrl, onUpload, onRemove, hint
         <button type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-full flex flex-col items-center justify-center gap-1 h-16 rounded-lg border-2 border-dashed border-gray-600 hover:border-violet-500 bg-gray-800 transition-colors text-gray-500 hover:text-violet-400 disabled:opacity-50"
+          className="w-full flex flex-col items-center justify-center gap-1 h-16 rounded-lg border-2 border-dashed border-gray-600 hover:border-violet-500 bg-gray-800 transition-colors text-muted-foreground hover:text-violet-400 disabled:opacity-50"
         >
           {uploading ? <span className="text-xs">上传中…</span> : (
             <>
@@ -304,7 +304,7 @@ function SocialEditor({ settings, onChange }: {
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">平台</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">平台</label>
         <select value={settings.platform}
           onChange={e => onChange({ ...settings, platform: e.target.value as SocialPlatform })}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
@@ -314,27 +314,27 @@ function SocialEditor({ settings, onChange }: {
         </select>
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">链接 URL</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">链接 URL</label>
         <input value={settings.url}
           onChange={e => onChange({ ...settings, url: e.target.value })}
           placeholder={settings.platform === 'whatsapp' ? 'https://wa.me/601xxxxxxxx' : 'https://t.me/username'}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">显示标签（可选）</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">显示标签（可选）</label>
         <input value={settings.label ?? ''}
           onChange={e => onChange({ ...settings, label: e.target.value })}
           placeholder={SOCIAL_LABELS[settings.platform]}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">打开方式</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">打开方式</label>
         <div className="flex gap-2">
           {(['new', 'same', 'popup'] as OpenMode[]).map(m => (
             <button key={m} type="button"
               onClick={() => onChange({ ...settings, open: m })}
               className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                settings.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                settings.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>
               {m === 'new' ? '新窗口' : m === 'same' ? '当前' : '弹窗'}
             </button>
@@ -351,27 +351,27 @@ function ButtonEditor({ settings, onChange }: {
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">按钮文字</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">按钮文字</label>
         <input value={settings.text}
           onChange={e => onChange({ ...settings, text: e.target.value })}
           placeholder="VIP / 联盟 / 下载 APP"
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">链接 URL</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">链接 URL</label>
         <input value={settings.url}
           onChange={e => onChange({ ...settings, url: e.target.value })}
           placeholder="/vip 或 https://..."
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">样式</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">样式</label>
         <div className="flex gap-2">
           {(['primary', 'outline', 'ghost'] as ButtonVariant[]).map(v => (
             <button key={v} type="button"
               onClick={() => onChange({ ...settings, variant: v })}
               className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                settings.variant === v ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                settings.variant === v ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>
               {v === 'primary' ? '实心' : v === 'outline' ? '描边' : '文字'}
             </button>
@@ -379,32 +379,32 @@ function ButtonEditor({ settings, onChange }: {
         </div>
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">徽章</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">徽章</label>
         <div className="flex gap-2 flex-wrap">
           {(['', 'NEW', 'HOT', 'VIP', 'LIVE'] as BadgeLabel[]).map(b => (
             <button key={b || 'none'} type="button"
               onClick={() => onChange({ ...settings, badge: b })}
               className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors ${
-                settings.badge === b ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                settings.badge === b ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>{b || '无'}</button>
           ))}
         </div>
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">图标 Emoji（可选）</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">图标 Emoji（可选）</label>
         <input value={settings.icon ?? ''}
           onChange={e => onChange({ ...settings, icon: e.target.value })}
           placeholder="👑 🎰 ⬇️"
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">打开方式</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">打开方式</label>
         <div className="flex gap-2">
           {(['same', 'new'] as OpenMode[]).map(m => (
             <button key={m} type="button"
               onClick={() => onChange({ ...settings, open: m })}
               className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                settings.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                settings.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>
               {m === 'new' ? '新窗口' : '当前窗口'}
             </button>
@@ -424,7 +424,7 @@ function LanguageEditor({ settings, onChange }: {
   }
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-semibold text-gray-400">语言列表</label>
+      <label className="block text-xs font-semibold text-muted-foreground">语言列表</label>
       {langs.map((l, i) => (
         <div key={i} className="flex gap-2 items-center">
           <input value={l.flag} onChange={e => updateLang(i, 'flag', e.target.value)}
@@ -432,7 +432,7 @@ function LanguageEditor({ settings, onChange }: {
           <input value={l.label} onChange={e => updateLang(i, 'label', e.target.value)}
             className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white" placeholder="中文" />
           <input value={l.code} onChange={e => updateLang(i, 'code', e.target.value)}
-            className="w-14 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-400" placeholder="zh" />
+            className="w-14 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-muted-foreground" placeholder="zh" />
           <button type="button" onClick={() => onChange({ ...settings, languages: langs.filter((_, idx) => idx !== i) })}
             className="text-red-400 text-xs px-1">✕</button>
         </div>
@@ -468,27 +468,27 @@ function PartnerItemForm({ item, onChange, onRemove }: {
       />
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">名称</label>
+        <label className="block text-xs text-muted-foreground mb-1">名称</label>
         <input value={item.name}
           onChange={e => onChange({ ...item, name: e.target.value })}
           placeholder="Menang Group"
           className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs text-gray-400 mb-1">链接 URL</label>
+        <label className="block text-xs text-muted-foreground mb-1">链接 URL</label>
         <input value={item.url}
           onChange={e => onChange({ ...item, url: e.target.value })}
           placeholder="https://partner.com"
           className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white placeholder-gray-500" />
       </div>
       <div>
-        <label className="block text-xs text-gray-400 mb-1">打开方式</label>
+        <label className="block text-xs text-muted-foreground mb-1">打开方式</label>
         <div className="flex gap-2">
           {(['new', 'same', 'popup'] as OpenMode[]).map(m => (
             <button key={m} type="button"
               onClick={() => onChange({ ...item, open: m })}
               className={`flex-1 py-1 rounded text-xs font-medium border transition-colors ${
-                item.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-700 border-gray-600 text-gray-400'
+                item.open === m ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-700 border-gray-600 text-muted-foreground'
               }`}>
               {m === 'new' ? '新窗口' : m === 'same' ? '当前' : '弹窗'}
             </button>
@@ -497,7 +497,7 @@ function PartnerItemForm({ item, onChange, onRemove }: {
       </div>
       {item.open === 'popup' && (
         <div className="space-y-2 pt-1 border-t border-gray-700">
-          <p className="text-[10px] text-gray-500 uppercase font-semibold">弹窗内容</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-semibold">弹窗内容</p>
           {[
             ['popup_title', '弹窗标题'],
             ['popup_description', '简介'],
@@ -508,7 +508,7 @@ function PartnerItemForm({ item, onChange, onRemove }: {
             ['popup_youtube', 'YouTube URL'],
           ].map(([k, lbl]) => (
             <div key={k}>
-              <label className="block text-[10px] text-gray-500 mb-0.5">{lbl}</label>
+              <label className="block text-[10px] text-muted-foreground mb-0.5">{lbl}</label>
               <input value={(item[k as keyof PartnerItem] as string) ?? ''}
                 onChange={e => onChange({ ...item, [k]: e.target.value })}
                 className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white placeholder-gray-500" />
@@ -540,7 +540,7 @@ function PartnerEditor({ settings, onChange }: {
       {/* Display settings */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">显示样式</label>
+          <label className="block text-xs text-muted-foreground mb-1">显示样式</label>
           <select value={settings.display_style}
             onChange={e => onChange({ ...settings, display_style: e.target.value as PartnerSettings['display_style'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -550,7 +550,7 @@ function PartnerEditor({ settings, onChange }: {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">排列方式</label>
+          <label className="block text-xs text-muted-foreground mb-1">排列方式</label>
           <select value={settings.display_type}
             onChange={e => onChange({ ...settings, display_type: e.target.value as PartnerSettings['display_type'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -563,7 +563,7 @@ function PartnerEditor({ settings, onChange }: {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Logo 尺寸</label>
+          <label className="block text-xs text-muted-foreground mb-1">Logo 尺寸</label>
           <select value={settings.logo_size}
             onChange={e => onChange({ ...settings, logo_size: e.target.value as PartnerSettings['logo_size'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -574,7 +574,7 @@ function PartnerEditor({ settings, onChange }: {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">形状</label>
+          <label className="block text-xs text-muted-foreground mb-1">形状</label>
           <select value={settings.shape}
             onChange={e => onChange({ ...settings, shape: e.target.value as PartnerSettings['shape'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -587,7 +587,7 @@ function PartnerEditor({ settings, onChange }: {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs text-gray-400 mb-1">悬停效果</label>
+          <label className="block text-xs text-muted-foreground mb-1">悬停效果</label>
           <select value={settings.hover_effect}
             onChange={e => onChange({ ...settings, hover_effect: e.target.value as PartnerSettings['hover_effect'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -598,7 +598,7 @@ function PartnerEditor({ settings, onChange }: {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-400 mb-1">背景样式</label>
+          <label className="block text-xs text-muted-foreground mb-1">背景样式</label>
           <select value={settings.bg_style}
             onChange={e => onChange({ ...settings, bg_style: e.target.value as PartnerSettings['bg_style'] })}
             className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white">
@@ -612,13 +612,13 @@ function PartnerEditor({ settings, onChange }: {
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1">徽章</label>
+        <label className="block text-xs text-muted-foreground mb-1">徽章</label>
         <div className="flex gap-1.5 flex-wrap">
           {(['', 'NEW', 'HOT', 'VIP', 'Official', 'Sponsor', 'Partner'] as PartnerSettings['badge'][]).map(b => (
             <button key={b || 'none'} type="button"
               onClick={() => onChange({ ...settings, badge: b })}
               className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                settings.badge === b ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                settings.badge === b ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>{b || '无'}</button>
           ))}
         </div>
@@ -627,12 +627,12 @@ function PartnerEditor({ settings, onChange }: {
       {/* Partner list */}
       <div className="pt-2 border-t border-gray-700">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-gray-400">合作伙伴列表</p>
+          <p className="text-xs font-semibold text-muted-foreground">合作伙伴列表</p>
           <button type="button" onClick={addItem}
             className="text-xs text-violet-400 hover:text-violet-300">+ 添加</button>
         </div>
         {partners.length === 0 && (
-          <p className="text-xs text-gray-600 text-center py-4">尚未添加合作伙伴</p>
+          <p className="text-xs text-muted-foreground text-center py-4">尚未添加合作伙伴</p>
         )}
         <div className="space-y-2">
           {partners.map((p, i) => (
@@ -652,7 +652,7 @@ function ProfileEditor({ settings, onChange }: {
   return (
     <div className="space-y-3">
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">点击动作</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">点击动作</label>
         <div className="flex flex-col gap-2">
           {([
             ['profile', '跳转个人中心', '/profile'],
@@ -664,12 +664,12 @@ function ProfileEditor({ settings, onChange }: {
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
                 settings.action === val
                   ? 'border-violet-500 bg-violet-500/10 text-violet-300'
-                  : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                  : 'border-gray-700 bg-gray-800 text-muted-foreground hover:border-gray-600'
               }`}>
               <span className="text-sm">{val === 'profile' ? '👤' : val === 'login' ? '🔑' : '🔗'}</span>
               <div>
                 <p className="text-xs font-semibold">{label}</p>
-                {hint && <p className="text-[10px] text-gray-500">{hint}</p>}
+                {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
               </div>
             </button>
           ))}
@@ -678,7 +678,7 @@ function ProfileEditor({ settings, onChange }: {
 
       {settings.action === 'custom' && (
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1">自定义 URL</label>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1">自定义 URL</label>
           <input value={settings.custom_url ?? ''}
             onChange={e => onChange({ ...settings, custom_url: e.target.value })}
             placeholder="https://..."
@@ -687,7 +687,7 @@ function ProfileEditor({ settings, onChange }: {
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">自定义图标 Emoji（可选）</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">自定义图标 Emoji（可选）</label>
         <input value={settings.custom_icon ?? ''}
           onChange={e => onChange({ ...settings, custom_icon: e.target.value })}
           placeholder="👤 🧑 🙋"
@@ -695,7 +695,7 @@ function ProfileEditor({ settings, onChange }: {
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-400 mb-1">Tooltip 提示（可选）</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">Tooltip 提示（可选）</label>
         <input value={settings.tooltip ?? ''}
           onChange={e => onChange({ ...settings, tooltip: e.target.value })}
           placeholder="我的账户"
@@ -718,16 +718,16 @@ function WidgetSettingsEditor({ widget, onChange }: {
       {widget.type === 'language' && <LanguageEditor settings={widget.settings as LanguageSettings} onChange={s => upd(s)} />}
       {widget.type === 'partner'  && <PartnerEditor  settings={widget.settings as PartnerSettings}  onChange={s => upd(s)} />}
       {widget.type === 'profile'  && <ProfileEditor  settings={widget.settings as ProfileSettings}  onChange={s => upd(s)} />}
-      {widget.type === 'divider'  && <p className="text-xs text-gray-500">分隔线无需配置</p>}
+      {widget.type === 'divider'  && <p className="text-xs text-muted-foreground">分隔线无需配置</p>}
 
       <div className="mt-4 pt-4 border-t border-gray-700">
-        <label className="block text-xs font-semibold text-gray-400 mb-2">显示设备</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-2">显示设备</label>
         <div className="flex gap-2">
           {(['both', 'desktop', 'mobile'] as Visibility[]).map(v => (
             <button key={v} type="button"
               onClick={() => onChange({ ...widget, visibility: v })}
               className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                widget.visibility === v ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400'
+                widget.visibility === v ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-800 border-gray-700 text-muted-foreground'
               }`}>
               {v === 'both' ? '全部' : v === 'desktop' ? '桌面' : '手机'}
             </button>
@@ -850,7 +850,7 @@ function HeaderPreview({ config }: { config: HeaderConfig }) {
       </div>
       {config.show_announcement && (
         <div className="h-5 flex items-center px-3 bg-black/20 border-t border-white/5">
-          <p className="text-[9px] text-gray-400 truncate">📢 公告滚动显示区域…</p>
+          <p className="text-[9px] text-muted-foreground truncate">📢 公告滚动显示区域…</p>
         </div>
       )}
     </div>
@@ -978,7 +978,7 @@ export default function HeaderBuilderPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Header Builder</h1>
-          <p className="text-sm text-gray-400 mt-0.5">自定义网站顶部导航栏的布局和组件</p>
+          <p className="text-sm text-muted-foreground mt-0.5">自定义网站顶部导航栏的布局和组件</p>
         </div>
         <div className="flex items-center gap-3">
           {msg && (
@@ -993,7 +993,7 @@ export default function HeaderBuilderPage() {
 
       {/* Live Preview */}
       <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">实时预览</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">实时预览</p>
         <HeaderPreview config={config} />
       </div>
 
@@ -1005,7 +1005,7 @@ export default function HeaderBuilderPage() {
 
           {/* Layout */}
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">布局</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">布局</h3>
             <div className="space-y-2">
               {LAYOUT_OPTIONS.map(opt => (
                 <button key={opt.value} type="button"
@@ -1016,7 +1016,7 @@ export default function HeaderBuilderPage() {
                       : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
                   }`}>
                   <p className="text-sm font-semibold">{opt.label}</p>
-                  <p className="text-xs font-mono text-gray-500 mt-0.5">{opt.desc}</p>
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">{opt.desc}</p>
                 </button>
               ))}
             </div>
@@ -1024,13 +1024,13 @@ export default function HeaderBuilderPage() {
 
           {/* Style */}
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">样式</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">样式</h3>
             <div className="grid grid-cols-2 gap-2">
               {(Object.keys(STYLE_MAP) as HeaderStyle[]).map(s => (
                 <button key={s} type="button"
                   onClick={() => setConfig(c => ({ ...c, style: s }))}
                   className={`py-2 rounded-lg text-xs font-medium border transition-colors ${
-                    config.style === s ? 'border-violet-500 bg-violet-500/10 text-violet-300' : 'border-gray-700 bg-gray-800 text-gray-400'
+                    config.style === s ? 'border-violet-500 bg-violet-500/10 text-violet-300' : 'border-gray-700 bg-gray-800 text-muted-foreground'
                   }`}>{STYLE_MAP[s].label}</button>
               ))}
             </div>
@@ -1038,7 +1038,7 @@ export default function HeaderBuilderPage() {
 
           {/* Options */}
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Header 元素</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Header 元素</h3>
             <div className="space-y-3">
               {([
                 ['show_menu_button',    '☰ 菜单按钮'],
@@ -1065,7 +1065,7 @@ export default function HeaderBuilderPage() {
         {/* Middle: Widget list */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Header 组件</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Header 组件</h3>
             <button type="button" onClick={() => setShowAdd(v => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition-colors">
               + 添加组件
@@ -1074,7 +1074,7 @@ export default function HeaderBuilderPage() {
 
           {showAdd && (
             <div className="mb-4 p-3 bg-gray-800 rounded-xl border border-gray-700">
-              <p className="text-xs font-semibold text-gray-400 mb-2">选择组件类型</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">选择组件类型</p>
               <div className="grid grid-cols-2 gap-2">
                 {WIDGET_TEMPLATES.map(t => (
                   <button key={t.type} type="button" onClick={() => addWidget(t.type)}
@@ -1083,16 +1083,16 @@ export default function HeaderBuilderPage() {
                       <span className="text-base">{t.icon}</span>
                       <span className="text-xs font-semibold text-white">{t.label}</span>
                     </div>
-                    <p className="text-[10px] text-gray-400">{t.desc}</p>
+                    <p className="text-[10px] text-muted-foreground">{t.desc}</p>
                   </button>
                 ))}
               </div>
-              <button onClick={() => setShowAdd(false)} className="mt-2 text-xs text-gray-500 hover:text-gray-400">取消</button>
+              <button onClick={() => setShowAdd(false)} className="mt-2 text-xs text-muted-foreground hover:text-muted-foreground">取消</button>
             </div>
           )}
 
           {config.widgets.length === 0 && (
-            <div className="text-center py-12 text-gray-600">
+            <div className="text-center py-12 text-muted-foreground">
               <p className="text-2xl mb-2">📭</p>
               <p className="text-sm">暂无组件，点击上方添加</p>
             </div>
@@ -1110,7 +1110,7 @@ export default function HeaderBuilderPage() {
                 <span className="text-lg shrink-0">{widgetIcon(w)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{widgetLabel(w)}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {w.type}{w.visibility !== 'both' && ` · ${w.visibility === 'desktop' ? '仅桌面' : '仅手机'}`}
                   </p>
                 </div>
@@ -1120,12 +1120,12 @@ export default function HeaderBuilderPage() {
                 </button>
                 <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                   <button type="button" disabled={i === 0} onClick={() => moveWidget(w.id, -1)}
-                    className="text-gray-500 hover:text-white disabled:opacity-30 text-xs leading-none">▲</button>
+                    className="text-muted-foreground hover:text-white disabled:opacity-30 text-xs leading-none">▲</button>
                   <button type="button" disabled={i === config.widgets.length - 1} onClick={() => moveWidget(w.id, 1)}
-                    className="text-gray-500 hover:text-white disabled:opacity-30 text-xs leading-none">▼</button>
+                    className="text-muted-foreground hover:text-white disabled:opacity-30 text-xs leading-none">▼</button>
                 </div>
                 <button type="button" onClick={e => { e.stopPropagation(); deleteWidget(w.id); }}
-                  className="text-gray-600 hover:text-red-400 text-sm shrink-0 transition-colors">✕</button>
+                  className="text-muted-foreground hover:text-red-400 text-sm shrink-0 transition-colors">✕</button>
               </div>
             ))}
           </div>
@@ -1139,13 +1139,13 @@ export default function HeaderBuilderPage() {
                 <span className="text-xl">{widgetIcon(selectedWidget)}</span>
                 <div>
                   <h3 className="text-sm font-bold text-white">{widgetLabel(selectedWidget)}</h3>
-                  <p className="text-xs text-gray-500">{selectedWidget.type} 组件设置</p>
+                  <p className="text-xs text-muted-foreground">{selectedWidget.type} 组件设置</p>
                 </div>
               </div>
               <WidgetSettingsEditor widget={selectedWidget} onChange={updateWidget} />
             </>
           ) : (
-            <div className="text-center py-16 text-gray-600">
+            <div className="text-center py-16 text-muted-foreground">
               <p className="text-2xl mb-2">👈</p>
               <p className="text-sm">点击左侧组件进行设置</p>
             </div>

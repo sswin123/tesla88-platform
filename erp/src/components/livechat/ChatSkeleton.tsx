@@ -10,12 +10,12 @@ export function ChatSkeleton() {
   ];
 
   return (
-    <div className="flex-1 overflow-hidden bg-gray-50 px-4 py-4 space-y-3">
+    <div className="flex-1 overflow-hidden bg-muted px-4 py-4 space-y-3">
       {bubbles.map((b, i) => (
         <div key={i} className={`flex gap-2 ${b.isAgent ? 'flex-row-reverse' : 'flex-row'}`}>
           <div
             className={`h-10 rounded-2xl animate-pulse ${b.width} ${
-              b.isAgent ? 'bg-blue-200 rounded-tr-none' : 'bg-gray-200 rounded-tl-none'
+              b.isAgent ? 'bg-blue-200 rounded-tr-none' : 'bg-border rounded-tl-none'
             }`}
           />
         </div>

@@ -54,11 +54,11 @@ export function MediaCard({
       className={`group relative cursor-pointer rounded-lg border overflow-hidden transition-all focus:outline-none focus:ring-2 focus:ring-gray-400 ${
         selected
           ? 'border-gray-900 ring-2 ring-gray-900'
-          : 'border-gray-200 hover:border-gray-400 hover:shadow-sm'
+          : 'border-border hover:border-border hover:shadow-sm'
       }`}
     >
       {/* Thumbnail area — square aspect ratio */}
-      <div className="aspect-square bg-gray-50 flex items-center justify-center relative">
+      <div className="aspect-square bg-muted flex items-center justify-center relative">
         {isVisual && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -71,12 +71,12 @@ export function MediaCard({
             }}
           />
         ) : isVisual && imgError ? (
-          <div className="flex flex-col items-center justify-center gap-1 text-gray-400">
+          <div className="flex flex-col items-center justify-center gap-1 text-muted-foreground">
             <span className="text-2xl">🖼</span>
             <span className="text-[10px] text-center px-1">Image unavailable</span>
           </div>
         ) : (
-          <Icon size={32} className="text-gray-400" />
+          <Icon size={32} className="text-muted-foreground" />
         )}
         {/* Media type badge — bottom right */}
         <span className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${badgeClass}`}>
@@ -91,14 +91,14 @@ export function MediaCard({
       </div>
 
       {/* File info */}
-      <div className="px-2 py-1.5 bg-white">
+      <div className="px-2 py-1.5 bg-card">
         <p
-          className="text-xs font-medium truncate text-gray-800 leading-tight"
+          className="text-xs font-medium truncate text-foreground leading-tight"
           title={item.displayName}
         >
           {item.displayName}
         </p>
-        <p className="text-[10px] text-gray-400 mt-0.5">{formatBytes(item.fileSize)}</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(item.fileSize)}</p>
       </div>
     </div>
   );
