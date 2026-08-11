@@ -10,6 +10,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit';
 import { getAttendanceTimezone } from '@/lib/attendance-timezone';
 import { resolveAttendanceDate } from '@/lib/attendance-rules';
 import { openSession, finalizeStaleOpenSessions } from '@/lib/repositories/staff_attendance_repo';
+import { getEffectiveSchedule } from '@/lib/repositories/staff_schedule_repo';
 import { parseUserAgent } from '@/lib/parse-user-agent';
 
 export async function POST(request: NextRequest) {
@@ -62,24 +63,32 @@ export async function POST(request: NextRequest) {
 
   // Best-effort — Attendance session tracking must never block a successful
   // login (spec §19: authentication and Attendance lifecycle are decoupled).
-  // Schedule integration (getEffectiveSchedule) lands in a later task (8B);
-  // until then this is the spec-legal "No Schedule" path (§34).
   try {
     await finalizeStaleOpenSessions(admin.id);
     const timezone = await getAttendanceTimezone();
     const now = new Date().toISOString();
     const attendanceDate = resolveAttendanceDate(now, timezone);
+
+    // Task 8B: the ONLY source of schedule resolution — no Override/
+    // Assignment/Template query, no overnight/weekday/grace logic here.
+    // Task 13's sourceType ('OVERRIDE' | 'TEMPLATE' | 'NONE') already
+    // matches openSession()'s scheduleSourceType contract exactly (fixed
+    // in the Task 13 Source ID Fix), so NONE is the only case mapped.
+    const effectiveSchedule = await getEffectiveSchedule(admin.id, attendanceDate);
+    const scheduleSourceType = effectiveSchedule.sourceType === 'NONE' ? null : effectiveSchedule.sourceType;
+
     const ua = request.headers.get('user-agent') ?? '';
     const { browser, device, os } = parseUserAgent(ua);
 
     await openSession({
       staffId: admin.id,
       attendanceDate,
-      scheduledStartAt: null,
-      scheduledEndAt: null,
-      scheduleSourceType: null,
-      scheduleSourceId: null,
-      graceMinutes: 0,
+      scheduledStartAt: effectiveSchedule.scheduledStart,
+      scheduledEndAt: effectiveSchedule.scheduledEnd,
+      scheduleSourceType,
+      scheduleSourceId: effectiveSchedule.sourceId,
+      graceMinutes: effectiveSchedule.lateGraceMinutes,
+      isRestDay: effectiveSchedule.isRestDay,
       loginAt: now,
       ip,
       browser,

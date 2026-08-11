@@ -21,15 +21,24 @@ vi.mock('@/lib/repositories/staff_attendance_repo', () => ({
   openSession: vi.fn().mockResolvedValue(1),
   finalizeStaleOpenSessions: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('@/lib/repositories/staff_schedule_repo', () => ({
+  getEffectiveSchedule: vi.fn(),
+}));
 
 import { rateLimit } from '@/lib/rate-limit';
 import { comparePassword, getAdminByUsername } from '@/lib/auth';
 import { getAttendanceTimezone } from '@/lib/attendance-timezone';
 import { resolveAttendanceDate } from '@/lib/attendance-rules';
 import { openSession, finalizeStaleOpenSessions } from '@/lib/repositories/staff_attendance_repo';
+import { getEffectiveSchedule } from '@/lib/repositories/staff_schedule_repo';
 import { POST } from '@/app/api/auth/login/route';
 
 const ADMIN = { id: 5, erp_username: 'cs1', role: 'CS', is_active: true, erp_password_hash: 'x' };
+
+const NO_SCHEDULE = {
+  sourceType: 'NONE', sourceId: null, isRestDay: false,
+  scheduledStart: null, scheduledEnd: null, isOvernight: false, lateGraceMinutes: 0,
+} as const;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -40,6 +49,7 @@ beforeEach(() => {
   vi.mocked(resolveAttendanceDate).mockReturnValue('2026-08-11');
   vi.mocked(openSession).mockResolvedValue(1);
   vi.mocked(finalizeStaleOpenSessions).mockResolvedValue(undefined);
+  vi.mocked(getEffectiveSchedule).mockResolvedValue(NO_SCHEDULE as never);
 });
 
 afterEach(() => vi.useRealTimers());
@@ -53,7 +63,7 @@ function makeReq(body: unknown, ua = 'Mozilla/5.0 (Windows NT 10.0) Chrome/120 S
 }
 
 describe('POST /api/auth/login — Attendance Login Lifecycle (Task 8)', () => {
-  it('Test A: successful login opens a No-Schedule Attendance session (all schedule fields null/0)', async () => {
+  it('Test A: No Schedule — successful login opens an Attendance session with all schedule fields null/0/false', async () => {
     const res = await POST(makeReq({ username: 'cs1', password: 'x' }));
     expect(res.status).toBe(200);
     expect(openSession).toHaveBeenCalledWith(
@@ -65,6 +75,7 @@ describe('POST /api/auth/login — Attendance Login Lifecycle (Task 8)', () => {
         scheduleSourceType: null,
         scheduleSourceId: null,
         graceMinutes: 0,
+        isRestDay: false,
       })
     );
   });
@@ -82,6 +93,92 @@ describe('POST /api/auth/login — Attendance Login Lifecycle (Task 8)', () => {
     );
   });
 
+  it('Task 8B: getEffectiveSchedule() is called with the admin\'s id and the resolved attendanceDate — the single source of schedule resolution', async () => {
+    await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(getEffectiveSchedule).toHaveBeenCalledWith(5, '2026-08-11');
+    expect(getEffectiveSchedule).toHaveBeenCalledTimes(1);
+  });
+
+  it('Task 8B: Login + Template Schedule — sourceType TEMPLATE maps straight through, sourceId is the Template\'s id', async () => {
+    vi.mocked(getEffectiveSchedule).mockResolvedValue({
+      sourceType: 'TEMPLATE', sourceId: 42, isRestDay: false,
+      scheduledStart: '2026-08-11T01:00:00.000Z', scheduledEnd: '2026-08-11T10:00:00.000Z',
+      isOvernight: false, lateGraceMinutes: 5,
+    } as never);
+    await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(openSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduleSourceType: 'TEMPLATE',
+        scheduleSourceId: 42,
+        scheduledStartAt: '2026-08-11T01:00:00.000Z',
+        scheduledEndAt: '2026-08-11T10:00:00.000Z',
+        graceMinutes: 5,
+        isRestDay: false,
+      })
+    );
+  });
+
+  it('Task 8B: Login + Override Schedule (normal day) — sourceType OVERRIDE, sourceId is the Override\'s id', async () => {
+    vi.mocked(getEffectiveSchedule).mockResolvedValue({
+      sourceType: 'OVERRIDE', sourceId: 77, isRestDay: false,
+      scheduledStart: '2026-08-11T02:00:00.000Z', scheduledEnd: '2026-08-11T11:00:00.000Z',
+      isOvernight: false, lateGraceMinutes: 15,
+    } as never);
+    await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(openSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduleSourceType: 'OVERRIDE',
+        scheduleSourceId: 77,
+        scheduledStartAt: '2026-08-11T02:00:00.000Z',
+        scheduledEndAt: '2026-08-11T11:00:00.000Z',
+        graceMinutes: 15,
+        isRestDay: false,
+      })
+    );
+  });
+
+  it('Task 8B: Login + Rest Day Override — scheduledStartAt/End null, isRestDay true, graceMinutes 0, sourceId still the Override\'s id', async () => {
+    vi.mocked(getEffectiveSchedule).mockResolvedValue({
+      sourceType: 'OVERRIDE', sourceId: 88, isRestDay: true,
+      scheduledStart: null, scheduledEnd: null, isOvernight: false, lateGraceMinutes: 0,
+    } as never);
+    await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(openSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduleSourceType: 'OVERRIDE',
+        scheduleSourceId: 88,
+        scheduledStartAt: null,
+        scheduledEndAt: null,
+        graceMinutes: 0,
+        isRestDay: true,
+      })
+    );
+  });
+
+  it('Task 8B: an overnight schedule\'s scheduledStartAt/End (already resolved UTC instants from getEffectiveSchedule) are forwarded verbatim, no second overnight computation in the route', async () => {
+    vi.mocked(getEffectiveSchedule).mockResolvedValue({
+      sourceType: 'TEMPLATE', sourceId: 60, isRestDay: false,
+      scheduledStart: '2026-08-10T14:00:00.000Z', scheduledEnd: '2026-08-10T22:00:00.000Z', // overnight, resolved by Task 3
+      isOvernight: true, lateGraceMinutes: 5,
+    } as never);
+    await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(openSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledStartAt: '2026-08-10T14:00:00.000Z',
+        scheduledEndAt: '2026-08-10T22:00:00.000Z',
+      })
+    );
+  });
+
+  it('Task 8B: schedule resolution failure (getEffectiveSchedule throws) does not block a successful login — best-effort, same as openSession()/finalizeStaleOpenSessions() failures', async () => {
+    vi.mocked(getEffectiveSchedule).mockRejectedValueOnce(new Error('schedule db offline'));
+    const res = await POST(makeReq({ username: 'cs1', password: 'x' }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok: boolean; role: string };
+    expect(body).toEqual({ ok: true, role: 'CS' });
+    expect(openSession).not.toHaveBeenCalled(); // schedule lookup threw before openSession could run
+  });
+
   it('Test: finalizeStaleOpenSessions() runs before openSession() for the same staff', async () => {
     await POST(makeReq({ username: 'cs1', password: 'x' }));
     expect(finalizeStaleOpenSessions).toHaveBeenCalledWith(5);
@@ -90,26 +187,29 @@ describe('POST /api/auth/login — Attendance Login Lifecycle (Task 8)', () => {
     expect(finalizeOrder).toBeLessThan(openOrder);
   });
 
-  it('Test 2: failed login (wrong password) creates no Attendance session and does not finalize anything', async () => {
+  it('Test 2: failed login (wrong password) creates no Attendance session and does not finalize anything or resolve a schedule', async () => {
     vi.mocked(comparePassword).mockResolvedValue(false);
     const res = await POST(makeReq({ username: 'cs1', password: 'wrong' }));
     expect(res.status).toBe(401);
     expect(openSession).not.toHaveBeenCalled();
     expect(finalizeStaleOpenSessions).not.toHaveBeenCalled();
+    expect(getEffectiveSchedule).not.toHaveBeenCalled();
   });
 
-  it('Test 2b: failed login (unknown user) creates no Attendance session', async () => {
+  it('Test 2b: failed login (unknown user) creates no Attendance session and does not resolve a schedule', async () => {
     vi.mocked(getAdminByUsername).mockResolvedValue(null);
     const res = await POST(makeReq({ username: 'ghost', password: 'x' }));
     expect(res.status).toBe(401);
     expect(openSession).not.toHaveBeenCalled();
+    expect(getEffectiveSchedule).not.toHaveBeenCalled();
   });
 
-  it('Test 2c: rate-limited login (429) creates no Attendance session', async () => {
+  it('Test 2c: rate-limited login (429) creates no Attendance session and does not resolve a schedule', async () => {
     vi.mocked(rateLimit).mockReturnValue({ ok: false, retryAfterSecs: 900 } as never);
     const res = await POST(makeReq({ username: 'cs1', password: 'x' }));
     expect(res.status).toBe(429);
     expect(openSession).not.toHaveBeenCalled();
+    expect(getEffectiveSchedule).not.toHaveBeenCalled();
   });
 
   it('Test F: attendance DB failure (openSession throws) does not block a successful login', async () => {
