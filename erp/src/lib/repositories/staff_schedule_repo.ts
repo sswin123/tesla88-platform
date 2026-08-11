@@ -1,4 +1,6 @@
 import pool from '@/lib/db';
+import { getAttendanceTimezone } from '@/lib/attendance-timezone';
+import { resolveScheduledWindow } from '@/lib/attendance-rules';
 
 /**
  * Templates CRUD (spec §5, migration 094 staff_schedule_templates). Task 10
@@ -569,4 +571,146 @@ export async function updateOverride(id: number, patch: UpdateOverrideInput): Pr
     if (isUniqueViolation(err)) throw new ScheduleOverrideConflictError();
     throw err;
   }
+}
+
+/**
+ * Effective Schedule resolution (spec §6/§7, Task 13). Priority:
+ * Override > Assignment > No Schedule. Department Default is a reserved
+ * future slot, not implemented in Phase 2 — no Assignment simply falls
+ * through to NONE. This function only READS Template/Assignment/Override
+ * and returns what the schedule currently says a given day should look
+ * like — it never touches staff_attendance/staff_attendance_sessions
+ * (Historical Snapshot principle: past Attendance rows are frozen at
+ * session-open time and must never be reinterpreted by a later Schedule
+ * change) and never performs Login/Logout side effects (that is Task 8B,
+ * once this function exists).
+ */
+
+export type ScheduleSourceType = 'OVERRIDE' | 'ASSIGNMENT' | 'NONE';
+
+export interface EffectiveSchedule {
+  sourceType: ScheduleSourceType;
+  sourceId: number | null;
+  isRestDay: boolean;
+  /** ISO UTC instant (from resolveScheduledWindow()), or null for Rest Day / No Schedule. */
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  isOvernight: boolean;
+  lateGraceMinutes: number;
+}
+
+/** Spec §13's stated default grace period. Only reachable when a normal
+ *  (non-rest-day) Override has a null late_grace_minutes — Override is
+ *  self-contained (no template_id, spec §7), so it has nothing else to
+ *  borrow a grace value from. Assignment never needs this: Template's
+ *  late_grace_minutes is NOT NULL DEFAULT 5 at the DB level (migration 094). */
+const DEFAULT_LATE_GRACE_MINUTES = 5;
+
+/**
+ * TIME columns come back from Postgres as `HH:MM:SS` via `::text`
+ * (verified live against telegram-member-bot-postgres-1 — e.g.
+ * `'09:00'::time::text` returns `'09:00:00'`), but
+ * resolveScheduledWindow() requires exactly `HH:MM`. Normalizing here,
+ * not in Task 10/12's own SELECT column lists — those values are consumed
+ * elsewhere too (getTemplateById/getOverrideByStaffAndDate callers) and
+ * their existing text format is untouched by this task.
+ */
+function toHourMinute(time: string): string {
+  return time.slice(0, 5);
+}
+
+interface AssignmentTemplateRow {
+  assignment_id: number;
+  start_time: string;
+  end_time: string;
+  late_grace_minutes: number;
+}
+
+export async function getEffectiveSchedule(staffId: number, attendanceDate: string): Promise<EffectiveSchedule> {
+  if (!isValidCalendarDate(attendanceDate)) {
+    throw new Error(`getEffectiveSchedule: invalid attendanceDate: ${attendanceDate}`);
+  }
+
+  // Priority 1: Override (reuses Task 12's own lookup — no second query built here).
+  const override = await getOverrideByStaffAndDate(staffId, attendanceDate);
+  if (override) {
+    if (override.is_rest_day) {
+      return {
+        sourceType: 'OVERRIDE', sourceId: override.id, isRestDay: true,
+        scheduledStart: null, scheduledEnd: null, isOvernight: false,
+        lateGraceMinutes: 0, // no scheduled window on a Rest Day — "late" is not a meaningful concept
+      };
+    }
+    if (override.start_time === null || override.end_time === null) {
+      // createOverride()/updateOverride() (Task 12) both guarantee non-null
+      // start_time/end_time whenever is_rest_day is false — this should be
+      // structurally unreachable. Fail loudly rather than guess a window.
+      throw new Error(
+        `getEffectiveSchedule: data integrity violation — override ${override.id} has ` +
+        `is_rest_day=false but a null start_time/end_time`
+      );
+    }
+    const timezone = await getAttendanceTimezone();
+    const window = resolveScheduledWindow({
+      attendanceDate,
+      scheduledStart: toHourMinute(override.start_time),
+      scheduledEnd: toHourMinute(override.end_time),
+      timezone,
+    });
+    return {
+      sourceType: 'OVERRIDE', sourceId: override.id, isRestDay: false,
+      scheduledStart: window.scheduledStartAt, scheduledEnd: window.scheduledEndAt, isOvernight: window.isOvernight,
+      lateGraceMinutes: override.late_grace_minutes ?? DEFAULT_LATE_GRACE_MINUTES,
+    };
+  }
+
+  // Priority 2: Assignment — only an active Template, on a matching ISO
+  // working day, counts (spec: "Template 必须满足 is_active=true 且
+  // attendance_date 对应的 weekday 在 working_days 中"). EXTRACT(ISODOW ...)
+  // returns 1=Monday..7=Sunday — verified live to match this codebase's
+  // working_days convention exactly (no JS getDay() Sunday=0 mismatch).
+  // Task 11's EXCLUDE constraint guarantees at most one overlapping
+  // Assignment per staff, but this does not trust that blindly — more
+  // than one row is treated as a data-integrity violation, not silently
+  // resolved by picking one.
+  const assignmentResult = await pool.query<AssignmentTemplateRow>(
+    `SELECT a.id AS assignment_id, t.start_time::text AS start_time, t.end_time::text AS end_time,
+            t.late_grace_minutes
+       FROM staff_schedule_assignments a
+       JOIN staff_schedule_templates t ON t.id = a.template_id
+      WHERE a.staff_id = $1
+        AND a.effective_from <= $2::date
+        AND (a.effective_to IS NULL OR a.effective_to >= $2::date)
+        AND t.is_active = true
+        AND EXTRACT(ISODOW FROM $2::date)::int = ANY(t.working_days)`,
+    [staffId, attendanceDate]
+  );
+  if (assignmentResult.rows.length > 1) {
+    throw new Error(
+      `getEffectiveSchedule: data integrity violation — staff ${staffId} has ` +
+      `${assignmentResult.rows.length} overlapping effective Assignments on ${attendanceDate} ` +
+      `(the EXCLUDE constraint on staff_schedule_assignments should prevent this)`
+    );
+  }
+  const assignment = assignmentResult.rows[0];
+  if (assignment) {
+    const timezone = await getAttendanceTimezone();
+    const window = resolveScheduledWindow({
+      attendanceDate,
+      scheduledStart: toHourMinute(assignment.start_time),
+      scheduledEnd: toHourMinute(assignment.end_time),
+      timezone,
+    });
+    return {
+      sourceType: 'ASSIGNMENT', sourceId: assignment.assignment_id, isRestDay: false,
+      scheduledStart: window.scheduledStartAt, scheduledEnd: window.scheduledEndAt, isOvernight: window.isOvernight,
+      lateGraceMinutes: assignment.late_grace_minutes,
+    };
+  }
+
+  // Priority 3: No Schedule — no DB row is ever created for this outcome.
+  return {
+    sourceType: 'NONE', sourceId: null, isRestDay: false,
+    scheduledStart: null, scheduledEnd: null, isOvernight: false, lateGraceMinutes: 0,
+  };
 }
