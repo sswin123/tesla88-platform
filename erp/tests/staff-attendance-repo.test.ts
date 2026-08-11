@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
 
 import pool from '@/lib/db';
-import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity } from '@/lib/repositories/staff_attendance_repo';
+import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity, getOpenSessionId } from '@/lib/repositories/staff_attendance_repo';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -85,6 +85,34 @@ describe('closeSession', () => {
     const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toContain('logout_at');
     expect(params).toEqual([10, '2026-08-11T10:00:00.000Z', 'LOGOUT']);
+  });
+
+  it('LOGOUT: preserves last_activity_at (the last real heartbeat) — the logout instant must NOT overwrite it (Task 9)', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [{ id: 10, attendance_id: 1 }] } as never)
+      .mockResolvedValueOnce({ rows: [{ id: 1, staff_id: 5, attendance_date: '2026-08-11', scheduled_start_at: null, scheduled_end_at: null, late_grace_minutes: 0, is_rest_day: false }] } as never)
+      .mockResolvedValueOnce({ rows: [{ login_at: '2026-08-11T01:00:00.000Z', logout_at: '2026-08-11T10:00:00.000Z', last_activity_at: '2026-08-11T09:58:00.000Z', checkout_source: 'LOGOUT', working_minutes: 538 }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    await closeSession(10, 'LOGOUT', '2026-08-11T10:00:00.000Z');
+
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    // last_activity_at must be conditionally left alone for LOGOUT, and only
+    // overwritten with the finalize instant for TIMEOUT/SYSTEM.
+    expect(sql).toMatch(/last_activity_at\s*=\s*CASE WHEN[\s\S]*LOGOUT[\s\S]*THEN\s+last_activity_at[\s\S]*ELSE[\s\S]*END/i);
+  });
+
+  it('TIMEOUT/SYSTEM: last_activity_at is still written from the finalize instant — unchanged Task 7 semantics', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [{ id: 10, attendance_id: 1 }] } as never)
+      .mockResolvedValueOnce({ rows: [{ id: 1, staff_id: 5, attendance_date: '2026-08-11', scheduled_start_at: null, scheduled_end_at: null, late_grace_minutes: 0, is_rest_day: false }] } as never)
+      .mockResolvedValueOnce({ rows: [{ login_at: '2026-08-11T01:00:00.000Z', logout_at: null, last_activity_at: '2026-08-11T04:00:00.000Z', checkout_source: 'TIMEOUT', working_minutes: 180 }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    await closeSession(10, 'TIMEOUT', '2026-08-11T04:00:00.000Z');
+
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/last_activity_at\s*=\s*CASE WHEN[\s\S]*LOGOUT[\s\S]*THEN\s+last_activity_at\s+ELSE\s+\$2/i);
   });
 
   it('TIMEOUT: never writes a real logout_at — spec forbids faking it', async () => {
@@ -233,6 +261,22 @@ describe('touchOpenSessionActivity', () => {
     const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toContain('NOW()');
     expect(params).toEqual([5]); // no timestamp parameter at all — confirms NOW() is the sole time source
+  });
+});
+
+describe('getOpenSessionId (Task 9)', () => {
+  it('returns the most recently opened OPEN session id for the staff member', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ id: 10 }] } as never);
+    expect(await getOpenSessionId(5)).toBe(10);
+    const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/WHERE\s+staff_id\s*=\s*\$1\s+AND\s+checkout_source\s+IS\s+NULL/i);
+    expect(sql).toMatch(/ORDER BY\s+login_at\s+DESC\s+LIMIT\s+1/i);
+    expect(params).toEqual([5]);
+  });
+
+  it('returns null when there is no open session', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    expect(await getOpenSessionId(5)).toBeNull();
   });
 });
 

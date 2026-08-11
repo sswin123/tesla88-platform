@@ -59,6 +59,14 @@ export async function openSession(input: OpenSessionInput): Promise<number> {
  *
  * logout_at is set ONLY for source='LOGOUT' — TIMEOUT/SYSTEM must never
  * fake a logout instant (spec §4/§11: "TIMEOUT 不能伪造 logout_at").
+ *
+ * last_activity_at is set ONLY for source!='LOGOUT' (Task 9): a real LOGOUT
+ * must not overwrite the session's last real heartbeat with the logout
+ * instant — the column's meaning stays "last known-alive activity", distinct
+ * from logout_at's "actual logout time". For TIMEOUT, the caller
+ * (finalizeStaleOpenSessions) already passes the existing last_activity_at
+ * as `at`, so this branch is a same-value no-op there; SYSTEM keeps the
+ * same $2-overwrite convention.
  */
 export async function closeSession(
   sessionId: number, source: 'LOGOUT' | 'TIMEOUT' | 'SYSTEM', at: string
@@ -66,7 +74,7 @@ export async function closeSession(
   const updated = await pool.query<{ id: number; attendance_id: number }>(
     `UPDATE staff_attendance_sessions
         SET logout_at = CASE WHEN $3 = 'LOGOUT' THEN $2::timestamptz ELSE NULL END,
-            last_activity_at = $2,
+            last_activity_at = CASE WHEN $3 = 'LOGOUT' THEN last_activity_at ELSE $2::timestamptz END,
             checkout_source = $3,
             working_minutes = GREATEST(0, EXTRACT(EPOCH FROM ($2::timestamptz - login_at)) / 60)::int
       WHERE id = $1 AND checkout_source IS NULL
@@ -104,6 +112,23 @@ export async function touchOpenSessionActivity(staffId: number): Promise<void> {
       WHERE staff_id = $1 AND checkout_source IS NULL`,
     [staffId]
   );
+}
+
+/**
+ * Finds the OPEN session Logout should close (Task 9). Concurrent OPEN
+ * sessions are allowed (Task 8 Decision 2 — multi-device re-login does not
+ * force-close an active session), so when more than one exists this picks
+ * the most recently opened one — the same `ORDER BY login_at DESC LIMIT 1`
+ * tie-break finalizeStaleOpenSessions() already uses, not a new policy.
+ */
+export async function getOpenSessionId(staffId: number): Promise<number | null> {
+  const result = await pool.query<{ id: number }>(
+    `SELECT id FROM staff_attendance_sessions
+      WHERE staff_id = $1 AND checkout_source IS NULL
+      ORDER BY login_at DESC LIMIT 1`,
+    [staffId]
+  );
+  return result.rows[0]?.id ?? null;
 }
 
 /** Lazy TIMEOUT finalization (spec §11/§23) — called on next Login and on Attendance detail read. */
