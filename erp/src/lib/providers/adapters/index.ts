@@ -15,6 +15,7 @@
 import './kiss918';
 import './megah5';
 import './megaapp';
+import './yes918';
 
 // ── Future providers ────────────────────────────────────────────────────────
 // import './jili';

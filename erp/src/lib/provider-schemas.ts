@@ -132,6 +132,67 @@ const MEGAAPP: ProviderSchema = {
   ],
 };
 
+// ─── YES918 ───────────────────────────────────────────────────────────────────
+
+const YES918: ProviderSchema = {
+  code: 'YES918',
+  displayName: '918KISS (Yes918)',
+  isStub: false,
+  config: [
+    {
+      key:         'api_base_url',
+      label:       'API Base URL',
+      type:        'url',
+      required:    true,
+      placeholder: 'https://api.yes918.com/ashx',
+      description: 'YES918 API endpoint. Default: https://api.yes918.com/ashx',
+    },
+    {
+      key:         'agent_username',
+      label:       'Agent Username',
+      type:        'text',
+      required:    true,
+      placeholder: 'e.g. ppph0001',
+      description: 'Your agent username on the YES918 platform (shown as AgentId on the API page). Used for RandomUserName and AgentTotalReport calls.',
+    },
+    {
+      key:         'password_length',
+      label:       'Player Password Length',
+      type:        'number',
+      required:    false,
+      min:         6,
+      max:         17,
+      placeholder: '10',
+      description: 'Length of auto-generated player passwords (6–17, YES918 max is 17).',
+    },
+    {
+      key:         'timeout_ms',
+      label:       'Request Timeout (ms)',
+      type:        'number',
+      required:    false,
+      min:         3000,
+      max:         60000,
+      placeholder: '15000',
+    },
+  ],
+  credentials: [
+    {
+      key:         'authcode',
+      label:       'AuthCode',
+      type:        'password',
+      required:    true,
+      description: 'AuthCode from YES918 → API page. Must whitelist your VPS IP first.',
+    },
+    {
+      key:         'secret_key',
+      label:       'SecretKey',
+      type:        'password',
+      required:    true,
+      description: 'SecretKey from YES918 → API page. Used in MD5 signature: UPPERCASE(MD5(LOWERCASE(authcode + userName + time + secretKey))).',
+    },
+  ],
+};
+
 // ─── Stub helper ─────────────────────────────────────────────────────────────
 
 function stub(code: string, displayName: string): ProviderSchema {
@@ -143,6 +204,7 @@ function stub(code: string, displayName: string): ProviderSchema {
 const REGISTRY: Record<string, ProviderSchema> = {
   MEGAH5,
   MEGAAPP,
+  YES918,
   KISS918:    stub('KISS918',    '918KISS'),
   '918KISS':  stub('918KISS',   '918KISS'),
   PG:         stub('PG',         'PG Soft'),
