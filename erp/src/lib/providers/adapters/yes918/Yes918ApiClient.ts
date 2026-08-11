@@ -3,15 +3,31 @@ import { YES918_ACTION, YES918_ERROR } from './constants';
 
 // ── Response types ────────────────────────────────────────────────────────────
 
+/**
+ * YES918 API base response.
+ *
+ * Confirmed from production (action=RandomUserName):
+ *   Success → { error: 0, ...actionFields }   e.g. {"error":0,"playerid":"01467743411"}
+ *   Auth failure (gateway) → { code: 203, success: false, msg: "invalid key." }
+ *
+ * All fields are optional — shape varies by action and outcome.
+ * Use isSuccess() / statusCode() helpers to normalise across both formats.
+ */
 export interface Yes918BaseResponse {
-  code:    number;
-  msg:     string;
-  success: boolean;
+  /** Primary status field in real API responses: 0 = success, non-zero = error. */
+  error?:   number;
+  /** Legacy / gateway error field: appears in auth failures before reaching YES918. */
+  code?:    number;
+  success?: boolean;
+  msg?:     string;
 }
 
 export interface RandomUserNameResponse extends Yes918BaseResponse {
-  userName?: string;  // generated username for new player
-  data?:     string;  // some versions use 'data' field
+  /** Confirmed YES918 field: generated player login ID (e.g. "01467743411"). */
+  playerid?: string;
+  /** Kept for compatibility with alternate YES918 API versions. */
+  userName?: string;
+  data?:     string;
 }
 
 export interface AddUserResponse extends Yes918BaseResponse {
@@ -20,7 +36,8 @@ export interface AddUserResponse extends Yes918BaseResponse {
 
 export interface SetServerScoreResponse extends Yes918BaseResponse {
   acc?:   string;
-  money?: string;  // player balance after transfer (as string, e.g. "4930.12")
+  /** Player balance after transfer (as string, e.g. "4930.12"). */
+  money?: string;
   type?:  number;
 }
 
@@ -37,14 +54,14 @@ export interface AgentTotalReportResponse extends Yes918BaseResponse {
 }
 
 export interface DisableResponse extends Yes918BaseResponse {
-  type?: number;  // 1=disabled, 2=enabled
+  type?: number;
 }
 
 // ── Client ────────────────────────────────────────────────────────────────────
 
 export class Yes918ApiClient {
-  private readonly baseUrl: string;
-  private readonly authcode: string;
+  private readonly baseUrl:   string;
+  private readonly authcode:  string;
   private readonly secretKey: string;
   private readonly timeoutMs: number;
 
@@ -63,20 +80,34 @@ export class Yes918ApiClient {
   // ── Signature ─────────────────────────────────────────────────────────────
 
   /**
-   * YES918 signature:
-   *   sign = UPPERCASE(MD5(LOWERCASE(authcode + userName + unixTime + secretKey)))
-   *
-   * @param userName  The userName parameter for this specific API call
-   * @param time      Unix timestamp in seconds (10 digits)
+   * sign = UPPERCASE(MD5(LOWERCASE(authcode + userName + unixTime + secretKey)))
    */
   private sign(userName: string, time: number): string {
     const raw = (this.authcode + userName + time + this.secretKey).toLowerCase();
     return createHash('md5').update(raw).digest('hex').toUpperCase();
   }
 
-  /** Current Unix timestamp in seconds (10 digits). */
   private now(): number {
     return Math.floor(Date.now() / 1000);
+  }
+
+  // ── Response helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Normalise status across both response formats:
+   *   Real API  → r.error  (0 = success)
+   *   Gateway   → r.code   (0 = success) or r.success (true = success)
+   */
+  private isSuccess(r: Yes918BaseResponse): boolean {
+    if (r.error   !== undefined) return r.error   === YES918_ERROR.SUCCESS;
+    if (r.code    !== undefined) return r.code    === YES918_ERROR.SUCCESS;
+    if (r.success !== undefined) return r.success === true;
+    return false;
+  }
+
+  /** Returns the numeric status code whichever field carries it. */
+  private statusCode(r: Yes918BaseResponse): number | undefined {
+    return r.error ?? r.code;
   }
 
   // ── HTTP GET ──────────────────────────────────────────────────────────────
@@ -99,10 +130,6 @@ export class Yes918ApiClient {
 
     const url = `${this.baseUrl}?${qs.toString()}`;
 
-    // Diagnostic: log sent param NAMES only — never log authcode / sign / secretKey values
-    const sentParamKeys = Object.keys(params).filter(k => !['authcode', 'sign', 'secretKey'].includes(k));
-    console.log(`[YES918-DIAG] → action=${String(params['action'])} sentParams=[${sentParamKeys.join(',')}] time=${time}`);
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -113,44 +140,24 @@ export class Yes918ApiClient {
       clearTimeout(timer);
     }
 
-    const httpStatus  = httpRes.status;
-    const contentType = httpRes.headers.get('content-type') ?? '(none)';
-
-    // Read body as TEXT first so we can log it before parsing
-    const rawBody    = await httpRes.text().catch(() => '');
-    const bodyPreview = rawBody.slice(0, 2000);
-
-    console.log(`[YES918-DIAG] ← HTTP ${httpStatus} | content-type: ${contentType} | body-length: ${rawBody.length}`);
-    console.log(`[YES918-DIAG] ← raw-body: ${bodyPreview}`);
+    // Read body as text first — preserves raw content for error messages
+    const rawBody = await httpRes.text().catch(() => '');
 
     if (!httpRes.ok) {
-      throw new Error(`YES918 HTTP ${httpStatus}: ${bodyPreview.slice(0, 200)}`);
+      throw new Error(`YES918 HTTP ${httpRes.status} action=${String(params['action'])}: ${rawBody.slice(0, 200)}`);
     }
 
-    // Parse JSON from the already-consumed text body
     let data: T;
     try {
-      const parsed: unknown = JSON.parse(rawBody);
-      const parsedType = typeof parsed;
-      console.log(`[YES918-DIAG] ← typeof parsed: ${parsedType}`);
-      if (parsed !== null && parsedType === 'object' && !Array.isArray(parsed)) {
-        console.log(`[YES918-DIAG] ← Object.keys: [${Object.keys(parsed as object).join(', ')}]`);
-      } else if (parsedType === 'string') {
-        console.log(`[YES918-DIAG] ← parsed is string value (length=${(parsed as string).length})`);
-      } else if (parsedType === 'number') {
-        console.log(`[YES918-DIAG] ← parsed is number: ${parsed}`);
-      } else if (Array.isArray(parsed)) {
-        console.log(`[YES918-DIAG] ← parsed is array (length=${(parsed as unknown[]).length})`);
-      }
-      data = parsed as T;
+      data = JSON.parse(rawBody) as T;
     } catch (e) {
       throw new Error(
-        `YES918 JSON parse error for action=${String(params['action'])}: ${e instanceof Error ? e.message : String(e)}. Body: ${bodyPreview.slice(0, 200)}`,
+        `YES918 JSON parse error action=${String(params['action'])}: ${e instanceof Error ? e.message : String(e)}. Body: ${rawBody.slice(0, 200)}`,
       );
     }
 
-    // code=-2 always means invalid signature — surface immediately
-    if (data.code === YES918_ERROR.SIGN_ERROR) {
+    // Detect signature error — check both field names for robustness
+    if (this.statusCode(data) === YES918_ERROR.SIGN_ERROR) {
       throw new Error(`YES918 signature error (code=-2). Check authcode and secret_key.`);
     }
 
@@ -160,92 +167,73 @@ export class Yes918ApiClient {
   // ── API Methods ───────────────────────────────────────────────────────────
 
   /**
-   * Generate a random username on the YES918 platform.
-   * userName = agent's username (used in signature).
-   * Returns the generated player username.
+   * Generate a random player login ID on the YES918 platform.
+   *
+   * Confirmed response: {"error":0,"playerid":"01467743411"}
+   * Primary field: playerid. Fallbacks: userName, data (alternate API versions).
    */
   async randomUserName(agentUsername: string): Promise<string> {
-    const raw = await this.get<RandomUserNameResponse>(
+    const res = await this.get<RandomUserNameResponse>(
       { action: YES918_ACTION.RANDOM_USERNAME, userName: agentUsername },
       agentUsername,
     );
 
-    // Diagnostic: log exact shape of the parsed response
-    const rawType = typeof raw;
-    console.log(`[YES918-DIAG] randomUserName parsed type: ${rawType}`);
-    if (rawType === 'object' && raw !== null) {
-      console.log(`[YES918-DIAG] randomUserName keys: [${Object.keys(raw).join(', ')}]`);
-      console.log(`[YES918-DIAG] randomUserName .code=${raw.code} .success=${raw.success} .msg=${raw.msg} .userName=${raw.userName} .data=${raw.data}`);
-    } else {
-      // raw might be a plain string — YES918 may return the username directly
-      console.log(`[YES918-DIAG] randomUserName raw value: ${String(raw).slice(0, 100)}`);
+    if (!this.isSuccess(res)) {
+      throw new Error(
+        `YES918 RandomUserName failed: error=${res.error} code=${res.code} msg=${res.msg}`,
+      );
     }
 
-    // Handle plain-string response: some YES918 versions return the username directly
-    if (rawType === 'string') {
-      const direct = (raw as unknown as string).trim();
-      if (direct) {
-        console.log(`[YES918-DIAG] randomUserName: treating plain-string response as username`);
-        return direct;
-      }
-      throw new Error(`YES918 RandomUserName: plain-string response is empty.`);
-    }
-
-    if (!raw.success && raw.code !== YES918_ERROR.SUCCESS) {
-      throw new Error(`YES918 RandomUserName failed: code=${raw.code} msg=${raw.msg}`);
-    }
-
-    // Response field may be 'userName' or 'data' depending on version
-    const generated = raw.userName ?? raw.data ?? '';
+    const generated = res.playerid ?? res.userName ?? res.data ?? '';
     if (!generated) {
-      throw new Error(`YES918 RandomUserName: no username in response. code=${raw.code} msg=${raw.msg}`);
+      throw new Error(
+        `YES918 RandomUserName: no player ID in response. error=${res.error} code=${res.code}`,
+      );
     }
     return generated;
   }
 
   /**
    * Register a new player account on the YES918 platform.
-   * Note: sign uses the PLAYER's userName (not agent's).
+   * sign uses the PLAYER's userName (not agent's).
    */
   async addUser(opts: {
-    userName:  string;
-    password:  string;
-    name?:     string;
-    tel?:      string;
-    memo?:     string;
+    userName: string;
+    password: string;
+    name?:    string;
+    tel?:     string;
+    memo?:    string;
   }): Promise<void> {
     const res = await this.get<AddUserResponse>(
       {
-        action: YES918_ACTION.ADD_USER,
+        action:   YES918_ACTION.ADD_USER,
         userName: opts.userName,
         PassWd:   opts.password,
-        Name:     opts.name  ?? 'N/A',
-        Tel:      opts.tel   ?? 'N/A',
-        Memo:     opts.memo  ?? 'N/A',
+        Name:     opts.name ?? 'N/A',
+        Tel:      opts.tel  ?? 'N/A',
+        Memo:     opts.memo ?? 'N/A',
       },
       opts.userName,
     );
 
-    if (res.code !== YES918_ERROR.SUCCESS && !res.success) {
-      if (res.code === -1 && res.msg?.includes('exist')) {
-        // Account already exists — not a fatal error for us
-        return;
-      }
-      throw new Error(`YES918 addUser failed: code=${res.code} msg=${res.msg}`);
+    if (!this.isSuccess(res)) {
+      // Account already exists on YES918 — not fatal, continue with existing credentials
+      if (this.statusCode(res) === YES918_ERROR.ORDER_ERROR && res.msg?.includes('exist')) return;
+      throw new Error(`YES918 addUser failed: error=${res.error} code=${res.code} msg=${res.msg}`);
     }
   }
 
   /**
    * Transfer balance to/from a player's YES918 account.
-   *   scoreNum > 0 → top-up (add balance)
-   *   scoreNum < 0 → withdraw (deduct balance)
+   *   scoreNum > 0 → top-up
+   *   scoreNum < 0 → withdraw
    *
-   * Returns the player's balance after the transfer.
+   * Returns player balance after transfer.
    */
   async setServerScore(opts: {
-    userName:  string;
-    scoreNum:  number;
-    orderId:   string;
+    userName: string;
+    scoreNum: number;
+    orderId:  string;
   }): Promise<number> {
     const res = await this.get<SetServerScoreResponse>(
       {
@@ -257,18 +245,11 @@ export class Yes918ApiClient {
       opts.userName,
     );
 
-    if (res.code === YES918_ERROR.IN_GAME) {
-      throw new Error(`YES918 setServerScore: player is in game, cannot deduct balance (code=-7)`);
-    }
-    if (res.code === YES918_ERROR.INSUFFICIENT) {
-      throw new Error(`YES918 setServerScore: insufficient balance (code=-8)`);
-    }
-    if (res.code === YES918_ERROR.ORDER_ERROR) {
-      throw new Error(`YES918 setServerScore: order ID error or duplicate (code=-1) orderId=${opts.orderId}`);
-    }
-    if (res.code !== YES918_ERROR.SUCCESS && !res.success) {
-      throw new Error(`YES918 setServerScore failed: code=${res.code} msg=${res.msg}`);
-    }
+    const sc = this.statusCode(res);
+    if (sc === YES918_ERROR.IN_GAME)      throw new Error(`YES918 setServerScore: player is in game (error=-7)`);
+    if (sc === YES918_ERROR.INSUFFICIENT) throw new Error(`YES918 setServerScore: insufficient balance (error=-8)`);
+    if (sc === YES918_ERROR.ORDER_ERROR)  throw new Error(`YES918 setServerScore: order ID error or duplicate (error=-1) orderId=${opts.orderId}`);
+    if (!this.isSuccess(res))             throw new Error(`YES918 setServerScore failed: error=${res.error} code=${res.code} msg=${res.msg}`);
 
     const balance = parseFloat(String(res.money ?? '0'));
     return isNaN(balance) ? 0 : balance;
@@ -276,7 +257,7 @@ export class Yes918ApiClient {
 
   /**
    * Get player info including balance.
-   * Returns null if account not found (code=-9).
+   * Returns null if account not found.
    */
   async getUserInfo(userName: string): Promise<{ balance: number; status: number } | null> {
     const res = await this.get<GetUserInfoResponse>(
@@ -284,14 +265,13 @@ export class Yes918ApiClient {
       userName,
     );
 
-    if (res.code === YES918_ERROR.NOT_FOUND) return null;
-
-    if (res.code !== YES918_ERROR.SUCCESS && !res.success) {
-      throw new Error(`YES918 getUserInfo failed: code=${res.code} msg=${res.msg}`);
+    if (this.statusCode(res) === YES918_ERROR.NOT_FOUND) return null;
+    if (!this.isSuccess(res)) {
+      throw new Error(`YES918 getUserInfo failed: error=${res.error} code=${res.code} msg=${res.msg}`);
     }
 
     const rawBalance = res.money ?? res.score ?? '0';
-    const balance = parseFloat(String(rawBalance));
+    const balance    = parseFloat(String(rawBalance));
     return {
       balance: isNaN(balance) ? 0 : balance,
       status:  res.status ?? 0,
@@ -299,12 +279,10 @@ export class Yes918ApiClient {
   }
 
   /**
-   * Kick (force logout) a player from the YES918 platform.
-   * sign uses authcode + time + secretKey (no userName in sign for kick).
-   * Actually docs say sign=md5((authcode + time + secretKey).tolower) for kick.
+   * Kick (force logout) a player.
+   * sign formula for kick: UPPERCASE(MD5(LOWERCASE(authcode + time + secretKey))) — no userName.
    */
   async kick(userName: string): Promise<void> {
-    // From docs: sign=md5((authcode + time + secretKey).tolower) — no userName
     const time = this.now();
     const raw  = (this.authcode + time + this.secretKey).toLowerCase();
     const sign = createHash('md5').update(raw).digest('hex').toUpperCase();
@@ -321,39 +299,37 @@ export class Yes918ApiClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    let res: Response;
+    let httpRes: Response;
     try {
-      res = await fetch(url, { method: 'GET', signal: controller.signal });
+      httpRes = await fetch(url, { method: 'GET', signal: controller.signal });
     } finally {
       clearTimeout(timer);
     }
 
-    if (!res.ok) throw new Error(`YES918 kick HTTP ${res.status}`);
-    // Ignore body — kick is best-effort
+    if (!httpRes.ok) throw new Error(`YES918 kick HTTP ${httpRes.status}`);
+    // kick is best-effort — ignore body
   }
 
   /**
    * Enable/disable a player account (toggle).
-   * type=1 = disable, type=2 = enable (returned in response, not sent)
    */
   async disable(userName: string): Promise<void> {
     await this.get<DisableResponse>(
       { action: YES918_ACTION.DISABLE, userName },
       userName,
     );
-    // Best-effort — ignore result
+    // best-effort — ignore result
   }
 
   /**
    * AgentTotalReport for a date range — used for health check.
-   * Returns true if the API responded successfully.
+   * Returns true if the API responded with a success status.
    */
   async agentTotalReport(agentUsername: string, sDate: string, eDate: string): Promise<boolean> {
     const res = await this.get<AgentTotalReportResponse>(
       { action: YES918_ACTION.AGENT_TOTAL_REPORT, userName: agentUsername, sDate, eDate },
       agentUsername,
     );
-    // code=0 or success=true = API is healthy
-    return res.code === YES918_ERROR.SUCCESS || res.success === true;
+    return this.isSuccess(res);
   }
 }
