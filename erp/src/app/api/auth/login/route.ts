@@ -7,6 +7,10 @@ import {
   COOKIE_MAX_AGE,
 } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { getAttendanceTimezone } from '@/lib/attendance-timezone';
+import { resolveAttendanceDate } from '@/lib/attendance-rules';
+import { openSession, finalizeStaleOpenSessions } from '@/lib/repositories/staff_attendance_repo';
+import { parseUserAgent } from '@/lib/parse-user-agent';
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -55,6 +59,36 @@ export async function POST(request: NextRequest) {
     username: admin.erp_username,
     role: admin.role,
   });
+
+  // Best-effort — Attendance session tracking must never block a successful
+  // login (spec §19: authentication and Attendance lifecycle are decoupled).
+  // Schedule integration (getEffectiveSchedule) lands in a later task (8B);
+  // until then this is the spec-legal "No Schedule" path (§34).
+  try {
+    await finalizeStaleOpenSessions(admin.id);
+    const timezone = await getAttendanceTimezone();
+    const now = new Date().toISOString();
+    const attendanceDate = resolveAttendanceDate(now, timezone);
+    const ua = request.headers.get('user-agent') ?? '';
+    const { browser, device, os } = parseUserAgent(ua);
+
+    await openSession({
+      staffId: admin.id,
+      attendanceDate,
+      scheduledStartAt: null,
+      scheduledEndAt: null,
+      scheduleSourceType: null,
+      scheduleSourceId: null,
+      graceMinutes: 0,
+      loginAt: now,
+      ip,
+      browser,
+      device,
+      operatingSystem: os,
+    });
+  } catch (err) {
+    console.error('[login] attendance lifecycle error:', err);
+  }
 
   const response = NextResponse.json({ ok: true, role: admin.role });
   response.cookies.set(COOKIE_NAME, token, {

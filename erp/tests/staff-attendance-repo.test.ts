@@ -235,3 +235,91 @@ describe('touchOpenSessionActivity', () => {
     expect(params).toEqual([5]); // no timestamp parameter at all — confirms NOW() is the sole time source
   });
 });
+
+// --- Task 8: Login Lifecycle composition (finalizeStaleOpenSessions + openSession called back-to-back) ---
+
+describe('Login Lifecycle composition (Task 8)', () => {
+  it('B. active OPEN session (not stale) + re-login: old session is left untouched, a second concurrent session is created', async () => {
+    const recentActivity = new Date().toISOString();
+    vi.mocked(pool.query)
+      // finalizeStaleOpenSessions: find open session -> recent, not stale -> no-op (1 query)
+      .mockResolvedValueOnce({ rows: [{ id: 10, attendance_id: 1, last_activity_at: recentActivity }] } as never)
+      // openSession: find existing daily attendance -> found (reuse)
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] } as never)
+      // openSession: insert new session
+      .mockResolvedValueOnce({ rows: [{ id: 20 }] } as never);
+
+    await finalizeStaleOpenSessions(5);
+    const sessionId2 = await openSession({
+      staffId: 5, attendanceDate: '2026-08-11',
+      scheduledStartAt: null, scheduledEndAt: null, scheduleSourceType: null, scheduleSourceId: null, graceMinutes: 0,
+      loginAt: '2026-08-11T02:00:00.000Z', ip: '1.2.3.4', browser: 'Chrome', device: 'Desktop', operatingSystem: 'macOS',
+    });
+
+    expect(sessionId2).toBe(20);
+    expect(pool.query).toHaveBeenCalledTimes(3);
+    // No UPDATE against staff_attendance_sessions (i.e. session #10 was never closed/touched).
+    const sqls = vi.mocked(pool.query).mock.calls.map((c) => (c as unknown as [string, unknown[]])[0]);
+    expect(sqls.some((sql) => /UPDATE staff_attendance_sessions/.test(sql))).toBe(false);
+  });
+
+  it('C. stale OPEN session + re-login: old session is TIMEOUT-finalized (logout_at NULL) before a new session is created', async () => {
+    const staleActivity = new Date(Date.now() - 20 * 60_000).toISOString();
+    vi.mocked(pool.query)
+      // finalizeStaleOpenSessions: find open session -> stale
+      .mockResolvedValueOnce({ rows: [{ id: 10, attendance_id: 1, last_activity_at: staleActivity }] } as never)
+      // closeSession: UPDATE ... WHERE checkout_source IS NULL RETURNING
+      .mockResolvedValueOnce({ rows: [{ id: 10, attendance_id: 1 }] } as never)
+      // recalculateAttendance: fetch attendance snapshot
+      .mockResolvedValueOnce({ rows: [{ id: 1, staff_id: 5, attendance_date: '2026-08-11', scheduled_start_at: null, scheduled_end_at: null, late_grace_minutes: 0, is_rest_day: false }] } as never)
+      // recalculateAttendance: fetch all sessions
+      .mockResolvedValueOnce({ rows: [{ login_at: '2026-08-11T01:00:00.000Z', logout_at: null, last_activity_at: staleActivity, checkout_source: 'TIMEOUT', working_minutes: 0 }] } as never)
+      // recalculateAttendance: UPDATE staff_attendance
+      .mockResolvedValueOnce({ rows: [] } as never)
+      // openSession: find existing daily attendance -> found (reuse same attendance row)
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] } as never)
+      // openSession: insert new session
+      .mockResolvedValueOnce({ rows: [{ id: 21 }] } as never);
+
+    await finalizeStaleOpenSessions(5);
+    const sessionId2 = await openSession({
+      staffId: 5, attendanceDate: '2026-08-11',
+      scheduledStartAt: null, scheduledEndAt: null, scheduleSourceType: null, scheduleSourceId: null, graceMinutes: 0,
+      loginAt: '2026-08-11T02:00:00.000Z', ip: '1.2.3.4', browser: 'Chrome', device: 'Desktop', operatingSystem: 'macOS',
+    });
+
+    expect(sessionId2).toBe(21);
+    // The TIMEOUT close never faked a logout_at.
+    const closeCall = vi.mocked(pool.query).mock.calls[1] as unknown as [string, unknown[]];
+    expect(closeCall[0]).toMatch(/CASE WHEN[\s\S]*LOGOUT[\s\S]*ELSE NULL END/i);
+    expect(closeCall[1]).toEqual([10, staleActivity, 'TIMEOUT']);
+    // Both the old (finalized) and new session ultimately belong to the same daily attendance row (id 1).
+    expect(pool.query).toHaveBeenCalledTimes(7);
+  });
+
+  it('D. same-day multiple logins reuse the same daily attendance row and create separate sessions each time', async () => {
+    vi.mocked(pool.query)
+      // Login 1: no attendance yet -> insert attendance + insert session
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] } as never)
+      .mockResolvedValueOnce({ rows: [{ id: 30 }] } as never)
+      // Login 2 (same day): attendance already exists -> reuse, insert session only
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] } as never)
+      .mockResolvedValueOnce({ rows: [{ id: 31 }] } as never);
+
+    const input = {
+      staffId: 5, attendanceDate: '2026-08-11',
+      scheduledStartAt: null, scheduledEndAt: null, scheduleSourceType: null, scheduleSourceId: null, graceMinutes: 0,
+      ip: '1.2.3.4', browser: 'Chrome', device: 'Desktop', operatingSystem: 'macOS',
+    };
+    const session1 = await openSession({ ...input, loginAt: '2026-08-11T01:00:00.000Z' });
+    const session2 = await openSession({ ...input, loginAt: '2026-08-11T05:00:00.000Z' });
+
+    expect(session1).toBe(30);
+    expect(session2).toBe(31);
+    const insertAttendanceCalls = vi.mocked(pool.query).mock.calls.filter(
+      (c) => /INSERT INTO staff_attendance\b/.test((c as unknown as [string, unknown[]])[0])
+    );
+    expect(insertAttendanceCalls).toHaveLength(1); // only Login 1 created the daily row
+  });
+});
