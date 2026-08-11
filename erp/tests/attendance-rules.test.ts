@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAttendanceDate, resolveScheduledWindow } from '@/lib/attendance-rules';
+import { resolveAttendanceDate, resolveScheduledWindow, resolveAttendanceStatus } from '@/lib/attendance-rules';
 
 describe('resolveAttendanceDate', () => {
   it('1. Asia/Kuala_Lumpur — daytime instant resolves to the expected local calendar date', () => {
@@ -270,5 +270,307 @@ describe('resolveScheduledWindow', () => {
     });
     expect(same.isOvernight).toBe(false);
     expect(overnight.isOvernight).toBe(true);
+  });
+});
+
+describe('resolveAttendanceStatus', () => {
+  // Fixture: normal same-day shift 09:00-18:00 Asia/Kuala_Lumpur, verified in resolveScheduledWindow test 1.
+  const NORMAL_SCHEDULE = {
+    scheduledStartAt: '2026-08-11T01:00:00.000Z', // 09:00 KL
+    scheduledEndAt: '2026-08-11T10:00:00.000Z',   // 18:00 KL
+  };
+  // Fixture: overnight shift 18:00-03:00 Asia/Kuala_Lumpur, verified in resolveScheduledWindow test 2.
+  const OVERNIGHT_SCHEDULE = {
+    scheduledStartAt: '2026-08-11T10:00:00.000Z', // 18:00 KL Aug 11
+    scheduledEndAt: '2026-08-11T19:00:00.000Z',   // 03:00 KL Aug 12
+  };
+  const GRACE_5 = 5;
+
+  // --- PRESENT ---
+
+  it('1. on-time check-in and checkout is PRESENT with zero late/early minutes', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r).toEqual({ status: 'PRESENT', lateMinutes: 0, earlyLeaveMinutes: 0 });
+  });
+
+  it('2. check-in exactly at the grace boundary (09:05) is still PRESENT', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:05:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('PRESENT');
+    expect(r.lateMinutes).toBe(0);
+  });
+
+  it('2b. checkout exactly at the early-grace boundary (17:55) is still PRESENT', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T09:55:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('PRESENT');
+    expect(r.earlyLeaveMinutes).toBe(0);
+  });
+
+  // --- LATE ---
+
+  it('3. check-in 1 minute past the grace boundary (09:06) is LATE by exactly 1 minute', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:06:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('LATE');
+    expect(r.lateMinutes).toBe(1);
+    expect(r.earlyLeaveMinutes).toBe(0);
+  });
+
+  it('4. check-in at 09:20 is LATE by 15 minutes (20 elapsed - 5 grace)', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.lateMinutes).toBe(15);
+  });
+
+  // --- EARLY_LEAVE ---
+
+  it('5. checkout 1 minute past the early-grace boundary (17:54) is EARLY_LEAVE by exactly 1 minute', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T09:54:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('EARLY_LEAVE');
+    expect(r.earlyLeaveMinutes).toBe(1);
+    expect(r.lateMinutes).toBe(0);
+  });
+
+  it('6. checkout at 17:40 is EARLY_LEAVE by 15 minutes (20 elapsed - 5 grace)', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T09:40:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.earlyLeaveMinutes).toBe(15);
+  });
+
+  // --- LATE_AND_EARLY ---
+
+  it('7. late check-in (09:20) and early checkout (17:40) together produce LATE_AND_EARLY with both values preserved', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: '2026-08-11T09:40:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('LATE_AND_EARLY');
+    expect(r.lateMinutes).toBe(15);
+    expect(r.earlyLeaveMinutes).toBe(15);
+  });
+
+  // --- Seconds / rounding boundary (floor policy) ---
+
+  it('8. check-in at 09:05:59 floors to 5 elapsed minutes, within grace — PRESENT, not 6 minutes late', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:05:59.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('PRESENT');
+    expect(r.lateMinutes).toBe(0);
+  });
+
+  it('9. check-in at 09:06:00 exactly floors to 6 elapsed minutes — LATE by 1', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:06:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.lateMinutes).toBe(1);
+  });
+
+  // --- INCOMPLETE / TIMEOUT ---
+
+  it('10. checkoutSource=TIMEOUT is always INCOMPLETE, even with a late check-in', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'TIMEOUT',
+    });
+    expect(r.status).toBe('INCOMPLETE');
+    expect(r.lateMinutes).toBe(15); // lateness is still known and preserved
+    expect(r.earlyLeaveMinutes).toBe(0); // never computed — no trustworthy checkout exists
+  });
+
+  it('10b. checkoutSource=SYSTEM is treated the same as TIMEOUT — not a trustworthy logout', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'SYSTEM',
+    });
+    expect(r.status).toBe('INCOMPLETE');
+  });
+
+  it('11. TIMEOUT takes priority over Rest Day — INCOMPLETE, not WORKED_ON_REST_DAY (data completeness wins)', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: true, checkoutSource: 'TIMEOUT',
+    });
+    expect(r.status).toBe('INCOMPLETE');
+  });
+
+  it('12. a still-open session (checkoutSource=null, no checkout yet) is NOT Incomplete — only late is evaluated', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: null,
+    });
+    expect(r.status).toBe('PRESENT');
+  });
+
+  it('12b. a still-open session with a late check-in is LATE, not Incomplete', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: null,
+    });
+    expect(r.status).toBe('LATE');
+    expect(r.earlyLeaveMinutes).toBe(0);
+  });
+
+  // --- Rest Day ---
+
+  it('13. Rest Day with on-time attendance is WORKED_ON_REST_DAY, not PRESENT', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: true, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('WORKED_ON_REST_DAY');
+  });
+
+  it('14. Rest Day preserves late/early minute detail even though the status label is WORKED_ON_REST_DAY', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: '2026-08-11T09:40:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: true, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('WORKED_ON_REST_DAY');
+    expect(r.lateMinutes).toBe(15);
+    expect(r.earlyLeaveMinutes).toBe(15);
+  });
+
+  // --- Overnight (reuses Task 3's verified OVERNIGHT_SCHEDULE fixture, no re-derivation of +1 day here) ---
+
+  it('15. overnight shift — late check-in (18:10) with on-time checkout (03:00) is LATE', () => {
+    const r = resolveAttendanceStatus({
+      ...OVERNIGHT_SCHEDULE, actualCheckIn: '2026-08-11T10:10:00.000Z', actualCheckout: '2026-08-11T19:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('LATE');
+    expect(r.lateMinutes).toBe(5);
+    expect(r.earlyLeaveMinutes).toBe(0);
+  });
+
+  it('16. overnight shift — on-time check-in (18:00) with early checkout (02:50) is EARLY_LEAVE', () => {
+    const r = resolveAttendanceStatus({
+      ...OVERNIGHT_SCHEDULE, actualCheckIn: '2026-08-11T10:00:00.000Z', actualCheckout: '2026-08-11T18:50:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('EARLY_LEAVE');
+    expect(r.earlyLeaveMinutes).toBe(5);
+    expect(r.lateMinutes).toBe(0);
+  });
+
+  it('17. overnight shift — late check-in (18:10) AND early checkout (02:50) is LATE_AND_EARLY', () => {
+    const r = resolveAttendanceStatus({
+      ...OVERNIGHT_SCHEDULE, actualCheckIn: '2026-08-11T10:10:00.000Z', actualCheckout: '2026-08-11T18:50:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('LATE_AND_EARLY');
+    expect(r.lateMinutes).toBe(5);
+    expect(r.earlyLeaveMinutes).toBe(5);
+  });
+
+  // --- Grace period edge cases ---
+
+  it('18. zero grace period — even 1 minute late counts as LATE', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:01:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: 0, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('LATE');
+    expect(r.lateMinutes).toBe(1);
+  });
+
+  it('19. a large grace period (60 minutes) absorbs what would otherwise be a late check-in', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:30:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: 60, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('PRESENT');
+    expect(r.lateMinutes).toBe(0);
+  });
+
+  it('20. negative gracePeriodMinutes throws explicitly rather than being silently clamped to zero', () => {
+    expect(() => resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: -1, isRestDay: false, checkoutSource: 'LOGOUT',
+    })).toThrow(/gracePeriodMinutes/);
+  });
+
+  // --- Invalid input ---
+
+  it('21. invalid actualCheckIn timestamp throws explicitly', () => {
+    expect(() => resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: 'not-a-timestamp', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    })).toThrow(/invalid actualCheckIn/i);
+  });
+
+  it('22. invalid actualCheckout timestamp throws explicitly', () => {
+    expect(() => resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: 'garbage',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    })).toThrow(/invalid actualCheckout/i);
+  });
+
+  it('23. checkoutSource=LOGOUT with a null actualCheckout is a contract violation — throws explicitly', () => {
+    expect(() => resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    })).toThrow(/LOGOUT.*actualCheckout|actualCheckout.*LOGOUT/i);
+  });
+
+  it('24. no effective schedule (scheduledStartAt/EndAt both null) is always PRESENT with zero late/early', () => {
+    const r = resolveAttendanceStatus({
+      scheduledStartAt: null, scheduledEndAt: null,
+      actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r).toEqual({ status: 'PRESENT', lateMinutes: 0, earlyLeaveMinutes: 0 });
+  });
+
+  // --- Invariants ---
+
+  it('invariant: lateMinutes and earlyLeaveMinutes are never negative, across every branch above', () => {
+    const cases = [
+      { actualCheckIn: '2026-08-11T00:00:00.000Z', actualCheckout: '2026-08-11T11:00:00.000Z', checkoutSource: 'LOGOUT' as const }, // early check-in, late checkout
+      { actualCheckIn: '2026-08-11T01:20:00.000Z', actualCheckout: '2026-08-11T10:20:00.000Z', checkoutSource: 'LOGOUT' as const },
+    ];
+    for (const c of cases) {
+      const r = resolveAttendanceStatus({ ...NORMAL_SCHEDULE, ...c, gracePeriodMinutes: GRACE_5, isRestDay: false });
+      expect(r.lateMinutes).toBeGreaterThanOrEqual(0);
+      expect(r.earlyLeaveMinutes).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('invariant: PRESENT implies both minute values are exactly zero', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: '2026-08-11T10:00:00.000Z',
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'LOGOUT',
+    });
+    expect(r.status).toBe('PRESENT');
+    expect(r.lateMinutes).toBe(0);
+    expect(r.earlyLeaveMinutes).toBe(0);
+  });
+
+  it('invariant: INCOMPLETE never produces a positive earlyLeaveMinutes', () => {
+    const r = resolveAttendanceStatus({
+      ...NORMAL_SCHEDULE, actualCheckIn: '2026-08-11T01:00:00.000Z', actualCheckout: null,
+      gracePeriodMinutes: GRACE_5, isRestDay: false, checkoutSource: 'TIMEOUT',
+    });
+    expect(r.status).toBe('INCOMPLETE');
+    expect(r.earlyLeaveMinutes).toBe(0);
   });
 });

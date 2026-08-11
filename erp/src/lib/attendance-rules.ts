@@ -155,3 +155,104 @@ export function resolveScheduledWindow(input: ResolveScheduledWindowInput): Reso
 
   return { scheduledStartAt, scheduledEndAt, isOvernight };
 }
+
+export type PersistedAttendanceStatus =
+  | 'PRESENT' | 'LATE' | 'EARLY_LEAVE' | 'LATE_AND_EARLY' | 'INCOMPLETE' | 'WORKED_ON_REST_DAY';
+export type ReportedAttendanceStatus = PersistedAttendanceStatus | 'ABSENT' | 'REST_DAY';
+
+export interface ResolveAttendanceStatusInput {
+  /** Output of resolveScheduledWindow(), or null if the staff member has no effective schedule that day. */
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+  /** The reduced (first) check-in instant for the day — caller merges multiple sessions before calling this. */
+  actualCheckIn: string;
+  /** The reduced (last CLOSED session's) checkout instant, or null if there is none yet / it was never a clean logout. */
+  actualCheckout: string | null;
+  gracePeriodMinutes: number;
+  isRestDay: boolean;
+  /**
+   * LOGOUT = a real, trustworthy checkout — evaluate Early Leave normally.
+   * TIMEOUT / SYSTEM = no trustworthy checkout was ever recorded — forces INCOMPLETE.
+   * null = the day's last session is still open (no checkout attempt at all yet) — not Incomplete,
+   *        just evaluate lateness from the check-in; there is nothing to compare for Early Leave.
+   */
+  checkoutSource: 'LOGOUT' | 'TIMEOUT' | 'SYSTEM' | null;
+}
+
+export interface ResolveAttendanceStatusResult {
+  status: PersistedAttendanceStatus;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
+}
+
+/** Floors to whole minutes — 5:59 elapsed must never round up to "6 minutes late". */
+function minutesBetweenFloor(fromIso: string, toIso: string): number {
+  return Math.floor((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 60_000);
+}
+
+function assertValidInstant(value: string, label: string): void {
+  if (isNaN(new Date(value).getTime())) {
+    throw new Error(`resolveAttendanceStatus: invalid ${label}: ${value}`);
+  }
+}
+
+/**
+ * Single entry point for Attendance status/late/early-leave classification
+ * — spec §13/§14/§16. Pure function: operates only on an already-reduced
+ * single check-in/checkout pair (multi-session reduction — first login,
+ * last closed logout, any-TIMEOUT flag — is the caller's/repository's
+ * job, not this function's; see spec §12). Grace period is symmetric and
+ * subtracted from the final minute count, floored to whole minutes.
+ *
+ * Status priority (fixed, tested, not an incidental if/else order):
+ *   1. INCOMPLETE          — checkoutSource TIMEOUT/SYSTEM, unconditionally
+ *   2. WORKED_ON_REST_DAY  — isRestDay, overrides the ordinary label below
+ *   3. LATE_AND_EARLY
+ *   4. LATE
+ *   5. EARLY_LEAVE
+ *   6. PRESENT
+ */
+export function resolveAttendanceStatus(input: ResolveAttendanceStatusInput): ResolveAttendanceStatusResult {
+  const { scheduledStartAt, scheduledEndAt, actualCheckIn, actualCheckout, gracePeriodMinutes, isRestDay, checkoutSource } = input;
+
+  if (!Number.isFinite(gracePeriodMinutes) || gracePeriodMinutes < 0) {
+    throw new Error(`resolveAttendanceStatus: invalid gracePeriodMinutes: ${gracePeriodMinutes} (must be a finite number >= 0)`);
+  }
+  assertValidInstant(actualCheckIn, 'actualCheckIn');
+  if (scheduledStartAt !== null) assertValidInstant(scheduledStartAt, 'scheduledStartAt');
+  if (scheduledEndAt !== null) assertValidInstant(scheduledEndAt, 'scheduledEndAt');
+  if (checkoutSource === 'LOGOUT' && actualCheckout === null) {
+    throw new Error('resolveAttendanceStatus: checkoutSource is LOGOUT but actualCheckout is null');
+  }
+  if (actualCheckout !== null) assertValidInstant(actualCheckout, 'actualCheckout');
+
+  const lateMinutes = scheduledStartAt
+    ? Math.max(0, minutesBetweenFloor(scheduledStartAt, actualCheckIn) - gracePeriodMinutes)
+    : 0;
+
+  // Priority 1: an unreliable/missing checkout always wins, regardless of lateness or rest day.
+  if (checkoutSource === 'TIMEOUT' || checkoutSource === 'SYSTEM') {
+    return { status: 'INCOMPLETE', lateMinutes, earlyLeaveMinutes: 0 };
+  }
+
+  const earlyLeaveMinutes =
+    scheduledEndAt && checkoutSource === 'LOGOUT' && actualCheckout
+      ? Math.max(0, minutesBetweenFloor(actualCheckout, scheduledEndAt) - gracePeriodMinutes)
+      : 0;
+
+  // Priority 2: Rest Day overrides the ordinary PRESENT/LATE/EARLY_LEAVE/LATE_AND_EARLY label,
+  // but the underlying minute detail is still preserved.
+  if (isRestDay) {
+    return { status: 'WORKED_ON_REST_DAY', lateMinutes, earlyLeaveMinutes };
+  }
+
+  const isLate = lateMinutes > 0;
+  const isEarly = earlyLeaveMinutes > 0;
+  let status: PersistedAttendanceStatus;
+  if (isLate && isEarly) status = 'LATE_AND_EARLY';
+  else if (isLate) status = 'LATE';
+  else if (isEarly) status = 'EARLY_LEAVE';
+  else status = 'PRESENT';
+
+  return { status, lateMinutes, earlyLeaveMinutes };
+}
