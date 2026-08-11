@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
 
 import pool from '@/lib/db';
-import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity, getOpenSessionId } from '@/lib/repositories/staff_attendance_repo';
+import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity, getOpenSessionId, listAttendance, getAttendanceDetail } from '@/lib/repositories/staff_attendance_repo';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -365,5 +365,148 @@ describe('Login Lifecycle composition (Task 8)', () => {
       (c) => /INSERT INTO staff_attendance\b/.test((c as unknown as [string, unknown[]])[0])
     );
     expect(insertAttendanceCalls).toHaveLength(1); // only Login 1 created the daily row
+  });
+});
+
+// --- Task 14: Attendance read API repository functions ---
+
+const LIST_ROW = {
+  id: 1, staff_id: 5, display_name: 'CS One', erp_username: 'cs1', department: 'Support', role: 'CS',
+  attendance_date: '2026-08-10', login_time: '2026-08-10T01:00:00.000Z', logout_time: '2026-08-10T10:00:00.000Z',
+  working_minutes: 540, late_minutes: 0, early_leave_minutes: 0, attendance_status: 'PRESENT', checkout_source: 'LOGOUT',
+  scheduled_start_at: null, scheduled_end_at: null, schedule_source_type: null, schedule_source_id: null,
+  late_grace_minutes: null, is_rest_day: false,
+};
+
+describe('listAttendance (Task 14)', () => {
+  it('returns rows and total from a Promise.all data+count query pair', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [LIST_ROW] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 1 }] } as never);
+
+    const result = await listAttendance({
+      dateFrom: null, dateTo: null, staffId: null, department: null, status: null,
+      viewerRole: 'SUPER_ADMIN', limit: 20, offset: 0,
+    });
+
+    expect(result).toEqual({ rows: [LIST_ROW], total: 1 });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('a normal Admin viewer excludes SUPER_ADMIN rows via the WHERE clause (same pattern as Live Monitor)', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] } as never);
+
+    await listAttendance({ dateFrom: null, dateTo: null, staffId: null, department: null, status: null, viewerRole: 'CS', limit: 20, offset: 0 });
+
+    const [dataSql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    const [countSql] = vi.mocked(pool.query).mock.calls[1] as unknown as [string, unknown[]];
+    expect(dataSql).toMatch(/a\.role\s*<>\s*'SUPER_ADMIN'/);
+    expect(countSql).toMatch(/a\.role\s*<>\s*'SUPER_ADMIN'/);
+  });
+
+  it('a SUPER_ADMIN viewer\'s query has no role exclusion clause at all', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] } as never);
+
+    await listAttendance({ dateFrom: null, dateTo: null, staffId: null, department: null, status: null, viewerRole: 'SUPER_ADMIN', limit: 20, offset: 0 });
+
+    const [dataSql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(dataSql).not.toMatch(/SUPER_ADMIN/);
+  });
+
+  it('applies dateFrom/dateTo/staffId/department/status filters as parameterized clauses', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] } as never);
+
+    await listAttendance({
+      dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: 5, department: 'Support', status: 'LATE',
+      viewerRole: 'SUPER_ADMIN', limit: 20, offset: 0,
+    });
+
+    const [dataSql, dataParams] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(dataSql).toMatch(/attendance_date\s*>=\s*\$1/);
+    expect(dataSql).toMatch(/attendance_date\s*<=\s*\$2/);
+    expect(dataSql).toMatch(/staff_id\s*=\s*\$3/);
+    expect(dataSql).toMatch(/department\s*=\s*\$4/);
+    expect(dataSql).toMatch(/attendance_status\s*=\s*\$5/);
+    expect(dataParams).toEqual(['2026-08-01', '2026-08-31', 5, 'Support', 'LATE', 20, 0]);
+  });
+
+  it('applies limit/offset as the final parameterized values', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] } as never);
+
+    await listAttendance({ dateFrom: null, dateTo: null, staffId: null, department: null, status: null, viewerRole: 'SUPER_ADMIN', limit: 20, offset: 40 });
+
+    const [dataSql, dataParams] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(dataSql).toMatch(/LIMIT \$1 OFFSET \$2/);
+    expect(dataParams).toEqual([20, 40]);
+  });
+
+  it('no filters at all produces no WHERE clause beyond nothing (SUPER_ADMIN viewer, no date restriction invented)', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] } as never);
+
+    await listAttendance({ dateFrom: null, dateTo: null, staffId: null, department: null, status: null, viewerRole: 'SUPER_ADMIN', limit: 20, offset: 0 });
+
+    const [dataSql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(dataSql).not.toMatch(/WHERE[\s\S]*AND/); // no leftover AND with nothing before it
+  });
+});
+
+describe('getAttendanceDetail (Task 14)', () => {
+  it('returns null immediately when the row does not exist — no finalize, no sessions query', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    const result = await getAttendanceDetail(999, 'SUPER_ADMIN');
+    expect(result).toBeNull();
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null when the row exists but belongs to a SUPER_ADMIN and the viewer is not SUPER_ADMIN (same visibility rule as the list)', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never); // role-filtered fetch finds nothing
+    const result = await getAttendanceDetail(1, 'CS');
+    expect(result).toBeNull();
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/a\.role\s*<>\s*'SUPER_ADMIN'/);
+  });
+
+  it('calls finalizeStaleOpenSessions with the row\'s staff_id, then re-fetches, then fetches sessions, then returns the fresh row with sessions[]', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [LIST_ROW] } as never) // 1. initial fetch
+      .mockResolvedValueOnce({ rows: [] } as never)          // 2. finalizeStaleOpenSessions' own lookup -> no open session
+      .mockResolvedValueOnce({ rows: [{ ...LIST_ROW, attendance_status: 'INCOMPLETE' }] } as never) // 3. re-fetch (fresh state)
+      .mockResolvedValueOnce({ rows: [{ id: 10, login_at: '2026-08-10T01:00:00.000Z', logout_at: '2026-08-10T10:00:00.000Z', last_activity_at: '2026-08-10T10:00:00.000Z', checkout_source: 'LOGOUT', working_minutes: 540, ip_address: '1.2.3.4', browser: 'Chrome', device: 'Desktop', operating_system: 'macOS' }] } as never); // 4. sessions
+
+    const result = await getAttendanceDetail(1, 'SUPER_ADMIN');
+
+    expect(pool.query).toHaveBeenCalledTimes(4);
+    const [finalizeSql, finalizeParams] = vi.mocked(pool.query).mock.calls[1] as unknown as [string, unknown[]];
+    expect(finalizeSql).toContain('staff_attendance_sessions');
+    expect(finalizeParams).toEqual([5]); // LIST_ROW.staff_id
+    expect(result?.attendance_status).toBe('INCOMPLETE'); // reflects the post-finalize re-fetch, not the stale initial fetch
+    expect(result?.sessions).toHaveLength(1);
+    expect(result?.sessions[0].id).toBe(10);
+  });
+
+  it('the sessions query is scoped to attendance_id and ordered by login_at', async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [LIST_ROW] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({ rows: [LIST_ROW] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never);
+
+    await getAttendanceDetail(1, 'SUPER_ADMIN');
+
+    const [sessionsSql, sessionsParams] = vi.mocked(pool.query).mock.calls[3] as unknown as [string, unknown[]];
+    expect(sessionsSql).toContain('FROM staff_attendance_sessions');
+    expect(sessionsSql).toMatch(/WHERE attendance_id = \$1/);
+    expect(sessionsSql).toMatch(/ORDER BY login_at/);
+    expect(sessionsParams).toEqual([1]);
   });
 });

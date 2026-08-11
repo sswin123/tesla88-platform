@@ -217,3 +217,148 @@ async function recalculateAttendance(attendanceId: number): Promise<void> {
      result.earlyLeaveMinutes, result.status, lastSession.checkout_source]
   );
 }
+
+/**
+ * Attendance read API (Task 14). Read-only — never calls getEffectiveSchedule()
+ * or recalculates anything; every returned field is read verbatim from the
+ * persisted staff_attendance/staff_attendance_sessions rows (Historical
+ * Snapshot principle, spec §18). Only the 6 persisted attendance_status
+ * values can ever appear here — ABSENT/REST_DAY are Reporting-layer-derived
+ * (Task 15), never materialized as rows, so they are structurally
+ * unreachable through these queries, not filtered out by extra code.
+ *
+ * SUPER_ADMIN visibility (confirmed by decision, not spec-implied): mirrors
+ * Live Monitor's rule exactly — `viewerRole = 'SUPER_ADMIN'` sees every
+ * staff member's attendance including other SUPER_ADMIN accounts; any other
+ * viewer role never sees a SUPER_ADMIN's attendance rows, regardless of
+ * their own staff.attendance.view permission (which only gates whether they
+ * may call these functions at all, decided upstream by
+ * requirePermissionStrict — this is a visibility filter, not a permission).
+ */
+
+export interface AttendanceListRow {
+  id: number;
+  staff_id: number;
+  display_name: string | null;
+  erp_username: string;
+  department: string | null;
+  role: string;
+  attendance_date: string;
+  login_time: string | null;
+  logout_time: string | null;
+  working_minutes: number;
+  late_minutes: number;
+  early_leave_minutes: number;
+  attendance_status: string;
+  checkout_source: string | null;
+  scheduled_start_at: string | null;
+  scheduled_end_at: string | null;
+  schedule_source_type: string | null;
+  schedule_source_id: number | null;
+  late_grace_minutes: number | null;
+  is_rest_day: boolean;
+}
+
+export interface ListAttendanceFilters {
+  dateFrom: string | null;
+  dateTo: string | null;
+  staffId: number | null;
+  department: string | null;
+  status: string | null;
+  viewerRole: string;
+  limit: number;
+  offset: number;
+}
+
+const ATTENDANCE_COLUMNS = `
+  sa.id, sa.staff_id, a.display_name, a.erp_username, a.department, a.role,
+  sa.attendance_date::text, sa.login_time::text, sa.logout_time::text,
+  sa.working_minutes, sa.late_minutes, sa.early_leave_minutes, sa.attendance_status, sa.checkout_source,
+  sa.scheduled_start_at::text, sa.scheduled_end_at::text, sa.schedule_source_type, sa.schedule_source_id,
+  sa.late_grace_minutes, sa.is_rest_day
+`;
+
+export async function listAttendance(filters: ListAttendanceFilters): Promise<{ rows: AttendanceListRow[]; total: number }> {
+  const clauses: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  if (filters.viewerRole !== 'SUPER_ADMIN') {
+    clauses.push(`a.role <> 'SUPER_ADMIN'`);
+  }
+  if (filters.dateFrom) { clauses.push(`sa.attendance_date >= $${i++}`); values.push(filters.dateFrom); }
+  if (filters.dateTo)   { clauses.push(`sa.attendance_date <= $${i++}`); values.push(filters.dateTo); }
+  if (filters.staffId)  { clauses.push(`sa.staff_id = $${i++}`); values.push(filters.staffId); }
+  if (filters.department) { clauses.push(`a.department = $${i++}`); values.push(filters.department); }
+  if (filters.status)   { clauses.push(`sa.attendance_status = $${i++}`); values.push(filters.status); }
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const fromJoin = `FROM staff_attendance sa JOIN admins a ON a.id = sa.staff_id ${where}`;
+
+  const limitIdx = i++;
+  const offsetIdx = i++;
+  const dataValues = [...values, filters.limit, filters.offset];
+
+  const [dataResult, countResult] = await Promise.all([
+    pool.query<AttendanceListRow>(
+      `SELECT ${ATTENDANCE_COLUMNS} ${fromJoin} ORDER BY sa.attendance_date DESC, a.display_name LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      dataValues
+    ),
+    pool.query<{ count: number }>(`SELECT COUNT(*)::int AS count ${fromJoin}`, values),
+  ]);
+
+  return { rows: dataResult.rows, total: countResult.rows[0].count };
+}
+
+export interface AttendanceSessionRow {
+  id: number;
+  login_at: string;
+  logout_at: string | null;
+  last_activity_at: string;
+  checkout_source: string | null;
+  working_minutes: number;
+  ip_address: string | null;
+  browser: string | null;
+  device: string | null;
+  operating_system: string | null;
+}
+
+async function fetchAttendanceRow(id: number, viewerRole: string): Promise<AttendanceListRow | null> {
+  const clauses = ['sa.id = $1'];
+  if (viewerRole !== 'SUPER_ADMIN') clauses.push(`a.role <> 'SUPER_ADMIN'`);
+  const result = await pool.query<AttendanceListRow>(
+    `SELECT ${ATTENDANCE_COLUMNS} FROM staff_attendance sa JOIN admins a ON a.id = sa.staff_id WHERE ${clauses.join(' AND ')}`,
+    [id]
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Detail read (spec §24 "含 sessions 明细"). Performs lazy TIMEOUT
+ * finalization (spec §11 trigger b: "该员工的 Attendance 被查询/打开详情时")
+ * before returning — this is why the row is fetched twice: once to learn
+ * staff_id (and to apply the same visibility/404 check the list uses), then
+ * finalizeStaleOpenSessions() runs (a fast single-query no-op in the
+ * common case where nothing is stale), then the row is re-fetched so the
+ * response reflects any status/session change finalization just made —
+ * returning the pre-finalize snapshot would make the finalize call pointless.
+ */
+export async function getAttendanceDetail(
+  id: number, viewerRole: string
+): Promise<(AttendanceListRow & { sessions: AttendanceSessionRow[] }) | null> {
+  const row = await fetchAttendanceRow(id, viewerRole);
+  if (!row) return null;
+
+  await finalizeStaleOpenSessions(row.staff_id);
+
+  const freshRow = (await fetchAttendanceRow(id, viewerRole)) ?? row;
+
+  const sessionsResult = await pool.query<AttendanceSessionRow>(
+    `SELECT id, login_at::text, logout_at::text, last_activity_at::text, checkout_source, working_minutes,
+            ip_address, browser, device, operating_system
+       FROM staff_attendance_sessions WHERE attendance_id = $1 ORDER BY login_at`,
+    [id]
+  );
+
+  return { ...freshRow, sessions: sessionsResult.rows };
+}
