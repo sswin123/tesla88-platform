@@ -93,26 +93,51 @@ export async function setOffline(staffId: number): Promise<void> {
   );
 }
 
-export async function getMonitorSnapshot(): Promise<StaffMonitorRow[]> {
+/**
+ * SUPER_ADMIN visibility rule: a SUPER_ADMIN viewer sees everyone
+ * (including other SUPER_ADMIN accounts and itself); any other viewer role
+ * never sees SUPER_ADMIN rows, regardless of their own Live Monitor
+ * permission. This is a visibility filter, not a new permission — whether
+ * you may call these functions at all is decided entirely upstream by
+ * requirePermissionStrict('staff.livemonitor.view'); this only decides
+ * which rows you get back once you're already allowed in.
+ * `viewerRole = 'SUPER_ADMIN'` short-circuits the OR, so the role
+ * predicate never runs for a SUPER_ADMIN viewer — no exclusion, by
+ * construction, not a separate code path.
+ */
+export async function getMonitorSnapshot(viewerRole: string): Promise<StaffMonitorRow[]> {
   const r = await pool.query(
     `SELECT ${MONITOR_COLS}
        FROM admins a
        LEFT JOIN staff_online_status s ON s.staff_id = a.id
       WHERE COALESCE(a.is_active, true) = true
-      ORDER BY a.display_name NULLS LAST, a.erp_username`
+        AND ($1 = 'SUPER_ADMIN' OR a.role <> 'SUPER_ADMIN')
+      ORDER BY a.display_name NULLS LAST, a.erp_username`,
+    [viewerRole]
   );
   return r.rows;
 }
 
-export async function getStaffMonitorRow(staffId: number): Promise<StaffMonitorRow | null> {
+export async function getStaffMonitorRow(staffId: number, viewerRole: string): Promise<StaffMonitorRow | null> {
   const r = await pool.query(
     `SELECT ${MONITOR_COLS}
        FROM admins a
        LEFT JOIN staff_online_status s ON s.staff_id = a.id
-      WHERE a.id = $1`,
-    [staffId]
+      WHERE a.id = $1
+        AND ($2 = 'SUPER_ADMIN' OR a.role <> 'SUPER_ADMIN')`,
+    [staffId, viewerRole]
   );
   return r.rows[0] ?? null;
+}
+
+/** Used by the Live Monitor SSE stream to decide, per event, whether the
+ *  target staff member is a SUPER_ADMIN — the NOTIFY payload (migration 083)
+ *  does not carry role, and adding it would require touching that trigger,
+ *  which is out of scope here. A single indexed primary-key lookup per event
+ *  is negligible at Live Monitor's update frequency. */
+export async function getStaffRole(staffId: number): Promise<string | null> {
+  const r = await pool.query<{ role: string }>(`SELECT role FROM admins WHERE id = $1`, [staffId]);
+  return r.rows[0]?.role ?? null;
 }
 
 export async function logActivity(

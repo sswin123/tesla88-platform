@@ -15,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'invalid id' }, { status: 400 });
   }
 
-  const row = await getStaffMonitorRow(staffId);
+  const row = await getStaffMonitorRow(staffId, auth.payload.role);
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const recentActivity = await getRecentActivity(staffId, 20);

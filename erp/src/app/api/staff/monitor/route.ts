@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
   }
 
-  const rows = await getMonitorSnapshot();
+  const rows = await getMonitorSnapshot(auth.payload.role);
   const staff = rows.map((r) => ({
     ...r,
     display_status: resolveDisplayStatus({ storedStatus: r.status, lastActivity: r.last_activity }),

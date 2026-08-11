@@ -43,6 +43,20 @@ describe('GET /api/staff/monitor', () => {
     const data = await res.json() as { staff: { display_status: string }[] };
     expect(data.staff[0].display_status).toBe('ONLINE');
   });
+
+  it('Test 4 (SUPER_ADMIN visibility): passes the caller\'s role through to getMonitorSnapshot() — this is what makes SUPER_ADMIN visible to a SUPER_ADMIN viewer', async () => {
+    vi.mocked(requirePermissionStrict).mockResolvedValue({ ok: true, payload: { sub: 9, username: 'root', role: 'SUPER_ADMIN', iat: 0, exp: 0 } });
+    vi.mocked(getMonitorSnapshot).mockResolvedValue([ROW] as never);
+    await GET_LIST();
+    expect(getMonitorSnapshot).toHaveBeenCalledWith('SUPER_ADMIN');
+  });
+
+  it('Test 3 (SUPER_ADMIN visibility): a normal Admin\'s role is passed through unchanged — the exclusion itself lives in the repository, not the route', async () => {
+    vi.mocked(requirePermissionStrict).mockResolvedValue({ ok: true, payload: { sub: 3, username: 'cs1', role: 'CS', iat: 0, exp: 0 } });
+    vi.mocked(getMonitorSnapshot).mockResolvedValue([ROW] as never);
+    await GET_LIST();
+    expect(getMonitorSnapshot).toHaveBeenCalledWith('CS');
+  });
 });
 
 function makeIdReq(id: string) {
@@ -78,5 +92,19 @@ describe('GET /api/staff/monitor/[id]', () => {
     const data = await res.json() as { display_status: string; recent_activity: unknown[] };
     expect(data.display_status).toBe('ONLINE');
     expect(data.recent_activity).toHaveLength(1);
+  });
+
+  it('SUPER_ADMIN visibility: passes the caller\'s role through to getStaffMonitorRow()', async () => {
+    vi.mocked(requirePermissionStrict).mockResolvedValue({ ok: true, payload: { sub: 3, username: 'cs1', role: 'CS', iat: 0, exp: 0 } });
+    vi.mocked(getStaffMonitorRow).mockResolvedValue(null);
+    await GET_ONE(new Request('http://localhost') as never, makeIdReq('1') as never);
+    expect(getStaffMonitorRow).toHaveBeenCalledWith(1, 'CS');
+  });
+
+  it('a normal Admin directly requesting a SUPER_ADMIN\'s id gets 404 — the repository\'s WHERE clause excludes the row entirely, no separate role check needed here', async () => {
+    vi.mocked(requirePermissionStrict).mockResolvedValue({ ok: true, payload: { sub: 3, username: 'cs1', role: 'CS', iat: 0, exp: 0 } });
+    vi.mocked(getStaffMonitorRow).mockResolvedValue(null); // repository already filtered it out
+    const res = await GET_ONE(new Request('http://localhost') as never, makeIdReq('9') as never);
+    expect(res.status).toBe(404);
   });
 });
