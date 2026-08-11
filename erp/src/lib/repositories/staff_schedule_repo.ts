@@ -202,3 +202,175 @@ export async function deactivateTemplate(id: number): Promise<ScheduleTemplateRo
   );
   return result.rows[0] ?? null;
 }
+
+/**
+ * Assignments (spec §6, migration 094 staff_schedule_assignments). Task 11
+ * ONLY — no Overrides (Task 12) or getEffectiveSchedule() (Task 13) here.
+ */
+
+export class ScheduleOverlapError extends Error {
+  constructor(message = 'This staff member already has a schedule assignment covering part of this date range.') {
+    super(message);
+    this.name = 'ScheduleOverlapError';
+  }
+}
+
+export interface ScheduleAssignmentRow {
+  id: number;
+  staff_id: number;
+  template_id: number;
+  effective_from: string;
+  effective_to: string | null; // NULL = open-ended (spec §6)
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface CreateAssignmentInput {
+  staffId: number;
+  templateId: number;
+  effectiveFrom: string; // YYYY-MM-DD
+  effectiveTo: string | null;
+  createdBy: number | null;
+}
+
+export interface UpdateAssignmentInput {
+  templateId?: number;
+  effectiveFrom?: string;
+  /** Explicit `null` clears to open-ended; `undefined` (omitted) leaves it unchanged. */
+  effectiveTo?: string | null;
+}
+
+const ASSIGNMENT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidCalendarDate(dateStr: string): boolean {
+  if (!ASSIGNMENT_DATE_RE.test(dateStr)) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/**
+ * effectiveFrom === effectiveTo (a single-day assignment) is valid — verified
+ * live against Postgres 14.23: daterange(d, d, '[]') normalizes to [d, d+1),
+ * not an empty range. Only effectiveFrom > effectiveTo is rejected; Postgres
+ * itself would reject a reversed pair too (SQLSTATE 22000, "range lower
+ * bound must be less than or equal to range upper bound" — verified live),
+ * but that is a generic data-exception, not the exclusion-constraint
+ * violation ScheduleOverlapError maps, so it is caught here first for a
+ * clean, specific message instead of surfacing the raw Postgres error.
+ */
+function validateEffectiveRange(effectiveFrom: string, effectiveTo: string | null): void {
+  if (!isValidCalendarDate(effectiveFrom)) {
+    throw new Error(`staff_schedule_repo: invalid effectiveFrom: ${effectiveFrom}`);
+  }
+  if (effectiveTo !== null) {
+    if (!isValidCalendarDate(effectiveTo)) {
+      throw new Error(`staff_schedule_repo: invalid effectiveTo: ${effectiveTo}`);
+    }
+    if (effectiveFrom > effectiveTo) {
+      throw new Error(
+        `staff_schedule_repo: effectiveFrom (${effectiveFrom}) must not be after effectiveTo (${effectiveTo})`
+      );
+    }
+  }
+}
+
+/**
+ * Live-verified against Postgres 14.23 (telegram-member-bot-postgres-1,
+ * migration 094 already applied): non-overlapping ranges succeed, adjacent
+ * ranges succeed ([2026-08-01,2026-09-01) then [2026-09-01,2026-10-01)),
+ * overlapping ranges for the SAME staff_id fail regardless of whether
+ * template_id differs (the EXCLUDE constraint is staff_id-scoped, not
+ * staff_id+template_id-scoped — confirmed with two different templates),
+ * different staff_id with the same/overlapping dates succeeds, and an
+ * UPDATE that would create an overlap is rejected the same way an INSERT
+ * is. All temp rows created for verification were rolled back (no residue).
+ */
+function isExclusionViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === '23P01';
+}
+
+const ASSIGNMENT_COLUMNS =
+  'id, staff_id, template_id, effective_from::text, effective_to::text, created_by, created_at::text';
+
+export async function createAssignment(input: CreateAssignmentInput): Promise<number> {
+  validateEffectiveRange(input.effectiveFrom, input.effectiveTo);
+  try {
+    const result = await pool.query<{ id: number }>(
+      `INSERT INTO staff_schedule_assignments (staff_id, template_id, effective_from, effective_to, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [input.staffId, input.templateId, input.effectiveFrom, input.effectiveTo, input.createdBy]
+    );
+    return result.rows[0].id;
+  } catch (err) {
+    if (isExclusionViolation(err)) throw new ScheduleOverlapError();
+    throw err;
+  }
+}
+
+export async function getAssignmentById(id: number): Promise<ScheduleAssignmentRow | null> {
+  const result = await pool.query<ScheduleAssignmentRow>(
+    `SELECT ${ASSIGNMENT_COLUMNS} FROM staff_schedule_assignments WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listAssignmentsForStaff(staffId: number): Promise<ScheduleAssignmentRow[]> {
+  const result = await pool.query<ScheduleAssignmentRow>(
+    `SELECT ${ASSIGNMENT_COLUMNS} FROM staff_schedule_assignments WHERE staff_id = $1 ORDER BY effective_from DESC`,
+    [staffId]
+  );
+  return result.rows;
+}
+
+/**
+ * Partial update. If either effectiveFrom or effectiveTo is patched, the
+ * current row is fetched first so the combined range can be revalidated
+ * (mirrors updateTemplate()'s handling of startTime/endTime). Returns null
+ * if the assignment does not exist. A resulting overlap surfaces
+ * ScheduleOverlapError, same as createAssignment().
+ */
+export async function updateAssignment(id: number, patch: UpdateAssignmentInput): Promise<ScheduleAssignmentRow | null> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  if (patch.templateId !== undefined) {
+    fields.push(`template_id = $${i++}`);
+    values.push(patch.templateId);
+  }
+
+  if (patch.effectiveFrom !== undefined || patch.effectiveTo !== undefined) {
+    let effectiveFrom = patch.effectiveFrom;
+    let effectiveTo = patch.effectiveTo;
+    // Only fetch the current row when one side of the range is omitted —
+    // if the caller supplied both, there is nothing to look up.
+    if (effectiveFrom === undefined || effectiveTo === undefined) {
+      const current = await getAssignmentById(id);
+      if (!current) return null;
+      if (effectiveFrom === undefined) effectiveFrom = current.effective_from;
+      if (effectiveTo === undefined) effectiveTo = current.effective_to;
+    }
+    validateEffectiveRange(effectiveFrom, effectiveTo);
+    fields.push(`effective_from = $${i++}`);
+    values.push(effectiveFrom);
+    fields.push(`effective_to = $${i++}`);
+    values.push(effectiveTo);
+  }
+
+  if (fields.length === 0) return getAssignmentById(id);
+
+  values.push(id);
+
+  try {
+    const result = await pool.query<ScheduleAssignmentRow>(
+      `UPDATE staff_schedule_assignments SET ${fields.join(', ')} WHERE id = $${i} RETURNING ${ASSIGNMENT_COLUMNS}`,
+      values
+    );
+    return result.rows[0] ?? null;
+  } catch (err) {
+    if (isExclusionViolation(err)) throw new ScheduleOverlapError();
+    throw err;
+  }
+}
