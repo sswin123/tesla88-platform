@@ -374,3 +374,199 @@ export async function updateAssignment(id: number, patch: UpdateAssignmentInput)
     throw err;
   }
 }
+
+/**
+ * Overrides (spec §7, migration 094 staff_schedule_overrides). Task 12
+ * ONLY — no getEffectiveSchedule() (Task 13), no Override > Assignment >
+ * No Schedule resolution.
+ *
+ * IMPORTANT: unlike Assignment, Override has NO template_id column and no
+ * FK to staff_schedule_templates — confirmed live against migration 094
+ * and spec §7 ("该天专用的 start_time/end_time/is_rest_day/
+ * late_grace_minutes"), both of which independently agree Override carries
+ * its own direct time fields rather than pointing at a Template. There is
+ * also no updated_at column on this table (unlike Template).
+ */
+
+export class ScheduleOverrideConflictError extends Error {
+  constructor(message = 'This staff member already has a schedule override for this date.') {
+    super(message);
+    this.name = 'ScheduleOverrideConflictError';
+  }
+}
+
+export interface ScheduleOverrideRow {
+  id: number;
+  staff_id: number;
+  override_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  is_rest_day: boolean;
+  late_grace_minutes: number | null;
+  reason: string | null;
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface CreateOverrideInput {
+  staffId: number;
+  overrideDate: string; // YYYY-MM-DD
+  isRestDay: boolean;
+  /** Required (non-null) when isRestDay is false; forced to NULL when isRestDay is true. */
+  startTime: string | null;
+  endTime: string | null;
+  lateGraceMinutes: number | null;
+  reason: string | null;
+  createdBy: number | null;
+}
+
+export interface UpdateOverrideInput {
+  overrideDate?: string;
+  isRestDay?: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
+  lateGraceMinutes?: number | null;
+  reason?: string | null;
+}
+
+/**
+ * Enforces the DB comment's invariant (start_time/end_time NULL when
+ * is_rest_day=true) — not DB-enforced by any CHECK constraint (confirmed
+ * live: only a plain UNIQUE(staff_id, override_date) exists), so the
+ * repository is the one place this is guaranteed. A Rest Day override
+ * silently clears any supplied times rather than rejecting them (more
+ * likely stale caller state than a real conflicting intent). A non-rest
+ * override requires both times — an override that is neither a rest day
+ * nor carries working hours would be a no-op row with no meaning.
+ */
+function validateOverrideTimes(
+  isRestDay: boolean, startTime: string | null, endTime: string | null
+): { startTime: string | null; endTime: string | null } {
+  if (isRestDay) return { startTime: null, endTime: null };
+
+  if (startTime === null || endTime === null) {
+    throw new Error('staff_schedule_repo: startTime and endTime are required when isRestDay is false');
+  }
+  validateTime(startTime, 'startTime');
+  validateTime(endTime, 'endTime');
+  assertStartEndNotEqual(startTime, endTime);
+  return { startTime, endTime };
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: unknown }).code === '23505';
+}
+
+const OVERRIDE_COLUMNS =
+  'id, staff_id, override_date::text, start_time::text, end_time::text, is_rest_day, ' +
+  'late_grace_minutes, reason, created_by, created_at::text';
+
+export async function createOverride(input: CreateOverrideInput): Promise<number> {
+  if (!isValidCalendarDate(input.overrideDate)) {
+    throw new Error(`staff_schedule_repo: invalid overrideDate: ${input.overrideDate}`);
+  }
+  if (input.lateGraceMinutes !== null) validateLateGraceMinutes(input.lateGraceMinutes);
+  const { startTime, endTime } = validateOverrideTimes(input.isRestDay, input.startTime, input.endTime);
+
+  try {
+    const result = await pool.query<{ id: number }>(
+      `INSERT INTO staff_schedule_overrides
+         (staff_id, override_date, start_time, end_time, is_rest_day, late_grace_minutes, reason, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
+      [input.staffId, input.overrideDate, startTime, endTime, input.isRestDay, input.lateGraceMinutes, input.reason, input.createdBy]
+    );
+    return result.rows[0].id;
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new ScheduleOverrideConflictError();
+    throw err;
+  }
+}
+
+export async function getOverrideById(id: number): Promise<ScheduleOverrideRow | null> {
+  const result = await pool.query<ScheduleOverrideRow>(
+    `SELECT ${OVERRIDE_COLUMNS} FROM staff_schedule_overrides WHERE id = $1`,
+    [id]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function getOverrideByStaffAndDate(staffId: number, overrideDate: string): Promise<ScheduleOverrideRow | null> {
+  const result = await pool.query<ScheduleOverrideRow>(
+    `SELECT ${OVERRIDE_COLUMNS} FROM staff_schedule_overrides WHERE staff_id = $1 AND override_date = $2`,
+    [staffId, overrideDate]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function listOverridesForStaff(staffId: number): Promise<ScheduleOverrideRow[]> {
+  const result = await pool.query<ScheduleOverrideRow>(
+    `SELECT ${OVERRIDE_COLUMNS} FROM staff_schedule_overrides WHERE staff_id = $1 ORDER BY override_date DESC`,
+    [staffId]
+  );
+  return result.rows;
+}
+
+/**
+ * Partial update. If any of isRestDay/startTime/endTime is patched, the
+ * current row is fetched first so the combined rest-day/time state can be
+ * revalidated (mirrors updateTemplate()/updateAssignment()). Returns null
+ * if the override does not exist. A resulting (staff_id, override_date)
+ * conflict surfaces ScheduleOverrideConflictError, same as createOverride().
+ */
+export async function updateOverride(id: number, patch: UpdateOverrideInput): Promise<ScheduleOverrideRow | null> {
+  if (patch.overrideDate !== undefined && !isValidCalendarDate(patch.overrideDate)) {
+    throw new Error(`staff_schedule_repo: invalid overrideDate: ${patch.overrideDate}`);
+  }
+  if (patch.lateGraceMinutes !== undefined && patch.lateGraceMinutes !== null) {
+    validateLateGraceMinutes(patch.lateGraceMinutes);
+  }
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  if (patch.overrideDate !== undefined) {
+    fields.push(`override_date = $${i++}`);
+    values.push(patch.overrideDate);
+  }
+
+  if (patch.isRestDay !== undefined || patch.startTime !== undefined || patch.endTime !== undefined) {
+    const current = await getOverrideById(id);
+    if (!current) return null;
+    const isRestDay = patch.isRestDay ?? current.is_rest_day;
+    const startTime = patch.startTime !== undefined ? patch.startTime : current.start_time;
+    const endTime = patch.endTime !== undefined ? patch.endTime : current.end_time;
+    const validated = validateOverrideTimes(isRestDay, startTime, endTime);
+    fields.push(`is_rest_day = $${i++}`);
+    values.push(isRestDay);
+    fields.push(`start_time = $${i++}`);
+    values.push(validated.startTime);
+    fields.push(`end_time = $${i++}`);
+    values.push(validated.endTime);
+  }
+
+  if (patch.lateGraceMinutes !== undefined) {
+    fields.push(`late_grace_minutes = $${i++}`);
+    values.push(patch.lateGraceMinutes);
+  }
+  if (patch.reason !== undefined) {
+    fields.push(`reason = $${i++}`);
+    values.push(patch.reason);
+  }
+
+  if (fields.length === 0) return getOverrideById(id);
+
+  values.push(id);
+
+  try {
+    const result = await pool.query<ScheduleOverrideRow>(
+      `UPDATE staff_schedule_overrides SET ${fields.join(', ')} WHERE id = $${i} RETURNING ${OVERRIDE_COLUMNS}`,
+      values
+    );
+    return result.rows[0] ?? null;
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new ScheduleOverrideConflictError();
+    throw err;
+  }
+}
