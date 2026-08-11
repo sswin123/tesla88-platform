@@ -4,6 +4,7 @@ import { verifyJWT, COOKIE_NAME } from '@/lib/auth';
 import { getClientIp } from '@/lib/rate-limit';
 import { isValidModule, isValidPage } from '@/lib/staff-module-map';
 import { getOnlineStatus, upsertOnlineStatus, logActivity } from '@/lib/repositories/staff_monitor_repo';
+import { touchOpenSessionActivity } from '@/lib/repositories/staff_attendance_repo';
 
 function parseUserAgent(ua: string): { browser: string; device: string; os: string } {
   const browser =
@@ -51,6 +52,13 @@ export async function POST(request: NextRequest) {
 
   if (!previous || previous.current_module !== module || previous.current_page !== page) {
     await logActivity(payload.sub, 'PAGE_VIEW', module, page);
+  }
+
+  try {
+    await touchOpenSessionActivity(payload.sub);
+  } catch {
+    // Best-effort — Attendance session freshness must never block the
+    // Live Monitor heartbeat response (Phase 1 behavior is unaffected).
   }
 
   return NextResponse.json({ ok: true, status: 'ONLINE' });

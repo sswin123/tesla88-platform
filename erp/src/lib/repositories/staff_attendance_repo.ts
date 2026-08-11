@@ -77,6 +77,35 @@ export async function closeSession(
   await recalculateAttendance(updated.rows[0].attendance_id);
 }
 
+/**
+ * Heartbeat extension point (spec §10, Task 7B). Keeps the OPEN session's
+ * last_activity_at fresh so shouldFinalizeSessionAsTimeout() (Task 5)
+ * never falsely flags an actively-heartbeating session as stale.
+ *
+ * Deliberately a single UPDATE, not a SELECT-then-UPDATE:
+ *   - `checkout_source IS NULL` in the WHERE clause means a LOGOUT/TIMEOUT/
+ *     SYSTEM-finalized session can never match, structurally — there is no
+ *     code path here that could reopen or mutate a closed session.
+ *   - No matching row (no open session for this staff) simply updates 0
+ *     rows — UPDATE can never create a new session or Attendance row, so
+ *     this function cannot be the origin of a phantom session.
+ *   - Uses the database server clock (NOW()) rather than a JS-computed
+ *     timestamp, matching Phase 1's own upsertOnlineStatus()/setOffline()
+ *     pattern in staff_monitor_repo.ts for this exact "mark as alive right
+ *     now" kind of write — no second timestamp-handling mechanism.
+ *   - Does not call resolveAttendanceStatus(), shouldFinalizeSessionAsTimeout(),
+ *     or recalculateAttendance() — TIMEOUT finalization and status
+ *     recalculation are explicitly out of scope for a heartbeat pulse.
+ */
+export async function touchOpenSessionActivity(staffId: number): Promise<void> {
+  await pool.query(
+    `UPDATE staff_attendance_sessions
+        SET last_activity_at = NOW()
+      WHERE staff_id = $1 AND checkout_source IS NULL`,
+    [staffId]
+  );
+}
+
 /** Lazy TIMEOUT finalization (spec §11/§23) — called on next Login and on Attendance detail read. */
 export async function finalizeStaleOpenSessions(staffId: number): Promise<void> {
   const open = await pool.query<{ id: number; attendance_id: number; last_activity_at: string }>(

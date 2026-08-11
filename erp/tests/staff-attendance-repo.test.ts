@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
 
 import pool from '@/lib/db';
-import { openSession, closeSession, finalizeStaleOpenSessions } from '@/lib/repositories/staff_attendance_repo';
+import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity } from '@/lib/repositories/staff_attendance_repo';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -179,5 +179,59 @@ describe('finalizeStaleOpenSessions', () => {
     } as never);
     await finalizeStaleOpenSessions(5);
     expect(pool.query).toHaveBeenCalledTimes(1); // only the lookup — no finalize UPDATE follows
+  });
+});
+
+describe('touchOpenSessionActivity', () => {
+  it('1. updates last_activity_at on the OPEN session for that staff member', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 1, rows: [] } as never);
+    await touchOpenSessionActivity(5);
+
+    const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain('UPDATE staff_attendance_sessions');
+    expect(sql).toContain('SET last_activity_at = NOW()');
+    expect(sql).toContain('checkout_source IS NULL');
+    expect(params).toEqual([5]);
+  });
+
+  it('2. is a single UPDATE — never runs a SELECT first, never runs an INSERT (cannot create a session)', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 0, rows: [] } as never);
+    await touchOpenSessionActivity(5);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).not.toMatch(/INSERT INTO staff_attendance\b/);
+    expect(sql).not.toMatch(/INSERT INTO staff_attendance_sessions/);
+  });
+
+  it('3. no OPEN session (rowCount 0) — the call still completes without error, no session/attendance created', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 0, rows: [] } as never);
+    await expect(touchOpenSessionActivity(5)).resolves.toBeUndefined();
+    expect(pool.query).toHaveBeenCalledTimes(1); // no follow-up create-session query
+  });
+
+  it('4. the WHERE clause excludes any session with a non-null checkout_source, so LOGOUT and TIMEOUT sessions are structurally unreachable by this query', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 0, rows: [] } as never);
+    await touchOpenSessionActivity(5);
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    // Matches only rows where checkout_source IS NULL — a LOGOUT/TIMEOUT/SYSTEM row (non-null
+    // checkout_source) can never satisfy this WHERE clause, regardless of staff_id.
+    expect(sql).toMatch(/WHERE\s+staff_id\s*=\s*\$1\s+AND\s+checkout_source\s+IS\s+NULL/i);
+  });
+
+  it('5. never touches login_at, checkout_source, working_minutes, or attendance_status — only last_activity_at', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 1, rows: [] } as never);
+    await touchOpenSessionActivity(5);
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    // The SET clause must be exactly one column.
+    const setClause = sql.match(/SET\s+([\s\S]*?)\s+WHERE/i)?.[1] ?? '';
+    expect(setClause.split(',').map((s) => s.trim())).toEqual(['last_activity_at = NOW()']);
+  });
+
+  it('6. uses the database server clock (NOW()) rather than a JS-computed timestamp — structurally guarantees monotonicity, no client/env-supplied time', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rowCount: 1, rows: [] } as never);
+    await touchOpenSessionActivity(5);
+    const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain('NOW()');
+    expect(params).toEqual([5]); // no timestamp parameter at all — confirms NOW() is the sole time source
   });
 });
