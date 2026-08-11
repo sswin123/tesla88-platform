@@ -336,6 +336,28 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // ── Launch readiness check (TRANSFER providers only) ─────────────────
+      // autoWithdrawAll has already recovered any prior provider balance above.
+      // Only proceed with Transfer In if the adapter produced a usable launch
+      // URL — an empty launch_url means the provider is not yet configured for
+      // web/app launch. Performing a new Transfer In would leave the member's
+      // wallet at 0 with no way to enter the game.
+      if (!launchResult.launch_url) {
+        void GamingActivityService.record({
+          memberId:     user_id,
+          providerCode: upperCode,
+          eventType:    GamingEventType.LaunchFailed,
+          traceId:      launchTraceId,
+          operatorType: 'MEMBER',
+          operatorId:   user_id,
+          metadata:     { error: 'launch_url empty — Transfer In blocked, no game entry possible' },
+        });
+        return NextResponse.json(
+          { error: `${upperCode} 游戏启动尚未配置，请联系客服。` },
+          { status: 503 },
+        );
+      }
+
       // ── Step B: read fresh balance (includes any recovered amount) ─────────
       const { rows: balRows } = await pool.query<{ available_balance: string }>(
         `SELECT available_balance FROM users WHERE id = $1 LIMIT 1`,

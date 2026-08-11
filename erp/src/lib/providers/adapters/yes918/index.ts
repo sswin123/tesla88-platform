@@ -16,10 +16,12 @@ AdapterRegistry.register(
       secret_key: creds['secret_key'] ?? '',
     };
     const cfg: Yes918Config = {
-      api_base_url:    config['api_base_url']    || 'https://api.yes918.com/ashx',
-      agent_username:  config['agent_username']  ?? '',
-      timeout_ms:      toInt(config['timeout_ms'], 15_000),
-      password_length: toInt(config['password_length'], 10),
+      api_base_url:         config['api_base_url']         || 'https://api.yes918.com/ashx',
+      agent_username:       config['agent_username']       ?? '',
+      timeout_ms:           toInt(config['timeout_ms'], 15_000),
+      password_length:      toInt(config['password_length'], 10),
+      download_url_android: config['download_url_android'] || undefined,
+      download_url_ios:     config['download_url_ios']     || undefined,
     };
     return new Yes918Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo);
   },

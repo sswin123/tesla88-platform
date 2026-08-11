@@ -174,6 +174,22 @@ const YES918: ProviderSchema = {
       max:         60000,
       placeholder: '15000',
     },
+    {
+      key:         'download_url_android',
+      label:       'APK Download URL (Android)',
+      type:        'url',
+      required:    false,
+      placeholder: 'https://...',
+      description: '918KISS Android APK 下载地址（由 YES918 官方提供）',
+    },
+    {
+      key:         'download_url_ios',
+      label:       'iOS Download URL',
+      type:        'url',
+      required:    false,
+      placeholder: 'https://...',
+      description: '918KISS iOS 下载/分发地址（由 YES918 官方提供）',
+    },
   ],
   credentials: [
     {

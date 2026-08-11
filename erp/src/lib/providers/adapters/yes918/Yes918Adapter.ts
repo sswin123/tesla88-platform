@@ -41,6 +41,10 @@ export interface Yes918Config {
   timeout_ms?:     number;
   /** Password length for auto-generated player passwords (default 10). */
   password_length?: number;
+  /** Android APK download URL — supplied by YES918 official. */
+  download_url_android?: string;
+  /** iOS App Store / distribution URL — supplied by YES918 official. */
+  download_url_ios?: string;
 }
 
 // ── ProviderAccountRow shape (matches DB table) ───────────────────────────────
@@ -173,9 +177,12 @@ export class Yes918Adapter extends BaseProviderAdapter {
       launch_url:        '',
       provider_login_id: row.provider_login_id,
       session_token: JSON.stringify({
-        provider_code: YES918_CODE,
-        username:      row.provider_login_id,
-        password:      row.provider_password,
+        provider_code:        YES918_CODE,
+        login_id:             row.provider_login_id,
+        password:             row.provider_password,
+        download_url_android: this.cfg.download_url_android ?? null,
+        download_url_ios:     this.cfg.download_url_ios     ?? null,
+        apk_name:             '918KISS',
       }),
       session_id: 0,
     };
@@ -214,6 +221,34 @@ export class Yes918Adapter extends BaseProviderAdapter {
     } catch {
       return 0;
     }
+  }
+
+  /**
+   * Recover all funds from the player's YES918 account back to the operator.
+   * Called by games/launch/route.ts before each Transfer In via duck-typed check:
+   *   typeof adapter.autoWithdrawAll === 'function'
+   *
+   * Flow: getUserInfo → if balance > 0, setServerScore(negative) → return amount.
+   * Returns 0 if the account has no balance or does not exist.
+   * Re-throws on error=-7 (player in game) and all other unexpected errors.
+   */
+  async autoWithdrawAll(loginId: string): Promise<number> {
+    const info = await this.api.getUserInfo(loginId);
+    if (!info || info.balance <= 0) return 0;
+
+    const balance = info.balance;
+    const orderId = `YES918WD-AUTO-${loginId}-${Date.now()}`;
+
+    try {
+      await this.api.setServerScore({ userName: loginId, scoreNum: -balance, orderId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // error=-8: "insufficient balance" — race condition, balance already gone
+      if (msg.includes('insufficient balance')) return 0;
+      throw err;
+    }
+
+    return balance;
   }
 
   // ── Health Check ──────────────────────────────────────────────────────────
