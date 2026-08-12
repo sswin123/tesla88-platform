@@ -192,7 +192,7 @@ function WalletCard({
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="p-1.5 rounded-full transition-colors hover:bg-white/10 disabled:opacity-50"
+              className="flex items-center justify-center min-w-[40px] min-h-[40px] p-1.5 rounded-full transition-colors hover:bg-white/10 disabled:opacity-50"
               style={{ color: 'var(--text-muted)' }}
               title="刷新余额"
               aria-label="Refresh Balance"
@@ -201,7 +201,7 @@ function WalletCard({
                 <img
                   src={getProxyImageUrl(config.refresh_button_image.media_url) ?? config.refresh_button_image.media_url}
                   alt="Refresh Balance"
-                  className="w-10 h-10 sm:w-12 sm:h-12 object-contain block flex-shrink-0"
+                  className="h-9 max-w-[96px] w-auto sm:h-10 sm:max-w-[120px] object-contain object-center block"
                   style={{
                     transition: 'transform 0.3s',
                     animation: refreshing ? 'spin 0.8s linear infinite' : 'none',
