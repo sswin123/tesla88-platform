@@ -59,15 +59,21 @@ export async function POST(req: NextRequest) {
     session_token?: string | null; error?: string;
   };
 
-  if (!erpRes.ok || !data.launch_url) {
+  if (!erpRes.ok) {
     return NextResponse.json(
-      { error: data.error ?? '启动失败，请稍后再试' },
+      { error: data.error ?? '启动失败，请稍后再试', session_token: data.session_token ?? null },
       { status: erpRes.status >= 400 ? erpRes.status : 502 },
     );
   }
 
+  // ERP returned 200. Credential-only providers (e.g. KISS918 deeplink) may return
+  // an empty launch_url with session_token — pass through rather than treating as error.
+  if (!data.launch_url && !data.session_token) {
+    return NextResponse.json({ error: '启动失败，请稍后再试' }, { status: 502 });
+  }
+
   return NextResponse.json({
-    launch_url:    data.launch_url,
+    launch_url:    data.launch_url    ?? '',
     launch_mode:   data.launch_mode   ?? 'LOBBY',
     session_token: data.session_token ?? null,
   });

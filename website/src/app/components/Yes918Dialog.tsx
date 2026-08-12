@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 interface Yes918DialogProps {
   loginId:            string | null;  // null while credentials are loading
   password:           string | null;  // null while credentials are loading
-  launchUrl:          string | null;  // null = loading; '' = no deeplink yet; non-empty = deeplink ready
+  launchUrl:          string | null;  // always '' for YES918 (TRANSFER 503 response)
   downloadUrlAndroid: string | null;
   downloadUrlIos:     string | null;
-  confirmRefId:       string | null;  // UUID from session_token; reserved for when official deeplink is confirmed
+  confirmRefId:       string | null;  // UUID from session_token; required for Transfer In
   onClose:            () => void;
 }
 
@@ -16,6 +16,18 @@ function detectDownloadUrl(android: string | null, ios: string | null): string |
   const ua = navigator.userAgent.toLowerCase();
   if (/iphone|ipad|ipod/.test(ua)) return ios ?? android;
   return android ?? ios;
+}
+
+function buildDeeplink(loginId: string, password: string): string {
+  const a = encodeURIComponent(loginId);
+  const p = encodeURIComponent(password);
+  if (typeof navigator !== 'undefined') {
+    const ua = navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(ua)) {
+      return `lobbykissgame://account=${a}&password=${p}`;
+    }
+  }
+  return `lobbykiss://lobbykiss?account=${a}&password=${p}`;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -58,18 +70,17 @@ function CopyButton({ text }: { text: string }) {
 export function Yes918Dialog({
   loginId,
   password,
-  launchUrl,
   downloadUrlAndroid,
   downloadUrlIos,
-  confirmRefId: _confirmRefId,  // reserved — will be used when official YES918 deeplink is configured
+  confirmRefId,
   onClose,
 }: Yes918DialogProps) {
-  // isLoading is true only while any field is null (initial loading state).
-  // launchUrl='' (no deeplink yet) is NOT loading — credentials are ready.
-  const isLoading   = loginId === null || password === null || launchUrl === null;
-  const hasDeeplink = !!launchUrl;   // false when '' (no official deeplink yet)
+  // All three fields must be non-null before the player can launch
+  const isLoading   = loginId === null || password === null || confirmRefId === null;
   const downloadUrl = detectDownloadUrl(downloadUrlAndroid, downloadUrlIos);
-  const [launching, setLaunching]                   = useState(false);
+
+  const [launching,          setLaunching]          = useState(false);
+  const [confirmError,       setConfirmError]       = useState<string | null>(null);
   const [showAppNotDetected, setShowAppNotDetected] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leftRef  = useRef(false);
@@ -91,21 +102,18 @@ export function Yes918Dialog({
     };
   }, []);
 
-  // Try to open the 918KISS app via deeplink.
-  // If the page is still visible after 1200 ms the app was not detected.
-  const handlePlay = () => {
-    if (launching || !launchUrl) return;
-    setLaunching(true);
+  // Navigate to the deeplink; if page remains visible after 1200 ms the app was not detected.
+  const navigateToApp = (url: string) => {
     leftRef.current = false;
 
-    const markLeft   = () => { leftRef.current = true; };
+    const markLeft    = () => { leftRef.current = true; };
     const onVisChange = () => { if (document.visibilityState === 'hidden') leftRef.current = true; };
 
     window.addEventListener('pagehide',         markLeft,    { once: true });
     window.addEventListener('blur',             markLeft,    { once: true });
     window.addEventListener('visibilitychange', onVisChange);
 
-    window.location.href = launchUrl;
+    window.location.href = url;
 
     timerRef.current = setTimeout(() => {
       window.removeEventListener('pagehide',         markLeft);
@@ -114,13 +122,48 @@ export function Yes918Dialog({
       setLaunching(false);
 
       if (!leftRef.current) {
-        // App did not open — show overlay and auto-redirect to download after 3 s
+        // App was not installed — show download overlay and auto-redirect after 3 s
         setShowAppNotDetected(true);
         if (downloadUrl) {
           setTimeout(() => { window.location.href = downloadUrl; }, 3000);
         }
       }
     }, 1200);
+  };
+
+  // Main Sekarang: Transfer In first, then open the app via deeplink
+  const handlePlay = async () => {
+    if (launching || isLoading || !loginId || !password || !confirmRefId) return;
+    setLaunching(true);
+    setConfirmError(null);
+
+    const deeplink = buildDeeplink(loginId, password);
+
+    try {
+      const res = await fetch('/api/public/games/confirm-play', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ provider_code: 'YES918', confirm_ref_id: confirmRefId }),
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
+      const data = await res.json() as { ok?: boolean; error?: string };
+
+      if (!res.ok || !data.ok) {
+        setConfirmError(data.error ?? '游戏充值失败，请稍后再试');
+        setLaunching(false);
+        return;
+      }
+
+      navigateToApp(deeplink);
+    } catch {
+      setConfirmError('网络错误，请稍后再试');
+      setLaunching(false);
+    }
   };
 
   return (
@@ -263,6 +306,20 @@ export function Yes918Dialog({
             </div>
           </div>
 
+          {/* Transfer In error */}
+          {confirmError && (
+            <div
+              className="mb-4 px-4 py-3 rounded-xl text-xs text-center"
+              style={{
+                background: 'rgba(239,68,68,0.12)',
+                color:      '#f87171',
+                border:     '1px solid rgba(239,68,68,0.25)',
+              }}
+            >
+              {confirmError}
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex gap-3">
 
@@ -293,22 +350,20 @@ export function Yes918Dialog({
               </span>
             )}
 
-            {/* Main Sekarang — active only when an official deeplink is configured.
-                Remains disabled (with muted style) until YES918 official deeplink is confirmed. */}
+            {/* Main Sekarang — active once credentials + confirmRefId are ready */}
             <button
-              onClick={hasDeeplink ? handlePlay : undefined}
-              disabled={isLoading || launching || !hasDeeplink}
-              title={!hasDeeplink ? '918KISS App 启动链接尚未配置，敬请期待' : undefined}
+              onClick={() => void handlePlay()}
+              disabled={isLoading || launching}
               className="flex-1 py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90"
               style={{
                 background: 'transparent',
-                color:      (isLoading || launching || !hasDeeplink)
+                color:      (isLoading || launching)
                   ? 'var(--text-muted, #aaa)'
                   : 'var(--text-base, #fff)',
-                border:     (isLoading || launching || !hasDeeplink)
+                border:     (isLoading || launching)
                   ? '2px solid var(--bg-surface2, rgba(255,255,255,0.2))'
                   : '2px solid var(--text-base, rgba(255,255,255,0.6))',
-                cursor:     (isLoading || launching || !hasDeeplink) ? 'not-allowed' : 'pointer',
+                cursor:     (isLoading || launching) ? 'not-allowed' : 'pointer',
               }}
             >
               {isLoading ? (
