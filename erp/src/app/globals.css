@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── DEFAULT LIGHT TOKENS (shadcn standard + ERP extensions) ───────────── */
   :root {
+    /* shadcn core */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -24,6 +26,518 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* ERP sidebar tokens */
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-item-active-bg: 213 100% 93%;
+    --sidebar-item-active-text: 222.2 47.4% 11.2%;
+
+    /* ERP page background (main content area) */
+    --page-bg: 210 40% 96.1%;
+  }
+
+  /* ── DEFAULT DARK MODE (no preset) ────────────────────────────────────── */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 47.4% 7%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 47.4% 7%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+
+    --sidebar-bg: 222.2 84% 4.9%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-item-active-bg: 217.2 32.6% 22%;
+    --sidebar-item-active-text: 210 40% 98%;
+    --page-bg: 222.2 47.4% 7%;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     DESIGN PRESETS — LIGHT VARIANTS
+     Applied via: <html data-design="X"> (no .dark class)
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* ── 01 MIDNIGHT PRO — LIGHT ─────────────────────────────────────────── */
+  [data-design="midnight"] {
+    --background: 255 100% 97%;
+    --foreground: 263 77% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 263 77% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 263 77% 14%;
+    --primary: 262 87% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 255 100% 93%;
+    --secondary-foreground: 262 66% 37%;
+    --muted: 255 100% 95%;
+    --muted-foreground: 256 26% 57%;
+    --accent: 255 100% 93%;
+    --accent-foreground: 262 66% 37%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 255 100% 90%;
+    --input: 255 100% 90%;
+    --ring: 262 87% 66%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 255 100% 90%;
+    --sidebar-item-active-bg: 255 100% 90%;
+    --sidebar-item-active-text: 262 66% 37%;
+    --page-bg: 255 100% 97%;
+  }
+
+  /* ── 02 OCEAN BLUE — LIGHT ───────────────────────────────────────────── */
+  [data-design="ocean"] {
+    --background: 214 100% 97%;
+    --foreground: 225 79% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 225 79% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 79% 15%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 97% 90%;
+    --secondary-foreground: 218 78% 35%;
+    --muted: 214 100% 95%;
+    --muted-foreground: 209 40% 48%;
+    --accent: 214 97% 90%;
+    --accent-foreground: 218 78% 35%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 97% 87%;
+    --input: 214 97% 87%;
+    --ring: 217 91% 60%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 214 97% 87%;
+    --sidebar-item-active-bg: 214 97% 90%;
+    --sidebar-item-active-text: 218 78% 35%;
+    --page-bg: 214 100% 97%;
+  }
+
+  /* ── 03 GRAPHITE — LIGHT ─────────────────────────────────────────────── */
+  [data-design="graphite"] {
+    --background: 240 24% 96%;
+    --foreground: 240 2% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 2% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 2% 12%;
+    --primary: 241 73% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 10% 92%;
+    --secondary-foreground: 240 2% 12%;
+    --muted: 240 10% 93%;
+    --muted-foreground: 240 2% 43%;
+    --accent: 240 10% 92%;
+    --accent-foreground: 240 2% 12%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 3% 80%;
+    --input: 240 3% 80%;
+    --ring: 241 73% 63%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 240 3% 80%;
+    --sidebar-item-active-bg: 240 10% 92%;
+    --sidebar-item-active-text: 242 51% 42%;
+    --page-bg: 240 24% 96%;
+  }
+
+  /* ── 04 PURPLE NEON — LIGHT ──────────────────────────────────────────── */
+  [data-design="neon"] {
+    --background: 293 100% 98%;
+    --foreground: 270 100% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 100% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 100% 12%;
+    --primary: 280 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 279 100% 95%;
+    --secondary-foreground: 272 65% 43%;
+    --muted: 279 100% 97%;
+    --muted-foreground: 271 40% 54%;
+    --accent: 279 100% 95%;
+    --accent-foreground: 272 65% 43%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 279 100% 92%;
+    --input: 279 100% 92%;
+    --ring: 280 91% 65%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 279 100% 92%;
+    --sidebar-item-active-bg: 279 100% 92%;
+    --sidebar-item-active-text: 272 65% 43%;
+    --page-bg: 293 100% 98%;
+  }
+
+  /* ── 05 EMERALD FINANCE — LIGHT ──────────────────────────────────────── */
+  [data-design="emerald"] {
+    --background: 152 82% 96%;
+    --foreground: 163 82% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 163 82% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 163 82% 17%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 152 82% 88%;
+    --secondary-foreground: 163 82% 20%;
+    --muted: 152 60% 94%;
+    --muted-foreground: 157 40% 40%;
+    --accent: 152 82% 88%;
+    --accent-foreground: 163 82% 20%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 152 82% 81%;
+    --input: 152 82% 81%;
+    --ring: 160 84% 39%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 152 82% 81%;
+    --sidebar-item-active-bg: 152 82% 88%;
+    --sidebar-item-active-text: 163 82% 20%;
+    --page-bg: 152 82% 96%;
+  }
+
+  /* ── 06 CLEAN LIGHT — LIGHT (native) ─────────────────────────────────── */
+  [data-design="clean"] {
+    --background: 210 40% 98%;
+    --foreground: 222 84% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 12%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 238 94% 95%;
+    --secondary-foreground: 239 67% 49%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 238 94% 95%;
+    --accent-foreground: 239 67% 49%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 239 84% 67%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-item-active-bg: 238 94% 95%;
+    --sidebar-item-active-text: 239 67% 49%;
+    --page-bg: 210 40% 98%;
+  }
+
+  /* ── 07 CLOUD GRAY — LIGHT (native) ──────────────────────────────────── */
+  [data-design="cloud"] {
+    --background: 210 17% 95%;
+    --foreground: 210 11% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 11% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
+    --primary: 210 85% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 213 100% 93%;
+    --secondary-foreground: 212 87% 41%;
+    --muted: 210 14% 92%;
+    --muted-foreground: 210 9% 54%;
+    --accent: 213 100% 93%;
+    --accent-foreground: 212 87% 41%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 14% 89%;
+    --input: 210 14% 89%;
+    --ring: 210 85% 57%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 210 14% 89%;
+    --sidebar-item-active-bg: 213 100% 93%;
+    --sidebar-item-active-text: 212 87% 41%;
+    --page-bg: 210 17% 95%;
+  }
+
+  /* ── 08 TESLA88 PREMIUM — LIGHT ──────────────────────────────────────── */
+  [data-design="tesla88"] {
+    --background: 238 100% 97%;
+    --foreground: 237 81% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 237 81% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 237 81% 14%;
+    --primary: 263 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 234 100% 93%;
+    --secondary-foreground: 262 60% 39%;
+    --muted: 238 100% 95%;
+    --muted-foreground: 225 31% 57%;
+    --accent: 234 100% 93%;
+    --accent-foreground: 262 60% 39%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 234 100% 93%;
+    --input: 234 100% 93%;
+    --ring: 263 83% 58%;
+
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-border: 234 100% 90%;
+    --sidebar-item-active-bg: 234 100% 93%;
+    --sidebar-item-active-text: 262 60% 39%;
+    --page-bg: 238 100% 97%;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     DESIGN PRESETS — DARK VARIANTS
+     Applied via: <html class="dark" data-design="X">
+     ════════════════════════════════════════════════════════════════════════ */
+
+  /* ── 01 MIDNIGHT PRO — DARK ──────────────────────────────────────────── */
+  .dark[data-design="midnight"] {
+    --background: 240 12% 7%;
+    --foreground: 240 100% 99%;
+    --card: 240 18% 15%;
+    --card-foreground: 240 100% 99%;
+    --popover: 240 18% 15%;
+    --popover-foreground: 240 100% 99%;
+    --primary: 258 89% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 17% 21%;
+    --secondary-foreground: 240 100% 99%;
+    --muted: 240 15% 12%;
+    --muted-foreground: 240 11% 66%;
+    --accent: 240 17% 21%;
+    --accent-foreground: 240 100% 99%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 17% 21%;
+    --input: 240 17% 21%;
+    --ring: 258 89% 66%;
+
+    --sidebar-bg: 240 15% 12%;
+    --sidebar-border: 240 17% 21%;
+    --sidebar-item-active-bg: 258 40% 20%;
+    --sidebar-item-active-text: 258 89% 82%;
+    --page-bg: 240 12% 7%;
+  }
+
+  /* ── 02 OCEAN BLUE — DARK ────────────────────────────────────────────── */
+  .dark[data-design="ocean"] {
+    --background: 214 87% 6%;
+    --foreground: 210 100% 94%;
+    --card: 217 79% 14%;
+    --card-foreground: 210 100% 94%;
+    --popover: 217 79% 14%;
+    --popover-foreground: 210 100% 94%;
+    --primary: 213 91% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 218 55% 22%;
+    --secondary-foreground: 210 100% 94%;
+    --muted: 217 87% 10%;
+    --muted-foreground: 209 40% 63%;
+    --accent: 218 55% 22%;
+    --accent-foreground: 210 100% 94%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 218 55% 22%;
+    --input: 218 55% 22%;
+    --ring: 213 91% 59%;
+
+    --sidebar-bg: 217 87% 10%;
+    --sidebar-border: 218 55% 22%;
+    --sidebar-item-active-bg: 213 60% 18%;
+    --sidebar-item-active-text: 213 91% 80%;
+    --page-bg: 214 87% 6%;
+  }
+
+  /* ── 03 GRAPHITE — DARK ──────────────────────────────────────────────── */
+  .dark[data-design="graphite"] {
+    --background: 240 4% 7%;
+    --foreground: 240 10% 91%;
+    --card: 240 2% 18%;
+    --card-foreground: 240 10% 91%;
+    --popover: 240 2% 18%;
+    --popover-foreground: 240 10% 91%;
+    --primary: 242 75% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 1% 23%;
+    --secondary-foreground: 240 10% 91%;
+    --muted: 240 2% 11%;
+    --muted-foreground: 240 2% 56%;
+    --accent: 240 1% 23%;
+    --accent-foreground: 240 10% 91%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 240 1% 23%;
+    --input: 240 1% 23%;
+    --ring: 242 75% 63%;
+
+    --sidebar-bg: 240 2% 11%;
+    --sidebar-border: 240 1% 23%;
+    --sidebar-item-active-bg: 242 20% 20%;
+    --sidebar-item-active-text: 242 75% 80%;
+    --page-bg: 240 4% 7%;
+  }
+
+  /* ── 04 PURPLE NEON — DARK ───────────────────────────────────────────── */
+  .dark[data-design="neon"] {
+    --background: 264 43% 4%;
+    --foreground: 270 100% 95%;
+    --card: 270 42% 10%;
+    --card-foreground: 270 100% 95%;
+    --popover: 270 42% 10%;
+    --popover-foreground: 270 100% 95%;
+    --primary: 270 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 268 35% 18%;
+    --secondary-foreground: 270 100% 95%;
+    --muted: 271 35% 8%;
+    --muted-foreground: 271 31% 61%;
+    --accent: 268 35% 18%;
+    --accent-foreground: 270 100% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 268 35% 18%;
+    --input: 268 35% 18%;
+    --ring: 270 91% 65%;
+
+    --sidebar-bg: 271 35% 8%;
+    --sidebar-border: 268 35% 18%;
+    --sidebar-item-active-bg: 270 40% 18%;
+    --sidebar-item-active-text: 291 95% 78%;
+    --page-bg: 264 43% 4%;
+  }
+
+  /* ── 05 EMERALD FINANCE — DARK ───────────────────────────────────────── */
+  .dark[data-design="emerald"] {
+    --background: 145 22% 6%;
+    --foreground: 152 91% 90%;
+    --card: 134 19% 10%;
+    --card-foreground: 152 91% 90%;
+    --popover: 134 19% 10%;
+    --popover-foreground: 152 91% 90%;
+    --primary: 162 85% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 136 23% 15%;
+    --secondary-foreground: 152 91% 90%;
+    --muted: 150 24% 9%;
+    --muted-foreground: 156 71% 67%;
+    --accent: 136 23% 15%;
+    --accent-foreground: 152 91% 90%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 136 23% 15%;
+    --input: 136 23% 15%;
+    --ring: 162 85% 39%;
+
+    --sidebar-bg: 150 24% 9%;
+    --sidebar-border: 136 23% 15%;
+    --sidebar-item-active-bg: 160 40% 16%;
+    --sidebar-item-active-text: 156 71% 72%;
+    --page-bg: 145 22% 6%;
+  }
+
+  /* ── 06 CLEAN LIGHT — DARK ───────────────────────────────────────────── */
+  .dark[data-design="clean"] {
+    --background: 244 44% 20%;
+    --foreground: 228 100% 94%;
+    --card: 243 36% 27%;
+    --card-foreground: 228 100% 94%;
+    --popover: 243 36% 27%;
+    --popover-foreground: 228 100% 94%;
+    --primary: 234 89% 74%;
+    --primary-foreground: 244 44% 12%;
+    --secondary: 243 31% 33%;
+    --secondary-foreground: 228 100% 94%;
+    --muted: 243 38% 23%;
+    --muted-foreground: 228 57% 76%;
+    --accent: 243 31% 33%;
+    --accent-foreground: 228 100% 94%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 243 31% 33%;
+    --input: 243 31% 33%;
+    --ring: 234 89% 74%;
+
+    --sidebar-bg: 244 44% 20%;
+    --sidebar-border: 243 31% 33%;
+    --sidebar-item-active-bg: 242 50% 30%;
+    --sidebar-item-active-text: 234 100% 89%;
+    --page-bg: 244 44% 20%;
+  }
+
+  /* ── 07 CLOUD GRAY — DARK ────────────────────────────────────────────── */
+  .dark[data-design="cloud"] {
+    --background: 214 11% 11%;
+    --foreground: 210 17% 93%;
+    --card: 214 10% 17%;
+    --card-foreground: 210 17% 93%;
+    --popover: 214 10% 17%;
+    --popover-foreground: 210 17% 93%;
+    --primary: 210 85% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 216 10% 24%;
+    --secondary-foreground: 210 17% 93%;
+    --muted: 214 10% 13%;
+    --muted-foreground: 210 9% 54%;
+    --accent: 216 10% 24%;
+    --accent-foreground: 210 17% 93%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 216 10% 24%;
+    --input: 216 10% 24%;
+    --ring: 210 85% 57%;
+
+    --sidebar-bg: 214 10% 13%;
+    --sidebar-border: 216 10% 24%;
+    --sidebar-item-active-bg: 210 30% 20%;
+    --sidebar-item-active-text: 210 85% 75%;
+    --page-bg: 214 11% 11%;
+  }
+
+  /* ── 08 TESLA88 PREMIUM — DARK ───────────────────────────────────────── */
+  .dark[data-design="tesla88"] {
+    --background: 234 42% 5%;
+    --foreground: 236 100% 97%;
+    --card: 230 41% 12%;
+    --card-foreground: 236 100% 97%;
+    --popover: 230 41% 12%;
+    --popover-foreground: 236 100% 97%;
+    --primary: 263 83% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 227 37% 18%;
+    --secondary-foreground: 236 100% 97%;
+    --muted: 234 37% 9%;
+    --muted-foreground: 227 22% 61%;
+    --accent: 227 37% 18%;
+    --accent-foreground: 236 100% 97%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 227 37% 18%;
+    --input: 227 37% 18%;
+    --ring: 263 83% 57%;
+
+    --sidebar-bg: 234 37% 9%;
+    --sidebar-border: 227 37% 18%;
+    --sidebar-item-active-bg: 263 50% 18%;
+    --sidebar-item-active-text: 234 89% 74%;
+    --page-bg: 234 42% 5%;
   }
 }
 

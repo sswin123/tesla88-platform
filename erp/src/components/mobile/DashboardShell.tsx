@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/sidebar';
 import { MobileSidebarDrawer } from '@/components/mobile/MobileSidebarDrawer';
 import { MobileHeader } from '@/components/mobile/MobileHeader';
 import { BottomTabBar } from '@/components/mobile/BottomTabBar';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -26,8 +27,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           {/* Mobile sticky header (lg:hidden) */}
           <MobileHeader onOpenDrawer={openDrawer} isDrawerOpen={drawerOpen} />
 
+          {/* Desktop-only top bar — mobile handled by MobileHeader */}
+          <div className="hidden lg:flex h-11 flex-shrink-0 items-center justify-end gap-1 border-b border-border bg-sidebar px-3">
+            <ThemeToggle />
+          </div>
+
           {/* Page content — extra bottom padding on mobile for the tab bar */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 p-4 pb-20 lg:p-6 lg:pb-6">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden bg-page p-4 pb-20 lg:p-6 lg:pb-6">
             {children}
           </main>
 
