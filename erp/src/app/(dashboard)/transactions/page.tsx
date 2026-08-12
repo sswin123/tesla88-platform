@@ -31,10 +31,10 @@ interface TransactionRow {
 }
 
 interface PendingCounts {
-  count: number;              // PENDING only — sidebar badge + reminder
+  count: number;
   deposit_count: number;
   withdrawal_count: number;
-  active_count?: number;              // PENDING + PROCESSING — display only
+  active_count?: number;
   deposit_active_count?: number;
   withdrawal_active_count?: number;
 }
@@ -70,7 +70,6 @@ export default function TransactionsPage() {
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadRef         = useRef<(rt?: boolean) => void>(() => {});
 
-  // 500ms debounce for search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
@@ -125,16 +124,10 @@ export default function TransactionsPage() {
       });
   }, [tab, status, page, debouncedSearch]);
 
-  // Keep loadRef current so SSE handler never captures stale closure
   useEffect(() => { loadRef.current = load; }, [load]);
-
-  // Load data on user-action-driven state changes
   useEffect(() => { load(false); }, [load]);
-
-  // Initial pending count
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
-  // SSE subscription — 250ms throttle, no sound (sidebar handles that)
   useEffect(() => {
     const unsub = subscribeSSE('/api/transactions/stream', () => {
       if (refreshTimer.current) return;
@@ -146,22 +139,13 @@ export default function TransactionsPage() {
     });
     return () => {
       unsub();
-      if (refreshTimer.current) {
-        clearTimeout(refreshTimer.current);
-        refreshTimer.current = null;
-      }
-      if (highlightTimerRef.current) {
-        clearTimeout(highlightTimerRef.current);
-        highlightTimerRef.current = null;
-      }
+      if (refreshTimer.current) { clearTimeout(refreshTimer.current); refreshTimer.current = null; }
+      if (highlightTimerRef.current) { clearTimeout(highlightTimerRef.current); highlightTimerRef.current = null; }
     };
   }, [fetchCounts]);
 
   function switchTab(t: TabType) {
-    setTab(t);
-    setStatus('');
-    setPage(1);
-    setHighlightedIds(new Set());
+    setTab(t); setStatus(''); setPage(1); setHighlightedIds(new Set());
   }
 
   const tabLabel = (t: TabType): string => {
@@ -180,19 +164,19 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Transactions</h1>
+        <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b border-border">
         {(['pending', 'all', 'deposit', 'withdrawal'] as const).map(t => (
           <button
             key={t}
             onClick={() => switchTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === t
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             {tabLabel(t)}
@@ -200,24 +184,24 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      {/* Pending Summary Card — only on pending tab */}
+      {/* Pending Summary Cards */}
       {tab === 'pending' && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Deposits Pending / Processing</div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="text-xs text-muted-foreground mb-1">Deposits Pending / Processing</div>
             <div className="text-2xl font-bold text-emerald-600">
               {pendingCounts.deposit_active_count ?? pendingCounts.deposit_count}
             </div>
           </div>
-          <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Withdrawals Pending / Processing</div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="text-xs text-muted-foreground mb-1">Withdrawals Pending / Processing</div>
             <div className="text-2xl font-bold text-orange-600">
               {pendingCounts.withdrawal_active_count ?? pendingCounts.withdrawal_count}
             </div>
           </div>
-          <div className="rounded-lg border bg-white p-4">
-            <div className="text-xs text-gray-500 mb-1">Total Active</div>
-            <div className="text-2xl font-bold text-gray-900">
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="text-xs text-muted-foreground mb-1">Total Active</div>
+            <div className="text-2xl font-bold text-foreground">
               {pendingCounts.active_count ?? pendingCounts.count}
             </div>
           </div>
@@ -231,10 +215,9 @@ export default function TransactionsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by Member ID, username, phone..."
-          className="border rounded-md px-3 py-1.5 text-sm w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-gray-300"
+          className="border border-border rounded-md px-3 py-1.5 text-sm w-full sm:w-72 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
 
-        {/* Status filter — hidden on pending tab */}
         {tab !== 'pending' && (
           <Select
             value={status || 'ALL'}
@@ -253,36 +236,36 @@ export default function TransactionsPage() {
           </Select>
         )}
 
-        <span className="text-sm text-gray-400 sm:ml-auto">Total: {total}</span>
+        <span className="text-sm text-muted-foreground sm:ml-auto">Total: {total}</span>
       </div>
 
-      {/* Desktop table (≥ 1024px) */}
-      <div className="hidden lg:block rounded-md border bg-white overflow-x-auto">
+      {/* Desktop table */}
+      <div className="hidden lg:block rounded-md border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50">
+          <thead className="border-b border-border bg-muted">
             <tr>
               {['ID', 'Type', 'Member', 'Amount', 'Status', 'Time', 'Actions'].map(h => (
-                <th key={h} className="px-3 py-3 text-left font-medium text-gray-500 whitespace-nowrap">{h}</th>
+                <th key={h} className="px-3 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   {tab === 'pending' ? 'No pending transactions.' : 'No transactions found.'}
                 </td>
               </tr>
             ) : rows.map(row => (
               <tr
                 key={`${row.type}-${row.id}`}
-                className={`border-b last:border-0 hover:bg-gray-50 ${
+                className={`border-b border-border last:border-0 hover:bg-muted/50 transition-colors ${
                   highlightedIds.has(`${row.type}-${row.id}`) ? 'animate-highlight' : ''
                 }`}
               >
-                <td className="px-3 py-3 font-mono text-xs text-gray-500">{row.id}</td>
+                <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{row.id}</td>
                 <td className="px-3 py-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${TYPE_CLASS[row.type]}`}>
                     {row.type === 'deposit' ? '🟢 Deposit' : '🟠 Withdraw'}
@@ -293,20 +276,20 @@ export default function TransactionsPage() {
                   {row.public_id && (
                     <div className="font-mono text-xs text-blue-500">{row.public_id}</div>
                   )}
-                  <div className="text-xs text-gray-400">{row.phone}</div>
+                  <div className="text-xs text-muted-foreground">{row.phone}</div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap font-medium">
+                <td className="px-3 py-3 whitespace-nowrap font-medium text-foreground">
                   RM {parseFloat(row.amount).toFixed(2)}
                 </td>
                 <td className="px-3 py-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     {row.status}
                   </span>
                   {row.status === 'PROCESSING' && row.processing_by_name && (
                     <div className="text-xs text-blue-600 mt-0.5">by {row.processing_by_name}</div>
                   )}
                 </td>
-                <td className="px-3 py-3 text-xs text-gray-400 whitespace-nowrap">
+                <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
                   {new Date(row.created_at).toLocaleString()}
                 </td>
                 <td className="px-3 py-3">
@@ -316,7 +299,7 @@ export default function TransactionsPage() {
                     </Link>
                   ) : (
                     <Link href={`/transactions/${row.type}/${row.id}`}>
-                      <Button size="sm" variant="ghost" className="text-xs h-7 text-gray-400">View</Button>
+                      <Button size="sm" variant="ghost" className="text-xs h-7">View</Button>
                     </Link>
                   )}
                 </td>
@@ -326,61 +309,58 @@ export default function TransactionsPage() {
         </table>
       </div>
 
-      {/* Mobile card list (< 1024px) */}
+      {/* Mobile card list */}
       <div className="lg:hidden space-y-3">
         {loading ? (
-          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">Loading…</div>
+          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">
+          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">
             {tab === 'pending' ? 'No pending transactions.' : 'No transactions found.'}
           </div>
         ) : rows.map(row => (
           <div
             key={`${row.type}-${row.id}`}
-            className={`rounded-lg border bg-white p-4 ${highlightedIds.has(`${row.type}-${row.id}`) ? 'animate-highlight' : ''}`}
+            className={`rounded-lg border border-border bg-card p-4 ${highlightedIds.has(`${row.type}-${row.id}`) ? 'animate-highlight' : ''}`}
           >
-            {/* Type + Status row */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${TYPE_CLASS[row.type]}`}>
                   {row.type === 'deposit' ? '🟢 Deposit' : '🟠 Withdraw'}
                 </span>
-                <span className="font-mono text-xs text-gray-400">#{row.id}</span>
+                <span className="font-mono text-xs text-muted-foreground">#{row.id}</span>
               </div>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${STATUS_CLASS[row.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                 {row.status}
               </span>
             </div>
 
-            {/* Info rows */}
             <div className="space-y-1 text-sm mb-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Member</span>
-                <span className="font-medium">{row.first_name}</span>
+                <span className="text-muted-foreground">Member</span>
+                <span className="font-medium text-foreground">{row.first_name}</span>
               </div>
               {row.public_id && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Member ID</span>
+                  <span className="text-muted-foreground">Member ID</span>
                   <span className="font-mono text-xs text-blue-500">{row.public_id}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Amount</span>
-                <span className="font-semibold">RM {parseFloat(row.amount).toFixed(2)}</span>
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-semibold text-foreground">RM {parseFloat(row.amount).toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Time</span>
-                <span className="text-xs text-gray-400">{new Date(row.created_at).toLocaleString()}</span>
+                <span className="text-muted-foreground">Time</span>
+                <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleString()}</span>
               </div>
               {row.status === 'PROCESSING' && row.processing_by_name && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Handler</span>
+                  <span className="text-muted-foreground">Handler</span>
                   <span className="text-xs text-blue-600">{row.processing_by_name}</span>
                 </div>
               )}
             </div>
 
-            {/* Action button */}
             <Link href={`/transactions/${row.type}/${row.id}`} className="block">
               <Button
                 size="sm"
@@ -396,21 +376,11 @@ export default function TransactionsPage() {
 
       {/* Pagination */}
       <div className="flex items-center justify-end gap-2 text-sm">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page === 1}
-        >
+        <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
           Previous
         </Button>
-        <span className="px-2 py-1 text-gray-500">Page {page}</span>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setPage(p => p + 1)}
-          disabled={page * 20 >= total}
-        >
+        <span className="px-2 py-1 text-muted-foreground">Page {page}</span>
+        <Button size="sm" variant="outline" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>
           Next
         </Button>
       </div>

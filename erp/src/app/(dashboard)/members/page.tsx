@@ -46,20 +46,20 @@ function AddMemberModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
   const field = (label: string, key: string, type = 'text', required = false, placeholder = '') => (
     <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1">{label}{required && <span className="text-red-500"> *</span>}</label>
+      <label className="block text-xs font-semibold text-muted-foreground mb-1">{label}{required && <span className="text-red-500"> *</span>}</label>
       <input
         type={type}
         value={(form as Record<string, string>)[key]}
         onChange={e => set(key, e.target.value)}
         placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
       />
     </div>
   );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 text-foreground" onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-4">新增会员</h2>
         <form onSubmit={submit} className="space-y-3">
           {field('姓名', 'first_name', 'text', true, '会员姓名')}
@@ -70,22 +70,22 @@ function AddMemberModal({ onClose, onCreated }: { onClose: () => void; onCreated
           {field('推荐码（选填）', 'referral_code', 'text', false, 'SS1000001')}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">VIP 等级</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">VIP 等级</label>
               <select value={form.vip_level} onChange={e => set('vip_level', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                 {[0,1,2,3,4,5].map(v => <option key={v} value={v}>VIP {v}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">状态</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">状态</label>
               <select value={form.status} onChange={e => set('status', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
                 <option value="ACTIVE">ACTIVE</option>
                 <option value="FROZEN">FROZEN</option>
               </select>
             </div>
           </div>
-          {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          {error && <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>}
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={saving}>取消</Button>
             <Button type="submit" className="flex-1" disabled={saving}>{saving ? '创建中…' : '确认创建'}</Button>
@@ -133,7 +133,7 @@ export default function MembersPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Member Management</h1>
+        <h1 className="text-2xl font-bold text-foreground">Member Management</h1>
         <Button onClick={() => setShowAdd(true)}>+ 新增会员</Button>
       </div>
 
@@ -145,30 +145,30 @@ export default function MembersPage() {
       />
 
       {/* Desktop table (≥ 1024px) */}
-      <div className="hidden lg:block rounded-md border bg-white">
+      <div className="hidden lg:block rounded-md border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="border-b bg-gray-50">
+          <thead className="border-b border-border bg-muted">
             <tr>
               {['Member ID', 'Name', 'Phone', 'Telegram', 'Status', 'Created At', 'Actions'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-gray-500">{h}</th>
+                <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">No members found</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No members found</td>
               </tr>
             ) : rows.map((m) => (
-              <tr key={m.id} className="border-b last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs">{m.public_id ?? `#${m.id}`}</td>
-                <td className="px-4 py-3">{m.first_name}</td>
-                <td className="px-4 py-3">{m.phone}</td>
-                <td className="px-4 py-3 text-gray-400">
+              <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                <td className="px-4 py-3 font-mono text-xs text-foreground">{m.public_id ?? `#${m.id}`}</td>
+                <td className="px-4 py-3 text-foreground">{m.first_name}</td>
+                <td className="px-4 py-3 text-foreground">{m.phone}</td>
+                <td className="px-4 py-3 text-muted-foreground">
                   {m.telegram_username ? `@${m.telegram_username}` : '—'}
                 </td>
                 <td className="px-4 py-3">
@@ -176,7 +176,7 @@ export default function MembersPage() {
                     {m.status}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-gray-500">
+                <td className="px-4 py-3 text-muted-foreground">
                   {new Date(m.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
@@ -193,18 +193,18 @@ export default function MembersPage() {
       {/* Mobile card list (< 1024px) */}
       <div className="lg:hidden space-y-3">
         {loading ? (
-          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">Loading…</div>
+          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="rounded-lg border bg-white px-4 py-8 text-center text-gray-400">No members found</div>
+          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">No members found</div>
         ) : rows.map((m) => (
-          <div key={m.id} className="rounded-lg border bg-white p-4">
+          <div key={m.id} className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-xs text-gray-400">{m.public_id ?? `#${m.id}`}</p>
-                <p className="font-semibold text-sm mt-0.5">{m.first_name}</p>
-                <p className="text-sm text-gray-600 mt-0.5">{m.phone}</p>
+                <p className="font-mono text-xs text-muted-foreground">{m.public_id ?? `#${m.id}`}</p>
+                <p className="font-semibold text-sm mt-0.5 text-foreground">{m.first_name}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{m.phone}</p>
                 {m.telegram_username && (
-                  <p className="text-xs text-gray-400 mt-0.5">@{m.telegram_username}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">@{m.telegram_username}</p>
                 )}
               </div>
               <Badge variant={m.status === 'ACTIVE' ? 'default' : 'destructive'} className="ml-3 flex-shrink-0">
@@ -212,7 +212,7 @@ export default function MembersPage() {
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400">{new Date(m.created_at).toLocaleDateString()}</span>
+              <span className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</span>
               <Button size="sm" variant="outline" asChild>
                 <Link href={`/members/${m.id}`}>View →</Link>
               </Button>
@@ -222,7 +222,7 @@ export default function MembersPage() {
       </div>
 
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Total: {total}</span>
+        <span className="text-muted-foreground">Total: {total}</span>
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -232,7 +232,7 @@ export default function MembersPage() {
           >
             Previous
           </Button>
-          <span className="px-2 py-1 text-gray-500">Page {page}</span>
+          <span className="px-2 py-1 text-muted-foreground">Page {page}</span>
           <Button
             size="sm"
             variant="outline"
