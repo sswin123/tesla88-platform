@@ -389,5 +389,16 @@ export class Yes918Adapter extends BaseProviderAdapter {
              updated_at        = NOW()`,
       [YES918_CODE, userId, username, password],
     );
+    // Keep gp_players in sync so provider_player_id always mirrors the active
+    // provider_accounts.provider_login_id. No-op if gp_players row doesn't exist yet.
+    await pool.query(
+      `UPDATE gp_players gp
+       SET provider_player_id = $1, updated_at = NOW()
+       FROM gp_providers p
+       WHERE gp.provider_id = p.id
+         AND p.code = $2
+         AND gp.user_id = $3`,
+      [username, YES918_CODE, userId],
+    );
   }
 }
