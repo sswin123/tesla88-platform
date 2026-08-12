@@ -158,9 +158,9 @@ function PartnerCard({ card }: { card: PartnerCard }) {
               {card.button_text || 'Join Now'}
             </a>
           )}
-          {card.whatsapp_url && !card.telegram_url && (
-            <a href={card.whatsapp_url} target="_blank" rel="noopener noreferrer" style={primaryBtnStyle(card)}>
-              {card.button_text || 'Join Now'}
+          {card.whatsapp_url && (
+            <a href={card.whatsapp_url} target="_blank" rel="noopener noreferrer" style={whatsappBtnStyle}>
+              WhatsApp
             </a>
           )}
           {card.website_url && (
@@ -202,6 +202,23 @@ function BonusRow({ icon, label, value }: { icon: string; label: string; value: 
     </div>
   );
 }
+
+const whatsappBtnStyle: React.CSSProperties = {
+  flex:          '1',
+  display:       'flex',
+  alignItems:    'center',
+  justifyContent:'center',
+  padding:       '9px 14px',
+  borderRadius:  'var(--pb-radius-btn, 6px)',
+  textDecoration:'none',
+  fontSize:      '13px',
+  fontWeight:    '700',
+  background:    '#25D366',
+  color:         '#fff',
+  border:        '1px solid #25D366',
+  transition:    `opacity var(--pb-duration-base, 0.2s)`,
+  minWidth:      '100px',
+};
 
 function primaryBtnStyle(card: PartnerCard): React.CSSProperties {
   const bg        = card.button_color ?? 'var(--pb-btn-bg, var(--pb-primary, #7c3aed))';

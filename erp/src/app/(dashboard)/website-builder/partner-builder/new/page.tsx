@@ -8,6 +8,7 @@ import {
   Palette, Layers, CreditCard, Eye, Rocket, Plus, X,
   Loader2, Info,
 } from 'lucide-react';
+import { ImageUploadField } from '@/components/media/ImageUploadField';
 
 /* ─── Types ──────────────────────────────────────────────── */
 type Template = { id: number; name: string; slug: string; description: string | null; preview_image_url: string | null; category: string | null };
@@ -17,7 +18,7 @@ type WizardState = {
   /* Step 1 */
   name: string;
   slug: string;
-  logo_url: string;
+  logo_media_id: number | null;
   status: 'draft' | 'published';
   /* Step 2 */
   template_id: number | null;
@@ -73,7 +74,7 @@ export default function CreatePartnerWizard() {
   const [slugError, setSlugError]     = useState('');
 
   const [form, setForm] = useState<WizardState>({
-    name: '', slug: '', logo_url: '', status: 'draft',
+    name: '', slug: '', logo_media_id: null, status: 'draft',
     template_id: null, theme_id: null,
     sections: [...DEFAULT_SECTIONS],
     cards: [],
@@ -155,7 +156,7 @@ export default function CreatePartnerWizard() {
           name: form.name,
           slug: form.slug,
           status: form.status,
-          logo_url: form.logo_url || null,
+          logo_media_id: form.logo_media_id,
           template_id: form.template_id,
           theme_id: form.theme_id,
         }),
@@ -280,16 +281,12 @@ export default function CreatePartnerWizard() {
                 </div>
                 {slugError && <p className="text-xs text-red-400 mt-1">{slugError}</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Logo URL <span className="text-zinc-600">(optional)</span></label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={form.logo_url}
-                  onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))}
-                  className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
-                />
-              </div>
+              <ImageUploadField
+                label="Logo (optional)"
+                mediaId={form.logo_media_id}
+                onUpload={(id) => setForm(f => ({ ...f, logo_media_id: id }))}
+                onRemove={() => setForm(f => ({ ...f, logo_media_id: null }))}
+              />
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">Initial Status</label>
                 <div className="flex gap-3">
