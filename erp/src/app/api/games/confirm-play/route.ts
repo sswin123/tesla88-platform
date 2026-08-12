@@ -129,10 +129,12 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. Load player record ─────────────────────────────────────────────────
+  // gp_players confirms the player has gone through launch; provider_account_id
+  // is used as user_public_id on provider_transactions records.
   const { rows: playerRows } = await pool.query<{
-    id: number; provider_player_id: string | null; provider_account_id: string;
+    id: number; provider_account_id: string;
   }>(
-    `SELECT id, provider_player_id, provider_account_id
+    `SELECT id, provider_account_id
      FROM gp_players WHERE provider_id = $1 AND user_id = $2 LIMIT 1`,
     [gpProviderId, user_id],
   );
@@ -144,10 +146,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const loginId = playerRecord.provider_player_id;
+  // Canonical loginId comes from provider_accounts — the single source of truth
+  // for the active YES918 account. gp_players.provider_player_id can be stale
+  // when the account was re-created without a matching gp_players update.
+  const { rows: paRows } = await pool.query<{ provider_login_id: string }>(
+    `SELECT provider_login_id
+     FROM provider_accounts
+     WHERE provider_code = $1 AND user_id = $2
+     LIMIT 1`,
+    [upperCode, user_id],
+  );
+  const loginId = paRows[0]?.provider_login_id;
   if (!loginId) {
     return NextResponse.json(
-      { error: 'Provider account is not fully initialized' },
+      { error: 'Provider account not initialized. Launch the game first.' },
       { status: 503 },
     );
   }
