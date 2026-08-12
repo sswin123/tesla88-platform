@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       mimeType:         file.type,
       uploadedBy:       payload.sub,
       displayName:      'bot_avatar',
+      source:           'SYSTEM_UPLOAD',
     });
 
     await setSettings(

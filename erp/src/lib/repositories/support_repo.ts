@@ -535,7 +535,7 @@ export async function getTimelineMessages(
 
 // ── Quick Replies ─────────────────────────────────────────────────────────────
 
-import type { MediaRecord, MediaModule, MediaType, ThumbnailStatus } from '@/lib/media/types';
+import type { MediaRecord, MediaModule, MediaType, MediaSource, ThumbnailStatus } from '@/lib/media/types';
 import type { QuickReplyContentType } from '@/lib/types';
 
 // Converts a joined media_library row (prefixed ml_*) to MediaRecord.
@@ -566,6 +566,7 @@ function mediaFromRow(row: Record<string, unknown>): MediaRecord | undefined {
     lastUsedModule:   row.ml_last_used_module as MediaModule | null,
     downloadCount:    Number(row.ml_download_count ?? 0),
     lastDownloadedAt: row.ml_last_downloaded_at as string | null,
+    source:           (row.ml_source as MediaSource) ?? 'MEDIA_LIBRARY',
     createdBy:        row.ml_created_by != null ? Number(row.ml_created_by) : null,
     createdAt:        row.ml_created_at as string,
     updatedAt:        row.ml_updated_at as string,
@@ -614,7 +615,8 @@ const ML_COLS = `
   ml.updated_at      AS ml_updated_at,
   ml.is_active       AS ml_is_active,
   ml.deleted_at      AS ml_deleted_at,
-  ml.deleted_by      AS ml_deleted_by`;
+  ml.deleted_by      AS ml_deleted_by,
+  ml.source          AS ml_source`;
 
 function qrFromRow(row: Record<string, unknown>, isFavorite = false): QuickReply {
   return {

@@ -70,6 +70,7 @@ function broadcastFromRow(row: Record<string, unknown>): Broadcast {
       lastUsedModule:   null,
       downloadCount:    0,
       lastDownloadedAt: null,
+      source:           'MEDIA_LIBRARY' as import('@/lib/media/types').MediaSource,
       createdBy:        null,
       updatedAt:        row.ml_created_at as string,
       isActive:         true,

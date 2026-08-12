@@ -53,6 +53,7 @@ export async function POST(
       mimeType: file.type || 'application/octet-stream',
       uploadedBy: payload.sub,
       displayName: `WD-${withdrawalId}-receipt`,
+      source: 'WITHDRAWAL_RECEIPT',
     });
     mediaId = result.record.id;
   } catch (err) {

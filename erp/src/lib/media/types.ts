@@ -2,6 +2,12 @@ export type MediaModule =
   | 'QUICK_REPLY' | 'ANNOUNCEMENT' | 'BROADCAST' | 'BOT_MESSAGE'
   | 'APK' | 'WEBSITE' | 'BANNER' | 'PROMOTION' | 'AI';
 
+export type MediaSource =
+  | 'MEDIA_LIBRARY'
+  | 'WITHDRAWAL_RECEIPT'
+  | 'DEPOSIT_ATTACHMENT'
+  | 'SYSTEM_UPLOAD';
+
 export type StorageHealth   = 'ONLINE' | 'OFFLINE' | 'READ_ONLY';
 export type ThumbnailStatus = 'NONE' | 'PENDING' | 'READY' | 'FAILED';
 export type MediaType =
@@ -32,6 +38,7 @@ export interface MediaRecord {
   lastUsedModule: MediaModule | null;
   downloadCount: number;
   lastDownloadedAt: string | null;
+  source: MediaSource;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
@@ -55,6 +62,7 @@ export interface SaveMediaInput {
   mimeType:         string;
   uploadedBy:       number | null;  // null for anonymous/customer uploads
   displayName?:     string;
+  source?:          MediaSource;    // defaults to 'MEDIA_LIBRARY'
 }
 
 export interface SaveMediaResult {

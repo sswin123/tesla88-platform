@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listMediaFiltered, type SortOption } from '@/lib/repositories/media_repo';
 import { requirePermission } from '@/lib/require_permission';
+import type { MediaSource } from '@/lib/media/types';
+
+const VALID_SOURCES = new Set<string>([
+  'MEDIA_LIBRARY', 'WITHDRAWAL_RECEIPT', 'DEPOSIT_ATTACHMENT', 'SYSTEM_UPLOAD',
+]);
 
 const VALID_SORTS = new Set<string>([
   'newest', 'oldest', 'most_used', 'most_downloaded', 'largest', 'smallest', 'recently_used',
@@ -38,6 +43,11 @@ export async function GET(request: NextRequest) {
   const active = activeRaw === 'true' ? true : activeRaw === 'false' ? false : undefined;
   const includeArchived = sp.get('include_archived') === 'true';
 
+  // Default to MEDIA_LIBRARY — business attachments (receipts, proofs) are excluded
+  // unless the caller explicitly passes a different source value.
+  const sourceRaw = sp.get('source') ?? 'MEDIA_LIBRARY';
+  const source = (VALID_SOURCES.has(sourceRaw) ? sourceRaw : 'MEDIA_LIBRARY') as MediaSource;
+
   const { records, total } = await listMediaFiltered({
     limit, offset, sort,
     search, mediaType, mimeType, extension, module, dateFrom, dateTo,
@@ -46,6 +56,7 @@ export async function GET(request: NextRequest) {
     maxSize:    Number.isNaN(maxSize    ?? NaN) ? undefined : maxSize,
     active,
     includeArchived,
+    source,
   });
 
   return NextResponse.json({ media: records, total, page, limit });

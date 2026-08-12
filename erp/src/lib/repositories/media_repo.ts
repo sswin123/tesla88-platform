@@ -1,5 +1,5 @@
 import pool from '@/lib/db';
-import type { MediaRecord, MediaModule } from '@/lib/media/types';
+import type { MediaRecord, MediaModule, MediaSource } from '@/lib/media/types';
 
 // Maps a DB row (snake_case) to MediaRecord (camelCase)
 function rowToRecord(row: Record<string, unknown>): MediaRecord {
@@ -27,6 +27,7 @@ function rowToRecord(row: Record<string, unknown>): MediaRecord {
     lastUsedModule:   row.last_used_module as MediaModule | null,
     downloadCount:    Number(row.download_count),
     lastDownloadedAt: row.last_downloaded_at as string | null,
+    source:           (row.source as MediaSource) ?? 'MEDIA_LIBRARY',
     createdBy:        row.created_by != null ? Number(row.created_by) : null,
     createdAt:        row.created_at as string,
     updatedAt:        row.updated_at as string,
@@ -55,6 +56,7 @@ interface InsertMediaData {
   duration?: number | null;
   metadata?: Record<string, unknown>;
   createdBy: number | null;
+  source?: MediaSource;
 }
 
 export async function insertMedia(data: InsertMediaData): Promise<MediaRecord> {
@@ -62,8 +64,8 @@ export async function insertMedia(data: InsertMediaData): Promise<MediaRecord> {
     `INSERT INTO media_library (
        file_hash, storage_key, storage_provider, media_type, mime_type, extension,
        original_filename, display_name, file_size, width, height, duration,
-       metadata, created_by
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       metadata, created_by, source
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      RETURNING *`,
     [
       data.fileHash, data.storageKey, data.storageProvider, data.mediaType,
@@ -72,6 +74,7 @@ export async function insertMedia(data: InsertMediaData): Promise<MediaRecord> {
       data.width ?? null, data.height ?? null, data.duration ?? null,
       JSON.stringify(data.metadata ?? {}),
       data.createdBy,
+      data.source ?? 'MEDIA_LIBRARY',
     ]
   );
   return rowToRecord(r.rows[0]);
@@ -405,6 +408,7 @@ interface FilteredListOptions {
   maxSize?: number;
   active?: boolean;
   includeArchived?: boolean;
+  source?: MediaSource;
 }
 
 export async function listMediaFiltered(
@@ -431,6 +435,7 @@ export async function listMediaFiltered(
   if (opts.minSize !== undefined)   { conds.push(`file_size >= $${i++}`);         vals.push(opts.minSize); }
   if (opts.maxSize !== undefined)   { conds.push(`file_size <= $${i++}`);         vals.push(opts.maxSize); }
   if (opts.active !== undefined)    { conds.push(`is_active = $${i++}`);          vals.push(opts.active); }
+  if (opts.source !== undefined)    { conds.push(`source = $${i++}`);             vals.push(opts.source); }
 
   const where = conds.join(' AND ');
   const order = ORDER_CLAUSE[opts.sort];

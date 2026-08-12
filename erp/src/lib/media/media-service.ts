@@ -127,6 +127,7 @@ export class MediaServiceImpl {
       displayName:      input.displayName ?? input.originalFilename,
       fileSize:         input.buffer.length,
       createdBy:        input.uploadedBy,
+      source:           input.source ?? 'MEDIA_LIBRARY',
     });
 
     if (input.uploadedBy !== null) {

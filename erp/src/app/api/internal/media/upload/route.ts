@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mediaService, MediaValidationError } from '@/lib/media';
+import type { MediaSource } from '@/lib/media/types';
+
+const VALID_SOURCES = new Set<string>([
+  'MEDIA_LIBRARY', 'WITHDRAWAL_RECEIPT', 'DEPOSIT_ATTACHMENT', 'SYSTEM_UPLOAD',
+]);
 
 export const runtime = 'nodejs';
 
@@ -33,6 +38,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 });
   }
 
+  // Callers may pass a source header to classify uploads correctly.
+  // The only known caller is website /api/member/uploads/receipt → DEPOSIT_ATTACHMENT.
+  const sourceHeader = formData.get('source') as string | null;
+  const source: MediaSource = (sourceHeader && VALID_SOURCES.has(sourceHeader))
+    ? sourceHeader as MediaSource
+    : 'DEPOSIT_ATTACHMENT';
+
   const buffer = Buffer.from(await file.arrayBuffer());
 
   let result: Awaited<ReturnType<typeof mediaService.save>>;
@@ -42,6 +54,7 @@ export async function POST(req: NextRequest) {
       originalFilename: file.name,
       mimeType:         file.type || 'application/octet-stream',
       uploadedBy:       null,  // customer/anonymous upload — no admin ID
+      source,
     });
   } catch (err) {
     if (err instanceof MediaValidationError) {
