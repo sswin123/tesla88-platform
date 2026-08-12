@@ -28,6 +28,7 @@ interface MemberZoneConfig {
   deposit_button: { text: string; media_id: number | null; media_url: string; enabled: boolean };
   withdraw_button: { text: string; media_id: number | null; media_url: string; enabled: boolean };
   auto_refresh?: number; // 0 = off, else seconds
+  refresh_button_image?: { media_id: number | null; media_url: string };
 }
 
 interface WebsiteSettings {
@@ -194,15 +195,35 @@ function WalletCard({
               className="p-1.5 rounded-full transition-colors hover:bg-white/10 disabled:opacity-50"
               style={{ color: 'var(--text-muted)' }}
               title="刷新余额"
+              aria-label="Refresh Balance"
             >
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                style={{ transition: 'transform 0.3s', animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
-              >
-                <path d="M1 4v6h6" />
-                <path d="M23 20v-6h-6" />
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
-              </svg>
+              {config.refresh_button_image?.media_url ? (
+                <img
+                  src={getProxyImageUrl(config.refresh_button_image.media_url) ?? config.refresh_button_image.media_url}
+                  alt="Refresh Balance"
+                  width={14}
+                  height={14}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    objectFit: 'contain',
+                    transition: 'transform 0.3s',
+                    animation: refreshing ? 'spin 0.8s linear infinite' : 'none',
+                    opacity: refreshing ? 0.5 : 1,
+                    display: 'block',
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  style={{ transition: 'transform 0.3s', animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }}
+                >
+                  <path d="M1 4v6h6" />
+                  <path d="M23 20v-6h-6" />
+                  <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15" />
+                </svg>
+              )}
             </button>
           </div>
 

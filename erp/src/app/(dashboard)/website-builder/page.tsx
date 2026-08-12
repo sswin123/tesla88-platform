@@ -225,8 +225,9 @@ const DEFAULT_CONFIGS: Record<SectionType, Record<string, unknown>> = {
     login_button:    { media_id: null, media_url: '', media_type: '', text: 'Login',    url: '/login',    enabled: true },
     register_button: { media_id: null, media_url: '', media_type: '', text: 'Register', url: '/register', enabled: true },
     bg_media_id: null, bg_media_url: '', bg_media_type: '', bg_gradient: '', border_color: '', border_radius: '16px',
-    deposit_button:  { text: '存款 Deposit',  media_id: null, media_url: '', enabled: true },
-    withdraw_button: { text: '提款 Withdraw', media_id: null, media_url: '', enabled: true },
+    deposit_button:       { text: '存款 Deposit',  media_id: null, media_url: '', enabled: true },
+    withdraw_button:      { text: '提款 Withdraw', media_id: null, media_url: '', enabled: true },
+    refresh_button_image: { media_id: null, media_url: '' },
   },
   custom_html:     { html: '', title: '' },
   game_lobby: {
@@ -2526,6 +2527,13 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
     setPickerFor(null);
   }
 
+  function handleRefreshImageMedia(media: MediaRecord | MediaRecord[]) {
+    const s = Array.isArray(media) ? media[0] : media;
+    if (!s) return;
+    onChange({ ...config, refresh_button_image: { media_id: s.id, media_url: `/api/public/media/${s.id}` } });
+    setPickerFor(null);
+  }
+
   const bg = config as Record<string, unknown>;
   const loginBtn    = (bg.login_button    as Record<string, unknown>) ?? {};
   const registerBtn = (bg.register_button as Record<string, unknown>) ?? {};
@@ -2686,12 +2694,61 @@ function MemberZoneEditor({ config, onChange }: { config: Record<string, unknown
         </label>
       </div>
 
+      {/* Refresh Button Image */}
+      <div className="border rounded-xl p-4 space-y-2">
+        <h4 className="text-sm font-semibold text-foreground">刷新按钮图片（可选）</h4>
+        <p className="text-xs text-muted-foreground">上传后将替换默认刷新图标，点击行为保持不变。</p>
+        {(() => {
+          const rbi = (config.refresh_button_image as Record<string, unknown>) ?? {};
+          const rbiUrl = (rbi.media_url as string) ?? '';
+          return rbiUrl ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={rbiUrl}
+                alt="Refresh Button"
+                className="w-12 h-12 rounded-lg border object-contain bg-muted"
+              />
+              <button
+                type="button"
+                onClick={() => setPickerFor('refresh_button_image')}
+                className="text-xs text-blue-500 hover:underline"
+              >
+                更换
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange({ ...config, refresh_button_image: { media_id: null, media_url: '' } })}
+                className="text-xs text-red-400 hover:underline"
+              >
+                删除
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPickerFor('refresh_button_image')}
+              className="text-xs text-blue-500 border border-dashed border-blue-300 rounded-lg px-3 py-1 hover:bg-blue-50"
+            >
+              + 选择图片
+            </button>
+          );
+        })()}
+        <UploadHint recSize="28 × 28 px" maxMB={2} formats="PNG · JPG · WEBP" note="透明背景 PNG 效果最佳" />
+      </div>
+
       {pickerFor && (
         <MediaPicker
           mode="single"
-          typeFilter={pickerFor === 'bg' ? ['IMAGE', 'GIF', 'VIDEO'] : ['IMAGE', 'GIF']}
+          typeFilter={
+            pickerFor === 'bg'
+              ? ['IMAGE', 'GIF', 'VIDEO']
+              : pickerFor === 'refresh_button_image'
+              ? ['IMAGE']
+              : ['IMAGE', 'GIF']
+          }
           onSelect={media => {
             if (pickerFor === 'bg') handleBgMedia(media);
+            else if (pickerFor === 'refresh_button_image') handleRefreshImageMedia(media);
             else handleButtonMedia(pickerFor as ButtonKey, media);
           }}
           onClose={() => setPickerFor(null)}
