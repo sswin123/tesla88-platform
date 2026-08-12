@@ -41,6 +41,10 @@ export interface Yes918Config {
   timeout_ms?:     number;
   /** Password length for auto-generated player passwords (default 10). */
   password_length?: number;
+  /** Password generation mode: 'random' (default) or 'fixed'. */
+  password_mode?:   'random' | 'fixed';
+  /** Used when password_mode='fixed'. Falls back to random if blank. */
+  fixed_password?:  string;
   /** Android APK download URL — supplied by YES918 official. */
   download_url_android?: string;
   /** iOS App Store / distribution URL — supplied by YES918 official. */
@@ -105,7 +109,7 @@ export class Yes918Adapter extends BaseProviderAdapter {
     }
 
     const yes918Username = await this.api.randomUserName(this.cfg.agent_username);
-    const password       = this.generatePassword();
+    const password       = this._resolvePassword();
 
     await this.api.addUser({ userName: yes918Username, password });
     await this.upsertProviderAccount(internalUserId, yes918Username, password);
@@ -159,7 +163,7 @@ export class Yes918Adapter extends BaseProviderAdapter {
     if (!row) {
       // Auto-create player on first launch
       const yes918Username = await this.api.randomUserName(this.cfg.agent_username);
-      const password       = this.generatePassword();
+      const password       = this._resolvePassword();
 
       await this.api.addUser({ userName: yes918Username, password });
       await this.upsertProviderAccount(userId, yes918Username, password);
@@ -334,6 +338,13 @@ export class Yes918Adapter extends BaseProviderAdapter {
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
+
+  private _resolvePassword(): string {
+    if (this.cfg.password_mode === 'fixed' && this.cfg.fixed_password?.trim()) {
+      return this.cfg.fixed_password.trim();
+    }
+    return this.generatePassword();
+  }
 
   private generatePassword(): string {
     const len = Math.max(6, Math.min(17, this.cfg.password_length ?? 10));

@@ -156,14 +156,22 @@ const YES918: ProviderSchema = {
       description: 'Your agent username on the YES918 platform (shown as AgentId on the API page). Used for RandomUserName and AgentTotalReport calls.',
     },
     {
-      key:         'password_length',
-      label:       'Player Password Length',
-      type:        'number',
-      required:    false,
-      min:         6,
-      max:         17,
-      placeholder: '10',
-      description: 'Length of auto-generated player passwords (6–17, YES918 max is 17).',
+      key:  'password_mode',
+      type: 'radio_group',
+      label: 'Password Configuration',
+      required: false,
+      radioOptions: [
+        {
+          value: 'random',
+          label: 'Random Password',
+          childField: { key: 'password_length', label: 'Password Length', type: 'number', placeholder: '10', min: 6, max: 17 },
+        },
+        {
+          value: 'fixed',
+          label: 'Fixed Password',
+          childField: { key: 'fixed_password', label: 'Password', type: 'text', placeholder: 'e.g. Abc123' },
+        },
+      ],
     },
     {
       key:         'timeout_ms',

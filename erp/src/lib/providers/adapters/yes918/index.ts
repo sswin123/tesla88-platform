@@ -20,6 +20,8 @@ AdapterRegistry.register(
       agent_username:       config['agent_username']       ?? '',
       timeout_ms:           toInt(config['timeout_ms'], 15_000),
       password_length:      toInt(config['password_length'], 10),
+      password_mode:        config['password_mode'] === 'fixed' ? 'fixed' : 'random',
+      fixed_password:       config['fixed_password'] || undefined,
       download_url_android: config['download_url_android'] || undefined,
       download_url_ios:     config['download_url_ios']     || undefined,
     };
