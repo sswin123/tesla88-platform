@@ -3,12 +3,22 @@
 import { useState, useEffect, useMemo } from 'react';
 import { isBrowser } from '@/lib/is-browser';
 import { MegaAppDialog } from '@/app/components/MegaAppDialog';
+import { Yes918Dialog } from '@/app/components/Yes918Dialog';
 import { MegaH5GamePicker } from '@/app/components/MegaH5GamePicker';
 
 interface MegaAppDialogState {
   loginId:            string;
   password:           string;
   launchUrl:          string;
+  downloadUrlAndroid: string | null;
+  downloadUrlIos:     string | null;
+  confirmRefId:       string | null;
+}
+
+interface Yes918DialogState {
+  loginId:            string | null;
+  password:           string | null;
+  launchUrl:          string | null;
   downloadUrlAndroid: string | null;
   downloadUrlIos:     string | null;
   confirmRefId:       string | null;
@@ -467,6 +477,8 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
   const [launching,        setLaunching]        = useState(false);
   const [megaAppDialog,    setMegaAppDialog]    = useState<MegaAppDialogState | null>(null);
   const [megaAppError,     setMegaAppError]     = useState<string | null>(null);
+  const [yes918Dialog,     setYes918Dialog]     = useState<Yes918DialogState | null>(null);
+  const [yes918Error,      setYes918Error]      = useState<string | null>(null);
   const [megaH5PickerOpen, setMegaH5PickerOpen] = useState(false);
   const [megaH5Ready,      setMegaH5Ready]      = useState<{ name: string; url: string } | null>(null);
 
@@ -509,6 +521,11 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
       setMegaH5PickerOpen(true);
       return;
     }
+    // For YES918: open dialog immediately with loading state so the user sees
+    // instant feedback while the server processes the launch request.
+    if (card.provider_code === 'YES918') {
+      setYes918Dialog({ loginId: null, password: null, launchUrl: null, downloadUrlAndroid: null, downloadUrlIos: null, confirmRefId: null });
+    }
     setLaunching(true);
     try {
       const r = await fetch('/api/public/games/launch', {
@@ -524,6 +541,36 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         launch_url?: string; launch_mode?: string;
         session_token?: string | null; error?: string;
       };
+
+      // YES918: parse session_token from response (arrives with HTTP 503 when launch_url
+      // is empty — autoWithdrawAll has already run on ERP, funds are safe).
+      // Dialog shows credentials + download link; Main Sekarang calls confirm-play.
+      if (card.provider_code === 'YES918') {
+        if (d.session_token) {
+          try {
+            const tok = JSON.parse(d.session_token) as Record<string, unknown>;
+            const loginId      = String(tok['login_id']  ?? '');
+            const password     = String(tok['password']  ?? '');
+            const dlAndroid    = tok['download_url_android'] ? String(tok['download_url_android']) : null;
+            const dlIos        = tok['download_url_ios']     ? String(tok['download_url_ios'])     : null;
+            const confirmRefId = tok['confirm_ref_id']       ? String(tok['confirm_ref_id'])       : null;
+            if (loginId && password) {
+              setYes918Dialog({
+                loginId,
+                password,
+                launchUrl:          d.launch_url ?? '',
+                downloadUrlAndroid: dlAndroid,
+                downloadUrlIos:     dlIos,
+                confirmRefId,
+              });
+              return;
+            }
+          } catch { /* fall through to error */ }
+        }
+        setYes918Dialog(null);
+        setYes918Error(d.error ?? '918KISS 暂时无法启动，请稍后再试');
+        return;
+      }
 
       if (card.provider_code === 'MEGAAPP' && d.launch_url) {
         let loginId = '';
@@ -568,6 +615,9 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
     } catch {
       if (card.provider_code === 'MEGAAPP') {
         setMegaAppError('Unable to launch MEGA888. Please try again later.');
+      } else if (card.provider_code === 'YES918') {
+        setYes918Dialog(null);
+        setYes918Error('网络错误，请稍后再试');
       } else {
         alert('网络错误，请稍后再试。');
       }
@@ -664,6 +714,50 @@ function GameLobbyCard({ card, cfg, accent, animClass, fontFamily }: CardProps) 
         confirmRefId={megaAppDialog.confirmRefId}
         onClose={() => setMegaAppDialog(null)}
       />
+    )}
+    {yes918Dialog && (
+      <Yes918Dialog
+        loginId={yes918Dialog.loginId}
+        password={yes918Dialog.password}
+        launchUrl={yes918Dialog.launchUrl}
+        downloadUrlAndroid={yes918Dialog.downloadUrlAndroid}
+        downloadUrlIos={yes918Dialog.downloadUrlIos}
+        confirmRefId={yes918Dialog.confirmRefId}
+        onClose={() => setYes918Dialog(null)}
+      />
+    )}
+    {yes918Error && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center px-4"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="absolute inset-0"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => setYes918Error(null)}
+          aria-hidden="true"
+        />
+        <div
+          className="relative w-full max-w-xs rounded-2xl px-6 py-7 text-center"
+          style={{ background: 'var(--bg-card, var(--bg-surface, #1a1b2e))', border: '1px solid var(--border-mid)' }}
+        >
+          <div className="text-3xl mb-3">⚠️</div>
+          <h4 className="text-base font-bold mb-2" style={{ color: 'var(--text-base, #fff)' }}>
+            918KISS 暂时无法启动。
+          </h4>
+          <p className="text-sm mb-5" style={{ color: 'var(--text-muted, #aaa)', lineHeight: 1.6 }}>
+            {yes918Error}
+          </p>
+          <button
+            onClick={() => setYes918Error(null)}
+            className="px-6 py-2.5 rounded-xl text-sm font-bold"
+            style={{ background: 'var(--brand-primary)', color: '#fff' }}
+          >
+            OK
+          </button>
+        </div>
+      </div>
     )}
     <MegaH5GamePicker
       open={megaH5PickerOpen}
