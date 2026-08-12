@@ -201,17 +201,11 @@ function WalletCard({
                 <img
                   src={getProxyImageUrl(config.refresh_button_image.media_url) ?? config.refresh_button_image.media_url}
                   alt="Refresh Balance"
-                  width={14}
-                  height={14}
+                  className="w-10 h-10 sm:w-12 sm:h-12 object-contain block flex-shrink-0"
                   style={{
-                    width: 28,
-                    height: 28,
-                    objectFit: 'contain',
                     transition: 'transform 0.3s',
                     animation: refreshing ? 'spin 0.8s linear infinite' : 'none',
                     opacity: refreshing ? 0.5 : 1,
-                    display: 'block',
-                    flexShrink: 0,
                   }}
                 />
               ) : (
