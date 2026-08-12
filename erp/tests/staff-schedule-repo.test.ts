@@ -9,6 +9,7 @@ import {
   listTemplates,
   updateTemplate,
   deactivateTemplate,
+  getTargetStaffRole,
 } from '@/lib/repositories/staff_schedule_repo';
 
 beforeEach(() => vi.clearAllMocks());
@@ -214,5 +215,21 @@ describe('deactivateTemplate — archive semantics (Test N/O)', () => {
       fs.readFile(new URL('../src/lib/repositories/staff_schedule_repo.ts', import.meta.url), 'utf8')
     );
     expect(source).not.toMatch(/DELETE FROM staff_schedule_templates/i);
+  });
+});
+
+describe('getTargetStaffRole (Task 16 — SUPER_ADMIN Assignment protection)', () => {
+  it('returns the real role from the DB for a given staff id', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [{ role: 'SUPER_ADMIN' }] } as never);
+    const role = await getTargetStaffRole(9);
+    expect(role).toBe('SUPER_ADMIN');
+    const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain('SELECT role FROM admins WHERE id = $1');
+    expect(params).toEqual([9]);
+  });
+
+  it('returns null when the staff id does not exist', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    expect(await getTargetStaffRole(999999)).toBeNull();
   });
 });

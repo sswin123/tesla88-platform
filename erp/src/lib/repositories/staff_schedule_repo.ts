@@ -723,3 +723,18 @@ export async function getEffectiveSchedule(staffId: number, attendanceDate: stri
     scheduledStart: null, scheduledEnd: null, isOvernight: false, lateGraceMinutes: 0,
   };
 }
+
+/**
+ * Task 16 — SUPER_ADMIN Assignment protection. The target staff's real role
+ * must always be read from the DB, never trusted from a request body (a
+ * caller could otherwise pass any staffId and claim any role). A normal
+ * Admin route handler uses this before calling createAssignment() to reject
+ * assignments that target a SUPER_ADMIN account — SUPER_ADMIN viewers are
+ * exempt (checked by the caller, not here). Deliberately independent of
+ * Live Monitor's own getStaffRole() (staff_monitor_repo.ts) — same one-line
+ * query shape, different domain, not shared code.
+ */
+export async function getTargetStaffRole(staffId: number): Promise<string | null> {
+  const result = await pool.query<{ role: string }>(`SELECT role FROM admins WHERE id = $1`, [staffId]);
+  return result.rows[0]?.role ?? null;
+}
