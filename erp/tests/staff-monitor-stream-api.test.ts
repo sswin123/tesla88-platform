@@ -7,7 +7,8 @@ vi.mock('@/lib/repositories/staff_monitor_repo', () => ({ getStaffRole: vi.fn() 
 import { requirePermissionStrict } from '@/lib/require_permission';
 import { Client } from 'pg';
 import { getStaffRole } from '@/lib/repositories/staff_monitor_repo';
-import { GET, resolveMonitorStreamFrame } from '@/app/api/staff/monitor/stream/route';
+import { GET } from '@/app/api/staff/monitor/stream/route';
+import { resolveMonitorStreamFrame } from '@/app/api/staff/monitor/stream/_resolveFrame';
 
 beforeEach(() => vi.clearAllMocks());
 
