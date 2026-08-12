@@ -24,12 +24,14 @@ export type SyncItem = {
  */
 export function useWalletRefresh() {
   const { refreshProfile } = useMember();
-  const [refreshing,  setRefreshing]  = useState(false);
-  const [syncResults, setSyncResults] = useState<SyncItem[] | null>(null);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [refreshDone,  setRefreshDone]  = useState(false);
+  const [syncResults,  setSyncResults]  = useState<SyncItem[] | null>(null);
 
   async function handleRefresh() {
     if (refreshing) return;
     setRefreshing(true);
+    setRefreshDone(false);
     setSyncResults(null);
 
     try {
@@ -49,7 +51,9 @@ export function useWalletRefresh() {
 
     await refreshProfile();
     setRefreshing(false);
+    setRefreshDone(true);
+    setTimeout(() => setRefreshDone(false), 1800);
   }
 
-  return { refreshing, syncResults, handleRefresh };
+  return { refreshing, refreshDone, syncResults, handleRefresh };
 }

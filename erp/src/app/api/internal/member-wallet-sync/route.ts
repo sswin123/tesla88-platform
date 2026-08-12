@@ -180,7 +180,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         provider_code, provider_name, wallet_type,
         returned: 0, balance_before: runningBalance, balance_after: runningBalance,
         status: 'error', duration_ms: Date.now() - startMs, wallet_tx_id: null,
-        error: msg,
+        error: 'Provider sync failed',
       });
       continue;
     }

@@ -135,13 +135,14 @@ function AuthButtons({ config, settings }: { config: MemberZoneConfig; settings:
 // ─── Wallet Card ──────────────────────────────────────────────────────────────
 
 function WalletCard({
-  profile, config, settings, onRefresh, refreshing, syncResults,
+  profile, config, settings, onRefresh, refreshing, refreshDone, syncResults,
 }: {
   profile: MemberProfile;
   config: MemberZoneConfig;
   settings: WebsiteSettings;
   onRefresh: () => void;
   refreshing: boolean;
+  refreshDone: boolean;
   syncResults: SyncItem[] | null;
 }) {
   const currency    = settings.website_currency || 'RM';
@@ -205,30 +206,32 @@ function WalletCard({
             </button>
           </div>
 
-          {/* Wallet sync summary — shown after refresh if any TRANSFER provider was checked */}
-          {syncResults && (() => {
-            const transferItems = syncResults.filter(r => r.wallet_type === 'TRANSFER');
-            if (transferItems.length === 0) return null;
-            if (transferItems.every(r => r.status === 'empty')) {
+          {/* Wallet refresh status — brief success/error indicator after refresh */}
+          {refreshDone && (() => {
+            const transferItems = syncResults
+              ? syncResults.filter(r => r.wallet_type === 'TRANSFER')
+              : [];
+            const hasError       = transferItems.some(r => r.status === 'error');
+            const totalRecovered = transferItems.reduce(
+              (s, r) => s + (r.status === 'synced' ? (r.returned ?? 0) : 0), 0,
+            );
+            if (hasError && totalRecovered === 0) {
               return (
-                <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
-                  No Balance To Recover
+                <p className="text-xs mt-1" style={{ color: '#dc2626' }}>
+                  Wallet refresh failed. Please try again later.
                 </p>
               );
             }
-            return transferItems.map(r => (
-              <p key={r.provider_code} className="text-xs mt-1" style={{
-                color: r.status === 'synced' ? '#16a34a'
-                     : r.status === 'error'  ? '#dc2626'
-                     : 'var(--text-faint)',
-              }}>
-                {r.provider_name}:{' '}
-                {r.status === 'synced'  ? `+${fmt(r.returned, currency)} recovered` :
-                 r.status === 'empty'   ? 'No Balance To Recover' :
-                 r.status === 'skipped' ? 'Not Required' :
-                 r.error ?? 'Sync error'}
-              </p>
-            ));
+            return (
+              <>
+                {totalRecovered > 0 && (
+                  <p className="text-xs mt-1" style={{ color: '#16a34a' }}>
+                    +{fmt(totalRecovered, currency)} recovered
+                  </p>
+                )}
+                <p className="text-xs mt-1" style={{ color: '#16a34a' }}>✓ Refreshed</p>
+              </>
+            );
           })()}
 
           {pendingWd > 0 && (
@@ -300,7 +303,7 @@ function WalletCard({
 
 export default function MemberZoneSection({ config }: { config: MemberZoneConfig }) {
   const { profile, loading, refreshProfile } = useMember();
-  const { refreshing, syncResults, handleRefresh } = useWalletRefresh();
+  const { refreshing, refreshDone, syncResults, handleRefresh } = useWalletRefresh();
   const [settings, setSettings] = useState<WebsiteSettings>({});
   const autoRefreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -351,6 +354,7 @@ export default function MemberZoneSection({ config }: { config: MemberZoneConfig
         settings={settings}
         onRefresh={handleRefresh}
         refreshing={refreshing}
+        refreshDone={refreshDone}
         syncResults={syncResults}
       />
     </>

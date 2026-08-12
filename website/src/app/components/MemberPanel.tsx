@@ -20,7 +20,7 @@ function useFmt(currency: string, decimals: number) {
 
 export default function MemberPanel() {
   const { profile, loading } = useMember();
-  const { refreshing, syncResults, handleRefresh } = useWalletRefresh();
+  const { refreshing, refreshDone, syncResults, handleRefresh } = useWalletRefresh();
   const [pub, setPub] = useState<PublicSettings>({});
 
   useEffect(() => {
@@ -144,30 +144,32 @@ export default function MemberPanel() {
             + {fmt(pendingWd)} pending withdrawal
           </p>
         )}
-        {/* Wallet sync summary — shown after refresh if any TRANSFER provider was checked */}
-        {syncResults && (() => {
-          const transferItems = syncResults.filter(r => r.wallet_type === 'TRANSFER');
-          if (transferItems.length === 0) return null;
-          if (transferItems.every(r => r.status === 'empty')) {
+        {/* Wallet refresh status — brief success/error indicator after refresh */}
+        {refreshDone && (() => {
+          const transferItems = syncResults
+            ? syncResults.filter(r => r.wallet_type === 'TRANSFER')
+            : [];
+          const hasError       = transferItems.some(r => r.status === 'error');
+          const totalRecovered = transferItems.reduce(
+            (s, r) => s + (r.status === 'synced' ? (r.returned ?? 0) : 0), 0,
+          );
+          if (hasError && totalRecovered === 0) {
             return (
-              <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>
-                No Balance To Recover
+              <p className="text-xs mt-1" style={{ color: '#dc2626' }}>
+                Wallet refresh failed. Please try again later.
               </p>
             );
           }
-          return transferItems.map(r => (
-            <p key={r.provider_code} className="text-xs mt-1" style={{
-              color: r.status === 'synced' ? '#16a34a'
-                   : r.status === 'error'  ? '#dc2626'
-                   : 'var(--text-faint)',
-            }}>
-              {r.provider_name}:{' '}
-              {r.status === 'synced'  ? `+${fmt(r.returned)} recovered` :
-               r.status === 'empty'   ? 'No Balance To Recover' :
-               r.status === 'skipped' ? 'Not Required' :
-               r.error ?? 'Sync error'}
-            </p>
-          ));
+          return (
+            <>
+              {totalRecovered > 0 && (
+                <p className="text-xs mt-1" style={{ color: '#16a34a' }}>
+                  +{fmt(totalRecovered)} recovered
+                </p>
+              )}
+              <p className="text-xs mt-1" style={{ color: '#16a34a' }}>✓ Refreshed</p>
+            </>
+          );
         })()}
       </div>
 

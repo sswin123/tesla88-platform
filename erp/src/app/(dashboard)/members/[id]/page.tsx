@@ -322,7 +322,7 @@ export default function MemberDetailPage() {
     }
   }
 
-  async function syncProviderWallet(providerCode: string, memberId: number) {
+  async function syncProviderWallet(providerCode: string, memberId: number, providerName: string) {
     setSyncingProvider(providerCode);
     setSyncResult(p => ({ ...p, [providerCode]: '' }));
     try {
@@ -331,7 +331,7 @@ export default function MemberDetailPage() {
       if (r.ok && d.ok) {
         const msg = d.returned && d.returned > 0
           ? `✅ 已提回 RM${d.returned.toFixed(2)} (余额 RM${d.balance_before?.toFixed(2)} → RM${d.balance_after?.toFixed(2)})`
-          : `✅ MEGA 钱包余额为零，无需提回`;
+          : `✅ ${providerName} — 余额为零，无需提回`;
         setSyncResult(p => ({ ...p, [providerCode]: msg }));
         // Refresh wallet summary
         void loadWallet(memberId);
@@ -588,7 +588,7 @@ export default function MemberDetailPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => void syncProviderWallet(acc.provider_code, member.id)}
+                              onClick={() => void syncProviderWallet(acc.provider_code, member.id, acc.provider_name)}
                               disabled={syncingProvider === acc.provider_code}
                               className="text-xs h-7 px-2"
                             >
@@ -770,7 +770,7 @@ export default function MemberDetailPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => void syncProviderWallet(acc.provider_code, member.id)}
+                        onClick={() => void syncProviderWallet(acc.provider_code, member.id, acc.provider_name)}
                         disabled={syncingProvider === acc.provider_code || syncingAll}
                         className="text-xs h-7 px-3 shrink-0"
                       >
