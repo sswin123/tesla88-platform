@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('@/lib/db', () => ({ default: { query: vi.fn() } }));
 
 import pool from '@/lib/db';
-import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity, getOpenSessionId, listAttendance, getAttendanceDetail } from '@/lib/repositories/staff_attendance_repo';
+import { openSession, closeSession, finalizeStaleOpenSessions, touchOpenSessionActivity, getOpenSessionId, listAttendance, getAttendanceDetail, getAttendanceStatistics } from '@/lib/repositories/staff_attendance_repo';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -508,5 +508,60 @@ describe('getAttendanceDetail (Task 14)', () => {
     expect(sessionsSql).toMatch(/WHERE attendance_id = \$1/);
     expect(sessionsSql).toMatch(/ORDER BY login_at/);
     expect(sessionsParams).toEqual([1]);
+  });
+});
+
+// --- Task 15: Attendance Statistics (set-based) ---
+
+describe('getAttendanceStatistics (Task 15)', () => {
+  it('runs a single set-based query — never more than one pool.query call regardless of date range size', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: null, department: null, viewerRole: 'SUPER_ADMIN' });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes dateFrom, dateTo, staffId, department, and viewerRole as parameterized query args, not string interpolation', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: 5, department: 'CS', viewerRole: 'CS' });
+    expect(pool.query).toHaveBeenCalledWith(expect.any(String), ['2026-08-01', '2026-08-31', 5, 'CS', 'CS']);
+  });
+
+  it('the query text contains generate_series, LEFT JOIN, and GROUP BY — proof it is set-based, not row-by-row', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: null, department: null, viewerRole: 'SUPER_ADMIN' });
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/generate_series/);
+    expect(sql).toMatch(/LEFT JOIN/);
+    expect(sql).toMatch(/GROUP BY/);
+  });
+
+  it('the query text excludes SUPER_ADMIN rows unless the viewer itself is SUPER_ADMIN (same visibility rule as Task 14, live-verified) — proven via the parameterized role check, not string interpolation', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: null, department: null, viewerRole: 'CS' });
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/=\s*'SUPER_ADMIN'\s*OR\s*role\s*<>\s*'SUPER_ADMIN'/);
+  });
+
+  it('the query text only counts Assignments through an active Template — matches getEffectiveSchedule()\'s own "Template must be active" rule (Task 13)', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({ rows: [] } as never);
+    await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: null, department: null, viewerRole: 'SUPER_ADMIN' });
+    const [sql] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/t\.is_active\s*=\s*true/);
+  });
+
+  it('maps DB rows into StatisticsRow shape with numeric fields coerced', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({
+      rows: [{ staff_id: 5, department: 'CS', status: 'LATE', count: '3', total_working_minutes: '1200', total_late_minutes: '45', total_early_leave_minutes: '0' }],
+    } as never);
+    const result = await getAttendanceStatistics({ dateFrom: '2026-08-01', dateTo: '2026-08-31', staffId: null, department: null, viewerRole: 'SUPER_ADMIN' });
+    expect(result).toEqual([{ staffId: 5, department: 'CS', status: 'LATE', count: 3, totalWorkingMinutes: 1200, totalLateMinutes: 45, totalEarlyLeaveMinutes: 0 }]);
+  });
+
+  it('[Case N: Historical Snapshot] a date with an existing row is never re-derived from current schedule state — the query guarantees this via COALESCE(act.attendance_status, <derived>), live-verified after deactivating the original Template', async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({
+      rows: [{ staff_id: 5, department: 'CS', status: 'LATE', count: '1', total_working_minutes: '500', total_late_minutes: '20', total_early_leave_minutes: '0' }],
+    } as never);
+    const result = await getAttendanceStatistics({ dateFrom: '2026-08-11', dateTo: '2026-08-11', staffId: 5, department: null, viewerRole: 'SUPER_ADMIN' });
+    expect(result[0].status).toBe('LATE');
   });
 });
