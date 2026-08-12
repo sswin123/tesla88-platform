@@ -7,14 +7,15 @@ import {
   LayoutTemplate, Palette, Layers, CreditCard, Settings,
   Plus, Trash2, GripVertical, ChevronUp, ChevronDown,
   ExternalLink, Check, AlertCircle, X,
-  ToggleLeft, ToggleRight,
+  ToggleLeft, ToggleRight, Send, MessageCircle, Globe2,
 } from 'lucide-react';
+import { ImageUploadField } from '@/components/media/ImageUploadField';
 
 /* ─── Types ──────────────────────────────────────────────── */
 type Site = {
   id: number; name: string; slug: string;
   status: 'draft' | 'published' | 'archived';
-  logo_url: string | null;
+  logo_media_id: number | null;
   template_id: number | null; theme_id: number | null;
   meta_title: string | null; meta_description: string | null;
   updated_at: string;
@@ -24,6 +25,7 @@ type Theme    = { id: number; name: string; slug: string; css_variables: Record<
 type Section  = { id: number; section_type: string; is_enabled: boolean; sort_order: number; content_json: Record<string, unknown> };
 type Card     = {
   id: number; brand_name: string; subtitle: string | null;
+  logo_media_id: number | null;
   description: string | null; badge: string | null;
   welcome_bonus: string | null; free_credit: string | null;
   commission: string | null; promo_text: string | null;
@@ -116,7 +118,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
         body: JSON.stringify({
           name:             draft.name,
           slug:             draft.slug,
-          logo_url:         draft.logo_url,
+          logo_media_id:    draft.logo_media_id,
           template_id:      draft.template_id,
           theme_id:         draft.theme_id,
           meta_title:       draft.meta_title,
@@ -403,15 +405,12 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
                     />
                   </div>
                 </Field>
-                <Field label="Logo URL">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={draft.logo_url ?? ''}
-                    onChange={e => setDraft(d => ({ ...d, logo_url: e.target.value }))}
-                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-500 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
-                  />
-                </Field>
+                <ImageUploadField
+                  label="Logo"
+                  mediaId={draft.logo_media_id}
+                  onUpload={(id) => setDraft(d => ({ ...d, logo_media_id: id }))}
+                  onRemove={() => setDraft(d => ({ ...d, logo_media_id: null }))}
+                />
               </div>
             )}
 
@@ -736,6 +735,12 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
 
   return (
     <div className="border-t border-zinc-800 p-3 space-y-2.5 bg-zinc-900/50">
+      <ImageUploadField
+        label="Logo"
+        mediaId={local.logo_media_id}
+        onUpload={(id) => set({ logo_media_id: id })}
+        onRemove={() => set({ logo_media_id: null })}
+      />
       <div className="grid grid-cols-2 gap-2">
         {fields.map(f => (
           <div key={f.key} className={f.key === 'description' || f.key === 'promo_text' ? 'col-span-2' : ''}>
@@ -750,6 +755,7 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
           </div>
         ))}
       </div>
+      <CtaTestPreview card={local} />
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onSave(local)}
@@ -763,6 +769,36 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
         >
           Cancel
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CTA Test / Preview ─────────────────────────────────── */
+function CtaTestPreview({ card }: { card: Card }) {
+  const ctas: { label: string; url: string | null; icon: React.ElementType }[] = [
+    { label: 'Test Telegram', url: card.telegram_url, icon: Send },
+    { label: 'Test WhatsApp', url: card.whatsapp_url, icon: MessageCircle },
+    { label: 'Test Website',  url: card.website_url,  icon: Globe2 },
+  ];
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <label className="text-xs text-zinc-500 block">CTA Preview</label>
+      <div className="flex gap-2 flex-wrap">
+        {ctas.map(c => (
+          <button
+            key={c.label}
+            type="button"
+            disabled={!c.url}
+            onClick={() => c.url && window.open(c.url, '_blank', 'noopener,noreferrer')}
+            title={c.url ?? 'Not configured'}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800 disabled:hover:text-zinc-300"
+          >
+            <c.icon className="w-3.5 h-3.5" />
+            {c.url ? c.label : 'Not Configured'}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -791,8 +827,8 @@ function PartnerSitePreview({
     >
       {/* Preview Header */}
       <div className="px-4 py-2 border-b flex items-center gap-2" style={{ borderColor: `${primary}30`, background: `${bg}ee` }}>
-        {site.logo_url ? (
-          <img src={site.logo_url} alt="logo" className="h-6 object-contain" />
+        {site.logo_media_id ? (
+          <img src={`/api/public/media/${site.logo_media_id}`} alt="logo" className="h-6 object-contain" />
         ) : (
           <div className="w-6 h-6 rounded" style={{ background: primary }} />
         )}
@@ -823,7 +859,13 @@ function PartnerSitePreview({
               <div className="text-xs font-bold mb-3 text-center" style={{ color: accent }}>PARTNER BRANDS</div>
               {cards.slice(0, 3).map(card => (
                 <div key={card.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: `${primary}25`, background: `${primary}08` }}>
-                  <div className="w-8 h-8 rounded-lg flex-shrink-0" style={{ background: `${primary}30` }} />
+                  {card.logo_media_id ? (
+                    <img src={`/api/public/media/${card.logo_media_id}`} alt={card.brand_name} className="w-8 h-8 rounded-lg flex-shrink-0 object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold" style={{ background: `${primary}30`, color: textColor }}>
+                      {card.brand_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-xs" style={{ color: textColor }}>{card.brand_name}</div>
                     {card.subtitle && <div className="text-xs" style={{ color: `${textColor}70` }}>{card.subtitle}</div>}

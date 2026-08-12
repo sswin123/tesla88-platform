@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     template_id?: number;
     theme_id?: number;
     status?: string;
+    logo_media_id?: number | null;
   };
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -53,13 +54,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const site = await createSite({
-      name:        body.name.trim(),
+      name:          body.name.trim(),
       slug,
-      page_type:   body.page_type ?? 'partner',
-      template_id: body.template_id,
-      theme_id:    body.theme_id,
-      status:      ((body.status as string | undefined)?.toUpperCase() as 'DRAFT' | 'PUBLISHED') ?? 'DRAFT',
-      created_by:  payload.sub,
+      page_type:     body.page_type ?? 'partner',
+      template_id:   body.template_id,
+      theme_id:      body.theme_id,
+      logo_media_id: body.logo_media_id ?? null,
+      status:        ((body.status as string | undefined)?.toUpperCase() as 'DRAFT' | 'PUBLISHED') ?? 'DRAFT',
+      created_by:    payload.sub,
     });
     await logAudit({
       admin_id: payload.sub, action: 'PARTNER_SITE_CREATE',
