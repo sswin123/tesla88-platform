@@ -30,7 +30,7 @@ export function NotificationSettings({ settings, onChange }: NotificationSetting
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-gray-400 hover:text-gray-600 text-base leading-none p-1"
+        className="text-muted-foreground hover:text-foreground text-base leading-none p-1"
         title="Notification settings"
         aria-label="Notification settings"
       >
@@ -46,8 +46,8 @@ export function NotificationSettings({ settings, onChange }: NotificationSetting
           />
 
           {/* Popover */}
-          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded shadow-lg p-3 w-52 text-sm">
-            <p className="font-semibold text-gray-700 mb-2">Notifications</p>
+          <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded shadow-lg p-3 w-52 text-sm">
+            <p className="font-semibold text-foreground mb-2">Notifications</p>
 
             <label className="flex items-center gap-2 mb-2 cursor-pointer">
               <input
@@ -58,7 +58,7 @@ export function NotificationSettings({ settings, onChange }: NotificationSetting
               />
               <div>
                 <span className="block">Sound</span>
-                <span className="text-[10px] text-gray-400 leading-tight">Transaction · Live Chat</span>
+                <span className="text-[10px] text-muted-foreground leading-tight">Transaction · Live Chat</span>
               </div>
             </label>
 

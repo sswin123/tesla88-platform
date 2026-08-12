@@ -9,7 +9,7 @@ import { TagBadge } from './TagBadge';
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between border-b py-1.5 last:border-0">
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className="max-w-[60%] truncate text-right text-xs font-medium">{value}</span>
     </div>
   );
@@ -106,7 +106,7 @@ export function MemberCard({
         </div>
         <p className="font-semibold">{member.first_name ?? '—'}</p>
         {member.telegram_username && (
-          <p className="text-xs text-gray-400">@{member.telegram_username}</p>
+          <p className="text-xs text-muted-foreground">@{member.telegram_username}</p>
         )}
         <Badge
           variant={member.status === 'ACTIVE' ? 'default' : 'destructive'}
@@ -118,7 +118,7 @@ export function MemberCard({
 
       {/* Tags */}
       <div className="border-b p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Tags
         </p>
         {tags.length > 0 && (
@@ -134,13 +134,13 @@ export function MemberCard({
             placeholder="Search tags…"
             value={tagSearch}
             onChange={(e) => setTagSearch(e.target.value)}
-            className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+            className="w-full rounded border border-border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
           />
           <div className="flex gap-1">
             <select
               value={selectedTagId}
               onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : '')}
-              className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
+              className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-300"
               size={1}
             >
               <option value="">Add tag…</option>
@@ -166,7 +166,7 @@ export function MemberCard({
 
       {/* Telegram info */}
       <div className="border-b p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Telegram
         </p>
         <Row label="UID" value={member.id} />
@@ -184,7 +184,7 @@ export function MemberCard({
 
       {/* Financials */}
       <div className="border-b p-3">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Financials
         </p>
         <Row label="Total Deposit"    value={fmt(member.total_deposit)} />
@@ -208,7 +208,7 @@ export function MemberCard({
       {/* Bank */}
       {member.bank_name && (
         <div className="border-b p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Bank
           </p>
           <Row label="Bank" value={member.bank_name} />
@@ -220,7 +220,7 @@ export function MemberCard({
       {/* Game Accounts */}
       {member.game_accounts.length > 0 && (
         <div className="border-b p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Game Accounts
           </p>
           {member.game_accounts.map((ga) => (
@@ -235,14 +235,14 @@ export function MemberCard({
                   className="h-6 w-6 rounded object-contain flex-shrink-0"
                 />
               ) : (
-                <div className="h-6 w-6 rounded bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-400 flex-shrink-0">
+                <div className="h-6 w-6 rounded bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground flex-shrink-0">
                   {(ga.display_name ?? ga.provider).slice(0, 2).toUpperCase()}
                 </div>
               )}
-              <span className="text-xs font-medium text-gray-700 truncate">
+              <span className="text-xs font-medium text-foreground truncate">
                 {ga.display_name ?? ga.provider}
               </span>
-              <span className="ml-auto text-xs text-gray-500 font-mono flex-shrink-0">
+              <span className="ml-auto text-xs text-muted-foreground font-mono flex-shrink-0">
                 {ga.username}
               </span>
             </div>
@@ -253,7 +253,7 @@ export function MemberCard({
       {/* Current Promotion */}
       {member.current_promotion && (
         <div className="border-b p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Active Promotion
           </p>
           <Row label="Name"   value={member.current_promotion.name} />
@@ -265,7 +265,7 @@ export function MemberCard({
       {/* Session History */}
       {member.previous_sessions.length > 0 && (
         <div className="border-b p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Session History
           </p>
           {member.previous_sessions.map((s) => {
@@ -278,7 +278,7 @@ export function MemberCard({
                   'flex w-full items-center justify-between rounded px-1 py-1 text-left text-xs transition-colors',
                   isActiveSession
                     ? 'bg-blue-50 font-semibold text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50',
+                    : 'text-muted-foreground hover:bg-muted',
                 ].join(' ')}
               >
                 <span className={isActiveSession ? 'text-blue-600' : 'text-blue-500'}>
@@ -289,7 +289,7 @@ export function MemberCard({
                     </span>
                   )}
                 </span>
-                <span className="text-gray-400">
+                <span className="text-muted-foreground">
                   {s.status} · {new Date(s.created_at).toLocaleDateString()}
                 </span>
               </button>
@@ -317,7 +317,7 @@ export function MemberCard({
           href={`/members/${member.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block w-full rounded-md border border-gray-200 px-3 py-1.5 text-center text-sm text-gray-600 hover:bg-gray-50"
+          className="block w-full rounded-md border border-border px-3 py-1.5 text-center text-sm text-muted-foreground hover:bg-muted"
         >
           Open Full Profile &#8599;
         </a>

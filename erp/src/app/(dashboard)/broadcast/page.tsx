@@ -347,7 +347,7 @@ export default function BroadcastPage() {
       {/* ── Left: History ────────────────────────────────────────────────── */}
       <div className={`flex flex-col min-h-0 overflow-hidden ${showForm ? 'flex-1' : 'w-full'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-white shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-card shrink-0">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Radio className="w-5 h-5 text-blue-600" />
             Broadcast Center
@@ -358,7 +358,7 @@ export default function BroadcastPage() {
         </div>
 
         {/* Analytics strip */}
-        <div className="grid grid-cols-4 gap-0 border-b bg-gray-50 shrink-0">
+        <div className="grid grid-cols-4 gap-0 border-b bg-muted shrink-0">
           {[
             { label: 'Total',   value: analytics.total,   color: 'text-gray-700' },
             { label: 'Sent',    value: analytics.sent,    color: 'text-green-700' },
@@ -367,13 +367,13 @@ export default function BroadcastPage() {
           ].map(a => (
             <div key={a.label} className="flex flex-col items-center py-2 border-r last:border-r-0">
               <span className={`text-lg font-bold ${a.color}`}>{a.value}</span>
-              <span className="text-xs text-gray-400">{a.label}</span>
+              <span className="text-xs text-muted-foreground">{a.label}</span>
             </div>
           ))}
         </div>
 
         {/* Filter bar */}
-        <div className="flex gap-2 px-4 py-2 border-b bg-white shrink-0">
+        <div className="flex gap-2 px-4 py-2 border-b bg-card shrink-0">
           {['', 'DRAFT', 'SCHEDULED', 'SENDING', 'SENT', 'PARTIALLY_SENT', 'FAILED'].map(s => (
             <button
               key={s}
@@ -381,7 +381,7 @@ export default function BroadcastPage() {
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 statusFilter === s
                   ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                  : 'bg-background text-muted-foreground border-border hover:border-border'
               }`}
             >{s || 'All'}</button>
           ))}
@@ -390,9 +390,9 @@ export default function BroadcastPage() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex h-32 items-center justify-center text-gray-400 text-sm">Loading…</div>
+            <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Loading…</div>
           ) : broadcasts.length === 0 ? (
-            <div className="flex h-32 items-center justify-center text-gray-400 text-sm">No broadcasts yet.</div>
+            <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">No broadcasts yet.</div>
           ) : (
             <div className="divide-y">
               {broadcasts.map(b => {
@@ -401,11 +401,11 @@ export default function BroadcastPage() {
                 return (
                   <div
                     key={b.id}
-                    className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => openEdit(b)}
                   >
                     <div className="mt-0.5 shrink-0">
-                      <StatusIcon className="w-4 h-4 text-gray-400" />
+                      <StatusIcon className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -414,7 +414,7 @@ export default function BroadcastPage() {
                         </span>
                         <span className="text-sm font-medium truncate">{b.title}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span>{b.channels.join(' + ')}</span>
                         <span>{b.audience_type}</span>
                         {b.status !== 'DRAFT' && (
@@ -432,7 +432,7 @@ export default function BroadcastPage() {
                           onClick={() => void handleSend(b.id)}
                           disabled={sendingId === b.id}
                           title="Send Now"
-                          className="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-40"
+                          className="p-1.5 rounded hover:bg-blue-50 text-muted-foreground hover:text-blue-600 transition-colors disabled:opacity-40"
                         >
                           <Send className="w-3.5 h-3.5" />
                         </button>
@@ -440,7 +440,7 @@ export default function BroadcastPage() {
                       <button
                         onClick={() => void handleDuplicate(b)}
                         title="Duplicate"
-                        className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
@@ -448,7 +448,7 @@ export default function BroadcastPage() {
                         <button
                           onClick={() => void handleDelete(b.id)}
                           title="Delete"
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -461,14 +461,14 @@ export default function BroadcastPage() {
           )}
         </div>
 
-        <div className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-400 shrink-0">
+        <div className="px-4 py-2 border-t bg-muted text-xs text-muted-foreground shrink-0">
           {broadcasts.length} of {total} broadcasts
         </div>
       </div>
 
       {/* ── Right: Composer ───────────────────────────────────────────────── */}
       {showForm && (
-        <div className="w-96 border-l bg-white flex flex-col shrink-0 overflow-hidden">
+        <div className="w-96 border-l bg-card flex flex-col shrink-0 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
             <h2 className="font-semibold text-sm">
@@ -477,13 +477,13 @@ export default function BroadcastPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPreviewTab('compose')}
-                className={`text-xs px-2 py-1 rounded ${previewTab === 'compose' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                className={`text-xs px-2 py-1 rounded ${previewTab === 'compose' ? 'bg-gray-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               >Compose</button>
               <button
                 onClick={() => setPreviewTab('preview')}
-                className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${previewTab === 'preview' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${previewTab === 'preview' ? 'bg-gray-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               ><Eye className="w-3 h-3" /> Preview</button>
-              <button onClick={closeForm} className="text-gray-400 hover:text-gray-700 ml-1">
+              <button onClick={closeForm} className="text-muted-foreground hover:text-foreground ml-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -491,8 +491,8 @@ export default function BroadcastPage() {
 
           {previewTab === 'preview' ? (
             /* ── Preview panel ─────────────────────────────────────────── */
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Telegram Preview</p>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telegram Preview</p>
               <div className="bg-[#effdde] rounded-2xl rounded-br-none px-4 py-2 max-w-xs ml-auto shadow-sm">
                 {form.contentType !== 'TEXT' && form.mediaRecord && (
                   <div className="mb-2 text-xs text-gray-500 italic">
@@ -510,7 +510,7 @@ export default function BroadcastPage() {
                 </p>
               </div>
 
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mt-4">Live Chat Preview</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mt-4">Live Chat Preview</p>
               <div className="bg-blue-50 rounded-2xl rounded-br-none px-4 py-2 max-w-xs ml-auto border border-blue-100">
                 <p className="text-[10px] text-blue-500 font-medium mb-1">Support Agent</p>
                 {form.contentType !== 'TEXT' && form.mediaRecord && (
@@ -531,7 +531,7 @@ export default function BroadcastPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Title */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Title <span className="text-red-500">*</span></Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Title <span className="text-red-500">*</span></Label>
                 <Input
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -542,7 +542,7 @@ export default function BroadcastPage() {
 
               {/* Channels */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Channels <span className="text-red-500">*</span></Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Channels <span className="text-red-500">*</span></Label>
                 <div className="flex gap-2">
                   {(['TELEGRAM', 'LIVECHAT'] as BroadcastChannel[]).map(ch => (
                     <button
@@ -551,7 +551,7 @@ export default function BroadcastPage() {
                       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
                         form.channels.includes(ch)
                           ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                          : 'bg-background text-muted-foreground border-border hover:border-border'
                       }`}
                     >
                       {ch === 'TELEGRAM' ? <Send className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
@@ -563,7 +563,7 @@ export default function BroadcastPage() {
 
               {/* Content type */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Content Type</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Content Type</Label>
                 <div className="flex flex-wrap gap-1">
                   {CONTENT_TYPES.map(t => (
                     <button
@@ -576,7 +576,7 @@ export default function BroadcastPage() {
                       className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium border transition-colors ${
                         form.contentType === t.value
                           ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                          : 'bg-background text-muted-foreground border-border hover:border-border'
                       }`}
                     >
                       <t.icon className="w-3 h-3" />
@@ -589,18 +589,18 @@ export default function BroadcastPage() {
               {/* Body (TEXT) or Media (non-TEXT) */}
               {form.contentType === 'TEXT' ? (
                 <div>
-                  <Label className="text-xs text-gray-500 mb-1 block">Message <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Message <span className="text-red-500">*</span></Label>
                   <textarea
                     value={form.body}
                     onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
                     rows={4}
                     placeholder="Message to broadcast…"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none"
+                    className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   />
                 </div>
               ) : (
                 <div>
-                  <Label className="text-xs text-gray-500 mb-1 block">Media <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Media <span className="text-red-500">*</span></Label>
                   {form.mediaRecord ? (
                     <div className="rounded-lg border p-3 space-y-2">
                       {(form.contentType === 'IMAGE' || form.contentType === 'GIF') && (
@@ -613,11 +613,11 @@ export default function BroadcastPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">{form.mediaRecord.displayName}</p>
-                          <p className="text-[10px] text-gray-400">{formatBytes(form.mediaRecord.fileSize)}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatBytes(form.mediaRecord.fileSize)}</p>
                         </div>
                         <button
                           onClick={() => setForm(f => ({ ...f, mediaId: null, mediaRecord: null }))}
-                          className="text-gray-400 hover:text-red-500 shrink-0"
+                          className="text-muted-foreground hover:text-red-500 shrink-0"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -630,7 +630,7 @@ export default function BroadcastPage() {
                   ) : (
                     <button
                       onClick={() => setShowPicker(true)}
-                      className="w-full rounded-lg border-2 border-dashed border-gray-300 py-4 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                      className="w-full rounded-lg border-2 border-dashed border-border py-4 text-sm text-muted-foreground hover:border-border hover:text-foreground transition-colors"
                     >
                       Choose from Library
                     </button>
@@ -640,7 +640,7 @@ export default function BroadcastPage() {
 
               {/* Caption */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Caption <span className="text-gray-400">(optional)</span></Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Caption <span className="text-muted-foreground">(optional)</span></Label>
                 <Input
                   value={form.caption}
                   onChange={e => setForm(f => ({ ...f, caption: e.target.value }))}
@@ -651,11 +651,11 @@ export default function BroadcastPage() {
 
               {/* Audience */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Audience</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Audience</Label>
                 <select
                   value={form.audienceType}
                   onChange={e => setForm(f => ({ ...f, audienceType: e.target.value as BroadcastAudienceType, audienceTagId: null }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {AUDIENCE_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
@@ -663,20 +663,20 @@ export default function BroadcastPage() {
                 </select>
 
                 {/* Audience count preview */}
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {countLoading ? 'Counting…' : audienceCount !== null ? `≈ ${audienceCount} recipients` : ''}
                 </p>
 
                 {/* SELECTED: textarea for telegram IDs */}
                 {form.audienceType === 'SELECTED' && (
                   <div className="mt-2">
-                    <Label className="text-xs text-gray-500 mb-1 block">User IDs (comma-separated)</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">User IDs (comma-separated)</Label>
                     <textarea
                       value={form.audienceUserIds}
                       onChange={e => setForm(f => ({ ...f, audienceUserIds: e.target.value }))}
                       rows={3}
                       placeholder="123456789, 987654321"
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none"
+                      className="w-full rounded-md border border-border px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     />
                   </div>
                 )}
@@ -684,8 +684,8 @@ export default function BroadcastPage() {
 
               {/* Schedule */}
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">
-                  Schedule <span className="text-gray-400">(leave blank to send immediately)</span>
+                <Label className="text-xs text-muted-foreground mb-1 block">
+                  Schedule <span className="text-muted-foreground">(leave blank to send immediately)</span>
                 </Label>
                 <Input
                   type="datetime-local"

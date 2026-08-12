@@ -87,14 +87,14 @@ function ToastBanner({ toast, onDismiss }: { toast: Toast; onDismiss: () => void
 function Section({ title, children, collapsible = false }: { title: string; children: React.ReactNode; collapsible?: boolean }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div className="bg-card rounded-xl border border-border">
       <button
         type="button"
         onClick={() => collapsible && setOpen(o => !o)}
-        className={`w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 ${collapsible ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'}`}
+        className={`w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 ${collapsible ? 'cursor-pointer hover:bg-muted' : 'cursor-default'}`}
       >
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-        {collapsible && (open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />)}
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        {collapsible && (open ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />)}
       </button>
       {open && <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">{children}</div>}
     </div>
@@ -104,8 +104,8 @@ function Section({ title, children, collapsible = false }: { title: string; chil
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
+      <label className="block text-sm font-medium text-foreground mb-1">{label}</label>
+      {hint && <p className="text-xs text-muted-foreground mb-1.5">{hint}</p>}
       {children}
     </div>
   );
@@ -116,7 +116,7 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: {
 }) {
   return (
     <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
   );
 }
 
@@ -125,7 +125,7 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: {
 }) {
   return (
     <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
+      className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
   );
 }
 
@@ -151,16 +151,16 @@ function MediaAssetField({ label, hint, mediaId, onSelect, onRemove }: {
         {mediaId ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={`/api/media/${mediaId}/thumbnail`} alt={label}
-            className="w-16 h-16 object-cover rounded-lg border border-gray-200 bg-gray-50"
+            className="w-16 h-16 object-cover rounded-lg border border-border bg-muted"
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
         ) : (
-          <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-            <ImageIcon size={20} className="text-gray-400" />
+          <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted">
+            <ImageIcon size={20} className="text-muted-foreground" />
           </div>
         )}
         <div className="flex gap-2">
           <button type="button" onClick={onSelect}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700">
+            className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted font-medium text-foreground">
             {mediaId ? '更换' : '选择'}
           </button>
           {mediaId && (
@@ -185,13 +185,13 @@ function VarBadge({ name, value }: { name: string; value: string }) {
     setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
       <div className="min-w-0">
         <code className="text-xs text-blue-700 font-mono">{`{{${name}}}`}</code>
-        <p className="text-xs text-gray-500 truncate mt-0.5">{value || '—'}</p>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">{value || '—'}</p>
       </div>
       <button type="button" onClick={copy} title="复制变量名"
-        className="flex-shrink-0 text-gray-400 hover:text-gray-600">
+        className="flex-shrink-0 text-muted-foreground hover:text-foreground">
         {copied ? <span className="text-xs text-green-600">✓</span> : <Copy size={12} />}
       </button>
     </div>
@@ -378,7 +378,7 @@ export default function BrandCenterPage() {
   if (permitted === null || loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="animate-spin text-gray-400" size={32} />
+        <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
   }
@@ -406,8 +406,8 @@ export default function BrandCenterPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">品牌中心</h1>
-          <p className="text-sm text-gray-500 mt-1">品牌身份、资产、域名、联系方式的单一配置源</p>
+          <h1 className="text-2xl font-bold text-foreground">品牌中心</h1>
+          <p className="text-sm text-muted-foreground mt-1">品牌身份、资产、域名、联系方式的单一配置源</p>
         </div>
         <button onClick={() => void handleSave()} disabled={saving}
           className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50 w-full sm:w-auto">
@@ -482,10 +482,10 @@ export default function BrandCenterPage() {
             mediaId={form.splash_image_media_id}
             onSelect={() => setPickerFor('splash_image')} onRemove={() => set('splash_image_media_id', null)} />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-border">
           <Field label="Logo 尺寸">
             <select value={form.logo_size} onChange={e => set('logo_size', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-blue-500">
               <option value="small">Small (32px)</option>
               <option value="medium">Medium (48px)</option>
               <option value="large">Large (64px)</option>
@@ -496,7 +496,7 @@ export default function BrandCenterPage() {
             <div className="flex gap-2">
               {(['left', 'center', 'right'] as const).map(a => (
                 <button key={a} type="button" onClick={() => set('logo_align', a)}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${form.logo_align === a ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${form.logo_align === a ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-foreground hover:bg-muted'}`}>
                   {a === 'left' ? '◀ 左' : a === 'center' ? '● 中' : '右 ▶'}
                 </button>
               ))}
@@ -522,11 +522,11 @@ export default function BrandCenterPage() {
 
       {/* 4. 域名 */}
       <Section title="4. 域名">
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-3 p-3 bg-muted rounded-lg border border-border">
           <input type="checkbox" id="auto_detect" checked={form.auto_detect_domain}
             onChange={e => set('auto_detect_domain', e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300" />
-          <label htmlFor="auto_detect" className="text-sm text-gray-700 cursor-pointer select-none">
+            className="w-4 h-4 rounded border-border" />
+          <label htmlFor="auto_detect" className="text-sm text-foreground cursor-pointer select-none">
             自动检测子域名（根据 Website 域名自动生成 api. 和 erp. 前缀）
           </label>
         </div>
@@ -599,7 +599,7 @@ export default function BrandCenterPage() {
 
       {/* 6. SEO */}
       <Section title="6. SEO" collapsible>
-        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">基础 SEO</p>
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">基础 SEO</p>
         <Field label="页面标题 (title)">
           <TextInput value={form.seo_title} onChange={v => set('seo_title', v)} placeholder="Opulux — Best Online Casino" />
         </Field>
@@ -615,7 +615,7 @@ export default function BrandCenterPage() {
           </Field>
           <Field label="Robots">
             <select value={form.robots} onChange={e => set('robots', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
               <option value="index, follow">index, follow</option>
               <option value="noindex, nofollow">noindex, nofollow</option>
               <option value="noindex, follow">noindex, follow</option>
@@ -625,8 +625,8 @@ export default function BrandCenterPage() {
         </div>
         <UrlField label="Canonical URL (可选)" value={form.canonical_url} onChange={v => set('canonical_url', v)} error={urlErrors.canonical_url} placeholder="https://apidemo.club" />
 
-        <div className="pt-2 border-t border-gray-100">
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Open Graph</p>
+        <div className="pt-2 border-t border-border">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">Open Graph</p>
           <div className="space-y-3">
             <Field label="OG 标题">
               <TextInput value={form.og_title} onChange={v => set('og_title', v)} placeholder="与 SEO 标题相同则留空" />
@@ -638,12 +638,12 @@ export default function BrandCenterPage() {
           </div>
         </div>
 
-        <div className="pt-2 border-t border-gray-100">
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Twitter Card</p>
+        <div className="pt-2 border-t border-border">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">Twitter Card</p>
           <div className="space-y-3">
             <Field label="Card 类型">
               <select value={form.twitter_card} onChange={e => set('twitter_card', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
                 <option value="summary_large_image">summary_large_image</option>
                 <option value="summary">summary</option>
               </select>
@@ -683,7 +683,7 @@ export default function BrandCenterPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="时区">
             <select value={form.sys_timezone} onChange={e => set('sys_timezone', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
               {[
                 'Asia/Kuala_Lumpur', 'Asia/Singapore', 'Asia/Bangkok', 'Asia/Jakarta',
                 'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Taipei', 'Asia/Seoul',
@@ -693,7 +693,7 @@ export default function BrandCenterPage() {
           </Field>
           <Field label="语言">
             <select value={form.sys_language} onChange={e => set('sys_language', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
               {[
                 ['zh-CN', '简体中文'], ['zh-TW', '繁體中文'], ['en', 'English'],
                 ['ms', 'Bahasa Malaysia'], ['th', 'ภาษาไทย'], ['id', 'Bahasa Indonesia'],
@@ -703,7 +703,7 @@ export default function BrandCenterPage() {
           </Field>
           <Field label="国家/地区">
             <select value={form.sys_country} onChange={e => set('sys_country', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
               {[['MY', '🇲🇾 Malaysia'], ['SG', '🇸🇬 Singapore'], ['TH', '🇹🇭 Thailand'],
                 ['ID', '🇮🇩 Indonesia'], ['HK', '🇭🇰 Hong Kong'], ['CN', '🇨🇳 China'],
                 ['TW', '🇹🇼 Taiwan'], ['KR', '🇰🇷 Korea'], ['JP', '🇯🇵 Japan'], ['VN', '🇻🇳 Vietnam'],
@@ -712,7 +712,7 @@ export default function BrandCenterPage() {
           </Field>
           <Field label="Locale">
             <select value={form.sys_locale} onChange={e => set('sys_locale', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background">
               {[
                 'ms-MY', 'en-MY', 'zh-CN', 'zh-TW', 'en-SG', 'th-TH',
                 'id-ID', 'vi-VN', 'ko-KR', 'ja-JP',
@@ -722,14 +722,14 @@ export default function BrandCenterPage() {
         </div>
 
         {/* Read-only system info */}
-        <div className="pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             ['App Version', erpConfig.app_version ?? '—'],
             ['Environment', erpConfig.node_env ?? '—'],
           ].map(([k, v]) => (
-            <div key={k} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm">
-              <span className="text-gray-500">{k}:</span>
-              <span className="font-medium text-gray-900">{v}</span>
+            <div key={k} className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg text-sm">
+              <span className="text-muted-foreground">{k}:</span>
+              <span className="font-medium text-foreground">{v}</span>
             </div>
           ))}
         </div>
@@ -737,7 +737,7 @@ export default function BrandCenterPage() {
 
       {/* 9. 变量（只读） */}
       <Section title="9. 模板变量（只读）" collapsible>
-        <p className="text-xs text-gray-500">在 Widget 文字中使用这些变量，发布时自动替换为实际值</p>
+        <p className="text-xs text-muted-foreground">在 Widget 文字中使用这些变量，发布时自动替换为实际值</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {VARIABLES.map(v => <VarBadge key={v.name} name={v.name} value={v.value} />)}
         </div>
@@ -747,10 +747,10 @@ export default function BrandCenterPage() {
       <Section title="10. 通知设置">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Transaction Reminder Interval (ms)
             </label>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               How often the pending transaction beep repeats. Range: 1000–10000ms.
             </p>
             <div className="flex flex-wrap items-center gap-3">
@@ -761,9 +761,9 @@ export default function BrandCenterPage() {
                 step={100}
                 value={notifInterval}
                 onChange={(e) => setNotifInterval(Number(e.target.value))}
-                className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-32 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-xs text-gray-500">ms</span>
+              <span className="text-xs text-muted-foreground">ms</span>
               <button
                 type="button"
                 onClick={() => void saveNotifSettings()}

@@ -72,12 +72,12 @@ export default function RejectModal({ type, id, onClose, onSuccess }: RejectModa
       className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-card rounded-lg shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-base font-semibold">{title} #{id}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            className="text-muted-foreground hover:text-foreground text-xl leading-none"
             aria-label="Close"
           >
             ×
@@ -85,7 +85,7 @@ export default function RejectModal({ type, id, onClose, onSuccess }: RejectModa
         </div>
 
         <div className="px-5 py-4 space-y-2">
-          <p className="text-sm text-gray-600 mb-3">Select a reason for rejection:</p>
+          <p className="text-sm text-muted-foreground mb-3">Select a reason for rejection:</p>
 
           {reasons.map((r) => (
             <label key={r} className="flex items-center gap-3 cursor-pointer group">
@@ -97,7 +97,7 @@ export default function RejectModal({ type, id, onClose, onSuccess }: RejectModa
                 onChange={() => { setSelected(r); setError(''); }}
                 className="accent-red-600"
               />
-              <span className="text-sm group-hover:text-gray-900">{r}</span>
+              <span className="text-sm group-hover:text-foreground">{r}</span>
             </label>
           ))}
 
@@ -108,14 +108,14 @@ export default function RejectModal({ type, id, onClose, onSuccess }: RejectModa
               onChange={(e) => { setCustom(e.target.value); setError(''); }}
               placeholder="Enter reason…"
               rows={3}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+              className="mt-2 w-full rounded-md border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
             />
           )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
 
-        <div className="flex justify-end gap-2 px-5 py-4 border-t bg-gray-50 rounded-b-lg">
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-border bg-muted rounded-b-lg">
           <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
             Cancel
           </Button>

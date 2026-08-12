@@ -28,9 +28,9 @@ function formatDateLabel(iso: string): string {
 function DateDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 my-4">
-      <div className="flex-1 h-px bg-gray-100" />
-      <span className="text-xs text-gray-400 font-medium">{label}</span>
-      <div className="flex-1 h-px bg-gray-100" />
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -56,12 +56,12 @@ function SessionMarker({
       className="flex items-center gap-2 my-5"
       style={{ transition: 'background-color 0.7s' }}
     >
-      <div className="flex-1 h-px bg-gray-200" />
+      <div className="flex-1 h-px bg-border" />
       <div className="text-center">
-        <p className="text-xs text-gray-400 font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground font-medium">{label}</p>
         <p className="text-[10px] text-gray-300">#{session.id}</p>
       </div>
-      <div className="flex-1 h-px bg-gray-200" />
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -326,13 +326,13 @@ export function ChatWindow({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto bg-gray-50 px-4 py-3"
+      className="flex-1 overflow-y-auto bg-muted px-4 py-3"
     >
       {loadingMore && (
-        <div className="text-center text-xs text-gray-400 py-2">Loading older messages…</div>
+        <div className="text-center text-xs text-muted-foreground py-2">Loading older messages…</div>
       )}
       {!hasMore && messages.length > 0 && (
-        <div className="text-center text-xs text-gray-400 py-2">Beginning of conversation</div>
+        <div className="text-center text-xs text-muted-foreground py-2">Beginning of conversation</div>
       )}
 
       <div className="space-y-1">

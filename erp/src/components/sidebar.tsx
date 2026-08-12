@@ -47,9 +47,9 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
       <nav className="flex-1 overflow-y-auto p-2" aria-label="Main navigation">
         {filteredNavGroups.map((group, gi) => (
           <div key={gi}>
-            {gi > 0 && <div className="mx-1 my-2 border-t border-gray-100" />}
+            {gi > 0 && <div className="mx-1 my-2 border-t border-border" />}
             {group.title && (
-              <p className="mx-3 mb-1 mt-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+              <p className="mx-3 mb-1 mt-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {group.title}
               </p>
             )}
@@ -61,8 +61,8 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
                 className={cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
                   isActive(href, pathname, exact)
-                    ? 'bg-gray-100 font-medium text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                    ? 'bg-sidebar-active-bg font-medium text-sidebar-active-text'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 <Icon size={16} />
@@ -90,8 +90,8 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
           className={cn(
             'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
             pathname === '/settings/profile'
-              ? 'bg-blue-50 text-blue-700 font-medium'
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+              ? 'bg-sidebar-active-bg text-sidebar-active-text font-medium'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
         >
           <KeyRound size={16} />
@@ -99,12 +99,12 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
         </Link>
         <button
           onClick={() => { void handleLogout(); onNavigate?.(); }}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <LogOut size={16} />
           Logout
         </button>
-        <p className="mt-1 px-3 text-[10px] text-gray-300 select-none">v1.0.0</p>
+        <p className="mt-1 px-3 text-[10px] text-muted-foreground/50 select-none">v1.0.0</p>
       </div>
     </>
   );
@@ -112,7 +112,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
 
 export function Sidebar() {
   return (
-    <aside className="hidden lg:flex h-full w-56 flex-shrink-0 flex-col border-r bg-white">
+    <aside className="hidden lg:flex h-full w-56 flex-shrink-0 flex-col border-r border-border bg-sidebar">
       <SidebarContent />
     </aside>
   );

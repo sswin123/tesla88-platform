@@ -215,13 +215,13 @@ export default function AccountsPage() {
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: 'Total',     value: stats.total,     color: 'text-gray-800' },
+            { label: 'Total',     value: stats.total,     color: 'text-foreground' },
             { label: 'Available', value: stats.available, color: 'text-green-600' },
             { label: 'Assigned',  value: stats.assigned,  color: 'text-blue-600'  },
             { label: 'Disabled',  value: stats.disabled,  color: 'text-red-500'   },
           ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-lg border bg-white p-4 shadow-sm">
-              <div className="text-xs text-gray-500">{label}</div>
+            <div key={label} className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="text-xs text-muted-foreground">{label}</div>
               <div className={`mt-1 text-2xl font-bold ${color}`}>{value}</div>
             </div>
           ))}
@@ -230,12 +230,12 @@ export default function AccountsPage() {
 
       {/* ── Provider breakdown ── */}
       {stats && stats.by_provider.length > 0 && (
-        <div className="rounded-lg border bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">By Provider</h2>
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">By Provider</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-500">
+                <tr className="text-left text-xs text-muted-foreground">
                   <th className="pb-1 pr-4">Provider</th>
                   <th className="pb-1 pr-4 text-green-600">Available</th>
                   <th className="pb-1 pr-4 text-blue-600">Assigned</th>
@@ -259,10 +259,10 @@ export default function AccountsPage() {
 
       {/* ── Bulk Import (collapsible) ── */}
       {showImport && (
-        <div className="rounded-lg border bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">Bulk Import</h2>
-          <p className="mb-2 text-xs text-gray-500">
-            One account per line: <code className="rounded bg-gray-100 px-1">provider,username,password</code>
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">Bulk Import</h2>
+          <p className="mb-2 text-xs text-muted-foreground">
+            One account per line: <code className="rounded bg-muted px-1">provider,username,password</code>
           </p>
           <textarea
             className="w-full rounded border p-2 font-mono text-xs"
@@ -276,7 +276,7 @@ export default function AccountsPage() {
               {importing ? 'Importing…' : 'Import'}
             </Button>
             {importResult && (
-              <span className="text-sm text-gray-700">{importResult}</span>
+              <span className="text-sm text-foreground">{importResult}</span>
             )}
           </div>
         </div>
@@ -319,13 +319,13 @@ export default function AccountsPage() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
       ) : (
         <>
           {/* ── Accounts table ── */}
-          <div className="overflow-x-auto rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-600">
+              <thead className="bg-muted text-xs text-muted-foreground">
                 <tr>
                   {['Provider', 'Username', 'Status', 'Assigned To', 'Actions'].map((h) => (
                     <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
@@ -334,7 +334,7 @@ export default function AccountsPage() {
               </thead>
               <tbody className="divide-y">
                 {(data?.accounts ?? []).map((acc) => (
-                  <tr key={acc.id} className="hover:bg-gray-50">
+                  <tr key={acc.id} className="hover:bg-muted">
                     <td className="px-3 py-2 font-medium">{acc.provider}</td>
                     <td className="px-3 py-2 font-mono">{acc.username}</td>
                     <td className="px-3 py-2">
@@ -342,10 +342,10 @@ export default function AccountsPage() {
                         {acc.status}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-gray-600">
+                    <td className="px-3 py-2 text-muted-foreground">
                       {acc.assigned_user_name
                         ? `${acc.assigned_user_name} (#${acc.assigned_user_id})`
-                        : <span className="text-gray-400">—</span>}
+                        : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center gap-1">
@@ -395,7 +395,7 @@ export default function AccountsPage() {
                 ))}
                 {(data?.accounts ?? []).length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
+                    <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
                       No accounts found.
                     </td>
                   </tr>
@@ -406,7 +406,7 @@ export default function AccountsPage() {
 
           {/* ── Pagination ── */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>
                 {data?.total ?? 0} total — page {page} of {totalPages}
               </span>

@@ -40,7 +40,7 @@ export default function ActionPanel({
   const showApproveReject = isProcessing && myLock;
 
   return (
-    <div className="rounded-lg border bg-white p-4 flex flex-col gap-4">
+    <div className="rounded-lg border bg-card p-4 flex flex-col gap-4">
       {/* Transaction Summary — always visible */}
       <TransactionSummary detail={detail} />
 
@@ -118,7 +118,7 @@ export default function ActionPanel({
           )}
 
           {otherLock && (
-            <p className="text-xs text-gray-400 italic text-center">
+            <p className="text-xs text-muted-foreground italic text-center">
               Actions disabled — another CS is handling this
             </p>
           )}
@@ -127,14 +127,14 @@ export default function ActionPanel({
 
       {/* Final state */}
       {(isFinal && !isAwaitingReceipt) && (
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-muted-foreground text-center">
           {isPaid ? 'Transaction paid.' : 'Transaction finalized.'}
         </p>
       )}
 
       {/* Processing info */}
       {detail.processing_by_name && myLock && (
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-muted-foreground text-center">
           Processed by: {detail.processing_by_name}
         </p>
       )}

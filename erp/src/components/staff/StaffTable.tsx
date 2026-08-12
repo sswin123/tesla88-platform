@@ -50,9 +50,9 @@ export function StaffTable({
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+          <thead className="bg-muted text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Name</th>
               <th className="px-3 py-2 text-left">Department</th>
@@ -65,18 +65,18 @@ export function StaffTable({
           </thead>
           <tbody>
             {filtered.map((s) => (
-              <tr key={s.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => onSelect(s.id)}>
+              <tr key={s.id} className="border-t hover:bg-muted cursor-pointer" onClick={() => onSelect(s.id)}>
                 <td className="px-3 py-2 font-medium">{s.display_name ?? s.erp_username}</td>
-                <td className="px-3 py-2 text-gray-500">{s.department ?? '—'}</td>
-                <td className="px-3 py-2 text-gray-500">{s.role}</td>
+                <td className="px-3 py-2 text-muted-foreground">{s.department ?? '—'}</td>
+                <td className="px-3 py-2 text-muted-foreground">{s.role}</td>
                 <td className="px-3 py-2"><StatusBadge status={s.display_status} /></td>
-                <td className="px-3 py-2 text-gray-500">{s.current_module ? `${s.current_module} / ${s.current_page ?? ''}` : '—'}</td>
-                <td className="px-3 py-2 text-gray-500">{formatDuration(s.login_at)}</td>
-                <td className="px-3 py-2 text-gray-400">{s.current_ip ?? '—'}</td>
+                <td className="px-3 py-2 text-muted-foreground">{s.current_module ? `${s.current_module} / ${s.current_page ?? ''}` : '—'}</td>
+                <td className="px-3 py-2 text-muted-foreground">{formatDuration(s.login_at)}</td>
+                <td className="px-3 py-2 text-muted-foreground">{s.current_ip ?? '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">No staff match the current filters</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">No staff match the current filters</td></tr>
             )}
           </tbody>
         </table>

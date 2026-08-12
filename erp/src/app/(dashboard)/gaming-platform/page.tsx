@@ -155,14 +155,14 @@ function HealthBadge({ status }: { status: string }) {
 
 function StatCard({ label, value, sub, trend }: { label: string; value: string | number; sub?: string; trend?: 'up' | 'down' | 'neutral' }) {
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
-      <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</div>
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
       <div className="flex items-end gap-2">
-        <div className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">{value}</div>
+        <div className="text-2xl font-bold tabular-nums text-foreground">{value}</div>
         {trend === 'up'   && <TrendingUp   className="w-4 h-4 text-emerald-500 mb-0.5" />}
         {trend === 'down' && <TrendingDown  className="w-4 h-4 text-rose-500   mb-0.5" />}
       </div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -193,15 +193,15 @@ function ProviderStatusDashboard({ provider, brandConfig, onEnable, onDisable, e
       <div className="flex items-center gap-3 py-2">
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${ok ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
         <div>
-          <span className={`text-sm font-medium ${ok ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>{label}</span>
-          {sub && <p className="text-xs text-slate-400 dark:text-slate-500 leading-none mt-0.5">{sub}</p>}
+          <span className={`text-sm font-medium ${ok ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+          {sub && <p className="text-xs text-muted-foreground leading-none mt-0.5">{sub}</p>}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-1">
+    <div className="bg-card border border-border rounded-xl p-5 space-y-1">
       <StatusRow ok={isEnabled}     label="Enabled"      sub={!isEnabled ? (brandConfig ? `Status: ${brandConfig.status}` : 'Not configured for any brand') : undefined} />
       <StatusRow ok={isConnected}   label="Connected"    sub={!isConnected ? `Health: ${provider.health_status}` : undefined} />
       <StatusRow ok={isLaunchReady} label="Launch Ready" sub={!isLaunchReady ? (!hasCreds ? 'Credentials missing' : !hasCfg ? 'Configuration missing' : !isEnabled ? 'Enable provider first' : 'Run a Connection Test') : undefined} />
@@ -225,7 +225,7 @@ function ProviderStatusDashboard({ provider, brandConfig, onEnable, onDisable, e
           <button
             onClick={onDisable}
             disabled={enablingStatus}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-border hover:bg-muted text-foreground rounded-lg transition-colors disabled:opacity-50"
           >
             {enablingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Disable
@@ -256,8 +256,8 @@ function BrandCredField({ label, masked, onUpdate }: {
   }
 
   return (
-    <div className="group p-3 rounded-lg border border-slate-100 dark:border-slate-700/60 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
-      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{label}</div>
+    <div className="group p-3 rounded-lg border border-border hover:border-border transition-colors">
+      <div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
       {editing ? (
         <div className="space-y-1.5">
           <input
@@ -266,21 +266,21 @@ function BrandCredField({ label, masked, onUpdate }: {
             value={val}
             onChange={e => setVal(e.target.value)}
             placeholder="Enter new value…"
-            className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full text-sm font-mono bg-card border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
           <div className="flex gap-1">
             <button onClick={save} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
               {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
             </button>
-            <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+            <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-border rounded hover:bg-muted">Cancel</button>
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-mono text-slate-700 dark:text-slate-300">{masked}</span>
+          <span className="text-sm font-mono text-foreground">{masked}</span>
           <button
             onClick={() => setEditing(true)}
-            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+            className="px-2 py-1 text-xs border border-border rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted text-muted-foreground"
           >Edit</button>
         </div>
       )}
@@ -310,7 +310,7 @@ function BrandCredsPanel({ type, loading, data, onLoad, onSaveCred, onSaveCfg }:
   }, [onLoad]);
 
   if (loading || !data) {
-    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+    return <div className="flex items-center gap-2 p-4 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
   }
 
   if (type === 'credential') {
@@ -318,7 +318,7 @@ function BrandCredsPanel({ type, loading, data, onLoad, onSaveCred, onSaveCfg }:
       <div className="space-y-3">
         <SectionHead title="Credentials" sub="Stored in brand_provider_credentials. Values are masked — enter a new value to update." />
         {data.credentials.length === 0 && (
-          <div className="text-sm text-slate-400 italic p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl">No credentials configured yet.</div>
+          <div className="text-sm text-muted-foreground italic p-4 bg-muted rounded-xl">No credentials configured yet.</div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {data.credentials.map(r => (
@@ -335,7 +335,7 @@ function BrandCredsPanel({ type, loading, data, onLoad, onSaveCred, onSaveCfg }:
     <div className="space-y-3">
       <SectionHead title="Configuration" sub="Stored in brand_provider_config. Non-secret values — displayed in plain text." />
       {data.config.length === 0 && (
-        <div className="text-sm text-slate-400 italic p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl">No configuration keys set yet.</div>
+        <div className="text-sm text-muted-foreground italic p-4 bg-muted rounded-xl">No configuration keys set yet.</div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {data.config.map(r => (
@@ -372,22 +372,22 @@ function AddKeyForm({ onSave, placeholder, valueLabel = 'Value' }: {
     );
   }
   return (
-    <div className="flex gap-2 items-end flex-wrap p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+    <div className="flex gap-2 items-end flex-wrap p-3 bg-muted rounded-xl">
       <div className="flex-1 min-w-32">
-        <div className="text-xs text-slate-500 mb-0.5">Key</div>
+        <div className="text-xs text-muted-foreground mb-0.5">Key</div>
         <input value={key} onChange={e => setKey(e.target.value)} placeholder={placeholder}
-          className="w-full text-sm font-mono border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          className="w-full text-sm font-mono border border-border rounded px-2 py-1 bg-card focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
       </div>
       <div className="flex-1 min-w-40">
-        <div className="text-xs text-slate-500 mb-0.5">{valueLabel}</div>
+        <div className="text-xs text-muted-foreground mb-0.5">{valueLabel}</div>
         <input value={value} onChange={e => setValue(e.target.value)} type="text"
-          className="w-full text-sm font-mono border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+          className="w-full text-sm font-mono border border-border rounded px-2 py-1 bg-card focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
       </div>
       <div className="flex gap-1">
         <button onClick={save} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
           {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
         </button>
-        <button onClick={() => { setOpen(false); setKey(''); setValue(''); }} className="px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+        <button onClick={() => { setOpen(false); setKey(''); setValue(''); }} className="px-2.5 py-1.5 text-xs border border-border rounded hover:bg-muted">Cancel</button>
       </div>
     </div>
   );
@@ -401,12 +401,12 @@ function SchemaStubNotice({ schema }: { schema: ProviderSchema | null }) {
   const name = schema?.displayName ?? 'this provider';
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-      <PackageSearch className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+      <PackageSearch className="w-12 h-12 text-muted-foreground" />
       <div>
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <p className="text-sm font-semibold text-foreground">
           Schema not defined for {name}
         </p>
-        <p className="text-xs text-slate-400 mt-1 max-w-xs">
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
           The adapter for this provider is not yet implemented. Configuration and credentials will be available once the adapter is released.
         </p>
       </div>
@@ -443,7 +443,7 @@ function RadioChildInput({ field, value, onSave }: {
 
   return (
     <div className="ml-6 mt-2">
-      <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{field.label}</div>
+      <div className="text-xs font-medium text-muted-foreground mb-1">{field.label}</div>
       <div className="flex items-center gap-2">
         <input
           type={field.type === 'number' ? 'number' : 'text'}
@@ -453,7 +453,7 @@ function RadioChildInput({ field, value, onSave }: {
           placeholder={field.placeholder}
           min={field.min}
           max={field.max}
-          className="w-40 text-sm font-mono bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          className="w-40 text-sm font-mono bg-card border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
         />
         {saving && <Spinner />}
       </div>
@@ -485,8 +485,8 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
   if (field.type === 'radio_group') {
     const selectedMode = value || 'random';
     return (
-      <div className="p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
-        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+      <div className="p-3 rounded-lg border border-border">
+        <div className="text-xs font-medium text-muted-foreground mb-3">
           {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
         </div>
         <div>
@@ -494,7 +494,7 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
             const isSelected = selectedMode === opt.value;
             return (
               <div key={opt.value}>
-                {idx > 0 && <div className="border-t border-slate-100 dark:border-slate-700/40 my-2" />}
+                {idx > 0 && <div className="border-t border-border my-2" />}
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="radio"
@@ -504,7 +504,7 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
                     onChange={() => void onSave(opt.value)}
                     className="accent-blue-600"
                   />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{opt.label}</span>
+                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
                 </label>
                 {isSelected && opt.childField && (
                   <RadioChildInput
@@ -524,29 +524,29 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
   // Select type: inline dropdown, no separate edit mode
   if (field.type === 'select') {
     return (
-      <div className="p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
-        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+      <div className="p-3 rounded-lg border border-border">
+        <div className="text-xs font-medium text-muted-foreground mb-1.5">
           {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
         </div>
         <select
           value={val || ''}
           onChange={e => { setVal(e.target.value); void onSave(e.target.value); }}
-          className="w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          className="w-full text-sm bg-card border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
         >
           <option value="">— select —</option>
           {field.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {updatedBy && <div className="text-[10px] text-slate-400 mt-1">by {updatedBy}</div>}
-        {field.description && <div className="text-[10px] text-slate-400 mt-0.5">{field.description}</div>}
+        {updatedBy && <div className="text-[10px] text-muted-foreground mt-1">by {updatedBy}</div>}
+        {field.description && <div className="text-[10px] text-muted-foreground mt-0.5">{field.description}</div>}
       </div>
     );
   }
 
   // Text / URL / Number: inline edit
   return (
-    <div className="group flex items-start gap-2 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
+    <div className="group flex items-start gap-2 p-3 rounded-lg border border-border hover:border-border transition-colors">
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">
+        <div className="text-xs font-medium text-muted-foreground mb-0.5">
           {field.label}{field.required && <span className="text-rose-400 ml-0.5">*</span>}
         </div>
         {editing ? (
@@ -558,15 +558,15 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
             placeholder={field.placeholder}
             min={field.min}
             max={field.max}
-            className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full text-sm font-mono bg-card border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         ) : (
-          <div className="text-sm font-mono text-slate-800 dark:text-slate-200 truncate">
-            {val || <span className="text-slate-400 italic text-xs">— not set —</span>}
+          <div className="text-sm font-mono text-foreground truncate">
+            {val || <span className="text-muted-foreground italic text-xs">— not set —</span>}
           </div>
         )}
-        {updatedBy && <div className="text-[10px] text-slate-400 mt-0.5">by {updatedBy}</div>}
-        {field.description && !editing && <div className="text-[10px] text-slate-400 mt-0.5">{field.description}</div>}
+        {updatedBy && <div className="text-[10px] text-muted-foreground mt-0.5">by {updatedBy}</div>}
+        {field.description && !editing && <div className="text-[10px] text-muted-foreground mt-0.5">{field.description}</div>}
       </div>
       <div className="shrink-0 mt-4">
         {editing ? (
@@ -574,10 +574,10 @@ function SchemaConfigField({ field, value, updatedBy, onSave, extraValues, onSav
             <button onClick={() => void save()} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
               {saving ? <Spinner /> : <Save className="w-3 h-3" />} 保存
             </button>
-            <button onClick={() => { setEditing(false); setVal(value); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">取消</button>
+            <button onClick={() => { setEditing(false); setVal(value); }} className="px-2 py-1 text-xs border border-border rounded hover:bg-muted">取消</button>
           </div>
         ) : (
-          <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">
+          <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-border rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted text-muted-foreground">
             编辑
           </button>
         )}
@@ -600,7 +600,7 @@ function SchemaConfigPanel({ schema, loading, data, onLoad, onSaveCfg }: {
   }, [onLoad]);
 
   if (loading || !data) {
-    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+    return <div className="flex items-center gap-2 p-4 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
   }
 
   if (!schema || schema.isStub) return <SchemaStubNotice schema={schema} />;
@@ -660,7 +660,7 @@ function SchemaCredsPanel({ schema, loading, data, onLoad, onSaveCred }: {
   }, [onLoad]);
 
   if (loading || !data) {
-    return <div className="flex items-center gap-2 p-4 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
+    return <div className="flex items-center gap-2 p-4 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /><span>Loading…</span></div>;
   }
 
   if (!schema || schema.isStub) return <SchemaStubNotice schema={schema} />;
@@ -698,7 +698,7 @@ function CopyButton({ value }: { value: string }) {
   return (
     <button
       onClick={() => { void navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-      className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+      className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
       title="Copy"
     >
       {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -709,13 +709,13 @@ function CopyButton({ value }: { value: string }) {
 function SectionHead({ title, sub }: { title: string; sub?: string }) {
   return (
     <div className="mb-3">
-      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{title}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 }
 
-function Spinner() { return <Loader2 className="w-4 h-4 animate-spin text-slate-400" />; }
+function Spinner() { return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />; }
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return '—';
@@ -743,18 +743,18 @@ function InlineEdit({ label, value: initial, updatedBy, onSave }: { label: strin
   }
 
   return (
-    <div className="group flex items-start gap-2 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60 hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
+    <div className="group flex items-start gap-2 p-3 rounded-lg border border-border hover:border-border transition-colors">
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">{label}</div>
+        <div className="text-xs font-medium text-muted-foreground mb-0.5">{label}</div>
         {editing ? (
           <input autoFocus value={val} onChange={e => setVal(e.target.value)}
-            className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
+            className="w-full text-sm font-mono bg-card border border-blue-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/40" />
         ) : (
-          <div className="text-sm font-mono text-slate-800 dark:text-slate-200 truncate">
-            {val || <span className="text-slate-400 italic text-xs">— not set —</span>}
+          <div className="text-sm font-mono text-foreground truncate">
+            {val || <span className="text-muted-foreground italic text-xs">— not set —</span>}
           </div>
         )}
-        {updatedBy && <div className="text-[10px] text-slate-400 mt-0.5">by {updatedBy}</div>}
+        {updatedBy && <div className="text-[10px] text-muted-foreground mt-0.5">by {updatedBy}</div>}
       </div>
       <div className="shrink-0 mt-4">
         {editing ? (
@@ -762,10 +762,10 @@ function InlineEdit({ label, value: initial, updatedBy, onSave }: { label: strin
             <button onClick={save} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
               {saving ? <Spinner /> : <Save className="w-3 h-3" />} 保存
             </button>
-            <button onClick={() => { setEditing(false); setVal(initial); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">取消</button>
+            <button onClick={() => { setEditing(false); setVal(initial); }} className="px-2 py-1 text-xs border border-border rounded hover:bg-muted">取消</button>
           </div>
         ) : (
-          <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">
+          <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-border rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted text-muted-foreground">
             编辑
           </button>
         )}
@@ -793,8 +793,8 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
   }
 
   return (
-    <div className="p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+    <div className="p-3 rounded-lg border border-border">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
         <ShieldCheck className="w-3 h-3" />
         {label}
         {isEncrypted
@@ -802,12 +802,12 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
           : <span title="Plaintext (staging)"><Unlock className="w-3 h-3 text-amber-400" /></span>}
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 font-mono text-sm text-slate-500 dark:text-slate-400 tracking-widest truncate">
+        <div className="flex-1 font-mono text-sm text-muted-foreground tracking-widest truncate">
           {masked || '—'}
         </div>
         <CopyButton value={masked} />
       </div>
-      <div className="text-[10px] text-slate-400 mt-1">
+      <div className="text-[10px] text-muted-foreground mt-1">
         更新: {fmtDate(updatedAt)}{updatedBy ? ` · ${updatedBy}` : ''}
       </div>
       {editing ? (
@@ -819,9 +819,9 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
               value={val}
               onChange={e => setVal(e.target.value)}
               placeholder="输入新值…"
-              className="w-full text-sm font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              className="w-full text-sm font-mono bg-card border border-border rounded px-2 py-1 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             />
-            <button onClick={() => setShowNew(s => !s)} type="button" className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600">
+            <button onClick={() => setShowNew(s => !s)} type="button" className="absolute right-2 top-1.5 text-muted-foreground hover:text-foreground">
               {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
@@ -829,11 +829,11 @@ function CredField({ label, masked, isEncrypted, updatedBy, updatedAt, onUpdate 
             <button onClick={save} disabled={saving} className="px-2.5 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
               {saving ? <Spinner /> : <Save className="w-3 h-3" />} 保存
             </button>
-            <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700">取消</button>
+            <button onClick={() => { setEditing(false); setVal(''); }} className="px-2 py-1 text-xs border border-border rounded hover:bg-muted">取消</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setEditing(true)} className="mt-2 px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">
+        <button onClick={() => setEditing(true)} className="mt-2 px-2.5 py-1 text-xs border border-border rounded hover:bg-muted text-muted-foreground">
           更新值
         </button>
       )}
@@ -879,7 +879,7 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
           <span className={`flex items-center gap-1.5 text-sm font-semibold ${result.overall === 'SUCCESS' ? 'text-emerald-600' : 'text-amber-600'}`}>
             {result.overall === 'SUCCESS' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             {result.overall === 'SUCCESS' ? '测试通过' : '存在异常'}
-            <span className="text-slate-400 font-normal text-xs ml-1">
+            <span className="text-muted-foreground font-normal text-xs ml-1">
               {result.summary.urls_ok} 可达
               {result.summary.urls_configured > 0 ? ` · ${result.summary.urls_configured} 已配置` : ''}
               {result.summary.urls_error > 0 ? ` · ${result.summary.urls_error} 错误` : ''}
@@ -892,10 +892,10 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
       {result && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* URL Checks */}
-          <div className="md:col-span-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4">
+          <div className="md:col-span-2 bg-muted rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">URL 可达性</div>
-              <div className="flex items-center gap-3 text-[10px] text-slate-400">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">URL 可达性</div>
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />可达</span>
                 <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-amber-500" />已配置</span>
                 <span className="flex items-center gap-1"><XCircle className="w-3 h-3 text-rose-500" />无法连接</span>
@@ -910,7 +910,7 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
                       : c.state === 'configured'
                         ? <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                         : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                    <span className="w-28 text-slate-700 dark:text-slate-300 shrink-0 font-medium text-xs">
+                    <span className="w-28 text-foreground shrink-0 font-medium text-xs">
                       {c.label}
                     </span>
                     <span className={`text-xs font-semibold shrink-0 ${
@@ -921,9 +921,9 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
                       {c.state === 'ok' ? '可达' : c.state === 'configured' ? '已配置' : '错误'}
                     </span>
                     {c.latency_ms != null && (
-                      <span className="text-xs text-slate-400 shrink-0">{c.latency_ms}ms</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{c.latency_ms}ms</span>
                     )}
-                    <span className="flex-1 font-mono text-[10px] text-slate-400 truncate ml-1">
+                    <span className="flex-1 font-mono text-[10px] text-muted-foreground truncate ml-1">
                       {c.url ?? '未配置'}
                     </span>
                   </div>
@@ -943,8 +943,8 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
 
           {/* Credential & Config Checks */}
           <div className="space-y-3">
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">凭证加载状态</div>
+            <div className="bg-muted rounded-xl p-4">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">凭证加载状态</div>
               <div className="space-y-1.5">
                 {result.credential_checks.map(c => (
                   <div key={c.label} className="flex items-center gap-2 text-xs">
@@ -956,8 +956,8 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
                 ))}
               </div>
             </div>
-            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">配置完整性</div>
+            <div className="bg-muted rounded-xl p-4">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">配置完整性</div>
               <div className="space-y-1.5">
                 {result.config_checks.map(c => (
                   <div key={c.label} className="flex items-center gap-2 text-xs">
@@ -965,7 +965,7 @@ function ConnectionTestPanel({ id, onToast }: { id: number; onToast: (m: string,
                       ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                       : <XCircle className="w-3.5 h-3.5 text-rose-500" />}
                     <span>{c.label}</span>
-                    {c.value && <span className="font-mono text-slate-400 ml-1">{c.value}</span>}
+                    {c.value && <span className="font-mono text-muted-foreground ml-1">{c.value}</span>}
                   </div>
                 ))}
               </div>
@@ -993,8 +993,8 @@ function StatsTab({ id }: { id: number }) {
       .catch(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="flex gap-2 text-slate-400"><Spinner /><span>加载统计…</span></div>;
-  if (!data) return <div className="text-slate-400 text-sm">无统计数据</div>;
+  if (loading) return <div className="flex gap-2 text-muted-foreground"><Spinner /><span>加载统计…</span></div>;
+  if (!data) return <div className="text-muted-foreground text-sm">无统计数据</div>;
 
   const t = data.totals;
   const successRate = t.total > 0 ? `${t.success_rate.toFixed(1)}%` : '—';
@@ -1004,7 +1004,7 @@ function StatsTab({ id }: { id: number }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <SectionHead title="过去24小时 API 统计" />
-        <span className="text-xs text-slate-400">{fmtDate(data.generated_at)}</span>
+        <span className="text-xs text-muted-foreground">{fmtDate(data.generated_at)}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1019,23 +1019,23 @@ function StatsTab({ id }: { id: number }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
+              <tr className="border-b border-border">
                 {['操作', '总数', '成功', '失败', '平均响应', '最近一次'].map(h => (
-                  <th key={h} className="pb-2 pr-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="pb-2 pr-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {data.by_action.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-400 text-xs">暂无数据</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-xs">暂无数据</td></tr>
               ) : data.by_action.map(row => (
-                <tr key={row.action} className="border-b border-slate-100 dark:border-slate-800">
-                  <td className="py-2 pr-4 font-mono text-xs text-slate-700 dark:text-slate-300">{row.action}</td>
+                <tr key={row.action} className="border-b border-border">
+                  <td className="py-2 pr-4 font-mono text-xs text-foreground">{row.action}</td>
                   <td className="py-2 pr-4 tabular-nums">{row.total}</td>
                   <td className="py-2 pr-4 tabular-nums text-emerald-600 dark:text-emerald-400">{row.success}</td>
                   <td className="py-2 pr-4 tabular-nums text-rose-600 dark:text-rose-400">{row.failed}</td>
-                  <td className="py-2 pr-4 tabular-nums text-slate-500">{fmtMs(row.avg_ms)}</td>
-                  <td className="py-2 text-slate-400 text-xs">{fmtDate(row.last_seen)}</td>
+                  <td className="py-2 pr-4 tabular-nums text-muted-foreground">{fmtMs(row.avg_ms)}</td>
+                  <td className="py-2 text-muted-foreground text-xs">{fmtDate(row.last_seen)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1094,43 +1094,43 @@ function LogsTab({ id }: { id: number }) {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput); setPage(1); } }}
             placeholder="搜索 Body / 错误信息…"
-            className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 w-52 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-lg bg-card w-52 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           />
         </div>
         <select value={action} onChange={e => { setAction(e.target.value); setPage(1); }}
-          className="py-1.5 px-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none">
+          className="py-1.5 px-2 text-sm border border-border rounded-lg bg-card focus:outline-none">
           <option value="">全部操作</option>
           {LOG_ACTIONS.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
-          className="py-1.5 px-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none">
+          className="py-1.5 px-2 text-sm border border-border rounded-lg bg-card focus:outline-none">
           <option value="">全部状态</option>
           <option value="success">SUCCESS</option>
           <option value="failed">FAILED</option>
           <option value="invalid_signature">INVALID SIG</option>
         </select>
-        <button onClick={load} className="p-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-          <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+        <button onClick={load} className="p-1.5 border border-border rounded-lg hover:bg-muted">
+          <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-        <button onClick={exportCsv} className="flex items-center gap-1 py-1.5 px-3 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+        <button onClick={exportCsv} className="flex items-center gap-1 py-1.5 px-3 text-xs border border-border rounded-lg hover:bg-muted">
           <Download className="w-3.5 h-3.5" /> 导出 CSV
         </button>
-        {data && <span className="text-xs text-slate-400 ml-auto">共 {data.total.toLocaleString()} 条</span>}
+        {data && <span className="text-xs text-muted-foreground ml-auto">共 {data.total.toLocaleString()} 条</span>}
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[700px]">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700">
+            <tr className="border-b border-border">
               {['时间', '操作', '状态', '响应时间', 'IP', '错误信息'].map(h => (
-                <th key={h} className="pb-2 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                <th key={h} className="pb-2 pr-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
@@ -1138,16 +1138,16 @@ function LogsTab({ id }: { id: number }) {
             {loading ? (
               <tr><td colSpan={6} className="py-10 text-center"><Spinner /></td></tr>
             ) : !data?.rows.length ? (
-              <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-xs">暂无日志</td></tr>
+              <tr><td colSpan={6} className="py-10 text-center text-muted-foreground text-xs">暂无日志</td></tr>
             ) : data.rows.map(row => {
               const s = rowStatus(row);
               return (
-                <tr key={row.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(row.created_at)}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-slate-700 dark:text-slate-300">{row.action ?? '—'}</td>
+                <tr key={row.id} className="border-b border-border hover:bg-muted">
+                  <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(row.created_at)}</td>
+                  <td className="py-2 pr-3 font-mono text-xs text-foreground">{row.action ?? '—'}</td>
                   <td className="py-2 pr-3"><span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${s.cls}`}>{s.label}</span></td>
-                  <td className="py-2 pr-3 tabular-nums text-xs text-slate-500">{row.processing_time ?? '—'} ms</td>
-                  <td className="py-2 pr-3 text-xs text-slate-400 font-mono">{row.ip ?? '—'}</td>
+                  <td className="py-2 pr-3 tabular-nums text-xs text-muted-foreground">{row.processing_time ?? '—'} ms</td>
+                  <td className="py-2 pr-3 text-xs text-muted-foreground font-mono">{row.ip ?? '—'}</td>
                   <td className="py-2 text-xs text-rose-500 max-w-[200px] truncate">{row.error_message ?? ''}</td>
                 </tr>
               );
@@ -1159,11 +1159,11 @@ function LogsTab({ id }: { id: number }) {
       {/* Pagination */}
       {data && data.pages > 1 && (
         <div className="flex items-center gap-2 justify-end text-sm">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border border-border disabled:opacity-40 hover:bg-muted">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-slate-500 text-xs">第 {page} / {data.pages} 页</span>
-          <button onClick={() => setPage(p => Math.min(data.pages, p + 1))} disabled={page === data.pages} className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700">
+          <span className="text-muted-foreground text-xs">第 {page} / {data.pages} 页</span>
+          <button onClick={() => setPage(p => Math.min(data.pages, p + 1))} disabled={page === data.pages} className="p-1 rounded border border-border disabled:opacity-40 hover:bg-muted">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -1212,28 +1212,28 @@ function HistoryTab({ id, isCredAdmin, onToast }: { id: number; isCredAdmin: boo
     }
   }
 
-  if (loading) return <div className="flex gap-2 text-slate-400"><Spinner /><span>加载历史…</span></div>;
+  if (loading) return <div className="flex gap-2 text-muted-foreground"><Spinner /><span>加载历史…</span></div>;
 
   return (
     <div className="space-y-3">
       <SectionHead title="配置版本历史" sub="每次配置变更自动创建快照（不含凭证值）" />
       {rows.length === 0 ? (
-        <div className="text-slate-400 text-sm py-8 text-center">暂无版本历史</div>
+        <div className="text-muted-foreground text-sm py-8 text-center">暂无版本历史</div>
       ) : (
-        <div className="relative pl-4 border-l-2 border-slate-200 dark:border-slate-700 space-y-4">
+        <div className="relative pl-4 border-l-2 border-border space-y-4">
           {rows.map(row => (
             <div key={row.id} className="relative">
-              <div className="absolute -left-[9px] top-1.5 w-3 h-3 rounded-full bg-white dark:bg-slate-900 border-2 border-blue-400" />
-              <div className="ml-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+              <div className="absolute -left-[9px] top-1.5 w-3 h-3 rounded-full bg-card border-2 border-blue-400" />
+              <div className="ml-3 bg-card border border-border rounded-xl p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">v{row.version_number}</span>
                       <Badge status={row.provider_status} />
-                      <span className="text-xs text-slate-500">{fmtDate(row.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">{fmtDate(row.created_at)}</span>
                     </div>
-                    <div className="text-sm text-slate-700 dark:text-slate-300 mt-0.5">{row.change_summary}</div>
-                    <div className="text-xs text-slate-400 mt-0.5">by {row.admin_username}</div>
+                    <div className="text-sm text-foreground mt-0.5">{row.change_summary}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">by {row.admin_username}</div>
                   </div>
                   {isCredAdmin && (
                     confirmRb === row.version_number ? (
@@ -1242,11 +1242,11 @@ function HistoryTab({ id, isCredAdmin, onToast }: { id: number; isCredAdmin: boo
                           className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1">
                           {rolling === row.version_number ? <Spinner /> : <RotateCcw className="w-3 h-3" />} 确认回滚
                         </button>
-                        <button onClick={() => setConfirmRb(null)} className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded">取消</button>
+                        <button onClick={() => setConfirmRb(null)} className="px-2 py-1 text-xs border border-border rounded">取消</button>
                       </div>
                     ) : (
                       <button onClick={() => setConfirmRb(row.version_number)}
-                        className="shrink-0 px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-500 flex items-center gap-1">
+                        className="shrink-0 px-2 py-1 text-xs border border-border rounded hover:bg-muted text-muted-foreground flex items-center gap-1">
                         <RotateCcw className="w-3 h-3" /> 回滚
                       </button>
                     )
@@ -1300,25 +1300,25 @@ function AuditTab({ id }: { id: number }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <select value={action} onChange={e => { setAction(e.target.value); setPage(1); }}
-          className="py-1.5 px-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none">
+          className="py-1.5 px-2 text-sm border border-border rounded-lg bg-card focus:outline-none">
           <option value="">全部操作</option>
           {AUDIT_ACTIONS.filter(Boolean).map(a => <option key={a} value={a}>{ACTION_LABELS[a] ?? a}</option>)}
         </select>
-        <button onClick={load} className="p-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-          <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+        <button onClick={load} className="p-1.5 border border-border rounded-lg hover:bg-muted">
+          <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-        <button onClick={exportCsv} className="flex items-center gap-1 py-1.5 px-3 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+        <button onClick={exportCsv} className="flex items-center gap-1 py-1.5 px-3 text-xs border border-border rounded-lg hover:bg-muted">
           <Download className="w-3.5 h-3.5" /> 导出 CSV
         </button>
-        {data && <span className="text-xs text-slate-400 ml-auto">共 {data.total} 条</span>}
+        {data && <span className="text-xs text-muted-foreground ml-auto">共 {data.total} 条</span>}
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700">
+            <tr className="border-b border-border">
               {['时间', '操作', '字段', '旧值', '新值', '管理员', 'IP', '备注'].map(h => (
-                <th key={h} className="pb-2 pr-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                <th key={h} className="pb-2 pr-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
@@ -1326,17 +1326,17 @@ function AuditTab({ id }: { id: number }) {
             {loading ? (
               <tr><td colSpan={8} className="py-10 text-center"><Spinner /></td></tr>
             ) : !data?.rows.length ? (
-              <tr><td colSpan={8} className="py-10 text-center text-slate-400 text-xs">暂无审计记录</td></tr>
+              <tr><td colSpan={8} className="py-10 text-center text-muted-foreground text-xs">暂无审计记录</td></tr>
             ) : data.rows.map(row => (
-              <tr key={row.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td className="py-2 pr-3 text-xs text-slate-500 whitespace-nowrap">{fmtDate(row.created_at)}</td>
-                <td className="py-2 pr-3 text-xs font-medium text-slate-700 dark:text-slate-300">{ACTION_LABELS[row.action] ?? row.action}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-slate-500">{row.field_key ?? '—'}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-slate-400 max-w-[100px] truncate">{row.old_value_hint ?? '—'}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-slate-600 dark:text-slate-300 max-w-[100px] truncate">{row.new_value_hint ?? '—'}</td>
-                <td className="py-2 pr-3 text-xs text-slate-500">{row.admin_username}</td>
-                <td className="py-2 pr-3 text-xs text-slate-400 font-mono">{row.ip_address ?? '—'}</td>
-                <td className="py-2 text-xs text-slate-400 max-w-[120px] truncate">{row.notes ?? ''}</td>
+              <tr key={row.id} className="border-b border-border hover:bg-muted">
+                <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(row.created_at)}</td>
+                <td className="py-2 pr-3 text-xs font-medium text-foreground">{ACTION_LABELS[row.action] ?? row.action}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-muted-foreground">{row.field_key ?? '—'}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-muted-foreground max-w-[100px] truncate">{row.old_value_hint ?? '—'}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-foreground max-w-[100px] truncate">{row.new_value_hint ?? '—'}</td>
+                <td className="py-2 pr-3 text-xs text-muted-foreground">{row.admin_username}</td>
+                <td className="py-2 pr-3 text-xs text-muted-foreground font-mono">{row.ip_address ?? '—'}</td>
+                <td className="py-2 text-xs text-muted-foreground max-w-[120px] truncate">{row.notes ?? ''}</td>
               </tr>
             ))}
           </tbody>
@@ -1345,11 +1345,11 @@ function AuditTab({ id }: { id: number }) {
 
       {data && data.pages > 1 && (
         <div className="flex items-center gap-2 justify-end">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded border border-border disabled:opacity-40">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-xs text-slate-500">第 {page} / {data.pages} 页</span>
-          <button onClick={() => setPage(p => Math.min(data.pages, p + 1))} disabled={page === data.pages} className="p-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40">
+          <span className="text-xs text-muted-foreground">第 {page} / {data.pages} 页</span>
+          <button onClick={() => setPage(p => Math.min(data.pages, p + 1))} disabled={page === data.pages} className="p-1 rounded border border-border disabled:opacity-40">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -1429,16 +1429,16 @@ function WebsiteDisplayTab({
 
   function ToggleRow({ label, sub, checked, onChange }: { label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
     return (
-      <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700/60 last:border-0">
+      <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
         <div>
-          <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</div>
-          {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+          <div className="text-sm font-medium text-foreground">{label}</div>
+          {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
         </div>
         <button
           type="button"
           onClick={() => onChange(!checked)}
           className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none
-            ${checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+            ${checked ? 'bg-blue-600' : 'bg-muted'}`}
         >
           <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5
             ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -1452,7 +1452,7 @@ function WebsiteDisplayTab({
       {/* Visibility toggles */}
       <div>
         <SectionHead title="可见性与状态" sub="控制该 Provider 在玩家网站首页的显示行为" />
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4">
+        <div className="bg-card border border-border rounded-xl px-4">
           <ToggleRow label="显示在网站" sub="关闭后玩家不可见，但仍可通过直链进入" checked={visible} onChange={setVisible} />
           <ToggleRow label="维护中" sub="显示维护提示，不允许玩家启动游戏" checked={maintenance} onChange={setMaintenance} />
           <ToggleRow label="🔥 热门标签" sub="在 Provider 卡片上显示 HOT 标签" checked={isHot} onChange={setIsHot} />
@@ -1465,42 +1465,42 @@ function WebsiteDisplayTab({
         <SectionHead title="展示信息" sub="网站 Provider 卡片的显示内容" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">显示名称</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">显示名称</label>
             <input
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               placeholder={provider.display_name ?? provider.code}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">排列顺序（数字越小越靠前）</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">排列顺序（数字越小越靠前）</label>
             <input
               type="number" min={0}
               value={sortOrder}
               onChange={e => setSortOrder(e.target.value)}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Logo URL</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Logo URL</label>
             <input
               value={logoUrl}
               onChange={e => setLogoUrl(e.target.value)}
               placeholder="https://cdn.example.com/logo/918kiss.png"
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
             />
             {logoUrl && (
               <img src={logoUrl} alt="logo preview" className="mt-2 h-10 object-contain rounded" onError={e => (e.currentTarget.style.display = 'none')} />
             )}
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Banner URL</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Banner URL</label>
             <input
               value={bannerUrl}
               onChange={e => setBannerUrl(e.target.value)}
               placeholder="https://cdn.example.com/banner/918kiss.jpg"
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
             />
             {bannerUrl && (
               <img src={bannerUrl} alt="banner preview" className="mt-2 h-20 w-full object-cover rounded-lg" onError={e => (e.currentTarget.style.display = 'none')} />
@@ -1514,11 +1514,11 @@ function WebsiteDisplayTab({
         <SectionHead title="分类与启动模式" sub="决定 Provider 归属哪个游戏分类，以及网站如何启动它" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">游戏分类</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">游戏分类</label>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {CATEGORY_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -1526,11 +1526,11 @@ function WebsiteDisplayTab({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">启动模式</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">启动模式</label>
             <select
               value={launchMode}
               onChange={e => setLaunchMode(e.target.value)}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {LAUNCH_MODE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -1538,11 +1538,11 @@ function WebsiteDisplayTab({
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">网站展示模式</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">网站展示模式</label>
             <select
               value={displayMode}
               onChange={e => setDisplayMode(e.target.value)}
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {DISPLAY_MODE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -1573,8 +1573,8 @@ function WebsiteDisplayTab({
       {/* Provider code (read-only) */}
       <div>
         <SectionHead title="Provider 标识（只读）" />
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3 text-sm font-mono text-slate-600 dark:text-slate-300">
-          <span className="text-slate-400 text-xs">code</span>
+        <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3 text-sm font-mono text-foreground">
+          <span className="text-muted-foreground text-xs">code</span>
           <span className="font-semibold">{provider.code}</span>
           <CopyButton value={provider.code} />
         </div>
@@ -1801,7 +1801,7 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
   }
 
   if (loading || !detail) {
-    return <div className="flex gap-2 items-center p-6 text-slate-400"><Spinner /><span>加载中…</span></div>;
+    return <div className="flex gap-2 items-center p-6 text-muted-foreground"><Spinner /><span>加载中…</span></div>;
   }
 
   const { provider, config, credentials } = detail;
@@ -1834,21 +1834,21 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
           {onMobileBack && (
             <button
               onClick={onMobileBack}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted"
             >
-              <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex-1 truncate">{provider.display_name || provider.name}</h2>
+          <h2 className="text-base font-bold text-foreground flex-1 truncate">{provider.display_name || provider.name}</h2>
           <Badge status={provider.status} />
         </div>
-        <div className="text-xs text-slate-500 px-1 font-mono">{provider.code} · {provider.environment} · {provider.wallet_type}</div>
+        <div className="text-xs text-muted-foreground px-1 font-mono">{provider.code} · {provider.environment} · {provider.wallet_type}</div>
         {isCredAdmin && (
           <div className="flex gap-2">
-            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-border rounded-lg hover:bg-muted">
               <Download className="w-3.5 h-3.5" /> 导出
             </button>
-            <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50">
+            <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs border border-border rounded-lg hover:bg-muted disabled:opacity-50">
               {importing ? <Spinner /> : <Upload className="w-3.5 h-3.5" />} 导入
             </button>
             <button onClick={handleReload} disabled={reloading} className="flex-1 flex items-center justify-center gap-1 h-9 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50">
@@ -1862,21 +1862,21 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
       <div className="hidden lg:flex items-start justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{provider.display_name || provider.name}</h2>
+            <h2 className="text-lg font-bold text-foreground">{provider.display_name || provider.name}</h2>
             <Badge status={provider.status} />
             <HealthBadge status={provider.health_status} />
           </div>
-          <div className="text-xs text-slate-500 mt-0.5">
+          <div className="text-xs text-muted-foreground mt-0.5">
             {provider.code} · v{provider.version} · {provider.environment} · {provider.wallet_type}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isCredAdmin && (
             <>
-              <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+              <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted">
                 <Download className="w-3.5 h-3.5" /> 导出
               </button>
-              <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50">
+              <button onClick={() => fileRef.current?.click()} disabled={importing} className="flex items-center gap-1 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted disabled:opacity-50">
                 {importing ? <Spinner /> : <Upload className="w-3.5 h-3.5" />} 导入
               </button>
               <button onClick={handleReload} disabled={reloading}
@@ -1890,7 +1890,7 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0.5 border-b border-slate-200 dark:border-slate-700 mb-4 overflow-x-auto">
+      <div className="flex gap-0.5 border-b border-border mb-4 overflow-x-auto">
         {TAB_META.map(t => {
           const Icon = t.icon;
           const isActive = tab === t.id;
@@ -1903,7 +1903,7 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors
                 ${isActive
                   ? 'border-blue-600 text-blue-700 dark:text-blue-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
               <Icon className="w-3.5 h-3.5" />{t.label}
             </button>
@@ -1931,7 +1931,7 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60
                         ${isCurrent
                           ? (STATUS_CFG[s]?.bg ?? '') + ' ring-2 ring-offset-2 ring-current dark:ring-offset-slate-900'
-                          : 'border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                          : 'border border-border hover:bg-muted text-muted-foreground'}`}
                     >
                       {(busy && !isCurrent) ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : null}
                       {STATUS_CFG[s]?.label ?? s}
@@ -1964,9 +1964,9 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
                   { label: '最近重载时间',        value: fmtDate(provider.last_reload_at) },
                   { label: '待重试队列',          value: <span className="font-semibold">{detail.provider.retry_queue_pending ?? 0}</span> },
                 ].map(item => (
-                  <div key={item.label} className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3">
-                    <div className="text-xs text-slate-500 mb-1">{item.label}</div>
-                    <div className="text-sm text-slate-800 dark:text-slate-200">{item.value}</div>
+                  <div key={item.label} className="bg-muted rounded-xl p-3">
+                    <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
+                    <div className="text-sm text-foreground">{item.value}</div>
                   </div>
                 ))}
               </div>
@@ -1988,13 +1988,13 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
                         : <><RefreshCw className="w-4 h-4" /> 从 API 同步游戏</>}
                     </button>
                     {syncResult && (
-                      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-2">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">共 {syncResult.total} 个游戏</span>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground bg-muted rounded-xl px-4 py-2">
+                        <span className="font-semibold text-foreground">共 {syncResult.total} 个游戏</span>
                         <span>gp_games: <span className="text-emerald-600">+{syncResult.gp_games.inserted}</span> ~{syncResult.gp_games.updated} -{syncResult.gp_games.deactivated}</span>
                       </div>
                     )}
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-500">
+                  <p className="mt-1.5 text-xs text-muted-foreground">
                     同步结果写入内部游戏目录（gp_games），不影响网站 Games Library 显示。
                   </p>
                 </>
@@ -2012,11 +2012,11 @@ function ProviderDetail({ id, onToast, userRole, onMobileBack }: { id: number; o
                 <SectionHead title="最近操作记录" />
                 <div className="space-y-1.5">
                   {detail.recent_audit.map((e, i) => (
-                    <div key={i} className="flex items-center gap-3 text-xs text-slate-500 py-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div key={i} className="flex items-center gap-3 text-xs text-muted-foreground py-1.5 border-b border-border">
                       <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span className="font-medium text-slate-700 dark:text-slate-300 w-28 shrink-0">{e.action}</span>
+                      <span className="font-medium text-foreground w-28 shrink-0">{e.action}</span>
                       {e.field_key && <span className="font-mono">{e.field_key}</span>}
-                      <span className="ml-auto text-slate-400">{e.admin_username} · {fmtDate(e.created_at)}</span>
+                      <span className="ml-auto text-muted-foreground">{e.admin_username} · {fmtDate(e.created_at)}</span>
                     </div>
                   ))}
                 </div>
@@ -2171,46 +2171,46 @@ function NewProviderModal({ onCreated, onClose }: { onCreated: (id: number, code
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">新建 Provider</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-            <XCircle className="w-4 h-4 text-slate-500" />
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">新建 Provider</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted">
+            <XCircle className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
         <form onSubmit={e => void handleSubmit(e)} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Provider Code * <span className="text-slate-400">(如 MEGAH5, JILI)</span></label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Provider Code * <span className="text-muted-foreground">(如 MEGAH5, JILI)</span></label>
               <input required value={code} onChange={e => setCode(e.target.value.toUpperCase())}
                 pattern="[A-Z0-9_]{2,30}" title="2-30 uppercase letters, digits, underscores"
                 placeholder="MEGAH5"
-                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Provider Name *</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Provider Name *</label>
               <input required value={name} onChange={e => setName(e.target.value)}
                 placeholder="Mega888 H5"
-                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Display Name</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Display Name</label>
               <input value={displayName} onChange={e => setDisplayName(e.target.value)}
                 placeholder="Mega888"
-                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Wallet Type</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Wallet Type</label>
               <select value={walletType} onChange={e => setWalletType(e.target.value as 'SEAMLESS' | 'TRANSFER')}
-                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="SEAMLESS">SEAMLESS</option>
                 <option value="TRANSFER">TRANSFER</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Environment</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Environment</label>
               <select value={environment} onChange={e => setEnvironment(e.target.value as 'PRODUCTION' | 'SANDBOX')}
-                className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="PRODUCTION">PRODUCTION</option>
                 <option value="SANDBOX">SANDBOX</option>
               </select>
@@ -2218,14 +2218,14 @@ function NewProviderModal({ onCreated, onClose }: { onCreated: (id: number, code
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-2">Capabilities</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">Capabilities</label>
             <div className="flex flex-wrap gap-2">
               {ALL_CAPABILITIES.map(cap => (
                 <button key={cap} type="button" onClick={() => toggleCap(cap)}
                   className={`px-2 py-1 rounded text-xs font-mono transition-colors
                     ${caps.includes(cap)
                       ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                      : 'bg-muted text-muted-foreground hover:bg-muted'}`}>
                   {cap}
                 </button>
               ))}
@@ -2236,7 +2236,7 @@ function NewProviderModal({ onCreated, onClose }: { onCreated: (id: number, code
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted">
               取消
             </button>
             <button type="submit" disabled={saving}
@@ -2289,36 +2289,36 @@ function DuplicateModal({ sourceId, sourceCode, onDuplicated, onClose }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">
             复制 Provider — <span className="font-mono text-blue-600">{sourceCode}</span>
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-            <XCircle className="w-4 h-4 text-slate-500" />
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted">
+            <XCircle className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
         <form onSubmit={e => void handleSubmit(e)} className="p-6 space-y-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             复制 Provider 的基本信息和配置（gp_config）到新 code。凭证不会复制，需要手动填写。
           </p>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">新 Provider Code *</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">新 Provider Code *</label>
             <input required value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase())}
               pattern="[A-Z0-9_]{2,30}" title="2-30 uppercase letters, digits, underscores"
               placeholder="MEGAH5_STAGING"
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">新 Provider Name（留空则自动加 "(copy)"）</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">新 Provider Name（留空则自动加 "(copy)"）</label>
             <input value={newName} onChange={e => setNewName(e.target.value)}
               placeholder="Mega888 H5 Staging"
-              className="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full text-sm rounded-lg border border-border bg-card px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {error && <p className="text-xs text-rose-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted">
               取消
             </button>
             <button type="submit" disabled={saving}
@@ -2347,16 +2347,16 @@ function ProviderCard({ p, isSelected, onClick }: { p: GpProvider; isSelected: b
       className={`w-full text-left p-4 rounded-xl border transition-all
         ${isSelected
           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-sm'
-          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}
+          : 'border-border bg-card hover:border-border'}`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div>
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{p.display_name || p.name}</div>
-          <div className="text-xs text-slate-400 font-mono">{p.code}</div>
+          <div className="text-sm font-semibold text-foreground">{p.display_name || p.name}</div>
+          <div className="text-xs text-muted-foreground font-mono">{p.code}</div>
         </div>
         <Badge status={p.status} />
       </div>
-      <div className="flex items-center gap-3 text-xs text-slate-500">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span><HealthBadge status={p.health_status} /></span>
         {s.total_24h > 0 ? (
           <>
@@ -2364,7 +2364,7 @@ function ProviderCard({ p, isSelected, onClick }: { p: GpProvider; isSelected: b
             <span className={rate !== null && rate < 99 ? 'text-rose-500 font-medium' : 'text-emerald-500'}>{rate}% 成功</span>
           </>
         ) : (
-          <span className="text-slate-300">无请求</span>
+          <span className="text-muted-foreground">无请求</span>
         )}
         {p.retry_queue_pending > 0 && (
           <span className="text-amber-600 font-medium">⚠ {p.retry_queue_pending} 待重试</span>
@@ -2439,8 +2439,8 @@ export default function GamingPlatformPage() {
       {/* Page header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Gaming Platform</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <h1 className="text-xl font-bold text-foreground">Gaming Platform</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             统一管理所有游戏提供商配置、凭证、回调日志与运行状态
           </p>
         </div>
@@ -2452,18 +2452,18 @@ export default function GamingPlatformPage() {
             <Plus className="w-4 h-4" />
             新建 Provider
           </button>
-          <button onClick={loadProviders} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
-            <RefreshCw className="w-4 h-4 text-slate-500" />
+          <button onClick={loadProviders} className="p-2 rounded-lg border border-border hover:bg-muted">
+            <RefreshCw className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-3 text-slate-400 py-12 justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground py-12 justify-center">
           <Loader2 className="w-5 h-5 animate-spin" /> 加载提供商列表…
         </div>
       ) : providers.length === 0 ? (
-        <div className="text-slate-400 text-sm py-12 text-center">
+        <div className="text-muted-foreground text-sm py-12 text-center">
           暂无游戏提供商。请先执行数据库迁移脚本。
         </div>
       ) : (
@@ -2477,16 +2477,16 @@ export default function GamingPlatformPage() {
                 className={`w-full text-left p-4 rounded-xl border transition-all
                   ${selectedId === p.id
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}`}
+                    : 'border-border bg-card hover:border-border'}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{p.display_name || p.name}</div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">#{p.id} · {p.code}</div>
+                    <div className="font-semibold text-sm text-foreground truncate">{p.display_name || p.name}</div>
+                    <div className="text-xs text-muted-foreground font-mono mt-0.5">#{p.id} · {p.code}</div>
                   </div>
                   <Badge status={p.status} />
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <HealthBadge status={p.health_status} />
                   {p.stats_24h.total_24h > 0 ? (
                     <>
@@ -2495,7 +2495,7 @@ export default function GamingPlatformPage() {
                         {Math.round((p.stats_24h.success_24h / p.stats_24h.total_24h) * 100)}% 成功
                       </span>
                     </>
-                  ) : <span className="text-slate-300">无请求</span>}
+                  ) : <span className="text-muted-foreground">无请求</span>}
                   {p.retry_queue_pending > 0 && <span className="text-amber-600 font-medium">⚠ {p.retry_queue_pending}</span>}
                 </div>
               </button>
@@ -2503,7 +2503,7 @@ export default function GamingPlatformPage() {
           </div>
 
           {/* ── Mobile: Provider Detail (< 1024px) ── */}
-          <div className={`lg:hidden flex-col flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 overflow-hidden ${mobilePanel === 'list' ? 'hidden' : 'flex'}`}>
+          <div className={`lg:hidden flex-col flex-1 bg-card border border-border rounded-2xl p-4 overflow-hidden ${mobilePanel === 'list' ? 'hidden' : 'flex'}`}>
             {selectedId !== null && activeProvider ? (
               <ProviderDetail
                 key={selectedId}
@@ -2522,7 +2522,7 @@ export default function GamingPlatformPage() {
               <div className={`${listExpanded ? 'space-y-2' : 'space-y-2 flex flex-col items-center'}`}>
                 <button
                   onClick={() => setListExpanded(e => !e)}
-                  className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-1"
+                  className="w-full flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground mb-1"
                 >
                   {listExpanded ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                   {listExpanded && <span>提供商列表</span>}
@@ -2534,14 +2534,14 @@ export default function GamingPlatformPage() {
                       <button
                         onClick={e => { e.stopPropagation(); setDuplicating({ id: p.id, code: p.code }); }}
                         title="复制 Provider"
-                        className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-blue-600 shadow-sm"
+                        className="p-1 rounded bg-card border border-border text-muted-foreground hover:text-blue-600 shadow-sm"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); setDeletingProvider({ id: p.id, code: p.code }); }}
                         title="删除 Provider"
-                        className="p-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 shadow-sm"
+                        className="p-1 rounded bg-card border border-border text-muted-foreground hover:text-rose-500 shadow-sm"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -2550,7 +2550,7 @@ export default function GamingPlatformPage() {
                 ) : (
                   <button key={p.id} onClick={() => setSelectedId(p.id)} title={p.display_name || p.name}
                     className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold
-                      ${selectedId === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'}`}>
+                      ${selectedId === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'border-border bg-card text-muted-foreground'}`}>
                     <span className={`w-2 h-2 rounded-full ${STATUS_CFG[p.status]?.dot ?? 'bg-slate-400'}`} />
                   </button>
                 ))}
@@ -2558,7 +2558,7 @@ export default function GamingPlatformPage() {
             </div>
 
             {/* Right: Detail panel */}
-            <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 overflow-hidden flex flex-col">
+            <div className="flex-1 min-w-0 bg-card border border-border rounded-2xl p-5 overflow-hidden flex flex-col">
               {selectedId !== null && activeProvider ? (
                 <ProviderDetail
                   key={selectedId}
@@ -2567,7 +2567,7 @@ export default function GamingPlatformPage() {
                   userRole={userRole}
                 />
               ) : (
-                <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
                   选择左侧提供商查看详情
                 </div>
               )}
@@ -2604,9 +2604,9 @@ export default function GamingPlatformPage() {
 
       {deletingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">确认删除</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+          <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-foreground">确认删除</h2>
+            <p className="text-sm text-muted-foreground">
               将永久删除 Provider <span className="font-mono font-bold">{deletingProvider.code}</span> 及其所有配置。
               此操作不可撤销。
             </p>
@@ -2615,7 +2615,7 @@ export default function GamingPlatformPage() {
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setDeletingProvider(null)} disabled={deletingBusy}
-                className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
+                className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50">
                 取消
               </button>
               <button onClick={() => void handleDelete(deletingProvider.id, deletingProvider.code)} disabled={deletingBusy}

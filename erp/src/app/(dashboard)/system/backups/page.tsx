@@ -96,9 +96,9 @@ export default function BackupsPage() {
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">备份管理</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            数据库备份列表。保留期限由系统设置 <code className="rounded bg-gray-100 px-1 text-xs">backup_retention_days</code> 控制（默认 30 天）。
+          <h1 className="text-2xl font-bold text-foreground">备份管理</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            数据库备份列表。保留期限由系统设置 <code className="rounded bg-muted px-1 text-xs">backup_retention_days</code> 控制（默认 30 天）。
           </p>
         </div>
         <button
@@ -116,36 +116,36 @@ export default function BackupsPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto">
-        <table className="min-w-[600px] w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
+      <div className="rounded-lg border border-border bg-card shadow-sm overflow-x-auto">
+        <table className="min-w-[600px] w-full divide-y divide-border text-sm">
+          <thead className="bg-muted">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">文件名</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">大小</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">状态</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">创建时间</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">文件名</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">大小</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">状态</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">创建时间</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">加载中…</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">加载中…</td>
               </tr>
             ) : backups.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">暂无备份记录</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">暂无备份记录</td>
               </tr>
             ) : (
               backups.map((b) => (
-                <tr key={b.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-700 max-w-xs truncate">{b.filename}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatBytes(b.file_size_bytes)}</td>
+                <tr key={b.id} className="hover:bg-muted">
+                  <td className="px-4 py-3 font-mono text-xs text-foreground max-w-xs truncate">{b.filename}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatBytes(b.file_size_bytes)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={b.status} />
                     {b.notes && <p className="mt-1 text-xs text-red-500 break-all">{b.notes}</p>}
                   </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                     {new Date(b.created_at).toLocaleString('zh-CN')}
                   </td>
                   <td className="px-4 py-3 text-right">

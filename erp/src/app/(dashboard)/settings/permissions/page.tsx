@@ -93,7 +93,7 @@ export default function PermissionsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center text-gray-400">
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
         Loading permissions…
       </div>
     );
@@ -103,14 +103,14 @@ export default function PermissionsPage() {
     <div className="flex h-full flex-col">
       <div className="border-b px-4 sm:px-6 py-4">
         <h1 className="text-lg font-semibold">Staff Permissions</h1>
-        <p className="mt-0.5 text-sm text-gray-500">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Configure which pages and actions each role can access.
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row flex-1 overflow-hidden">
         {/* ── Left: Role List ─────────────────────────────────────────────── */}
-        <aside className="w-full sm:w-52 sm:shrink-0 border-b sm:border-b-0 sm:border-r bg-gray-50 p-3">
+        <aside className="w-full sm:w-52 sm:shrink-0 border-b sm:border-b-0 sm:border-r bg-muted p-3">
           <div className="flex sm:flex-col overflow-x-auto sm:overflow-visible gap-1 pb-1 sm:pb-0">
             {MANAGEABLE_ROLES.map((role) => (
               <button
@@ -119,10 +119,10 @@ export default function PermissionsPage() {
                 disabled={role.locked}
                 className={`flex shrink-0 sm:w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   role.locked
-                    ? 'cursor-default text-gray-400'
+                    ? 'cursor-default text-muted-foreground'
                     : selectedRole === role.id
-                    ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200'
-                    : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                    ? 'bg-card font-medium text-foreground shadow-sm ring-1 ring-border'
+                    : 'text-muted-foreground hover:bg-card hover:text-foreground'
                 }`}
               >
                 <span className="text-base">{role.icon}</span>
@@ -132,8 +132,8 @@ export default function PermissionsPage() {
             ))}
           </div>
 
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-500 hidden sm:block">
-            <p className="font-medium text-gray-700">👑 Super Admin</p>
+          <div className="mt-4 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground hidden sm:block">
+            <p className="font-medium text-foreground">👑 Super Admin</p>
             <p className="mt-1">Full system access. Permissions cannot be restricted.</p>
           </div>
         </aside>
@@ -145,7 +145,7 @@ export default function PermissionsPage() {
               <span className="text-2xl">{selectedRoleDef.icon}</span>
               <div>
                 <h2 className="text-base font-semibold">{selectedRoleDef.label}</h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   {grantedSet.size} permission{grantedSet.size !== 1 ? 's' : ''} granted
                 </p>
               </div>
@@ -154,8 +154,8 @@ export default function PermissionsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {PERMISSION_GROUPS.map((group) => (
-              <div key={group.module} className="rounded-lg border bg-white p-4">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <div key={group.module} className="rounded-lg border bg-card p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.module}
                 </h3>
                 <div className="space-y-2">
@@ -166,7 +166,7 @@ export default function PermissionsPage() {
                     return (
                       <label
                         key={perm.key}
-                        className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-gray-50 ${
+                        className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted ${
                           isSaving ? 'opacity-60' : ''
                         }`}
                       >
@@ -175,9 +175,9 @@ export default function PermissionsPage() {
                           checked={granted}
                           disabled={isSaving}
                           onChange={() => void toggle(perm.key, granted)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">{perm.label}</span>
+                        <span className="text-sm text-foreground">{perm.label}</span>
                       </label>
                     );
                   })}

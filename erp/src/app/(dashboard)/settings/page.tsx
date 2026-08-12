@@ -119,15 +119,15 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-gray-500">Loading settings…</div>
+      <div className="p-8 text-muted-foreground">Loading settings…</div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
-        <p className="mt-1 text-sm text-gray-500">Manage configurable system parameters. Changes take effect immediately.</p>
+        <h1 className="text-2xl font-bold text-foreground">System Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage configurable system parameters. Changes take effect immediately.</p>
       </div>
 
       {SECTIONS.map((section) => {
@@ -141,11 +141,11 @@ export default function SettingsPage() {
         const latestMeta = sectionMeta[0];
 
         return (
-          <div key={section.id} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-gray-800">{section.title}</h2>
+          <div key={section.id} className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border bg-muted flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-foreground">{section.title}</h2>
               {latestMeta && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground">
                   {latestMeta.updated_by
                     ? `Last saved by ${latestMeta.updated_by} at ${formatDate(latestMeta.updated_at)}`
                     : `Last saved at ${formatDate(latestMeta.updated_at)}`}
@@ -175,23 +175,23 @@ export default function SettingsPage() {
                 return (
                   <div key={key} className="flex items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">{label}</label>
                       {isBool ? (
                         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={value === 'true'}
                             onChange={() => handleToggle(key)}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500"
                           />
-                          <span className="text-sm text-gray-600">{value === 'true' ? 'Enabled' : 'Disabled'}</span>
+                          <span className="text-sm text-muted-foreground">{value === 'true' ? 'Enabled' : 'Disabled'}</span>
                         </label>
                       ) : key === 'auto_reply_message' ? (
                         <textarea
                           value={value}
                           onChange={(e) => handleChange(key, e.target.value)}
                           rows={3}
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="block w-full rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           placeholder="Enter auto-reply message…"
                         />
                       ) : (
@@ -199,11 +199,11 @@ export default function SettingsPage() {
                           type="text"
                           value={value}
                           onChange={(e) => handleChange(key, e.target.value)}
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="block w-full rounded-md border border-border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       )}
                       {meta[key] && (
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {meta[key].updated_by
                             ? `Saved by ${meta[key].updated_by} at ${formatDate(meta[key].updated_at)}`
                             : `Saved at ${formatDate(meta[key].updated_at)}`}
@@ -215,7 +215,7 @@ export default function SettingsPage() {
               })}
             </div>
 
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
+            <div className="px-6 py-3 border-t border-border bg-muted flex justify-end">
               <button
                 onClick={() => saveSection(section.id, section.keys)}
                 disabled={isSaving}

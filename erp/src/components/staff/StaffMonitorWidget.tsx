@@ -26,7 +26,7 @@ export function StaffMonitorWidget() {
 
   return (
     <section>
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Staff Monitoring</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Staff Monitoring</h2>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <a href="/staff/live-monitor"><StatsCard title="Online Staff"  value={online}  description="Click to open Live Monitor" /></a>
         <a href="/staff/live-monitor"><StatsCard title="Idle Staff"    value={idle}    description="3–10 min inactive" /></a>

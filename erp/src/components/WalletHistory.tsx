@@ -61,9 +61,9 @@ export default function WalletHistory({ memberId, refreshKey = 0 }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="overflow-x-auto rounded-md border bg-white">
+      <div className="overflow-x-auto rounded-md border border-border bg-card">
         <table className="w-full text-sm min-w-[860px]">
-          <thead className="border-b bg-gray-50 text-gray-500 text-xs">
+          <thead className="border-b bg-muted text-muted-foreground text-xs">
             <tr>
               {['Date', 'Type', 'Dir', 'Amount', 'Before', 'After', 'Operator', 'Ref / Gateway', 'Remark', 'Attach'].map(h => (
                 <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
@@ -72,12 +72,12 @@ export default function WalletHistory({ memberId, refreshKey = 0 }: Props) {
           </thead>
           <tbody className="divide-y">
             {loading ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No wallet transactions.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">No wallet transactions.</td></tr>
             ) : rows.map(tx => (
-              <tr key={tx.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+              <tr key={tx.id} className="hover:bg-muted">
+                <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                   {new Date(tx.created_at).toLocaleString('en-MY', { dateStyle: 'short', timeStyle: 'short' })}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
@@ -96,17 +96,17 @@ export default function WalletHistory({ memberId, refreshKey = 0 }: Props) {
                 }`}>
                   {tx.direction === 'C' ? '+' : '−'}{fmt(tx.amount)}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-gray-500 whitespace-nowrap">{fmt(tx.balance_before)}</td>
+                <td className="px-3 py-2 font-mono text-xs text-muted-foreground whitespace-nowrap">{fmt(tx.balance_before)}</td>
                 <td className="px-3 py-2 font-mono text-xs font-semibold whitespace-nowrap">{fmt(tx.balance_after)}</td>
-                <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{tx.operator_name ?? '—'}</td>
+                <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{tx.operator_name ?? '—'}</td>
                 <td className="px-3 py-2 text-xs">
-                  {tx.gateway && <div className="text-gray-500">{tx.gateway}</div>}
+                  {tx.gateway && <div className="text-muted-foreground">{tx.gateway}</div>}
                   {tx.reference_number && (
-                    <div className="font-mono text-gray-700">{tx.reference_number}</div>
+                    <div className="font-mono text-muted-foreground">{tx.reference_number}</div>
                   )}
-                  {!tx.gateway && !tx.reference_number && <span className="text-gray-300">—</span>}
+                  {!tx.gateway && !tx.reference_number && <span className="text-muted-foreground/50">—</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-gray-600 max-w-[180px]">
+                <td className="px-3 py-2 text-xs text-muted-foreground max-w-[180px]">
                   <span className="line-clamp-2" title={tx.remark}>{tx.remark}</span>
                 </td>
                 <td className="px-3 py-2">
@@ -120,7 +120,7 @@ export default function WalletHistory({ memberId, refreshKey = 0 }: Props) {
                       View
                     </a>
                   ) : (
-                    <span className="text-gray-300 text-xs">—</span>
+                    <span className="text-muted-foreground/50 text-xs">—</span>
                   )}
                 </td>
               </tr>
@@ -131,12 +131,12 @@ export default function WalletHistory({ memberId, refreshKey = 0 }: Props) {
 
       {total > 20 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Total: {total}</span>
+          <span className="text-muted-foreground">Total: {total}</span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
               Previous
             </Button>
-            <span className="px-2 py-1 text-gray-500">Page {page}</span>
+            <span className="px-2 py-1 text-muted-foreground">Page {page}</span>
             <Button size="sm" variant="outline" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>
               Next
             </Button>

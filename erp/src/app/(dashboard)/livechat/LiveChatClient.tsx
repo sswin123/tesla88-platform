@@ -158,10 +158,10 @@ export default function LiveChatClient({
           }}
         >
           {/* Session header */}
-          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-card px-4 py-2">
             {/* Mobile back button */}
             <button
-              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:bg-muted"
               onClick={handleMobileBack}
               aria-label="Back to conversations"
             >
@@ -179,7 +179,7 @@ export default function LiveChatClient({
                         ? `UID ${session.user_id}`
                         : 'Guest'}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {member?.first_name ?? '…'}
                 {' · '}Session #{selectedId}
               </p>
@@ -222,7 +222,7 @@ export default function LiveChatClient({
                 onClearReply={() => setReplyToMessage(null)}
               />
           ) : (
-            <div className="flex-shrink-0 border-t bg-gray-50 px-4 py-3 text-center text-sm text-gray-400">
+            <div className="flex-shrink-0 border-t bg-muted px-4 py-3 text-center text-sm text-muted-foreground">
               This conversation is closed.{' '}
               <button
                 className="text-blue-500 underline"
@@ -248,26 +248,26 @@ export default function LiveChatClient({
         </div>
       ) : loadingSession ? (
         <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b bg-card px-4 py-2">
             <button
-              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+              className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:bg-muted"
               onClick={handleMobileBack}
               aria-label="Back to conversations"
             >
               <ArrowLeft size={18} />
             </button>
-            <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
           </div>
           <ChatSkeleton />
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Select a conversation to start chatting
         </div>
       )}
 
       {/* Right: member card + notes — always hidden on mobile */}
-      <div className="hidden lg:flex w-72 flex-shrink-0 flex-col overflow-y-auto border-l bg-white">
+      <div className="hidden lg:flex w-72 flex-shrink-0 flex-col overflow-y-auto border-l bg-card">
         {member && session ? (
           <MemberCard
             member={member}
@@ -276,7 +276,7 @@ export default function LiveChatClient({
             onSessionSelect={setScrollToSessionId}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-gray-400">
+          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             Select a conversation
           </div>
         )}

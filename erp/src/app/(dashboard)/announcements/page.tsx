@@ -230,19 +230,19 @@ export default function AnnouncementsPage() {
             onClick={() => { setStatusFilter(f.value); setPage(1); }}
             className={`rounded-full px-4 py-1 text-sm font-medium border transition-colors ${
               statusFilter === f.value
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-card text-muted-foreground border-border hover:border-border'
             }`}
           >
             {f.label}
           </button>
         ))}
-        <span className="ml-auto text-sm text-gray-400 self-center">{total} total</span>
+        <span className="ml-auto text-sm text-muted-foreground self-center">{total} total</span>
       </div>
 
       {/* Inline form */}
       {showForm && (
-        <div className="rounded-lg border bg-gray-50 p-4 space-y-4">
+        <div className="rounded-lg border bg-muted p-4 space-y-4">
           <h2 className="font-semibold text-lg">
             {editing ? 'Edit Announcement' : 'New Announcement'}
           </h2>
@@ -261,7 +261,7 @@ export default function AnnouncementsPage() {
                 onChange={F('content')}
                 rows={4}
                 placeholder="Announcement content / message body"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
               />
             </div>
 
@@ -271,7 +271,7 @@ export default function AnnouncementsPage() {
                 id="ann-type"
                 value={form.type}
                 onChange={F('type')}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
               >
                 <option value="BANNER">Banner</option>
                 <option value="POPUP">Popup</option>
@@ -286,7 +286,7 @@ export default function AnnouncementsPage() {
                 id="ann-status"
                 value={form.status}
                 onChange={F('status')}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
               >
                 <option value="DRAFT">Draft</option>
                 <option value="ACTIVE">Active</option>
@@ -301,7 +301,7 @@ export default function AnnouncementsPage() {
                 id="ann-target"
                 value={form.target}
                 onChange={F('target')}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
               >
                 <option value="ALL">All Members</option>
                 <option value="VIP">VIP Members</option>
@@ -361,15 +361,15 @@ export default function AnnouncementsPage() {
 
       {/* List */}
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
       ) : announcements.length === 0 ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">
+        <div className="flex h-40 items-center justify-center text-muted-foreground">
           No announcements found.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-muted text-muted-foreground">
               <tr>
                 {['Title', 'Type', 'Target', 'Status', 'Start', 'End', 'Sent', 'Created By', 'Actions'].map(h => (
                   <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
@@ -378,10 +378,10 @@ export default function AnnouncementsPage() {
             </thead>
             <tbody>
               {announcements.map(a => (
-                <tr key={a.id} className="border-t hover:bg-gray-50">
+                <tr key={a.id} className="border-t hover:bg-muted">
                   <td className="px-3 py-2 max-w-[200px]">
                     <div className="font-medium truncate">{a.title}</div>
-                    <div className="text-xs text-gray-400 truncate max-w-[180px]">{a.content}</div>
+                    <div className="text-xs text-muted-foreground truncate max-w-[180px]">{a.content}</div>
                   </td>
                   <td className="px-3 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[a.type]}`}>
@@ -401,13 +401,13 @@ export default function AnnouncementsPage() {
                   <td className="px-3 py-2 whitespace-nowrap text-xs">{fmtDate(a.start_at)}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-xs">{fmtDate(a.end_at)}</td>
                   <td className="px-3 py-2 text-center">{a.sent_count}</td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{a.created_by}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{a.created_by}</td>
                   <td className="px-3 py-2">
                     <div className="flex flex-col gap-1 min-w-[120px]">
                       <div className="flex gap-1">
                         <button
                           onClick={() => openEdit(a)}
-                          className="rounded px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200"
+                          className="rounded px-2 py-1 text-xs bg-muted hover:bg-muted"
                         >
                           Edit
                         </button>
@@ -428,7 +428,7 @@ export default function AnnouncementsPage() {
                         </button>
                       )}
                       {broadcastResult[a.id] && (
-                        <span className="text-xs text-gray-500 break-words max-w-[200px]">
+                        <span className="text-xs text-muted-foreground break-words max-w-[200px]">
                           {broadcastResult[a.id]}
                         </span>
                       )}
@@ -447,15 +447,15 @@ export default function AnnouncementsPage() {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-gray-50"
+            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-muted"
           >
             Prev
           </button>
-          <span className="text-gray-500">Page {page} / {totalPages}</span>
+          <span className="text-muted-foreground">Page {page} / {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-gray-50"
+            className="rounded px-3 py-1 border disabled:opacity-40 hover:bg-muted"
           >
             Next
           </button>

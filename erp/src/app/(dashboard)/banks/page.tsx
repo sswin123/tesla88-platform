@@ -171,17 +171,17 @@ export default function BankManagerPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Bank Manager</h1>
-          <p className="text-sm text-gray-500 mt-0.5">单一数据源 — Website 与 Telegram Bot 均从此处读取</p>
+          <p className="text-sm text-muted-foreground mt-0.5">单一数据源 — Website 与 Telegram Bot 均从此处读取</p>
         </div>
         <Button onClick={openCreate}>+ Add Bank</Button>
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-gray-400">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-muted-foreground">Loading…</div>
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-muted text-muted-foreground">
               <tr>
                 {['P','Order','Bank','Account Name','Account Number','Provider','QR','Status','Maintenance','Actions'].map((h) => (
                   <th key={h} className="px-3 py-2 text-left font-medium whitespace-nowrap">{h}</th>
@@ -190,21 +190,21 @@ export default function BankManagerPage() {
             </thead>
             <tbody className="divide-y">
               {banks.map((b) => (
-                <tr key={b.id} className={`hover:bg-gray-50 ${b.maintenance_mode ? 'bg-yellow-50' : ''}`}>
-                  <td className="px-3 py-2 text-gray-400 font-mono text-xs">{b.priority}</td>
-                  <td className="px-3 py-2 text-gray-500">{b.display_order}</td>
+                <tr key={b.id} className={`hover:bg-muted ${b.maintenance_mode ? 'bg-yellow-50' : ''}`}>
+                  <td className="px-3 py-2 text-muted-foreground font-mono text-xs">{b.priority}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{b.display_order}</td>
                   <td className="px-3 py-2 font-medium">{b.bank_name}</td>
                   <td className="px-3 py-2">{b.account_name}</td>
                   <td className="px-3 py-2 font-mono">{b.account_number}</td>
                   <td className="px-3 py-2">
                     {b.provider_binding
                       ? <Badge variant="secondary" className="text-xs">{b.provider_binding}</Badge>
-                      : <span className="text-gray-300 text-xs">All</span>}
+                      : <span className="text-muted-foreground text-xs">All</span>}
                   </td>
                   <td className="px-3 py-2">
                     {b.qr_image
                       ? <img src={b.qr_image} alt="QR" className="h-10 w-10 object-contain rounded" />
-                      : <span className="text-gray-400">—</span>}
+                      : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-3 py-2">
                     <Badge variant={b.is_active ? 'default' : 'secondary'}>
@@ -216,11 +216,11 @@ export default function BankManagerPage() {
                       <div>
                         <Badge variant="destructive">Maintenance</Badge>
                         {b.maintenance_message && (
-                          <div className="mt-0.5 text-xs text-gray-500 max-w-[140px] truncate">{b.maintenance_message}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground max-w-[140px] truncate">{b.maintenance_message}</div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">Normal</span>
+                      <span className="text-xs text-muted-foreground">Normal</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -242,7 +242,7 @@ export default function BankManagerPage() {
                 </tr>
               ))}
               {banks.length === 0 && (
-                <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No banks yet.</td></tr>
+                <tr><td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">No banks yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -251,7 +251,7 @@ export default function BankManagerPage() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="mb-4 text-lg font-semibold">{editing ? 'Edit Bank' : 'Add Bank'}</h2>
             <div className="space-y-3">
               {([
@@ -283,7 +283,7 @@ export default function BankManagerPage() {
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">If set, this bank only appears when customer deposits into that provider.</p>
+                <p className="text-xs text-muted-foreground mt-1">If set, this bank only appears when customer deposits into that provider.</p>
               </div>
 
               {/* Priority */}
@@ -306,7 +306,7 @@ export default function BankManagerPage() {
                     type="checkbox"
                     checked={form.maintenance_mode}
                     onChange={(e) => setForm((f) => ({ ...f, maintenance_mode: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-border"
                   />
                   <Label htmlFor="maintenance_mode" className="text-sm font-medium text-yellow-800">
                     Maintenance Mode (hide from website & bot)
@@ -331,7 +331,7 @@ export default function BankManagerPage() {
                   type="file"
                   accept="image/*"
                   onChange={handleFile}
-                  className="block w-full text-sm text-gray-500 file:mr-2 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1 file:text-sm"
+                  className="block w-full text-sm text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm"
                 />
                 {form.qr_image && (
                   <img src={form.qr_image} alt="QR preview" className="mt-2 h-24 w-24 rounded border object-contain" />

@@ -66,7 +66,7 @@ const FILTER_TABS = [
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   ACCOUNT:      { bg: 'bg-slate-100',   text: 'text-slate-700',  dot: '#64748b' },
-  PROFILE:      { bg: 'bg-gray-100',    text: 'text-gray-600',   dot: '#6b7280' },
+  PROFILE:      { bg: 'bg-muted',       text: 'text-muted-foreground', dot: '#6b7280' },
   DEPOSIT:      { bg: 'bg-green-100',   text: 'text-green-700',  dot: '#16a34a' },
   WITHDRAWAL:   { bg: 'bg-red-100',     text: 'text-red-700',    dot: '#dc2626' },
   WALLET:       { bg: 'bg-blue-100',    text: 'text-blue-700',   dot: '#2563eb' },
@@ -79,7 +79,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }>
 };
 
 function getCategoryStyle(cat: string) {
-  return CATEGORY_COLORS[cat] ?? { bg: 'bg-gray-100', text: 'text-gray-600', dot: '#6b7280' };
+  return CATEGORY_COLORS[cat] ?? { bg: 'bg-muted', text: 'text-muted-foreground', dot: '#6b7280' };
 }
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -176,13 +176,13 @@ function SummaryCard({ summary }: { summary: ActivitySummary }) {
       {items.map((item) => (
         <div
           key={item.label}
-          className={`rounded-lg border px-3 py-2 ${item.highlight ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
+          className={`rounded-lg border px-3 py-2 ${item.highlight ? 'border-blue-200 bg-blue-50' : 'border-border bg-muted'}`}
         >
-          <p className="text-xs text-gray-500 font-medium truncate">{item.label}</p>
-          <p className={`text-sm font-bold mt-0.5 ${item.highlight ? 'text-blue-700' : 'text-gray-800'}`}>
+          <p className="text-xs text-muted-foreground font-medium truncate">{item.label}</p>
+          <p className={`text-sm font-bold mt-0.5 ${item.highlight ? 'text-blue-700' : 'text-foreground'}`}>
             {item.value}
           </p>
-          {item.sub && <p className="text-xs text-gray-400 truncate">{item.sub}</p>}
+          {item.sub && <p className="text-xs text-muted-foreground truncate">{item.sub}</p>}
         </div>
       ))}
     </div>
@@ -203,19 +203,19 @@ function ActivityRow({ row }: { row: ActivityRow }) {
       {/* Timeline dot */}
       <div className="flex flex-col items-center pt-0.5 shrink-0">
         <div className="w-2 h-2 rounded-full mt-1.5" style={{ backgroundColor: style.dot }} />
-        <div className="w-px flex-1 bg-gray-100 mt-1" />
+        <div className="w-px flex-1 bg-border mt-1" />
       </div>
 
       <div className="flex-1 min-w-0">
         {/* Top row: time + category badge + action + amount */}
         <div className="flex items-start gap-2 flex-wrap">
-          <span className="text-xs text-gray-400 font-mono tabular-nums shrink-0 mt-0.5">
+          <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0 mt-0.5">
             {fmtTime(row.created_at)}
           </span>
           <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${style.bg} ${style.text}`}>
             {row.category.replace('_', ' ')}
           </span>
-          <span className="text-sm font-medium text-gray-800 flex-1">{row.title}</span>
+          <span className="text-sm font-medium text-foreground flex-1">{row.title}</span>
           {row.amount && (
             <span className={`text-sm font-bold tabular-nums shrink-0 ${
               parseFloat(row.amount) >= 0 ? 'text-green-600' : 'text-red-500'
@@ -227,7 +227,7 @@ function ActivityRow({ row }: { row: ActivityRow }) {
 
         {/* Balance before/after */}
         {row.balance_before != null && row.balance_after != null && (
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Balance: RM {parseFloat(row.balance_before).toFixed(2)}
             {' → '}
             RM {parseFloat(row.balance_after).toFixed(2)}
@@ -236,29 +236,29 @@ function ActivityRow({ row }: { row: ActivityRow }) {
 
         {/* Description */}
         {row.description && (
-          <p className="text-xs text-gray-500 mt-0.5">{row.description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{row.description}</p>
         )}
 
         {/* Meta row */}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <span className="text-xs text-gray-400 font-mono">{row.activity_id}</span>
+          <span className="text-xs text-muted-foreground font-mono">{row.activity_id}</span>
           {row.operator_name && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               by{' '}
-              <span className="font-medium text-gray-600">
+              <span className="font-medium text-muted-foreground">
                 {row.operator_type === 'STAFF' ? '👤 ' : row.operator_type === 'MEMBER' ? '🙋 ' : '⚙️ '}
                 {row.operator_name}
               </span>
             </span>
           )}
           {row.source !== 'SYSTEM' && (
-            <span className="text-xs text-gray-400">via {row.source}</span>
+            <span className="text-xs text-muted-foreground">via {row.source}</span>
           )}
           {ref && (
             <span className="text-xs font-mono text-blue-500">{ref}</span>
           )}
           {row.ip_address && (
-            <span className="text-xs text-gray-300">{row.ip_address}</span>
+            <span className="text-xs text-muted-foreground/40">{row.ip_address}</span>
           )}
           {row.remark && (
             <span className="text-xs text-amber-600 italic">"{row.remark}"</span>
@@ -354,7 +354,7 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
               category === tab.key
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                : 'bg-muted text-muted-foreground hover:bg-muted'
             }`}
           >
             {tab.label}
@@ -369,24 +369,24 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
           placeholder="搜索：活动ID / 关键词 / 金额 / 参考号…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          className="flex-1 min-w-48 rounded border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="flex-1 min-w-48 rounded border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
         <input
           type="date"
           value={dateFrom}
           onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-          className="rounded border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="rounded border border-border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
-        <span className="self-center text-gray-400 text-sm">—</span>
+        <span className="self-center text-muted-foreground text-sm">—</span>
         <input
           type="date"
           value={dateTo}
           onChange={e => { setDateTo(e.target.value); setPage(1); }}
-          className="rounded border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="rounded border border-border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
         />
         <button
           type="submit"
-          className="rounded border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm hover:bg-gray-100"
+          className="rounded border border-border bg-muted px-3 py-1.5 text-sm hover:bg-muted"
         >
           搜索
         </button>
@@ -394,7 +394,7 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
           <button
             type="button"
             onClick={() => { setSearch(''); setSearchInput(''); setDateFrom(''); setDateTo(''); setPage(1); }}
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             清空
           </button>
@@ -403,7 +403,7 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
 
       {/* Stats */}
       {data && (
-        <p className="text-xs text-gray-400 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           共 {data.total.toLocaleString()} 条记录
           {data.total > 0 && ` · 第 ${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, data.total)} 条`}
         </p>
@@ -411,7 +411,7 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
 
       {/* Loading / Error */}
       {loading && (
-        <div className="py-12 text-center text-sm text-gray-400">加载中…</div>
+        <div className="py-12 text-center text-sm text-muted-foreground">加载中…</div>
       )}
       {!loading && error && (
         <div className="py-6 text-center text-sm text-red-500">
@@ -424,9 +424,9 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
       {!loading && !error && grouped.length === 0 && (
         <div className="py-12 text-center">
           <p className="text-3xl mb-2">📋</p>
-          <p className="text-sm text-gray-500">暂无活动记录</p>
+          <p className="text-sm text-muted-foreground">暂无活动记录</p>
           {(search || category !== 'ALL') && (
-            <p className="text-xs text-gray-400 mt-1">尝试清除筛选条件</p>
+            <p className="text-xs text-muted-foreground mt-1">尝试清除筛选条件</p>
           )}
         </div>
       )}
@@ -437,13 +437,13 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
           {grouped.map(([date, rows]) => (
             <div key={date}>
               {/* Date header */}
-              <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-1.5 mb-1">
+              <div className="sticky top-0 bg-background/90 backdrop-blur-sm z-10 py-1.5 mb-1">
                 <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-gray-100" />
-                  <span className="text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-semibold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
                     {date}
                   </span>
-                  <div className="h-px flex-1 bg-gray-100" />
+                  <div className="h-px flex-1 bg-border" />
                 </div>
               </div>
               {/* Events */}
@@ -461,17 +461,17 @@ export default function MemberActivityLog({ memberId }: { memberId: number }) {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="rounded border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-gray-50"
+            className="rounded border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-muted"
           >
             ← 上一页
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-muted-foreground">
             第 {page} / {totalPages} 页
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="rounded border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-gray-50"
+            className="rounded border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-muted"
           >
             下一页 →
           </button>

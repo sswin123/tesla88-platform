@@ -49,6 +49,7 @@ function providerToForm(p: WebsiteGameProvider): FormState {
 
 function StatusBadge({ p }: { p: WebsiteGameProvider }) {
   if (!p.is_active)
+    // KEEP: disabled/stopped badge (rule 8/9) — gray signals "stopped" business status
     return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">已停用</span>;
   return <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">显示中</span>;
 }
@@ -209,7 +210,7 @@ export default function WebsiteGameProvidersPage() {
 
       {/* ── Form ── */}
       {showForm && (
-        <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
+        <div className="mb-6 bg-card border border-border rounded-xl p-5">
           <h2 className="text-base font-semibold mb-4">
             {editId ? 'Edit Provider' : 'New Provider'}
           </h2>
@@ -217,28 +218,28 @@ export default function WebsiteGameProvidersPage() {
             <div className="grid grid-cols-2 gap-4">
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Provider Code * <span className="text-gray-400">(unique key)</span></label>
+                <label className="block text-xs font-medium text-foreground mb-1">Provider Code * <span className="text-muted-foreground">(unique key)</span></label>
                 <input
                   value={form.provider_code} onChange={e => setField('provider_code', e.target.value)}
-                  required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  required className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="mega888"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Provider Name *</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Provider Name *</label>
                 <input
                   value={form.provider_name} onChange={e => setField('provider_name', e.target.value)}
-                  required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  required className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   placeholder="Mega888"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">分类 Category</label>
+                <label className="block text-xs font-medium text-foreground mb-1">分类 Category</label>
                 <select value={form.category_id ?? ''}
                   onChange={e => setField('category_id', e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm">
                   <option value="">— 未指定 —</option>
                   {categories.map(c => (
                     <option key={c.id} value={c.id}>{c.category_name} ({c.category_code})</option>
@@ -247,18 +248,18 @@ export default function WebsiteGameProvidersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Display Order</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Display Order</label>
                 <input type="text" inputMode="numeric" value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm" />
               </div>
 
               {/* Logo */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Logo</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Logo</label>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => setPickerFor('logo')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                    className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
                     {form.logo_media_id ? `Media #${form.logo_media_id}` : 'Pick Logo'}
                   </button>
                   {form.logo_media_id && (
@@ -270,10 +271,10 @@ export default function WebsiteGameProvidersPage() {
 
               {/* Banner */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Banner</label>
+                <label className="block text-xs font-medium text-foreground mb-1">Banner</label>
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => setPickerFor('banner')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                    className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
                     {form.banner_media_id ? `Media #${form.banner_media_id}` : 'Pick Banner'}
                   </button>
                   {form.banner_media_id && (
@@ -285,7 +286,7 @@ export default function WebsiteGameProvidersPage() {
 
               {/* Icon */}
               <div className="col-span-2 border-t pt-3">
-                <label className="block text-xs font-medium text-gray-700 mb-2">图标 Icon</label>
+                <label className="block text-xs font-medium text-foreground mb-2">图标 Icon</label>
                 <div className="flex gap-1 mb-2">
                   {(['none', 'emoji', 'image', 'gif', 'svg'] as IconType[]).map(t => (
                     <button key={t} type="button"
@@ -293,7 +294,7 @@ export default function WebsiteGameProvidersPage() {
                       className={`flex-1 py-1 text-xs rounded border transition-colors ${
                         form.icon_type === t
                           ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                          : 'bg-background text-muted-foreground border-border hover:border-blue-300'
                       }`}>
                       {t === 'none' ? '无' : t.toUpperCase()}
                     </button>
@@ -304,7 +305,7 @@ export default function WebsiteGameProvidersPage() {
                     value={form.icon_emoji}
                     onChange={e => setField('icon_emoji', e.target.value)}
                     placeholder="输入 Emoji，如 🎰"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                   />
                 )}
                 {(form.icon_type === 'image' || form.icon_type === 'gif') && (
@@ -314,7 +315,7 @@ export default function WebsiteGameProvidersPage() {
                         className="w-8 h-8 object-contain rounded border" />
                     )}
                     <button type="button" onClick={() => setPickerFor('icon')}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                      className="px-3 py-1.5 border border-border rounded-lg text-sm hover:bg-muted">
                       {form.icon_media_id ? '更换图片' : '选择图片'}
                     </button>
                     {form.icon_media_id && (
@@ -329,7 +330,7 @@ export default function WebsiteGameProvidersPage() {
                     onChange={e => setField('icon_svg', e.target.value)}
                     placeholder={'<svg ...>...</svg>'}
                     rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono resize-y"
                   />
                 )}
               </div>
@@ -339,20 +340,20 @@ export default function WebsiteGameProvidersPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_hot}
                     onChange={e => setField('is_hot', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">🔥 HOT</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">🔥 HOT</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_new}
                     onChange={e => setField('is_new', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">✨ NEW</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">✨ NEW</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_active}
                     onChange={e => setField('is_active', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300" />
-                  <span className="text-sm font-medium text-gray-700">Active</span>
+                    className="h-4 w-4 rounded border-border" />
+                  <span className="text-sm font-medium text-foreground">Active</span>
                 </label>
               </div>
             </div>
@@ -363,7 +364,7 @@ export default function WebsiteGameProvidersPage() {
                 {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
               </button>
               <button type="button" onClick={cancelForm}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+                className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-muted">
                 Cancel
               </button>
             </div>
@@ -387,23 +388,23 @@ export default function WebsiteGameProvidersPage() {
       {/* ── Provider List ── */}
       <div className="space-y-2">
         {providers.length === 0 && (
-          <div className="text-center py-12 text-gray-500 text-sm">
+          <div className="text-center py-12 text-muted-foreground text-sm">
             No providers yet. Click &quot;+ Add Provider&quot; to create one.
           </div>
         )}
         {providers.map((p, idx) => (
-          <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+          <div key={p.id} className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
 
             {/* Reorder */}
             <div className="flex flex-col gap-0.5 shrink-0">
               <button disabled={idx === 0} onClick={() => reorder(p, -1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▲</button>
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▲</button>
               <button disabled={idx === providers.length - 1} onClick={() => reorder(p, 1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▼</button>
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▼</button>
             </div>
 
             {/* Logo preview */}
-            <div className="w-12 h-12 rounded-lg bg-gray-100 shrink-0 overflow-hidden">
+            <div className="w-12 h-12 rounded-lg bg-muted shrink-0 overflow-hidden">
               {p.logo_media_id && (
                 <img src={`/api/public/media/${p.logo_media_id}`} alt={p.provider_name}
                   className="w-full h-full object-contain" />
@@ -419,10 +420,10 @@ export default function WebsiteGameProvidersPage() {
                 </span>
                 {p.is_hot && <span className="text-xs">🔥 HOT</span>}
                 {p.is_new && <span className="text-xs">✨ NEW</span>}
-                <span className="text-xs text-gray-400">#{p.display_order}</span>
+                <span className="text-xs text-muted-foreground">#{p.display_order}</span>
               </div>
-              <p className="font-semibold text-sm text-gray-900">{p.provider_name}</p>
-              <p className="text-xs text-gray-400">{p.provider_code}</p>
+              <p className="font-semibold text-sm text-foreground">{p.provider_name}</p>
+              <p className="text-xs text-muted-foreground">{p.provider_code}</p>
             </div>
 
             {/* Actions */}
@@ -431,6 +432,7 @@ export default function WebsiteGameProvidersPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   p.is_hot
                     ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
+                    // KEEP: business status toggle inactive state (rule 6) — gray signals HOT is off
                     : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                 }`}>
                 🔥 HOT
@@ -439,12 +441,13 @@ export default function WebsiteGameProvidersPage() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   p.is_active
                     ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                    // KEEP: business status toggle inactive state (rule 6) — gray signals provider is inactive
                     : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                 }`}>
                 {p.is_active ? '启用' : '停用'}
               </button>
               <button onClick={() => startEdit(p)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 hover:bg-gray-50">
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted">
                 Edit
               </button>
               <button onClick={() => remove(p)}

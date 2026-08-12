@@ -172,39 +172,39 @@ function EditorPanel({
   const preview = applyPreview(content, previewVals);
 
   return (
-    <div className="flex h-full flex-col bg-white lg:border-l lg:border-gray-200">
+    <div className="flex h-full flex-col bg-card lg:border-l lg:border-border">
       {/* ── Mobile header (< 1024px) ── */}
-      <div className="lg:hidden flex items-center gap-2 border-b border-gray-200 px-4 py-3">
+      <div className="lg:hidden flex items-center gap-2 border-b border-border px-4 py-3">
         {onMobileBack && (
           <button
             onClick={onMobileBack}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted"
           >
             ←
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-sm font-semibold text-gray-800 truncate">{msg.message_key}</p>
-          <p className="text-xs text-gray-500">{msg.category} · {msg.language_code.toUpperCase()}</p>
+          <p className="font-mono text-sm font-semibold text-foreground truncate">{msg.message_key}</p>
+          <p className="text-xs text-muted-foreground">{msg.category} · {msg.language_code.toUpperCase()}</p>
         </div>
       </div>
 
       {/* ── Desktop header (≥ 1024px) ── */}
-      <div className="hidden lg:flex items-center justify-between border-b border-gray-200 px-4 py-3">
+      <div className="hidden lg:flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <p className="font-mono text-sm font-semibold text-gray-800">{msg.message_key}</p>
-          <p className="text-xs text-gray-500">{msg.category} · {msg.language_code.toUpperCase()}</p>
+          <p className="font-mono text-sm font-semibold text-foreground">{msg.message_key}</p>
+          <p className="text-xs text-muted-foreground">{msg.category} · {msg.language_code.toUpperCase()}</p>
         </div>
-        <button onClick={onClose} className="rounded p-1 text-gray-400 hover:text-gray-600">✕</button>
+        <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:text-foreground">✕</button>
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-gray-200">
+      <div className="flex overflow-x-auto border-b border-border">
         {(['edit', 'history'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-blue-600 text-blue-600' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {t === 'edit' ? '编辑' : '历史记录'}
           </button>
@@ -215,33 +215,33 @@ function EditorPanel({
         {tab === 'edit' ? (
           <div className="space-y-4">
             {/* Description */}
-            <p className="text-xs text-gray-400">{msg.description}</p>
+            <p className="text-xs text-muted-foreground">{msg.description}</p>
 
             {/* Content textarea */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">消息内容</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">消息内容</label>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={6}
-                className="w-full max-w-full rounded-md border border-gray-300 p-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full max-w-full rounded-md border border-border p-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
             {/* Variables */}
             {variables.length > 0 && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">预览变量</label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">预览变量</label>
                 <div className="space-y-1">
                   {variables.map((v) => (
                     <div key={v} className="flex items-center gap-2">
-                      <span className="w-28 shrink-0 rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700">{`{${v}}`}</span>
+                      <span className="w-28 shrink-0 rounded bg-muted px-2 py-0.5 font-mono text-xs text-foreground">{`{${v}}`}</span>
                       <input
                         type="text"
                         placeholder={v}
                         value={previewVals[v] ?? ''}
                         onChange={(e) => setPreviewVals((p) => ({ ...p, [v]: e.target.value }))}
-                        className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className="min-w-0 flex-1 rounded border border-border px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                       />
                     </div>
                   ))}
@@ -251,15 +251,15 @@ function EditorPanel({
 
             {/* Live Preview */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">实时预览</label>
-              <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                <pre className="whitespace-pre-wrap break-words font-sans text-sm text-gray-800">{preview}</pre>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">实时预览</label>
+              <div className="rounded-md border border-border bg-muted p-3">
+                <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground">{preview}</pre>
               </div>
             </div>
 
             {/* Updated info */}
             {msg.updated_by && (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 上次修改：{msg.updated_by} · {fmtDate(msg.updated_at)}
               </p>
             )}
@@ -278,7 +278,7 @@ function EditorPanel({
               <button
                 onClick={() => void reset()}
                 disabled={resetting}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60"
               >
                 恢复默认
               </button>
@@ -287,14 +287,14 @@ function EditorPanel({
         ) : (
           /* History tab */
           <div className="space-y-2">
-            {histLoading && <p className="text-sm text-gray-400">加载中…</p>}
+            {histLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
             {history !== null && history.length === 0 && (
-              <p className="text-sm text-gray-400">暂无历史记录。</p>
+              <p className="text-sm text-muted-foreground">暂无历史记录。</p>
             )}
             {history?.map((h) => (
-              <div key={h.id} className="rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div key={h.id} className="rounded-md border border-border bg-muted p-3 text-sm">
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {h.changed_by ?? '(系统)'} · {fmtDate(h.changed_at)}
                   </span>
                   <button
@@ -304,7 +304,7 @@ function EditorPanel({
                     恢复
                   </button>
                 </div>
-                <pre className="whitespace-pre-wrap break-words font-sans text-xs text-gray-700 line-clamp-3">{h.old_content}</pre>
+                <pre className="whitespace-pre-wrap break-words font-sans text-xs text-muted-foreground line-clamp-3">{h.old_content}</pre>
               </div>
             ))}
           </div>
@@ -376,15 +376,15 @@ function ButtonsTab() {
     <div className="p-4">
       {toast && <Toast msg={toast.msg} ok={toast.ok} onClose={() => setToast(null)} />}
       {loading ? (
-        <p className="text-sm text-gray-400">加载中…</p>
+        <p className="text-sm text-muted-foreground">加载中…</p>
       ) : (
         <div className="space-y-6">
           {groups.map((gk) => (
             <div key={gk}>
-              <h3 className="mb-2 font-mono text-sm font-semibold text-gray-700">{gk}</h3>
-              <div className="overflow-x-auto rounded-md border border-gray-200">
+              <h3 className="mb-2 font-mono text-sm font-semibold text-foreground">{gk}</h3>
+              <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs text-gray-500">
+                  <thead className="bg-muted text-xs text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 text-left">位置</th>
                       <th className="px-3 py-2 text-left">按钮文字</th>
@@ -393,12 +393,12 @@ function ButtonsTab() {
                       <th className="px-3 py-2 text-left">操作</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {buttons
                       .filter((b) => b.group_key === gk)
                       .map((btn) => (
-                        <tr key={btn.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-400 text-xs">
+                        <tr key={btn.id} className="hover:bg-muted">
+                          <td className="px-3 py-2 text-muted-foreground text-xs">
                             R{btn.row_order}·C{btn.column_order}
                           </td>
                           <td className="px-3 py-2">
@@ -406,10 +406,10 @@ function ButtonsTab() {
                               type="text"
                               value={editing[btn.id] ?? btn.label}
                               onChange={(e) => setEditing((p) => ({ ...p, [btn.id]: e.target.value }))}
-                              className="w-full rounded border border-transparent px-1 py-0.5 text-sm hover:border-gray-200 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              className="w-full rounded border border-transparent px-1 py-0.5 text-sm hover:border-border focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                             />
                           </td>
-                          <td className="px-3 py-2 text-xs text-gray-500">
+                          <td className="px-3 py-2 text-xs text-muted-foreground">
                             {btn.language_code.toUpperCase()}
                           </td>
                           <td className="px-3 py-2">
@@ -497,23 +497,23 @@ export default function BotMessagesPage() {
   const catLabel = (cat: string) => cat.charAt(0) + cat.slice(1).toLowerCase();
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-background">
       {toast && <Toast msg={toast.msg} ok={toast.ok} onClose={() => setToast(null)} />}
 
       {/* Page header */}
-      <div className="border-b border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4">
-        <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Bot 消息管理</h1>
-        <p className="mt-0.5 text-sm text-gray-500 hidden sm:block">编辑 Telegram Bot 的所有用户消息，无需修改代码。</p>
+      <div className="border-b border-border bg-card px-4 sm:px-6 py-3 sm:py-4">
+        <h1 className="text-lg sm:text-xl font-semibold text-foreground">Bot 消息管理</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground hidden sm:block">编辑 Telegram Bot 的所有用户消息，无需修改代码。</p>
       </div>
 
       {/* Top tabs (messages / buttons) */}
-      <div className="overflow-x-auto border-b border-gray-200 bg-white px-4 sm:px-6">
+      <div className="overflow-x-auto border-b border-border bg-card px-4 sm:px-6">
         <div className="flex">
           {(['messages', 'buttons'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`mr-4 whitespace-nowrap pb-3 pt-3 text-sm font-medium border-b-2 ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              className={`mr-4 whitespace-nowrap pb-3 pt-3 text-sm font-medium border-b-2 ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
             >
               {t === 'messages' ? '消息列表' : 'Telegram 按钮'}
             </button>
@@ -532,12 +532,12 @@ export default function BotMessagesPage() {
           ══════════════════════════════════════════ */}
           <div className={`lg:hidden flex-col flex-1 overflow-hidden ${mobilePanel === 'editor' ? 'hidden' : 'flex'}`}>
             {/* Mobile filter bar — stacked */}
-            <div className="flex flex-col gap-2 border-b border-gray-200 bg-white px-4 py-3">
+            <div className="flex flex-col gap-2 border-b border-border bg-card px-4 py-3">
               <div className="flex gap-2">
                 <select
                   value={catFilter}
                   onChange={(e) => setCatFilter(e.target.value)}
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">全部分类</option>
                   {CATEGORIES.map((c) => (
@@ -547,7 +547,7 @@ export default function BotMessagesPage() {
                 <select
                   value={langFilter}
                   onChange={(e) => setLangFilter(e.target.value)}
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">全部语言</option>
                   {LANGUAGES.map((l) => (
@@ -561,37 +561,37 @@ export default function BotMessagesPage() {
                   placeholder="搜索 key 或内容…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-0 flex-1 rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="shrink-0 whitespace-nowrap text-xs text-gray-400">{messages.length} 条</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{messages.length} 条</span>
               </div>
             </div>
 
             {/* Mobile message card list */}
-            <div className="flex-1 overflow-y-auto bg-white">
+            <div className="flex-1 overflow-y-auto bg-card">
               {loading ? (
-                <div className="flex items-center justify-center py-20 text-sm text-gray-400">加载中…</div>
+                <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">加载中…</div>
               ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center py-20 text-sm text-gray-400">没有找到匹配的消息。</div>
+                <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">没有找到匹配的消息。</div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-border">
                   {messages.map((m) => {
                     const isSelected = selected?.message_key === m.message_key && selected?.language_code === m.language_code;
                     return (
                       <button
                         key={`${m.message_key}-${m.language_code}`}
                         onClick={() => { setSelected(m); setMobilePanel('editor'); }}
-                        className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50 active:bg-gray-100'}`}
+                        className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-muted active:bg-muted'}`}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-mono text-xs font-semibold text-gray-800">{m.message_key}</p>
-                          <p className="mt-0.5 truncate text-xs text-gray-500 leading-relaxed">{m.content.replace(/\n/g, ' ')}</p>
+                          <p className="truncate font-mono text-xs font-semibold text-foreground">{m.message_key}</p>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground leading-relaxed">{m.content.replace(/\n/g, ' ')}</p>
                           <div className="mt-1.5 flex items-center gap-2">
-                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{catLabel(m.category)}</span>
-                            <span className="text-xs text-gray-400">{m.language_code.toUpperCase()}</span>
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{catLabel(m.category)}</span>
+                            <span className="text-xs text-muted-foreground">{m.language_code.toUpperCase()}</span>
                           </div>
                         </div>
-                        <span className="shrink-0 text-lg text-gray-300">›</span>
+                        <span className="shrink-0 text-lg text-muted-foreground">›</span>
                       </button>
                     );
                   })}
@@ -612,7 +612,7 @@ export default function BotMessagesPage() {
                 onMobileBack={() => setMobilePanel('list')}
               />
             ) : (
-              <div className="flex flex-1 items-center justify-center text-sm text-gray-400">请先选择一条消息</div>
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">请先选择一条消息</div>
             )}
           </div>
 
@@ -623,11 +623,11 @@ export default function BotMessagesPage() {
             {/* Left: filter + table */}
             <div className={`flex flex-col ${selected ? 'w-1/2' : 'w-full'} overflow-hidden`}>
               {/* Desktop filter bar */}
-              <div className="flex flex-wrap gap-2 border-b border-gray-200 bg-white px-4 py-3">
+              <div className="flex flex-wrap gap-2 border-b border-border bg-card px-4 py-3">
                 <select
                   value={catFilter}
                   onChange={(e) => setCatFilter(e.target.value)}
-                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">全部分类</option>
                   {CATEGORIES.map((c) => (
@@ -637,7 +637,7 @@ export default function BotMessagesPage() {
                 <select
                   value={langFilter}
                   onChange={(e) => setLangFilter(e.target.value)}
-                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">全部语言</option>
                   {LANGUAGES.map((l) => (
@@ -649,20 +649,20 @@ export default function BotMessagesPage() {
                   placeholder="搜索 key 或内容…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="self-center text-xs text-gray-400">{messages.length} 条</span>
+                <span className="self-center text-xs text-muted-foreground">{messages.length} 条</span>
               </div>
 
               {/* Desktop message table */}
               <div className="flex-1 overflow-y-auto">
                 {loading ? (
-                  <div className="flex items-center justify-center py-20 text-sm text-gray-400">加载中…</div>
+                  <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">加载中…</div>
                 ) : messages.length === 0 ? (
-                  <div className="flex items-center justify-center py-20 text-sm text-gray-400">没有找到匹配的消息。</div>
+                  <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">没有找到匹配的消息。</div>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 z-10 bg-gray-50 text-xs text-gray-500">
+                    <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
                       <tr>
                         <th className="px-4 py-2 text-left font-medium">Key</th>
                         <th className="px-4 py-2 text-left font-medium">分类</th>
@@ -671,7 +671,7 @@ export default function BotMessagesPage() {
                         <th className="px-4 py-2 text-left font-medium">更新时间</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
+                    <tbody className="divide-y divide-border bg-card">
                       {messages.map((m) => {
                         const isSelected = selected?.message_key === m.message_key && selected?.language_code === m.language_code;
                         return (
@@ -680,17 +680,17 @@ export default function BotMessagesPage() {
                             onClick={() => setSelected(isSelected ? null : m)}
                             className={`cursor-pointer hover:bg-blue-50 ${isSelected ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''}`}
                           >
-                            <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{m.message_key}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{m.message_key}</td>
                             <td className="px-4 py-2.5">
-                              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                                 {catLabel(m.category)}
                               </span>
                             </td>
-                            <td className="max-w-xs px-4 py-2.5 text-gray-600">
+                            <td className="max-w-xs px-4 py-2.5 text-muted-foreground">
                               <p className="truncate">{m.content.replace(/\n/g, ' ')}</p>
                             </td>
-                            <td className="px-4 py-2.5 text-xs text-gray-500">{m.language_code.toUpperCase()}</td>
-                            <td className="px-4 py-2.5 text-xs text-gray-400">
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">{m.language_code.toUpperCase()}</td>
+                            <td className="px-4 py-2.5 text-xs text-muted-foreground">
                               {m.updated_by ? fmtDate(m.updated_at) : '—'}
                             </td>
                           </tr>
@@ -704,7 +704,7 @@ export default function BotMessagesPage() {
 
             {/* Right: editor */}
             {selected && (
-              <div className="w-1/2 overflow-hidden border-l border-gray-200">
+              <div className="w-1/2 overflow-hidden border-l border-border">
                 <EditorPanel
                   msg={selected}
                   onSaved={handleSaved}

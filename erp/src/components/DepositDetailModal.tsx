@@ -11,9 +11,9 @@ interface Props {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900 text-right break-all">{value}</span>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-border last:border-0">
+      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+      <span className="text-sm font-medium text-foreground text-right break-all">{value}</span>
     </div>
   );
 }
@@ -40,13 +40,13 @@ export default function DepositDetailModal({ depositId, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col shadow-xl">
+      <div className="bg-card rounded-lg w-full max-w-md max-h-[90vh] flex flex-col shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <h2 className="text-base font-semibold">Deposit Detail</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-lg leading-none"
+            className="text-muted-foreground hover:text-foreground text-lg leading-none"
             aria-label="Close"
           >
             ✕
@@ -56,26 +56,26 @@ export default function DepositDetailModal({ depositId, onClose }: Props) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="px-5 py-10 text-center text-gray-400 text-sm">Loading…</div>
+            <div className="px-5 py-10 text-center text-muted-foreground text-sm">Loading…</div>
           ) : !detail ? (
-            <div className="px-5 py-10 text-center text-gray-400 text-sm">Failed to load deposit details.</div>
+            <div className="px-5 py-10 text-center text-muted-foreground text-sm">Failed to load deposit details.</div>
           ) : (
             <div className="px-5 py-3">
               <Row
                 label="Member ID"
-                value={detail.public_id ?? <span className="text-gray-400">—</span>}
+                value={detail.public_id ?? <span className="text-muted-foreground">—</span>}
               />
               <Row label="Customer Name" value={detail.first_name} />
               <Row label="Phone" value={detail.phone} />
               <Row
                 label="Promotion"
-                value={detail.promo_name ?? <span className="text-gray-400">No Bonus</span>}
+                value={detail.promo_name ?? <span className="text-muted-foreground">No Bonus</span>}
               />
               <Row
                 label="Bonus Amount"
                 value={bonusAmt > 0
                   ? `RM ${bonusAmt.toFixed(2)}`
-                  : <span className="text-gray-400">—</span>
+                  : <span className="text-muted-foreground">—</span>
                 }
               />
               <Row
@@ -91,12 +91,12 @@ export default function DepositDetailModal({ depositId, onClose }: Props) {
               )}
               <Row
                 label="Customer Bank"
-                value={detail.payment_bank || <span className="text-gray-400">—</span>}
+                value={detail.payment_bank || <span className="text-muted-foreground">—</span>}
               />
 
               {/* Receiving Bank section */}
               <div className="pt-2 pb-1">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Receiving Bank</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Receiving Bank</p>
                 {detail.receiving_bank_id ? (
                   <>
                     <Row label="Bank Name"    value={detail.receiving_bank_name ?? '—'} />
@@ -104,7 +104,7 @@ export default function DepositDetailModal({ depositId, onClose }: Props) {
                     <Row label="Account No."  value={detail.receiving_bank_account_number ?? '—'} />
                   </>
                 ) : (
-                  <div className="text-sm text-gray-400 py-1">No receiving bank recorded</div>
+                  <div className="text-sm text-muted-foreground py-1">No receiving bank recorded</div>
                 )}
               </div>
 
@@ -115,16 +115,16 @@ export default function DepositDetailModal({ depositId, onClose }: Props) {
 
               {/* Receipt Image */}
               <div className="pt-4 pb-2">
-                <p className="text-sm font-medium text-gray-500 mb-3">Receipt Image</p>
+                <p className="text-sm font-medium text-muted-foreground mb-3">Receipt Image</p>
                 {imgError ? (
-                  <div className="rounded border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400">
+                  <div className="rounded border border-dashed border-border bg-muted p-6 text-center text-sm text-muted-foreground">
                     No receipt image available
                   </div>
                 ) : (
                   <img
                     src={`/api/deposits/${depositId}/receipt`}
                     alt="Receipt"
-                    className="w-full rounded border border-gray-200 object-contain max-h-96"
+                    className="w-full rounded border border-border object-contain max-h-96"
                     onError={() => setImgError(true)}
                   />
                 )}

@@ -19,13 +19,13 @@ export default function DepositReceiptCard({
   const receiptUrl = `/api/deposits/${depositId}/receipt`;
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+    <div className="rounded-lg border bg-card p-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
         Deposit Receipt
       </h2>
 
       {!hasReceipt ? (
-        <p className="text-sm text-gray-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           No receipt uploaded by customer
         </p>
       ) : imgState === 'error' ? (
@@ -43,7 +43,7 @@ export default function DepositReceiptCard({
             <a
               href={receiptUrl}
               download={`deposit-receipt-${depositId}`}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground underline"
             >
               Download
             </a>
@@ -60,7 +60,7 @@ export default function DepositReceiptCard({
             title="View full size"
           >
             {imgState === 'loading' && (
-              <div className="h-32 rounded border bg-gray-100 animate-pulse" />
+              <div className="h-32 rounded border bg-muted animate-pulse" />
             )}
             {/* img is always mounted so onLoad/onError fire correctly */}
             <img
@@ -87,7 +87,7 @@ export default function DepositReceiptCard({
               <a
                 href={receiptUrl}
                 download={`deposit-receipt-${depositId}`}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground underline"
               >
                 Download
               </a>

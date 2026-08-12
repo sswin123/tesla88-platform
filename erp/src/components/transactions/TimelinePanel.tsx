@@ -20,11 +20,11 @@ function TimelineSkeleton() {
     <div className="space-y-4 animate-pulse">
       {[0, 1, 2].map(i => (
         <div key={i} className="flex gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-200 mt-0.5 shrink-0" />
+          <div className="w-2.5 h-2.5 rounded-full bg-muted mt-0.5 shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-4 bg-gray-200 rounded w-32" />
-            <div className="h-3 bg-gray-100 rounded w-48" />
-            <div className="h-3 bg-gray-100 rounded w-20" />
+            <div className="h-4 bg-muted rounded w-32" />
+            <div className="h-3 bg-muted rounded w-48" />
+            <div className="h-3 bg-muted rounded w-20" />
           </div>
         </div>
       ))}
@@ -34,7 +34,7 @@ function TimelineSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="flex items-center justify-center py-8 text-sm text-gray-400">
+    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
       No timeline events yet
     </div>
   );
@@ -43,7 +43,7 @@ function EmptyState() {
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-6 gap-2">
-      <p className="text-sm text-gray-400">Failed to load timeline</p>
+      <p className="text-sm text-muted-foreground">Failed to load timeline</p>
       <button
         type="button"
         onClick={onRetry}
@@ -57,18 +57,18 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function FilterPlaceholder() {
   return (
-    <div className="flex items-center gap-2 pb-3 mb-1 border-b border-gray-100">
+    <div className="flex items-center gap-2 pb-3 mb-1 border-b border-border">
       {(['All', 'Status', 'Notes'] as const).map(label => (
         <button
           key={label}
           type="button"
           disabled
-          className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-300 cursor-not-allowed select-none"
+          className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground cursor-not-allowed select-none"
         >
           {label}
         </button>
       ))}
-      <span className="text-xs text-gray-300 italic ml-auto">Phase C</span>
+      <span className="text-xs text-muted-foreground italic ml-auto">Phase C</span>
     </div>
   );
 }
@@ -155,7 +155,7 @@ export default function TimelinePanel({
       type="button"
       onClick={handleRefresh}
       disabled={loading}
-      className="text-sm text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40 leading-none"
+      className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 leading-none"
       title="Refresh timeline"
     >
       ↻
@@ -188,7 +188,7 @@ export default function TimelinePanel({
           ))}
 
           {hasMore && (
-            <div className="pt-3 flex justify-center border-t border-gray-100 mt-2">
+            <div className="pt-3 flex justify-center border-t border-border mt-2">
               <button
                 type="button"
                 onClick={handleLoadMore}

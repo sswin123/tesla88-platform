@@ -260,17 +260,17 @@ export default function DesignSystemPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Palette className="w-5 h-5 text-purple-600" /> Design System
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">全站主题控制 — 一键切换品牌风格，实时预览</p>
+          <p className="text-sm text-muted-foreground mt-0.5">全站主题控制 — 一键切换品牌风格，实时预览</p>
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={importTheme} />
-          <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-xl hover:bg-gray-50 text-gray-600">
+          <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-xl hover:bg-muted text-muted-foreground">
             <Upload className="w-3.5 h-3.5" /> 导入主题
           </button>
-          <button onClick={exportTheme} className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-xl hover:bg-gray-50 text-gray-600">
+          <button onClick={exportTheme} className="flex items-center gap-1.5 px-3 py-2 text-sm border rounded-xl hover:bg-muted text-muted-foreground">
             <Download className="w-3.5 h-3.5" /> 导出主题
           </button>
           <button
@@ -284,10 +284,10 @@ export default function DesignSystemPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-muted p-1 rounded-xl w-fit">
         {[['presets', '🎨 主题预设'], ['custom', '⚙️ 自定义 Token'], ['preview', '👁 完整预览']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as typeof tab)}
-            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-all ${tab === id ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-all ${tab === id ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {label}
           </button>
@@ -301,7 +301,7 @@ export default function DesignSystemPage() {
           {/* ── Preset Grid ── */}
           {tab === 'presets' && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">选择预设主题</h2>
+              <h2 className="text-sm font-semibold text-foreground mb-3">选择预设主题</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {THEME_ORDER.map(id => {
                   const t = THEMES[id];
@@ -310,11 +310,11 @@ export default function DesignSystemPage() {
                     <button
                       key={id}
                       onClick={() => selectPreset(id)}
-                      className={`relative rounded-xl overflow-hidden border-2 transition-all text-left p-0 ${active ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all text-left p-0 ${active ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' : 'border-border hover:border-muted-foreground'}`}
                     >
                       <ThemePreview vars={t.vars} size="sm" />
-                      <div className="px-2 py-1.5 bg-white">
-                        <div className="text-xs font-semibold text-gray-800">{t.emoji} {t.label}</div>
+                      <div className="px-2 py-1.5 bg-card">
+                        <div className="text-xs font-semibold text-foreground">{t.emoji} {t.label}</div>
                       </div>
                       {active && (
                         <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
@@ -332,9 +332,9 @@ export default function DesignSystemPage() {
           {tab === 'custom' && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-gray-700">自定义设计 Token</h2>
+                <h2 className="text-sm font-semibold text-foreground">自定义设计 Token</h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">基于: {THEMES[selectedPreset]?.label}</span>
+                  <span className="text-xs text-muted-foreground">基于: {THEMES[selectedPreset]?.label}</span>
                   <button onClick={resetOverrides} className="flex items-center gap-1 text-xs text-red-500 hover:underline">
                     <RotateCcw className="w-3 h-3" /> 重置
                   </button>
@@ -343,13 +343,13 @@ export default function DesignSystemPage() {
               <div className="space-y-4">
                 {TOKEN_GROUPS.map(group => (
                   <div key={group.label} className="border rounded-xl p-4 space-y-2.5">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{group.label}</h3>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
                     {group.tokens.map(token => {
                       const current = overrides[token] ?? presetVars[token as keyof ThemeVars] ?? '';
                       const isColor = isColorToken(token);
                       return (
                         <div key={token} className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600 w-32 flex-shrink-0">{TOKEN_LABELS[token]}</span>
+                          <span className="text-xs text-muted-foreground w-32 flex-shrink-0">{TOKEN_LABELS[token]}</span>
                           {isColor && (
                             <input
                               type="color"
@@ -372,7 +372,7 @@ export default function DesignSystemPage() {
                                 delete next[token];
                                 setOverrides(next);
                               }}
-                              className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0"
+                              className="text-xs text-muted-foreground hover:text-red-500 flex-shrink-0"
                               title="重置为预设值"
                             >×</button>
                           )}
@@ -388,7 +388,7 @@ export default function DesignSystemPage() {
           {/* ── Full Preview tab ── */}
           {tab === 'preview' && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Eye className="w-4 h-4" /> 完整网站预览
               </h2>
               <LivePreview vars={resolvedVars} />
@@ -399,18 +399,18 @@ export default function DesignSystemPage() {
         {/* Right panel — always shows live preview */}
         <div className="xl:col-span-2 space-y-4">
           <div className="sticky top-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">实时预览</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-3">实时预览</h2>
             <LivePreview vars={resolvedVars} />
 
             {/* Resolved token summary */}
-            <div className="mt-4 border rounded-xl p-3 space-y-1.5 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-600 mb-2">当前主题: <span className="text-blue-600">{THEMES[selectedPreset]?.label}</span> {Object.keys(overrides).length > 0 && `(${Object.keys(overrides).length} 项自定义)`}</p>
+            <div className="mt-4 border rounded-xl p-3 space-y-1.5 bg-muted">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">当前主题: <span className="text-blue-600">{THEMES[selectedPreset]?.label}</span> {Object.keys(overrides).length > 0 && `(${Object.keys(overrides).length} 项自定义)`}</p>
               <div className="flex flex-wrap gap-2">
                 {(['--brand-primary', '--brand-secondary', '--bg-base', '--bg-card', '--text-base'] as const).map(k => (
                   <div key={k} className="flex items-center gap-1 text-xs">
-                    <div className="w-3.5 h-3.5 rounded-full border border-gray-200 flex-shrink-0"
+                    <div className="w-3.5 h-3.5 rounded-full border border-border flex-shrink-0"
                       style={{ background: resolvedVars[k] || '#ccc' }} />
-                    <span className="text-gray-500 font-mono">{k.replace('--','')}</span>
+                    <span className="text-muted-foreground font-mono">{k.replace('--','')}</span>
                   </div>
                 ))}
               </div>
@@ -418,13 +418,13 @@ export default function DesignSystemPage() {
 
             {/* Quick preset switcher */}
             <div className="mt-4 border rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-600 mb-2">快速切换</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">快速切换</p>
               <div className="flex flex-wrap gap-1.5">
                 {THEME_ORDER.map(id => (
                   <button
                     key={id}
                     onClick={() => selectPreset(id)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${selectedPreset === id ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:border-blue-400'}`}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${selectedPreset === id ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-muted-foreground hover:border-blue-400'}`}
                   >
                     {THEMES[id].emoji} {THEMES[id].label}
                   </button>

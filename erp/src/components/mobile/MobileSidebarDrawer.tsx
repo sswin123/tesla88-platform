@@ -45,15 +45,15 @@ export function MobileSidebarDrawer({ isOpen, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Navigation menu"
-        className={`fixed left-0 top-0 z-50 flex h-full w-72 max-w-[85vw] flex-shrink-0 flex-col border-r bg-white transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed left-0 top-0 z-50 flex h-full w-72 max-w-[85vw] flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-in-out lg:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Drawer header with close button */}
-        <div className="flex items-center justify-end border-b px-4 py-3">
+        <div className="flex items-center justify-end border-b border-border px-4 py-3">
           <button
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:bg-muted"
             aria-label="Close navigation menu"
           >
             <X size={20} />

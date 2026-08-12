@@ -108,19 +108,19 @@ function DeleteDialog({ cat, allCats, onClose, onDeleted }: DeleteDialogProps) {
 
   if (loading) return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-80 text-center text-sm text-gray-500">检查中...</div>
+      <div className="bg-card rounded-xl p-6 w-80 text-center text-sm text-muted-foreground">检查中...</div>
     </div>
   );
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-96 shadow-xl space-y-4">
+      <div className="bg-card rounded-xl p-6 w-96 shadow-xl space-y-4">
         <h3 className="text-base font-semibold text-red-600">删除分类：{cat.category_name}</h3>
 
         {error && <p className="text-xs text-red-600 bg-red-50 rounded p-2">{error}</p>}
 
         {inUse && (
-          <div className="text-xs text-gray-600 bg-yellow-50 border border-yellow-200 rounded p-3 space-y-1">
+          <div className="text-xs text-muted-foreground bg-yellow-50 border border-yellow-200 rounded p-3 space-y-1">
             <p className="font-medium text-yellow-800">此分类正在使用中</p>
             <p>Platform: {inUse.provider_count} 个</p>
             <p>Game: {inUse.game_count} 个</p>
@@ -156,7 +156,7 @@ function DeleteDialog({ cat, allCats, onClose, onDeleted }: DeleteDialogProps) {
 
         <div className="flex gap-2 pt-2">
           <button onClick={onClose}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+            className="flex-1 px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
             取消
           </button>
           {(!inUse || action !== 'cancel') && (
@@ -291,7 +291,7 @@ export default function GameLobyCategoriesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Game Lobby 分类管理</h1>
-          <p className="text-sm text-gray-500 mt-1">动态管理所有分类 Tab — 无需修改代码</p>
+          <p className="text-sm text-muted-foreground mt-1">动态管理所有分类 Tab — 无需修改代码</p>
         </div>
         <button onClick={startCreate}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
@@ -304,7 +304,7 @@ export default function GameLobyCategoriesPage() {
 
       {/* ── Form ── */}
       {showForm && (
-        <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
+        <div className="mb-6 bg-card border border-border rounded-xl p-5">
           <h2 className="text-base font-semibold mb-4">
             {editId ? '编辑分类' : '新增分类'}
           </h2>
@@ -312,36 +312,36 @@ export default function GameLobyCategoriesPage() {
             <div className="grid grid-cols-2 gap-4">
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Category Code * <span className="text-gray-400">(唯一标识，英文小写)</span>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Category Code * <span className="text-muted-foreground">(唯一标识，英文小写)</span>
                 </label>
                 <input
                   value={form.category_code}
                   onChange={e => setField('category_code', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                   required disabled={!!editId}
                   placeholder="slot, live, poker..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono disabled:bg-gray-50"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm font-mono disabled:bg-muted"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-foreground mb-1">
                   分类名称 *
                 </label>
                 <input
                   value={form.category_name}
                   onChange={e => setField('category_name', e.target.value)}
                   required placeholder="老虎机"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">排序 (小 = 靠前)</label>
+                <label className="block text-xs font-medium text-foreground mb-1">排序 (小 = 靠前)</label>
                 <input type="text" inputMode="numeric"
                   value={form.display_order}
                   onChange={e => setField('display_order', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm"
                 />
               </div>
 
@@ -350,13 +350,13 @@ export default function GameLobyCategoriesPage() {
                   <input type="checkbox" checked={form.is_default}
                     onChange={e => setField('is_default', e.target.checked)}
                     className="h-4 w-4 rounded" />
-                  <span className="text-sm font-medium text-gray-700">默认分类</span>
+                  <span className="text-sm font-medium text-foreground">默认分类</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer pb-2">
                   <input type="checkbox" checked={form.is_active}
                     onChange={e => setField('is_active', e.target.checked)}
                     className="h-4 w-4 rounded" />
-                  <span className="text-sm font-medium text-gray-700">启用</span>
+                  <span className="text-sm font-medium text-foreground">启用</span>
                 </label>
               </div>
 
@@ -379,16 +379,16 @@ export default function GameLobyCategoriesPage() {
 
                 return (
                   <div className="col-span-2 border-t pt-4 space-y-4">
-                    <p className="text-xs font-semibold text-gray-700">图片显示设置</p>
+                    <p className="text-xs font-semibold text-foreground">图片显示设置</p>
 
                     {/* Controls row */}
                     <div className="flex flex-wrap gap-4 items-end">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">图片尺寸</label>
+                        <label className="block text-xs text-muted-foreground mb-1">图片尺寸</label>
                         <select
                           value={form.image_display_size}
                           onChange={e => setField('image_display_size', e.target.value)}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                          className="border border-border rounded-lg px-3 py-1.5 text-sm"
                         >
                           <option value="auto">Auto（响应式，默认）</option>
                           <option value="small">Small（48 × 48 px）</option>
@@ -407,33 +407,33 @@ export default function GameLobyCategoriesPage() {
                       {form.image_display_size === 'custom' && (
                         <>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">宽度 (px)</label>
+                            <label className="block text-xs text-muted-foreground mb-1">宽度 (px)</label>
                             <input
                               type="number" min={24} max={200}
                               value={form.image_custom_width}
                               onChange={e => setField('image_custom_width', e.target.value)}
-                              className="w-20 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                              className="w-20 border border-border rounded-lg px-3 py-1.5 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">高度 (px)</label>
+                            <label className="block text-xs text-muted-foreground mb-1">高度 (px)</label>
                             <input
                               type="number" min={24} max={200}
                               value={form.image_custom_height}
                               onChange={e => setField('image_custom_height', e.target.value)}
-                              className="w-20 border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                              className="w-20 border border-border rounded-lg px-3 py-1.5 text-sm"
                             />
                           </div>
-                          <p className="text-xs text-gray-400 self-end pb-2">范围：24 – 200 px</p>
+                          <p className="text-xs text-muted-foreground self-end pb-2">范围：24 – 200 px</p>
                         </>
                       )}
 
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">显示模式</label>
+                        <label className="block text-xs text-muted-foreground mb-1">显示模式</label>
                         <select
                           value={form.image_display_mode}
                           onChange={e => setField('image_display_mode', e.target.value)}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                          className="border border-border rounded-lg px-3 py-1.5 text-sm"
                         >
                           <option value="contain">Contain（保留完整，留白）</option>
                           <option value="cover">Cover（填满，可能裁切）</option>
@@ -444,7 +444,7 @@ export default function GameLobyCategoriesPage() {
 
                     {/* Device Preview */}
                     <div>
-                      <p className="text-xs text-gray-500 mb-2">设备预览</p>
+                      <p className="text-xs text-muted-foreground mb-2">设备预览</p>
                       <div className="flex items-end gap-4 flex-wrap">
                         {([
                           { key: 'desktop' as const, label: 'Desktop', icon: '🖥' },
@@ -455,7 +455,7 @@ export default function GameLobyCategoriesPage() {
                           return (
                             <div key={key} className="flex flex-col items-center gap-1.5">
                               <div
-                                className="rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200"
+                                className="rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border"
                                 style={{ width: px, height: px, flexShrink: 0 }}
                               >
                                 {form.icon_media_id ? (
@@ -465,11 +465,11 @@ export default function GameLobyCategoriesPage() {
                                     style={{ width: '100%', height: '100%', objectFit: objFit }}
                                   />
                                 ) : (
-                                  <span className="text-gray-300 text-xs">图片</span>
+                                  <span className="text-muted-foreground text-xs">图片</span>
                                 )}
                               </div>
-                              <span className="text-xs text-gray-500">{icon} {label}</span>
-                              <span className="text-xs text-gray-400 font-mono">{px}px</span>
+                              <span className="text-xs text-muted-foreground">{icon} {label}</span>
+                              <span className="text-xs text-muted-foreground font-mono">{px}px</span>
                             </div>
                           );
                         })}
@@ -481,7 +481,7 @@ export default function GameLobyCategoriesPage() {
 
               {/* Icon section */}
               <div className="col-span-2 border-t pt-3">
-                <label className="block text-xs font-medium text-gray-700 mb-2">图标</label>
+                <label className="block text-xs font-medium text-foreground mb-2">图标</label>
                 <div className="flex gap-1 mb-2">
                   {iconTypes.map(t => (
                     <button key={t} type="button"
@@ -489,7 +489,7 @@ export default function GameLobyCategoriesPage() {
                       className={`flex-1 py-1.5 text-xs rounded border transition-colors ${
                         form.icon_type === t
                           ? 'bg-blue-500 text-white border-blue-500'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                          : 'bg-background text-muted-foreground border-border hover:border-blue-300'
                       }`}>
                       {t === 'none' ? '无' : t.toUpperCase()}
                     </button>
@@ -502,7 +502,7 @@ export default function GameLobyCategoriesPage() {
                       value={form.icon_emoji}
                       onChange={e => setField('icon_emoji', e.target.value)}
                       placeholder="输入 Emoji，如 🎰"
-                      className="w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="w-48 border border-border rounded-lg px-3 py-2 text-sm"
                     />
                     {form.icon_emoji && (
                       <span className="ml-3 text-2xl">{form.icon_emoji}</span>
@@ -515,10 +515,10 @@ export default function GameLobyCategoriesPage() {
                     <div className="flex items-center gap-3">
                       {form.icon_media_id && (
                         <img src={`/api/public/media/${form.icon_media_id}`} alt=""
-                          className="w-10 h-10 object-contain rounded border bg-gray-50" />
+                          className="w-10 h-10 object-contain rounded border bg-muted" />
                       )}
                       <button type="button" onClick={() => setPickerOpen(true)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                        className="px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
                         {form.icon_media_id ? '更换图片' : '选择图片'}
                       </button>
                       {form.icon_media_id && (
@@ -527,8 +527,8 @@ export default function GameLobyCategoriesPage() {
                       )}
                     </div>
                     {/* Upload Guidelines */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-500 space-y-0.5">
-                      <p className="font-medium text-gray-600 mb-1">上传规范</p>
+                    <div className="bg-muted border border-border rounded-lg p-3 text-xs text-muted-foreground space-y-0.5">
+                      <p className="font-medium text-foreground mb-1">上传规范</p>
                       <p>✅ 推荐格式：PNG · WEBP（支持透明背景）</p>
                       <p>✅ 推荐尺寸：512 × 512 px（正方形 Logo）</p>
                       <p>📐 最小：128 × 128 px · 最大：2048 × 2048 px</p>
@@ -545,11 +545,11 @@ export default function GameLobyCategoriesPage() {
                       onChange={e => setField('icon_svg', e.target.value)}
                       placeholder={'<svg ...>...</svg>'}
                       rows={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y"
+                      className="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono resize-y"
                     />
                     {form.icon_svg && (
                       <div className="mt-1 flex items-center gap-2">
-                        <span className="text-xs text-gray-400">预览:</span>
+                        <span className="text-xs text-muted-foreground">预览:</span>
                         <span className="w-6 h-6 inline-block"
                           dangerouslySetInnerHTML={{ __html: form.icon_svg }} />
                       </div>
@@ -566,7 +566,7 @@ export default function GameLobyCategoriesPage() {
                 {saving ? '保存中...' : editId ? '更新' : '创建'}
               </button>
               <button type="button" onClick={cancelForm}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+                className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-muted">
                 取消
               </button>
             </div>
@@ -595,20 +595,18 @@ export default function GameLobyCategoriesPage() {
       {/* ── Category List ── */}
       <div className="space-y-2">
         {cats.length === 0 && (
-          <div className="text-center py-12 text-gray-500 text-sm">暂无分类。点击「新增分类」开始。</div>
+          <div className="text-center py-12 text-muted-foreground text-sm">暂无分类。点击「新增分类」开始。</div>
         )}
         {cats.map((c, idx) => (
           <div key={c.id}
-            className={`bg-white border rounded-xl p-4 flex items-center gap-4 ${
-              !c.is_active ? 'opacity-60 border-gray-200' : 'border-gray-200'
-            }`}>
+            className={`bg-card border border-border rounded-xl p-4 flex items-center gap-4 ${!c.is_active ? 'opacity-60' : ''}`}>
 
             {/* Reorder */}
             <div className="flex flex-col gap-0.5 shrink-0">
               <button disabled={idx === 0} onClick={() => reorder(c, -1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▲</button>
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▲</button>
               <button disabled={idx === cats.length - 1} onClick={() => reorder(c, 1)}
-                className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs">▼</button>
+                className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 text-xs">▼</button>
             </div>
 
             {/* Icon preview */}
@@ -620,7 +618,7 @@ export default function GameLobyCategoriesPage() {
               {c.icon_type === 'svg' && c.icon_svg && (
                 <span className="w-6 h-6" dangerouslySetInnerHTML={{ __html: c.icon_svg }} />
               )}
-              {c.icon_type === 'none' && <span className="text-gray-300 text-xs">—</span>}
+              {c.icon_type === 'none' && <span className="text-muted-foreground text-xs">—</span>}
             </div>
 
             {/* Info */}
@@ -630,6 +628,7 @@ export default function GameLobyCategoriesPage() {
                   <span className="px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">默认</span>
                 )}
                 {!c.is_active && (
+                  // KEEP: disabled badge (rule 8) — gray communicates "hidden/inactive" state
                   <span className="px-1.5 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">已隐藏</span>
                 )}
                 {(c.icon_type === 'image' || c.icon_type === 'gif') && (
@@ -639,17 +638,17 @@ export default function GameLobyCategoriesPage() {
                      : `${IMAGE_SIZE_PX[c.image_display_size as 'small' | 'medium' | 'large'] ?? 64}px`}
                   </span>
                 )}
-                <span className="text-xs text-gray-400 font-mono">#{c.display_order}</span>
+                <span className="text-xs text-muted-foreground font-mono">#{c.display_order}</span>
               </div>
-              <p className="font-semibold text-sm text-gray-900">{c.category_name}</p>
-              <p className="text-xs text-gray-400 font-mono">{c.category_code}</p>
+              <p className="font-semibold text-sm text-foreground">{c.category_name}</p>
+              <p className="text-xs text-muted-foreground font-mono">{c.category_code}</p>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
               {!c.is_default && (
                 <button onClick={() => setDefault(c)}
-                  className="px-2 py-1.5 rounded-lg text-xs font-medium border border-gray-200 hover:bg-gray-50">
+                  className="px-2 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted">
                   设为默认
                 </button>
               )}
@@ -657,12 +656,13 @@ export default function GameLobyCategoriesPage() {
                 className={`px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   c.is_active
                     ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                    // KEEP: business status toggle inactive state (rule 6) — gray signals "inactive"
                     : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                 }`}>
                 {c.is_active ? '显示中' : '已隐藏'}
               </button>
               <button onClick={() => startEdit(c)}
-                className="px-2 py-1.5 rounded-lg text-xs font-medium border border-gray-200 hover:bg-gray-50">
+                className="px-2 py-1.5 rounded-lg text-xs font-medium border border-border hover:bg-muted">
                 编辑
               </button>
               <button onClick={() => setShowDelete(c)}
@@ -674,7 +674,7 @@ export default function GameLobyCategoriesPage() {
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-muted-foreground">
         提示：新增/删除/改名后，网站与 Builder 自动同步，无需修改代码。
         Category Code 一旦创建不可更改（是 API 对接的唯一标识）。
       </p>

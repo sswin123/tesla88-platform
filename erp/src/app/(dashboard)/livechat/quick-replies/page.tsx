@@ -35,10 +35,10 @@ const TYPE_ICON: Record<string, React.ElementType> = {
 };
 
 const TYPE_BADGE: Record<string, string> = {
-  TEXT: 'bg-gray-100 text-gray-600', IMAGE: 'bg-blue-100 text-blue-700',
+  TEXT: 'bg-muted text-muted-foreground', IMAGE: 'bg-blue-100 text-blue-700',
   GIF: 'bg-purple-100 text-purple-700', VIDEO: 'bg-red-100 text-red-700',
   AUDIO: 'bg-green-100 text-green-700', VOICE: 'bg-teal-100 text-teal-700',
-  DOCUMENT: 'bg-gray-100 text-gray-700', PDF: 'bg-orange-100 text-orange-700',
+  DOCUMENT: 'bg-muted text-foreground', PDF: 'bg-orange-100 text-orange-700',
   APK: 'bg-yellow-100 text-yellow-700', ZIP: 'bg-indigo-100 text-indigo-700',
   RAR: 'bg-indigo-100 text-indigo-700',
 };
@@ -285,7 +285,7 @@ export default function QuickRepliesPage() {
       {/* ── Left panel: list ──────────────────────────────────────────────── */}
       <div className={`flex flex-col min-h-0 overflow-hidden ${showForm ? 'flex-1' : 'w-full'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-white shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-card shrink-0">
           <h1 className="text-xl font-bold">Quick Replies</h1>
           <div className="flex gap-2">
             <Button
@@ -311,7 +311,7 @@ export default function QuickRepliesPage() {
         )}
 
         {/* Filter bar */}
-        <div className="flex flex-wrap gap-2 px-4 py-2 border-b bg-white shrink-0">
+        <div className="flex flex-wrap gap-2 px-4 py-2 border-b bg-card shrink-0">
           <Input
             placeholder="Search…"
             value={search}
@@ -322,13 +322,13 @@ export default function QuickRepliesPage() {
           <div className="flex gap-1 flex-wrap items-center">
             <button
               onClick={() => setCatFilter(null)}
-              className={`rounded-full px-3 py-1 text-xs font-medium border ${catFilter === null ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium border ${catFilter === null ? 'bg-gray-900 text-white border-gray-900' : 'bg-background text-muted-foreground border-border hover:border-border'}`}
             >All</button>
             {categories.map(c => (
               <button
                 key={c.id}
                 onClick={() => setCatFilter(c.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border ${catFilter === c.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium border ${catFilter === c.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-background text-muted-foreground border-border hover:border-border'}`}
               >{c.name}</button>
             ))}
           </div>
@@ -336,7 +336,7 @@ export default function QuickRepliesPage() {
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-border"
           >
             <option value="">All Types</option>
             {CONTENT_TYPES.map(t => (
@@ -347,7 +347,7 @@ export default function QuickRepliesPage() {
           <select
             value={sort}
             onChange={e => setSort(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400 ml-auto"
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-border ml-auto"
           >
             {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
@@ -356,9 +356,9 @@ export default function QuickRepliesPage() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex h-40 items-center justify-center text-gray-400 text-sm">Loading…</div>
+            <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">Loading…</div>
           ) : filtered.length === 0 ? (
-            <div className="flex h-40 items-center justify-center text-gray-400 text-sm">
+            <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
               {search || catFilter || typeFilter ? 'No results.' : 'No quick replies yet.'}
             </div>
           ) : (
@@ -369,7 +369,7 @@ export default function QuickRepliesPage() {
                 return (
                   <div
                     key={r.id}
-                    className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${!r.is_active ? 'opacity-60' : ''} ${selected?.id === r.id && showForm ? 'bg-blue-50 hover:bg-blue-50' : ''}`}
+                    className={`flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!r.is_active ? 'opacity-60' : ''} ${selected?.id === r.id && showForm ? 'bg-blue-50 hover:bg-blue-50' : ''}`}
                     onClick={() => { if (bulkMode) { setSelectedIds(prev => { const s = new Set(prev); s.has(r.id) ? s.delete(r.id) : s.add(r.id); return s; }); } else { openEdit(r); } }}
                   >
                     {/* Checkbox / favorite */}
@@ -383,7 +383,7 @@ export default function QuickRepliesPage() {
                     )}
 
                     {/* Thumbnail / icon */}
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted shrink-0 flex items-center justify-center">
                       {r.media_id && (r.content_type === 'IMAGE' || r.content_type === 'GIF') ? (
                         <img
                           src={`/api/media/${r.media_id}/thumbnail`}
@@ -392,14 +392,14 @@ export default function QuickRepliesPage() {
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       ) : (
-                        <Icon className="w-5 h-5 text-gray-400" />
+                        <Icon className="w-5 h-5 text-muted-foreground" />
                       )}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${TYPE_BADGE[r.content_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${TYPE_BADGE[r.content_type] ?? 'bg-muted text-muted-foreground'}`}>
                           {r.content_type}
                         </span>
                         {r.category_name && (
@@ -408,9 +408,9 @@ export default function QuickRepliesPage() {
                           </span>
                         )}
                         <span className="font-medium text-sm truncate">{r.title}</span>
-                        {!r.is_active && <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Disabled</span>}
+                        {!r.is_active && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Disabled</span>}
                       </div>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {r.body || r.caption || (r.media ? r.media.displayName : '—')}
                       </p>
                     </div>
@@ -421,21 +421,21 @@ export default function QuickRepliesPage() {
                         <button
                           onClick={() => void handleToggleActive(r)}
                           title={r.is_active ? 'Disable' : 'Enable'}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {r.is_active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => openDuplicate(r)}
                           title="Duplicate"
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                         >
                           <Copy className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => void handleDelete(r.id)}
                           title="Delete"
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -449,19 +449,19 @@ export default function QuickRepliesPage() {
         </div>
 
         {/* Footer: item count */}
-        <div className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-400 shrink-0">
+        <div className="px-4 py-2 border-t bg-muted text-xs text-muted-foreground shrink-0">
           {filtered.length} of {replies.length} replies
         </div>
       </div>
 
       {/* ── Right panel: form ─────────────────────────────────────────────── */}
       {showForm && (
-        <div className="w-80 border-l bg-white flex flex-col shrink-0 overflow-y-auto">
+        <div className="w-80 border-l bg-card flex flex-col shrink-0 overflow-y-auto">
           <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
             <h2 className="font-semibold text-sm">
               {editingId !== null ? 'Edit Quick Reply' : 'New Quick Reply'}
             </h2>
-            <button onClick={closeForm} className="text-gray-400 hover:text-gray-700">
+            <button onClick={closeForm} className="text-muted-foreground hover:text-foreground">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -469,7 +469,7 @@ export default function QuickRepliesPage() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* Title */}
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Title <span className="text-red-500">*</span></Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Title <span className="text-red-500">*</span></Label>
               <Input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -480,7 +480,7 @@ export default function QuickRepliesPage() {
 
             {/* Content type chips */}
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Type</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
               <div className="flex flex-wrap gap-1">
                 {CONTENT_TYPES.map(t => (
                   <button
@@ -496,7 +496,7 @@ export default function QuickRepliesPage() {
                     className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium border transition-colors ${
                       form.contentType === t.value
                         ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                        : 'bg-background text-muted-foreground border-border hover:border-border'
                     }`}
                   >
                     <t.icon className="w-3 h-3" />
@@ -509,7 +509,7 @@ export default function QuickRepliesPage() {
             {/* Media section (non-TEXT) */}
             {form.contentType !== 'TEXT' && (
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Media <span className="text-red-500">*</span></Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Media <span className="text-red-500">*</span></Label>
                 {form.mediaRecord ? (
                   <div className="rounded-lg border p-3 space-y-2">
                     {/* Preview */}
@@ -523,9 +523,9 @@ export default function QuickRepliesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{form.mediaRecord.displayName}</p>
-                        <p className="text-[10px] text-gray-400">{formatBytes(form.mediaRecord.fileSize)}</p>
+                        <p className="text-[10px] text-muted-foreground">{formatBytes(form.mediaRecord.fileSize)}</p>
                       </div>
-                      <button onClick={clearMedia} className="text-gray-400 hover:text-red-500 shrink-0">
+                      <button onClick={clearMedia} className="text-muted-foreground hover:text-red-500 shrink-0">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -537,7 +537,7 @@ export default function QuickRepliesPage() {
                 ) : (
                   <button
                     onClick={() => setShowPicker(true)}
-                    className="w-full rounded-lg border-2 border-dashed border-gray-300 py-4 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                    className="w-full rounded-lg border-2 border-dashed border-border py-4 text-sm text-muted-foreground hover:border-border hover:text-foreground transition-colors"
                   >
                     Choose from Library
                   </button>
@@ -548,20 +548,20 @@ export default function QuickRepliesPage() {
             {/* Body (TEXT only) */}
             {form.contentType === 'TEXT' && (
               <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Message <span className="text-red-500">*</span></Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Message <span className="text-red-500">*</span></Label>
                 <textarea
                   value={form.body}
                   onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
                   rows={4}
                   placeholder="Message text…"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 resize-none"
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border resize-none"
                 />
               </div>
             )}
 
             {/* Caption (all types) */}
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Caption <span className="text-gray-400">(optional)</span></Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Caption <span className="text-muted-foreground">(optional)</span></Label>
               <Input
                 value={form.caption}
                 onChange={e => setForm(f => ({ ...f, caption: e.target.value }))}
@@ -572,11 +572,11 @@ export default function QuickRepliesPage() {
 
             {/* Category */}
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Category</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Category</Label>
               <select
                 value={form.categoryId ?? ''}
                 onChange={e => setForm(f => ({ ...f, categoryId: e.target.value ? parseInt(e.target.value, 10) : null }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border"
               >
                 <option value="">None</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -585,7 +585,7 @@ export default function QuickRepliesPage() {
 
             {/* Sort Order */}
             <div>
-              <Label className="text-xs text-gray-500 mb-1 block">Sort Order</Label>
+              <Label className="text-xs text-muted-foreground mb-1 block">Sort Order</Label>
               <Input
                 type="text"
                 inputMode="numeric"
@@ -604,12 +604,12 @@ export default function QuickRepliesPage() {
 
             {/* Active toggle */}
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-gray-500">Active</Label>
+              <Label className="text-xs text-muted-foreground">Active</Label>
               <button
                 onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))}
                 className={`relative w-10 h-5 rounded-full transition-colors ${form.isActive ? 'bg-green-500' : 'bg-gray-300'}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-background rounded-full shadow transition-transform ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
             </div>
 

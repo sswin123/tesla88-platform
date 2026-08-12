@@ -189,15 +189,15 @@ const PRESET_LABELS: Record<string, { label: string; icon: string }> = {
 // ─── Shared UI Primitives ─────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-gray-500 mb-1">{children}</p>;
+  return <p className="text-xs text-muted-foreground mb-1">{children}</p>;
 }
 
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 my-3">
-      <div className="flex-1 h-px bg-gray-200" />
-      <span className="text-xs text-gray-400 font-medium">{label}</span>
-      <div className="flex-1 h-px bg-gray-200" />
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 }
@@ -205,7 +205,7 @@ function SectionDivider({ label }: { label: string }) {
 function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center justify-between cursor-pointer py-1">
-      <span className="text-xs text-gray-600">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <div
         onClick={() => onChange(!checked)}
         className={`relative w-9 h-5 rounded-full transition-colors ${checked ? 'bg-blue-500' : 'bg-gray-300'}`}
@@ -229,7 +229,7 @@ function ButtonGrid<T extends string>({ options, value, onChange, cols = 3 }: {
           className={`py-1 px-2 text-xs rounded border transition-colors text-center ${
             value === o.v
               ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+              : 'bg-background text-muted-foreground border-border hover:border-blue-300'
           }`}>
           {o.label}
         </button>
@@ -241,7 +241,7 @@ function ButtonGrid<T extends string>({ options, value, onChange, cols = 3 }: {
 function ColorRow({ label, value, onChange }: { label: string; value?: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs text-gray-600 flex-1">{label}</span>
+      <span className="text-xs text-muted-foreground flex-1">{label}</span>
       <div className="flex items-center gap-1.5">
         <input type="color" value={value || '#000000'}
           onChange={e => onChange(e.target.value)}
@@ -251,7 +251,7 @@ function ColorRow({ label, value, onChange }: { label: string; value?: string; o
           placeholder="var(--brand-primary)"
           className="w-28 border rounded px-1.5 py-0.5 text-xs font-mono" />
         {value && (
-          <button onClick={() => onChange('')} className="text-xs text-gray-400 hover:text-red-400">✕</button>
+          <button onClick={() => onChange('')} className="text-xs text-muted-foreground hover:text-red-400">✕</button>
         )}
       </div>
     </div>
@@ -273,7 +273,7 @@ function ColSelect({ label, value, options, onChange }: {
             className={`flex-1 py-1 text-xs rounded border transition-colors font-mono ${
               value === n
                 ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                : 'bg-background text-muted-foreground border-border hover:border-blue-300'
             }`}>
             {n}
           </button>
@@ -366,9 +366,9 @@ function CategoryIconEditor() {
     }
   };
 
-  if (loading) return <p className="text-xs text-gray-400 py-4 text-center">加载中...</p>;
+  if (loading) return <p className="text-xs text-muted-foreground py-4 text-center">加载中...</p>;
   if (categories.length === 0) return (
-    <p className="text-xs text-gray-400 py-4 text-center">
+    <p className="text-xs text-muted-foreground py-4 text-center">
       暂无分类。请先在 <a href="/website-lobby-categories" target="_blank" className="text-blue-500 hover:underline">Lobby Categories</a> 添加分类。
     </p>
   );
@@ -379,11 +379,11 @@ function CategoryIconEditor() {
         const s = icons[cat.id];
         if (!s) return null;
         return (
-          <div key={cat.id} className="border rounded-lg p-3 bg-white space-y-2">
+          <div key={cat.id} className="border rounded-lg p-3 bg-card space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-700">
+              <span className="text-xs font-semibold text-foreground">
                 {cat.category_name}
-                <span className="ml-1 text-gray-400 font-normal">({cat.category_code})</span>
+                <span className="ml-1 text-muted-foreground font-normal">({cat.category_code})</span>
               </span>
               <button
                 onClick={() => save(cat.id)}
@@ -399,14 +399,14 @@ function CategoryIconEditor() {
 
             {/* Icon type */}
             <div>
-              <p className="text-xs text-gray-400 mb-1">图标类型</p>
+              <p className="text-xs text-muted-foreground mb-1">图标类型</p>
               <div className="flex gap-1">
                 {(['none', 'emoji', 'image', 'gif', 'svg'] as IconType[]).map(t => (
                   <button key={t} onClick={() => update(cat.id, { icon_type: t })}
                     className={`flex-1 py-0.5 text-xs rounded border transition-colors ${
                       s.icon_type === t
                         ? 'bg-blue-500 text-white border-blue-500'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                        : 'bg-background text-muted-foreground border-border hover:border-blue-300'
                     }`}>
                     {t === 'none' ? '无' : t.toUpperCase()}
                   </button>
@@ -417,13 +417,13 @@ function CategoryIconEditor() {
             {/* Emoji input */}
             {s.icon_type === 'emoji' && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Emoji 字符</p>
+                <p className="text-xs text-muted-foreground mb-1">Emoji 字符</p>
                 <input
                   type="text"
                   value={s.icon_emoji}
                   onChange={e => update(cat.id, { icon_emoji: e.target.value })}
                   placeholder="输入 Emoji，如 🎮"
-                  className="w-full border rounded px-2 py-1 text-sm bg-white"
+                  className="w-full border rounded px-2 py-1 text-sm bg-background"
                   maxLength={4}
                 />
               </div>
@@ -432,7 +432,7 @@ function CategoryIconEditor() {
             {/* Image/GIF picker */}
             {(s.icon_type === 'image' || s.icon_type === 'gif') && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">选择媒体</p>
+                <p className="text-xs text-muted-foreground mb-1">选择媒体</p>
                 <div className="flex items-center gap-2">
                   {s.icon_media_id && (
                     <img
@@ -457,17 +457,17 @@ function CategoryIconEditor() {
             {/* SVG textarea */}
             {s.icon_type === 'svg' && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">SVG 代码</p>
+                <p className="text-xs text-muted-foreground mb-1">SVG 代码</p>
                 <textarea
                   value={s.icon_svg}
                   onChange={e => update(cat.id, { icon_svg: e.target.value })}
                   placeholder={'<svg ...>...</svg>'}
                   rows={3}
-                  className="w-full border rounded px-2 py-1 text-xs font-mono bg-white resize-y"
+                  className="w-full border rounded px-2 py-1 text-xs font-mono bg-background resize-y"
                 />
                 {s.icon_svg && (
                   <div className="mt-1 flex items-center gap-2">
-                    <span className="text-xs text-gray-400">预览:</span>
+                    <span className="text-xs text-muted-foreground">预览:</span>
                     <span className="w-6 h-6 inline-block"
                       dangerouslySetInnerHTML={{ __html: s.icon_svg }} />
                   </div>
@@ -538,13 +538,13 @@ export default function GameLobbyEditor({
   return (
     <div className="space-y-0">
       {/* Tab navigation */}
-      <div className="flex gap-0.5 flex-wrap mb-3 p-1 bg-gray-100 rounded-lg">
+      <div className="flex gap-0.5 flex-wrap mb-3 p-1 bg-muted rounded-lg">
         {EDITOR_TABS.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
             className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
               activeTab === t.key
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-background text-blue-600 shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}>
             {t.label}
           </button>
@@ -554,28 +554,28 @@ export default function GameLobbyEditor({
       {/* ── PRESET ── */}
       {activeTab === 'preset' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-500">一键应用设计主题，所有设置自动配置</p>
+          <p className="text-xs text-muted-foreground">一键应用设计主题，所有设置自动配置</p>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(PRESET_LABELS).map(([key, { label, icon }]) => (
               <button key={key} onClick={() => applyPreset(key)}
                 className={`p-3 rounded-xl border-2 text-left transition-all ${
                   cfg.design_preset === key
                     ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-blue-300'
+                    : 'border-border bg-card hover:border-blue-300'
                 }`}>
                 <div className="text-xl mb-1">{icon}</div>
-                <div className="text-xs font-semibold text-gray-700">{label}</div>
+                <div className="text-xs font-semibold text-foreground">{label}</div>
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-400">选择预设后可在其他标签继续微调</p>
+          <p className="text-xs text-muted-foreground">选择预设后可在其他标签继续微调</p>
         </div>
       )}
 
       {/* ── DATA SOURCE ── */}
       {activeTab === 'data' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             选择游戏大厅的数据来源。切换来源只需改这里，无需修改任何其他设置。
           </p>
           <div>
@@ -585,7 +585,7 @@ export default function GameLobbyEditor({
               { v: 'games',    label: '游戏库'   },
               { v: 'mixed',    label: '混合'     },
             ]} />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {(cfg.game_source ?? 'platform') === 'platform' && '每个平台(Provider)一张卡片，适合平台导航大厅'}
               {cfg.game_source === 'games' && '显示手动添加或 API 同步的单款游戏，适合游戏列表大厅'}
               {cfg.game_source === 'mixed' && '游戏库优先；没有游戏的平台以平台卡片补充'}
@@ -684,7 +684,7 @@ export default function GameLobbyEditor({
       {activeTab === 'icons' && (
         <div className="space-y-4">
           <SectionDivider label="分类图标" />
-          <p className="text-xs text-gray-500">为每个分类标签设置图标。设置后即时生效，无需保存整个页面。</p>
+          <p className="text-xs text-muted-foreground">为每个分类标签设置图标。设置后即时生效，无需保存整个页面。</p>
           <CategoryIconEditor />
           <SectionDivider label="图标显示设置" />
           <div>
@@ -729,7 +729,7 @@ export default function GameLobbyEditor({
             <input type="text" placeholder="4px"
               value={cfg.icon_gap ?? ''}
               onChange={e => set('icon_gap', e.target.value || undefined)}
-              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-white" />
+              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-background" />
           </div>
         </div>
       )}
@@ -747,7 +747,7 @@ export default function GameLobbyEditor({
                   { v: 'system',  label: '系统 System'   },
                   { v: 'website', label: '网站 Website'  },
                 ]} />
-                <p className="text-xs text-gray-400 mt-1">系统 = 自动读取 Provider Manager，无需重复维护</p>
+                <p className="text-xs text-muted-foreground mt-1">系统 = 自动读取 Provider Manager，无需重复维护</p>
               </div>
               <SectionDivider label="显示样式" />
               <div>
@@ -834,7 +834,7 @@ export default function GameLobbyEditor({
             <input type="text" placeholder="12px（跟随风格）"
               value={cfg.card_radius ?? ''}
               onChange={e => set('card_radius', e.target.value || undefined)}
-              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-white" />
+              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-background" />
           </div>
           <SectionDivider label="阴影 / 边框" />
           <div>
@@ -875,7 +875,7 @@ export default function GameLobbyEditor({
       {/* ── INFO ── */}
       {activeTab === 'info' && (
         <div className="space-y-2">
-          <p className="text-xs text-gray-500 mb-2">控制游戏卡片上显示哪些信息</p>
+          <p className="text-xs text-muted-foreground mb-2">控制游戏卡片上显示哪些信息</p>
           <ToggleRow label="显示游戏名称 Game Name"  checked={cfg.show_game_name  !== false} onChange={v => set('show_game_name',  v)} />
           <ToggleRow label="显示平台名称 Provider"   checked={cfg.show_provider   !== false} onChange={v => set('show_provider',   v)} />
           <ToggleRow label="显示 HOT 标签"           checked={cfg.show_hot_badge  !== false} onChange={v => set('show_hot_badge',  v)} />
@@ -918,7 +918,7 @@ export default function GameLobbyEditor({
                 <input type="text" placeholder="搜索游戏..."
                   value={cfg.search_placeholder ?? ''}
                   onChange={e => set('search_placeholder', e.target.value || undefined)}
-                  className="w-full border rounded px-2 py-1.5 text-xs bg-white" />
+                  className="w-full border rounded px-2 py-1.5 text-xs bg-background" />
               </div>
             </>
           )}
@@ -967,7 +967,7 @@ export default function GameLobbyEditor({
       {/* ── COLORS ── */}
       {activeTab === 'colors' && (
         <div className="space-y-2">
-          <p className="text-xs text-gray-400 mb-2">留空则使用主题默认色</p>
+          <p className="text-xs text-muted-foreground mb-2">留空则使用主题默认色</p>
           <ColorRow label="强调色 Accent"       value={cfg.color_accent}     onChange={v => set('color_accent',     v || undefined)} />
           <ColorRow label="背景 Background"      value={cfg.color_bg}         onChange={v => set('color_bg',         v || undefined)} />
           <ColorRow label="卡片背景 Card"        value={cfg.color_card}       onChange={v => set('color_card',       v || undefined)} />
@@ -1032,21 +1032,21 @@ export default function GameLobbyEditor({
             <input type="text" placeholder="12px"
               value={cfg.card_gap ?? ''}
               onChange={e => set('card_gap', e.target.value || undefined)}
-              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-white" />
+              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-background" />
           </div>
           <div>
             <Label>区块内边距 Section Padding</Label>
             <input type="text" placeholder="16px 0"
               value={cfg.section_padding ?? ''}
               onChange={e => set('section_padding', e.target.value || undefined)}
-              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-white" />
+              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-background" />
           </div>
           <div>
             <Label>容器最大宽度 Container Width</Label>
             <input type="text" placeholder="1200px（无限制则留空）"
               value={cfg.container_width ?? ''}
               onChange={e => set('container_width', e.target.value || undefined)}
-              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-white" />
+              className="w-full border rounded px-2 py-1.5 text-xs font-mono bg-background" />
           </div>
         </div>
       )}

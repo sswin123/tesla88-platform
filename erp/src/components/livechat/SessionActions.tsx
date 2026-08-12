@@ -148,13 +148,13 @@ export function SessionActions({
   const muteLabel = getMuteLabel(session.muted_until ?? null);
 
   return (
-    <div className="flex flex-shrink-0 items-center gap-2 border-b bg-white px-4 py-2">
+    <div className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-card px-4 py-2">
       <Badge variant={STATUS_VARIANT[session.status] ?? 'secondary'}>
         {STATUS_LABEL[session.status] ?? session.status}
       </Badge>
 
       {session.assigned_to_username && (
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-muted-foreground">
           Assigned: @{session.assigned_to_username}
         </span>
       )}
@@ -189,10 +189,10 @@ export function SessionActions({
                   className="fixed inset-0 z-10"
                   onClick={() => setShowTransfer(false)}
                 />
-                <div className="absolute right-0 top-9 z-20 w-56 rounded-lg border bg-white shadow-lg p-3 space-y-2">
-                  <p className="text-xs font-semibold text-gray-600">Transfer to agent</p>
+                <div className="absolute right-0 top-9 z-20 w-56 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Transfer to agent</p>
                   <input
-                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded border border-border bg-background text-foreground px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="agent_username"
                     value={transferTarget}
                     onChange={(e) => setTransferTarget(e.target.value)}
@@ -268,11 +268,11 @@ export function SessionActions({
               {showMute && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMute(false)} />
-                  <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border bg-white shadow-lg p-2 space-y-1">
+                  <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border border-border bg-card shadow-lg p-2 space-y-1">
                     {MUTE_PRESETS.map((p) => (
                       <button
                         key={p.minutes}
-                        className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-gray-100"
+                        className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted"
                         onClick={() => handleMute(p.minutes)}
                       >
                         {p.label}
@@ -286,7 +286,7 @@ export function SessionActions({
                         placeholder="min"
                         value={customMinutes}
                         onChange={(e) => setCustomMinutes(e.target.value)}
-                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full rounded border border-border bg-background text-foreground px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             const m = parseInt(customMinutes, 10);
@@ -295,7 +295,7 @@ export function SessionActions({
                         }}
                       />
                       <button
-                        className="rounded border border-gray-200 px-2 py-1 text-sm hover:bg-gray-100 disabled:opacity-40"
+                        className="rounded border border-border bg-background text-foreground px-2 py-1 text-sm hover:bg-muted disabled:opacity-40"
                         disabled={!customMinutes || parseInt(customMinutes, 10) <= 0}
                         onClick={() => {
                           const m = parseInt(customMinutes, 10);
