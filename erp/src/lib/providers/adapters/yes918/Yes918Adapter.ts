@@ -255,6 +255,10 @@ export class Yes918Adapter extends BaseProviderAdapter {
     return balance;
   }
 
+  async withdrawAll(loginId: string): Promise<number> {
+    return this.autoWithdrawAll(loginId);
+  }
+
   // ── Health Check ──────────────────────────────────────────────────────────
 
   async healthCheck(): Promise<HealthCheckResult> {
