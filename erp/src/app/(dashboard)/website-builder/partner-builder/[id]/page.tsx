@@ -69,6 +69,7 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
   const [previewOpen, setPreviewOpen] = useState(true);
   const [msg, setMsg]         = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [editCard, setEditCard] = useState<number | null>(null);
+  const [editSection, setEditSection] = useState<number | null>(null);
 
   /* Local editable copy of site fields */
   const [draft, setDraft] = useState<Partial<Site>>({});
@@ -181,6 +182,20 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
     if (!confirm('Remove this section?')) return;
     const r = await fetch(`/api/partner-builder/sections/${id}`, { method: 'DELETE' });
     if (r.ok) setSections(prev => prev.filter(s => s.id !== id));
+  }
+
+  async function setSectionHeroMedia(section: Section, mediaId: number | null) {
+    const content_json = { ...section.content_json, heroMediaId: mediaId ?? undefined };
+    if (mediaId === null) delete content_json.heroMediaId;
+    const r = await fetch(`/api/partner-builder/sections/${section.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content_json }),
+    });
+    if (r.ok) {
+      const updated = await r.json();
+      setSections(prev => prev.map(s => s.id === section.id ? updated : s));
+    }
   }
 
   async function moveSectionUp(index: number) {
@@ -495,23 +510,44 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="space-y-2">
                   {sections.map((section, i) => (
-                    <div key={section.id} className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                    <div key={section.id} className={`rounded-xl border transition-all ${
                       section.is_enabled ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-900/50 border-zinc-800/50 opacity-60'
                     }`}>
-                      <GripVertical className="w-4 h-4 text-zinc-600 flex-shrink-0" />
-                      <span className="flex-1 text-sm text-zinc-300 capitalize font-medium">{section.section_type}</span>
-                      <button onClick={() => moveSectionUp(i)} disabled={i === 0} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 disabled:opacity-30 transition-colors">
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => moveSectionDown(i)} disabled={i === sections.length - 1} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 disabled:opacity-30 transition-colors">
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => toggleSection(section)} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors" title={section.is_enabled ? 'Disable' : 'Enable'}>
-                        {section.is_enabled ? <ToggleRight className="w-4 h-4 text-violet-400" /> : <ToggleLeft className="w-4 h-4" />}
-                      </button>
-                      <button onClick={() => deleteSection(section.id)} className="p-1 rounded hover:bg-red-900/30 text-zinc-600 hover:text-red-400 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2 p-3">
+                        <GripVertical className="w-4 h-4 text-zinc-600 flex-shrink-0" />
+                        <span className="flex-1 text-sm text-zinc-300 capitalize font-medium">{section.section_type}</span>
+                        {section.section_type === 'partners' && (
+                          <button
+                            onClick={() => setEditSection(editSection === section.id ? null : section.id)}
+                            className="text-xs px-2 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors"
+                          >
+                            {editSection === section.id ? 'Collapse' : 'Edit'}
+                          </button>
+                        )}
+                        <button onClick={() => moveSectionUp(i)} disabled={i === 0} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 disabled:opacity-30 transition-colors">
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => moveSectionDown(i)} disabled={i === sections.length - 1} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 disabled:opacity-30 transition-colors">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => toggleSection(section)} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors" title={section.is_enabled ? 'Disable' : 'Enable'}>
+                          {section.is_enabled ? <ToggleRight className="w-4 h-4 text-violet-400" /> : <ToggleLeft className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => deleteSection(section.id)} className="p-1 rounded hover:bg-red-900/30 text-zinc-600 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {section.section_type === 'partners' && editSection === section.id && (
+                        <div className="border-t border-zinc-800 p-3 space-y-2">
+                          <ImageUploadField
+                            label="Hero Media (PNG/JPG/WEBP/GIF — replaces the default 'Partner Brands / Choose Your Platform' text entirely when set)"
+                            mediaId={(section.content_json.heroMediaId as number | undefined) ?? null}
+                            onUpload={(id) => setSectionHeroMedia(section, id)}
+                            onRemove={() => setSectionHeroMedia(section, null)}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                   {sections.length === 0 && (

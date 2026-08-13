@@ -60,59 +60,9 @@ export default async function PartnerPage({ params }: Props) {
           color:      'var(--pb-text-primary, #f4f4f5)',
         }}
       >
-        {/* Minimal nav bar — sticks below the site CasinoHeader (and ticker,
-            when shown), never over it. --pb-content-top-offset is set by the
-            root layout's isPartnerPage branch from its own topOffset calc. */}
-        <nav style={{
-          position:           'sticky',
-          top:                'var(--pb-content-top-offset, 0px)',
-          zIndex:              30,
-          background:         'var(--pb-bg-header, var(--pb-bg-section, #18181b))',
-          borderBottom:       '1px solid var(--pb-border, rgba(255,255,255,0.06))',
-          backdropFilter:     'blur(12px)',
-          WebkitBackdropFilter:'blur(12px)',
-          padding:            '0 var(--pb-section-px, 20px)',
-        }}>
-          <div style={{
-            maxWidth:      'var(--pb-container-width, 1200px)',
-            margin:        '0 auto',
-            height:        '56px',
-            display:       'flex',
-            alignItems:    'center',
-            justifyContent:'space-between',
-            gap:           '12px',
-          }}>
-            {data.site.logo_url ? (
-              <img
-                src={data.site.logo_url}
-                alt={data.site.name}
-                height="32"
-                style={{ maxHeight: '32px', objectFit: 'contain' }}
-              />
-            ) : (
-              <span style={{ fontWeight: '800', fontSize: '17px', color: 'var(--pb-primary, #7c3aed)' }}>
-                {data.site.name}
-              </span>
-            )}
-            <a
-              href="#partners"
-              style={{
-                padding:        '7px 18px',
-                borderRadius:   'var(--pb-radius-btn, 6px)',
-                background:     'var(--pb-btn-bg, var(--pb-primary, #7c3aed))',
-                color:          'var(--pb-btn-text, #fff)',
-                textDecoration: 'none',
-                fontSize:       '13px',
-                fontWeight:     '700',
-                transition:     'opacity var(--pb-duration-base, 0.2s)',
-              }}
-            >
-              View Partners
-            </a>
-          </div>
-        </nav>
-
-        {/* Main content: sections rendered by the engine */}
+        {/* Main content: sections rendered by the engine.
+            No standalone nav bar here — CasinoHeader (rendered by the root
+            layout above this page) is the page's only top chrome now. */}
         <main>
           {sections}
         </main>

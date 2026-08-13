@@ -198,8 +198,12 @@ export function renderMarquee({ data }: Ctx): React.ReactElement {
 }
 
 /* ── Partners (card grid) ────────────────────────────────── */
-export function renderPartners({ data, layout }: Ctx): React.ReactElement {
+export function renderPartners({ data, section, layout }: Ctx): React.ReactElement {
   const { cards } = data;
+
+  // Hero: heroMediaId replaces the default eyebrow/title/subtitle text
+  // entirely — it is not layered on top of it. No heroMediaId → text mode.
+  const heroMediaId = section.content_json?.heroMediaId as number | undefined;
 
   return (
     <section
@@ -211,34 +215,53 @@ export function renderPartners({ data, layout }: Ctx): React.ReactElement {
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <div style={{
-          display:      'inline-block',
-          fontSize:     '11px',
-          fontWeight:   '700',
-          letterSpacing:'0.1em',
-          textTransform:'uppercase',
-          color:        'var(--pb-accent, #f59e0b)',
-          marginBottom: '8px',
-        }}>
-          Partner Brands
-        </div>
-        <h2 style={{
-          margin:        0,
-          fontSize:      'clamp(22px, 3vw, 32px)',
-          fontWeight:    'var(--pb-font-weight-heading, 700)',
-          fontFamily:    'var(--pb-font-display)',
-          color:         'var(--pb-text-primary, #f4f4f5)',
-          letterSpacing: 'var(--pb-letter-spacing-heading, -0.02em)',
-        }}>
-          Choose Your Platform
-        </h2>
-        <p style={{
-          margin:   '8px 0 0',
-          fontSize: '14px',
-          color:    'var(--pb-text-muted, rgba(255,255,255,0.5))',
-        }}>
-          All platforms are verified and trusted
-        </p>
+        {heroMediaId ? (
+          <img
+            src={`/api/public/media/${heroMediaId}`}
+            alt=""
+            style={{
+              display:        'block',
+              margin:         '0 auto',
+              width:          '100%',
+              maxWidth:       '720px',
+              height:         'auto',
+              maxHeight:      '400px',
+              objectFit:      'contain',
+              objectPosition: 'center',
+            }}
+          />
+        ) : (
+          <>
+            <div style={{
+              display:      'inline-block',
+              fontSize:     '11px',
+              fontWeight:   '700',
+              letterSpacing:'0.1em',
+              textTransform:'uppercase',
+              color:        'var(--pb-accent, #f59e0b)',
+              marginBottom: '8px',
+            }}>
+              Partner Brands
+            </div>
+            <h2 style={{
+              margin:        0,
+              fontSize:      'clamp(22px, 3vw, 32px)',
+              fontWeight:    'var(--pb-font-weight-heading, 700)',
+              fontFamily:    'var(--pb-font-display)',
+              color:         'var(--pb-text-primary, #f4f4f5)',
+              letterSpacing: 'var(--pb-letter-spacing-heading, -0.02em)',
+            }}>
+              Choose Your Platform
+            </h2>
+            <p style={{
+              margin:   '8px 0 0',
+              fontSize: '14px',
+              color:    'var(--pb-text-muted, rgba(255,255,255,0.5))',
+            }}>
+              All platforms are verified and trusted
+            </p>
+          </>
+        )}
       </div>
       <PartnerCardGrid cards={cards} layout_json={layout} />
     </section>
