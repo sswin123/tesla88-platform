@@ -516,12 +516,17 @@ export default function SiteEditorPage({ params }: { params: Promise<{ id: strin
                       <div className="flex items-center gap-2 p-3">
                         <GripVertical className="w-4 h-4 text-zinc-600 flex-shrink-0" />
                         <span className="flex-1 text-sm text-zinc-300 capitalize font-medium">{section.section_type}</span>
+                        {section.section_type === 'partners' && (section.content_json?.heroMediaId as number | undefined) && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-violet-500/15 border border-violet-500/30 text-violet-300 rounded-md whitespace-nowrap flex-shrink-0">
+                            🖼 Media
+                          </span>
+                        )}
                         {section.section_type === 'partners' && (
                           <button
                             onClick={() => setEditSection(editSection === section.id ? null : section.id)}
-                            className="text-xs px-2 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors"
+                            className="text-xs px-2 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 rounded-lg transition-colors flex-shrink-0"
                           >
-                            {editSection === section.id ? 'Collapse' : 'Edit'}
+                            {editSection === section.id ? 'Collapse' : 'Edit Hero'}
                           </button>
                         )}
                         <button onClick={() => moveSectionUp(i)} disabled={i === 0} className="p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 disabled:opacity-30 transition-colors">
