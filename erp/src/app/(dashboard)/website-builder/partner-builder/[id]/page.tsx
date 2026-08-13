@@ -769,7 +769,7 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
     set({ bonus_items: next });
   }
   function addBonusItem() {
-    set({ bonus_items: [...bonusItems, { icon: '', label: '', value: '' }] });
+    set({ bonus_items: [...bonusItems, { label: '', value: '' }] });
   }
   function removeBonusItem(idx: number) {
     set({ bonus_items: bonusItems.filter((_, i) => i !== idx) });
@@ -813,10 +813,10 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
         ))}
       </div>
 
-      {/* Bonus Items — custom label/value/icon. Takes priority over the
-          legacy welcome_bonus/free_credit/commission/promo_text fields
-          above when at least 1 item exists; those legacy fields are never
-          auto-converted or auto-cleared. */}
+      {/* Bonus Items — custom label/value (no icon input). Takes priority
+          over the legacy welcome_bonus/free_credit/commission/promo_text
+          fields above when at least 1 item exists; those legacy fields are
+          never auto-converted or auto-cleared. */}
       <div className="space-y-2 pt-1">
         <label className="text-xs text-zinc-500 block">Bonus Items</label>
         {bonusItems.length === 0 && hasLegacyBonusData && (
@@ -827,12 +827,6 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
         <div className="space-y-1.5">
           {bonusItems.map((item, idx) => (
             <div key={idx} className="flex gap-1.5 items-center">
-              <input
-                value={item.icon ?? ''}
-                onChange={e => setBonusItem(idx, { icon: e.target.value })}
-                placeholder="🎁"
-                className="w-10 flex-shrink-0 bg-zinc-800 border border-zinc-700 focus:border-violet-500 rounded-lg px-1.5 py-1.5 text-xs text-center text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
-              />
               <input
                 value={item.label}
                 onChange={e => setBonusItem(idx, { label: e.target.value })}

@@ -13,10 +13,10 @@ type CardLayout = 'grid' | 'list' | 'carousel';
 function resolveBonusItems(card: PartnerCard): BonusItem[] {
   if (card.bonus_items && card.bonus_items.length > 0) return card.bonus_items;
   const legacy: BonusItem[] = [];
-  if (card.welcome_bonus) legacy.push({ icon: '🎁', label: 'Welcome Bonus', value: card.welcome_bonus });
-  if (card.free_credit)   legacy.push({ icon: '💰', label: 'Free Credit',   value: card.free_credit });
-  if (card.commission)    legacy.push({ icon: '📈', label: 'Commission',    value: card.commission });
-  if (card.promo_text)    legacy.push({ icon: '⚡', label: 'Promo',        value: card.promo_text });
+  if (card.welcome_bonus) legacy.push({ label: 'Welcome Bonus', value: card.welcome_bonus });
+  if (card.free_credit)   legacy.push({ label: 'Free Credit',   value: card.free_credit });
+  if (card.commission)    legacy.push({ label: 'Commission',    value: card.commission });
+  if (card.promo_text)    legacy.push({ label: 'Promo',        value: card.promo_text });
   return legacy;
 }
 
@@ -169,7 +169,7 @@ function PartnerCard({ card }: { card: PartnerCard }) {
         {bonusItems.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
             {bonusItems.map((item, i) => (
-              <BonusRow key={i} icon={item.icon || '🎁'} label={item.label} value={item.value} />
+              <BonusRow key={i} label={item.label} value={item.value} />
             ))}
           </div>
         )}
@@ -199,10 +199,9 @@ function PartnerCard({ card }: { card: PartnerCard }) {
   );
 }
 
-function BonusRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function BonusRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '6px' }}>
-      <span style={{ fontSize: '14px', lineHeight: '1.3', flexShrink: 0 }}>{icon}</span>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{
           fontSize:    '11px',
