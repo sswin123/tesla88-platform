@@ -73,6 +73,12 @@ export interface PartnerSection {
   updated_at: string;
 }
 
+export interface BonusItem {
+  icon?: string;
+  label: string;
+  value: string;
+}
+
 export interface PartnerCard {
   id: number;
   site_id: number;
@@ -85,6 +91,7 @@ export interface PartnerCard {
   free_credit: string | null;
   commission: string | null;
   promo_text: string | null;
+  bonus_items: BonusItem[] | null;
   telegram_url: string | null;
   whatsapp_url: string | null;
   website_url: string | null;
@@ -147,6 +154,7 @@ export interface CreateCardInput {
   free_credit?: string | null;
   commission?: string | null;
   promo_text?: string | null;
+  bonus_items?: BonusItem[] | null;
   telegram_url?: string | null;
   whatsapp_url?: string | null;
   website_url?: string | null;
@@ -168,6 +176,7 @@ export interface UpdateCardInput {
   free_credit?: string | null;
   commission?: string | null;
   promo_text?: string | null;
+  bonus_items?: BonusItem[] | null;
   telegram_url?: string | null;
   whatsapp_url?: string | null;
   website_url?: string | null;
@@ -578,11 +587,11 @@ export async function createCard(data: CreateCardInput): Promise<PartnerCard> {
   const { rows } = await pool.query<PartnerCard>(
     `INSERT INTO partner_cards
        (site_id, logo_media_id, brand_name, subtitle, description, badge,
-        welcome_bonus, free_credit, commission, promo_text,
+        welcome_bonus, free_credit, commission, promo_text, bonus_items,
         telegram_url, whatsapp_url, website_url,
         button_text, button_color, button_style,
         card_bg_color, card_bg_media_id, sort_order)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
      RETURNING *`,
     [
       data.site_id,
@@ -595,6 +604,7 @@ export async function createCard(data: CreateCardInput): Promise<PartnerCard> {
       data.free_credit ?? null,
       data.commission ?? null,
       data.promo_text ?? null,
+      data.bonus_items ? JSON.stringify(data.bonus_items) : null,
       data.telegram_url ?? null,
       data.whatsapp_url ?? null,
       data.website_url ?? null,
@@ -612,7 +622,7 @@ export async function createCard(data: CreateCardInput): Promise<PartnerCard> {
 export async function updateCard(id: number, data: UpdateCardInput): Promise<PartnerCard | null> {
   const allowed: (keyof UpdateCardInput)[] = [
     'logo_media_id','brand_name','subtitle','description','badge',
-    'welcome_bonus','free_credit','commission','promo_text',
+    'welcome_bonus','free_credit','commission','promo_text','bonus_items',
     'telegram_url','whatsapp_url','website_url',
     'button_text','button_color','button_style',
     'card_bg_color','card_bg_media_id','sort_order','is_enabled',
@@ -623,7 +633,8 @@ export async function updateCard(id: number, data: UpdateCardInput): Promise<Par
   for (const key of allowed) {
     if (key in data) {
       fields.push(`${key} = $${i++}`);
-      values.push(data[key] ?? null);
+      const v = data[key];
+      values.push(key === 'bonus_items' && v != null ? JSON.stringify(v) : (v ?? null));
     }
   }
   if (fields.length === 0) return getCardById(id);

@@ -45,6 +45,12 @@ export type PartnerSection = {
   content_json: Record<string, unknown>;
 };
 
+export type BonusItem = {
+  icon?: string;
+  label: string;
+  value: string;
+};
+
 export type PartnerCard = {
   id:            number;
   brand_name:    string;
@@ -55,6 +61,7 @@ export type PartnerCard = {
   free_credit:   string | null;
   commission:    string | null;
   promo_text:    string | null;
+  bonus_items:   BonusItem[] | null;
   logo_url:      string | null;
   telegram_url:  string | null;
   whatsapp_url:  string | null;
@@ -137,7 +144,7 @@ async function fetchPageData(slug: string): Promise<PartnerPageData | null> {
     pool.query<PartnerCard>(
       `SELECT
          pc.id, pc.brand_name, pc.subtitle, pc.description, pc.badge,
-         pc.welcome_bonus, pc.free_credit, pc.commission, pc.promo_text,
+         pc.welcome_bonus, pc.free_credit, pc.commission, pc.promo_text, pc.bonus_items,
          CASE WHEN pc.logo_media_id IS NOT NULL
               THEN '/api/public/media/' || pc.logo_media_id::text
               ELSE NULL

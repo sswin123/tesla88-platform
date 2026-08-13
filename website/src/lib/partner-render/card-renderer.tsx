@@ -3,9 +3,22 @@
  * All styling uses the canonical --pb-* CSS variable system.
  */
 import React from 'react';
-import type { PartnerCard, LayoutJson } from './index';
+import type { PartnerCard, LayoutJson, BonusItem } from './index';
 
 type CardLayout = 'grid' | 'list' | 'carousel';
+
+// Custom bonus_items take priority when at least 1 item exists; otherwise
+// fall back to the legacy welcome_bonus/free_credit/commission/promo_text
+// fields so old Partner Cards keep rendering exactly as before.
+function resolveBonusItems(card: PartnerCard): BonusItem[] {
+  if (card.bonus_items && card.bonus_items.length > 0) return card.bonus_items;
+  const legacy: BonusItem[] = [];
+  if (card.welcome_bonus) legacy.push({ icon: '🎁', label: 'Welcome Bonus', value: card.welcome_bonus });
+  if (card.free_credit)   legacy.push({ icon: '💰', label: 'Free Credit',   value: card.free_credit });
+  if (card.commission)    legacy.push({ icon: '📈', label: 'Commission',    value: card.commission });
+  if (card.promo_text)    legacy.push({ icon: '⚡', label: 'Promo',        value: card.promo_text });
+  return legacy;
+}
 
 function resolveCardLayout(cardStyle: string | undefined): CardLayout {
   if (!cardStyle) return 'grid';
@@ -24,7 +37,7 @@ function resolveGridCols(cardStyle: string | undefined): string {
 
 function PartnerCard({ card }: { card: PartnerCard }) {
   const hasCta = card.telegram_url || card.whatsapp_url || card.website_url;
-  const hasBonusInfo = card.welcome_bonus || card.free_credit || card.commission || card.promo_text;
+  const bonusItems = resolveBonusItems(card);
 
   return (
     <article
@@ -153,12 +166,11 @@ function PartnerCard({ card }: { card: PartnerCard }) {
           </p>
         )}
 
-        {hasBonusInfo && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
-            {card.welcome_bonus && <BonusRow icon="🎁" label="Welcome Bonus" value={card.welcome_bonus} />}
-            {card.free_credit   && <BonusRow icon="💰" label="Free Credit"   value={card.free_credit} />}
-            {card.commission    && <BonusRow icon="📈" label="Commission"     value={card.commission} />}
-            {card.promo_text    && <BonusRow icon="⚡" label="Promo"         value={card.promo_text} />}
+        {bonusItems.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+            {bonusItems.map((item, i) => (
+              <BonusRow key={i} icon={item.icon || '🎁'} label={item.label} value={item.value} />
+            ))}
           </div>
         )}
 
@@ -189,10 +201,33 @@ function PartnerCard({ card }: { card: PartnerCard }) {
 
 function BonusRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px' }}>
-      <span style={{ fontSize: '13px', flexShrink: 0 }}>{icon}</span>
-      <span style={{ color: 'var(--pb-text-muted, rgba(255,255,255,0.5))', flexShrink: 0 }}>{label}:</span>
-      <span style={{ color: 'var(--pb-accent, #f59e0b)', fontWeight: '600' }}>{value}</span>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '6px' }}>
+      <span style={{ fontSize: '14px', lineHeight: '1.3', flexShrink: 0 }}>{icon}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <span style={{
+          fontSize:    '11px',
+          lineHeight:  '1.3',
+          color:       'var(--pb-text-muted, rgba(255,255,255,0.5))',
+          overflow:    'hidden',
+          textOverflow:'ellipsis',
+          whiteSpace:  'nowrap',
+        }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize:       '13px',
+          fontWeight:     '700',
+          lineHeight:     '1.3',
+          color:          'var(--pb-accent, #f59e0b)',
+          display:        '-webkit-box',
+          WebkitLineClamp:2,
+          WebkitBoxOrient:'vertical',
+          overflow:       'hidden',
+          wordBreak:      'break-word',
+        }}>
+          {value}
+        </span>
+      </div>
     </div>
   );
 }
@@ -206,8 +241,8 @@ function ctaBtnBase(): React.CSSProperties {
     padding:       '9px 10px',
     borderRadius:  'var(--pb-radius-btn, 6px)',
     textDecoration:'none',
-    fontSize:      '12px',
-    fontWeight:    '700',
+    fontSize:      '13px',
+    fontWeight:    '600',
     boxSizing:     'border-box',
     transition:    `opacity var(--pb-duration-base, 0.2s)`,
   };

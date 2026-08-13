@@ -23,12 +23,14 @@ type Site = {
 type Template = { id: number; name: string; slug: string; description: string | null };
 type Theme    = { id: number; name: string; slug: string; css_variables: Record<string, string> };
 type Section  = { id: number; section_type: string; is_enabled: boolean; sort_order: number; content_json: Record<string, unknown> };
+type BonusItem = { icon?: string; label: string; value: string };
 type Card     = {
   id: number; brand_name: string; subtitle: string | null;
   logo_media_id: number | null;
   description: string | null; badge: string | null;
   welcome_bonus: string | null; free_credit: string | null;
   commission: string | null; promo_text: string | null;
+  bonus_items: BonusItem[] | null;
   telegram_url: string | null; whatsapp_url: string | null; website_url: string | null;
   button_text: string; button_color: string | null; button_style: string;
   sort_order: number; is_enabled: boolean;
@@ -759,6 +761,20 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
   const [local, setLocal] = useState<Card>({ ...card });
   const set = (f: Partial<Card>) => setLocal(prev => ({ ...prev, ...f }));
 
+  const bonusItems = local.bonus_items ?? [];
+  const hasLegacyBonusData = !!(local.welcome_bonus || local.free_credit || local.commission || local.promo_text);
+
+  function setBonusItem(idx: number, patch: Partial<BonusItem>) {
+    const next = bonusItems.map((it, i) => i === idx ? { ...it, ...patch } : it);
+    set({ bonus_items: next });
+  }
+  function addBonusItem() {
+    set({ bonus_items: [...bonusItems, { icon: '', label: '', value: '' }] });
+  }
+  function removeBonusItem(idx: number) {
+    set({ bonus_items: bonusItems.filter((_, i) => i !== idx) });
+  }
+
   const fields: { key: keyof Card; label: string; placeholder: string; type?: string }[] = [
     { key: 'brand_name',    label: 'Brand Name *', placeholder: 'Tesla88' },
     { key: 'subtitle',      label: 'Subtitle',     placeholder: 'Premium Casino' },
@@ -796,6 +812,59 @@ function CardEditor({ card, onSave, onCancel }: { card: Card; onSave: (c: Card) 
           </div>
         ))}
       </div>
+
+      {/* Bonus Items — custom label/value/icon. Takes priority over the
+          legacy welcome_bonus/free_credit/commission/promo_text fields
+          above when at least 1 item exists; those legacy fields are never
+          auto-converted or auto-cleared. */}
+      <div className="space-y-2 pt-1">
+        <label className="text-xs text-zinc-500 block">Bonus Items</label>
+        {bonusItems.length === 0 && hasLegacyBonusData && (
+          <p className="text-xs text-amber-500/80">
+            Using legacy bonus fields. Add custom bonus items to use custom labels.
+          </p>
+        )}
+        <div className="space-y-1.5">
+          {bonusItems.map((item, idx) => (
+            <div key={idx} className="flex gap-1.5 items-center">
+              <input
+                value={item.icon ?? ''}
+                onChange={e => setBonusItem(idx, { icon: e.target.value })}
+                placeholder="🎁"
+                className="w-10 flex-shrink-0 bg-zinc-800 border border-zinc-700 focus:border-violet-500 rounded-lg px-1.5 py-1.5 text-xs text-center text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
+              />
+              <input
+                value={item.label}
+                onChange={e => setBonusItem(idx, { label: e.target.value })}
+                placeholder="Label (e.g. Welcome Bonus)"
+                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
+              />
+              <input
+                value={item.value}
+                onChange={e => setBonusItem(idx, { value: e.target.value })}
+                placeholder="Value (e.g. 100%)"
+                className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => removeBonusItem(idx)}
+                className="flex-shrink-0 p-1.5 rounded hover:bg-red-900/30 text-zinc-600 hover:text-red-400 transition-colors"
+                aria-label="Remove bonus item"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addBonusItem}
+          className="w-full py-1.5 border border-dashed border-zinc-700 rounded-lg text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 flex items-center justify-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Add Bonus
+        </button>
+      </div>
+
       <CtaTestPreview card={local} />
       <div className="flex gap-2 pt-1">
         <button
