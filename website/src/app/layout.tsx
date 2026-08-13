@@ -108,17 +108,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const _rid = Math.random().toString(36).slice(2, 8);
   console.log(`[layout:${_rid}] start`);
 
-  /* Partner pages (/p/*) get a bare layout — no casino chrome */
+  /* Partner pages (/p/*) get the same Header + BottomNav chrome as the rest
+   * of the site, but skip the account-only shell (MemberPanel sidebar,
+   * max-w-7xl container, Providers) so Partner Builder's own --pb-* themed
+   * content still controls its own full-width layout. */
   const h = await headers();
   console.log(`[layout:${_rid}] headers(): +${Date.now() - _t0}ms`);
-
-  if (h.get('x-is-partner-page') === '1') {
-    return (
-      <html lang="en">
-        <body style={{ margin: 0, padding: 0 }}>{children}</body>
-      </html>
-    );
-  }
+  const isPartnerPage = h.get('x-is-partner-page') === '1';
 
   const _t1 = Date.now();
   const [brand, announcements, headerConfig] = await Promise.all([
@@ -157,6 +153,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       '--text-base':       brand.color_text      || designVars['--text-base'],
     }),
   } as React.CSSProperties;
+
+  if (isPartnerPage) {
+    return (
+      <html lang="en" style={cssVars}>
+        <body style={{ margin: 0, padding: 0, background: 'var(--bg-base)' }}>
+          <CasinoHeader
+            brand={brand}
+            announcements={announcements}
+            headerConfig={headerConfig}
+          />
+
+          <div style={{ paddingTop: topOffset, paddingBottom: 'calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))' }} className="lg:pb-0">
+            {children}
+          </div>
+
+          {/* ── Fixed bottom nav (mobile only) ── */}
+          <BottomNav />
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en" style={cssVars}>
