@@ -60,11 +60,13 @@ export default async function PartnerPage({ params }: Props) {
           color:      'var(--pb-text-primary, #f4f4f5)',
         }}
       >
-        {/* Minimal nav bar */}
+        {/* Minimal nav bar — sticks below the site CasinoHeader (and ticker,
+            when shown), never over it. --pb-content-top-offset is set by the
+            root layout's isPartnerPage branch from its own topOffset calc. */}
         <nav style={{
           position:           'sticky',
-          top:                0,
-          zIndex:             100,
+          top:                'var(--pb-content-top-offset, 0px)',
+          zIndex:              30,
           background:         'var(--pb-bg-header, var(--pb-bg-section, #18181b))',
           borderBottom:       '1px solid var(--pb-border, rgba(255,255,255,0.06))',
           backdropFilter:     'blur(12px)',

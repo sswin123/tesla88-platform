@@ -155,8 +155,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } as React.CSSProperties;
 
   if (isPartnerPage) {
+    // Expose the already-computed topOffset to Partner Builder's own template
+    // (e.g. its sticky "Minimal nav bar") so nested content can sit correctly
+    // below CasinoHeader/the ticker instead of guessing the header height.
+    const partnerCssVars: React.CSSProperties = {
+      ...cssVars,
+      '--pb-content-top-offset': topOffset,
+    } as React.CSSProperties;
+
     return (
-      <html lang="en" style={cssVars}>
+      <html lang="en" style={partnerCssVars}>
         <body style={{ margin: 0, padding: 0, background: 'var(--bg-base)' }}>
           <CasinoHeader
             brand={brand}
