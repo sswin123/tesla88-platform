@@ -24,6 +24,7 @@ function resolveGridCols(cardStyle: string | undefined): string {
 
 function PartnerCard({ card }: { card: PartnerCard }) {
   const hasCta = card.telegram_url || card.whatsapp_url || card.website_url;
+  const hasBonusInfo = card.welcome_bonus || card.free_credit || card.commission || card.promo_text;
 
   return (
     <article
@@ -39,12 +40,12 @@ function PartnerCard({ card }: { card: PartnerCard }) {
         transition:    `transform var(--pb-duration-base, 0.2s), box-shadow var(--pb-duration-base, 0.2s)`,
       }}
     >
-      {/* Badge */}
+      {/* Badge — corner overlay, never over the logo area */}
       {card.badge && (
         <div style={{
           position:     'absolute',
-          top:          '10px',
-          right:        '10px',
+          top:          '8px',
+          right:        '8px',
           background:   'var(--pb-accent, #f59e0b)',
           color:        '#000',
           fontSize:     '10px',
@@ -53,195 +54,200 @@ function PartnerCard({ card }: { card: PartnerCard }) {
           borderRadius: '9999px',
           textTransform:'uppercase',
           letterSpacing:'0.05em',
-          zIndex:       1,
+          zIndex:       2,
         }}>
           {card.badge}
         </div>
       )}
 
-      {/* Header */}
-      <div style={{
-        background:   'linear-gradient(135deg, color-mix(in srgb, var(--pb-primary, #7c3aed) 30%, transparent), var(--pb-bg-page, #09090b))',
-        padding:      'var(--pb-card-padding, 20px)',
-        display:      'flex',
-        alignItems:   'center',
-        gap:          '12px',
-        borderBottom: '1px solid var(--pb-border-card, rgba(255,255,255,0.06))',
+      {/* Logo Area — big, always transparent, never cropped/stretched.
+          Extra top padding reserves clearance so a wide/square logo can
+          never grow up into the badge's top-right corner. */}
+      <div className="pb-card-logo-area" style={{
+        display:       'flex',
+        alignItems:    'center',
+        justifyContent:'center',
+        width:         '100%',
+        background:    'transparent',
+        padding:       '32px 16px 16px',
+        boxSizing:     'border-box',
+        flexShrink:    0,
       }}>
-        {/* Logo */}
-        <div style={{
-          width:         '48px',
-          height:        '48px',
-          borderRadius:  'var(--pb-radius, 8px)',
-          background:    'var(--pb-primary, #7c3aed)',
-          display:       'flex',
-          alignItems:    'center',
-          justifyContent:'center',
-          flexShrink:    0,
-          overflow:      'hidden',
-          fontWeight:    '800',
-          fontSize:      '20px',
-          color:         '#fff',
-        }}>
-          {card.logo_url ? (
-            <img
-              src={card.logo_url}
-              alt={card.brand_name}
-              width="48"
-              height="48"
-              loading="lazy"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            card.brand_name.charAt(0).toUpperCase()
-          )}
-        </div>
+        {card.logo_url ? (
+          <img
+            src={card.logo_url}
+            alt={card.brand_name}
+            loading="lazy"
+            style={{
+              maxWidth:       '90%',
+              maxHeight:      '90%',
+              width:          'auto',
+              height:         'auto',
+              objectFit:      'contain',
+              objectPosition: 'center',
+            }}
+          />
+        ) : (
+          <div style={{
+            width:         '56px',
+            height:        '56px',
+            borderRadius:  '50%',
+            background:    'var(--pb-bg-section, #18181b)',
+            border:        '1px solid var(--pb-border-card, rgba(255,255,255,0.06))',
+            display:       'flex',
+            alignItems:    'center',
+            justifyContent:'center',
+            fontWeight:    '800',
+            fontSize:      '20px',
+            color:         'var(--pb-text-primary, #f4f4f5)',
+          }}>
+            {card.brand_name.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{
-            margin:      0,
-            fontSize:    '16px',
-            fontWeight:  '700',
-            color:       'var(--pb-text-primary, #f4f4f5)',
+      {/* Info + CTA */}
+      <div style={{
+        padding:      '4px 14px 14px',
+        flex:         1,
+        display:      'flex',
+        flexDirection:'column',
+        textAlign:    'center',
+      }}>
+        <h3 style={{
+          margin:      0,
+          fontSize:    '15px',
+          fontWeight:  '700',
+          color:       'var(--pb-text-primary, #f4f4f5)',
+          overflow:    'hidden',
+          textOverflow:'ellipsis',
+          whiteSpace:  'nowrap',
+        }}>
+          {card.brand_name}
+        </h3>
+        {card.subtitle && (
+          <p style={{
+            margin:      '2px 0 0',
+            fontSize:    '11px',
+            color:       'var(--pb-text-muted, rgba(255,255,255,0.5))',
             overflow:    'hidden',
             textOverflow:'ellipsis',
             whiteSpace:  'nowrap',
           }}>
-            {card.brand_name}
-          </h3>
-          {card.subtitle && (
-            <p style={{
-              margin:      '2px 0 0',
-              fontSize:    '12px',
-              color:       'var(--pb-text-muted, rgba(255,255,255,0.5))',
-              overflow:    'hidden',
-              textOverflow:'ellipsis',
-              whiteSpace:  'nowrap',
-            }}>
-              {card.subtitle}
-            </p>
-          )}
-        </div>
-      </div>
+            {card.subtitle}
+          </p>
+        )}
 
-      {/* Bonus Info */}
-      <div style={{ padding: '14px var(--pb-card-padding, 20px)', flex: 1 }}>
         {card.description && (
           <p style={{
-            margin:     '0 0 10px',
-            fontSize:   '13px',
-            color:      'var(--pb-text-muted, rgba(255,255,255,0.6))',
-            lineHeight: '1.5',
+            margin:         '6px 0 0',
+            fontSize:       '12px',
+            color:          'var(--pb-text-muted, rgba(255,255,255,0.6))',
+            lineHeight:     '1.4',
+            display:        '-webkit-box',
+            WebkitLineClamp:2,
+            WebkitBoxOrient:'vertical',
+            overflow:       'hidden',
           }}>
             {card.description}
           </p>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {card.welcome_bonus && <BonusRow icon="🎁" label="Welcome Bonus" value={card.welcome_bonus} />}
-          {card.free_credit   && <BonusRow icon="💰" label="Free Credit"   value={card.free_credit} />}
-          {card.commission    && <BonusRow icon="📈" label="Commission"     value={card.commission} />}
-          {card.promo_text    && <BonusRow icon="⚡" label="Promo"         value={card.promo_text} />}
-        </div>
-      </div>
+        {hasBonusInfo && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+            {card.welcome_bonus && <BonusRow icon="🎁" label="Welcome Bonus" value={card.welcome_bonus} />}
+            {card.free_credit   && <BonusRow icon="💰" label="Free Credit"   value={card.free_credit} />}
+            {card.commission    && <BonusRow icon="📈" label="Commission"     value={card.commission} />}
+            {card.promo_text    && <BonusRow icon="⚡" label="Promo"         value={card.promo_text} />}
+          </div>
+        )}
 
-      {/* CTA Buttons */}
-      {hasCta && (
-        <div style={{
-          padding:  `12px var(--pb-card-padding, 20px) 16px`,
-          display:  'flex',
-          gap:      '8px',
-          flexWrap: 'wrap',
-        }}>
-          {card.telegram_url && (
-            <a href={card.telegram_url} target="_blank" rel="noopener noreferrer" style={primaryBtnStyle(card)}>
-              {card.button_text || 'Join Now'}
-            </a>
-          )}
-          {card.whatsapp_url && (
-            <a href={card.whatsapp_url} target="_blank" rel="noopener noreferrer" style={whatsappBtnStyle}>
-              WhatsApp
-            </a>
-          )}
-          {card.website_url && (
-            <a
-              href={card.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                flex:          '1',
-                display:       'flex',
-                alignItems:    'center',
-                justifyContent:'center',
-                padding:       '8px 12px',
-                borderRadius:  'var(--pb-radius-btn, 6px)',
-                textDecoration:'none',
-                fontSize:      '13px',
-                fontWeight:    '600',
-                border:        '1px solid var(--pb-btn-outline-color, var(--pb-primary, #7c3aed))',
-                color:         'var(--pb-btn-outline-color, var(--pb-primary, #7c3aed))',
-                background:    'transparent',
-                transition:    `background var(--pb-duration-base, 0.2s)`,
-              }}
-            >
-              Visit Site
-            </a>
-          )}
-        </div>
-      )}
+        {/* CTA Buttons — Telegram / WhatsApp / Website, fully independent, stacked to fit compact cards */}
+        {hasCta && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
+            {card.telegram_url && (
+              <a href={card.telegram_url} target="_blank" rel="noopener noreferrer" style={primaryBtnStyle(card)}>
+                {card.button_text || 'Join Now'}
+              </a>
+            )}
+            {card.whatsapp_url && (
+              <a href={card.whatsapp_url} target="_blank" rel="noopener noreferrer" style={whatsappBtnStyle}>
+                WhatsApp
+              </a>
+            )}
+            {card.website_url && (
+              <a href={card.website_url} target="_blank" rel="noopener noreferrer" style={websiteBtnStyle}>
+                Visit Site
+              </a>
+            )}
+          </div>
+        )}
+      </div>
     </article>
   );
 }
 
 function BonusRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-      <span style={{ fontSize: '14px', flexShrink: 0 }}>{icon}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '12px' }}>
+      <span style={{ fontSize: '13px', flexShrink: 0 }}>{icon}</span>
       <span style={{ color: 'var(--pb-text-muted, rgba(255,255,255,0.5))', flexShrink: 0 }}>{label}:</span>
       <span style={{ color: 'var(--pb-accent, #f59e0b)', fontWeight: '600' }}>{value}</span>
     </div>
   );
 }
 
+function ctaBtnBase(): React.CSSProperties {
+  return {
+    display:       'flex',
+    alignItems:    'center',
+    justifyContent:'center',
+    width:         '100%',
+    padding:       '9px 10px',
+    borderRadius:  'var(--pb-radius-btn, 6px)',
+    textDecoration:'none',
+    fontSize:      '12px',
+    fontWeight:    '700',
+    boxSizing:     'border-box',
+    transition:    `opacity var(--pb-duration-base, 0.2s)`,
+  };
+}
+
 const whatsappBtnStyle: React.CSSProperties = {
-  flex:          '1',
-  display:       'flex',
-  alignItems:    'center',
-  justifyContent:'center',
-  padding:       '9px 14px',
-  borderRadius:  'var(--pb-radius-btn, 6px)',
-  textDecoration:'none',
-  fontSize:      '13px',
-  fontWeight:    '700',
-  background:    '#25D366',
-  color:         '#fff',
-  border:        '1px solid #25D366',
-  transition:    `opacity var(--pb-duration-base, 0.2s)`,
-  minWidth:      '100px',
+  ...ctaBtnBase(),
+  background: '#25D366',
+  color:      '#fff',
+  border:     '1px solid #25D366',
+};
+
+const websiteBtnStyle: React.CSSProperties = {
+  ...ctaBtnBase(),
+  border:     '1px solid var(--pb-btn-outline-color, var(--pb-primary, #7c3aed))',
+  color:      'var(--pb-btn-outline-color, var(--pb-primary, #7c3aed))',
+  background: 'transparent',
 };
 
 function primaryBtnStyle(card: PartnerCard): React.CSSProperties {
   const bg        = card.button_color ?? 'var(--pb-btn-bg, var(--pb-primary, #7c3aed))';
   const isOutline = card.button_style === 'outline';
   return {
-    flex:          '1',
-    display:       'flex',
-    alignItems:    'center',
-    justifyContent:'center',
-    padding:       '9px 14px',
-    borderRadius:  'var(--pb-radius-btn, 6px)',
-    textDecoration:'none',
-    fontSize:      '13px',
-    fontWeight:    '700',
-    background:    isOutline ? 'transparent' : bg,
-    color:         isOutline ? bg : 'var(--pb-btn-text, #fff)',
-    border:        `1px solid ${bg}`,
-    transition:    `opacity var(--pb-duration-base, 0.2s)`,
-    minWidth:      '100px',
+    ...ctaBtnBase(),
+    background: isOutline ? 'transparent' : bg,
+    color:      isOutline ? bg : 'var(--pb-btn-text, #fff)',
+    border:     `1px solid ${bg}`,
   };
 }
 
 /* ─── Card Grid / List / Carousel ────────────────────────── */
+
+// Shared by every layout mode — the big transparent logo area (130px mobile,
+// 180px from 768px up). Kept as one constant so list/carousel/grid all agree.
+const LOGO_AREA_STYLES = `
+  .pb-card-logo-area { height: 130px; }
+  @media (min-width: 768px) {
+    .pb-card-logo-area { height: 180px; }
+  }
+`;
 
 export function PartnerCardGrid({ cards, layout_json }: { cards: PartnerCard[]; layout_json: LayoutJson }) {
   if (cards.length === 0) return null;
@@ -250,9 +256,12 @@ export function PartnerCardGrid({ cards, layout_json }: { cards: PartnerCard[]; 
 
   if (layoutMode === 'list') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pb-card-gap, 16px)' }}>
-        {cards.map(c => <PartnerCard key={c.id} card={c} />)}
-      </div>
+      <>
+        <style>{LOGO_AREA_STYLES}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pb-card-gap, 16px)' }}>
+          {cards.map(c => <PartnerCard key={c.id} card={c} />)}
+        </div>
+      </>
     );
   }
 
@@ -260,6 +269,7 @@ export function PartnerCardGrid({ cards, layout_json }: { cards: PartnerCard[]; 
     return (
       <>
         <style>{`
+          ${LOGO_AREA_STYLES}
           .pb-carousel { display: flex; gap: var(--pb-card-gap, 16px); overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
           .pb-carousel::-webkit-scrollbar { height: 4px; }
           .pb-carousel::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
@@ -277,13 +287,28 @@ export function PartnerCardGrid({ cards, layout_json }: { cards: PartnerCard[]; 
     );
   }
 
+  // Default grid — MR Coin style: 2 columns on mobile, 3 from 768px, 4 from 1280px
+  // when the container is wide enough. Fixed column counts (not auto-fill/minmax)
+  // so mobile reliably gets 2-up instead of collapsing to 1 column.
   return (
-    <div style={{
-      display:             'grid',
-      gridTemplateColumns: resolveGridCols(layout_json.cardStyle),
-      gap:                 'var(--pb-card-gap, 16px)',
-    }}>
-      {cards.map(c => <PartnerCard key={c.id} card={c} />)}
-    </div>
+    <>
+      <style>{`
+        ${LOGO_AREA_STYLES}
+        .pb-partner-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        @media (min-width: 768px) {
+          .pb-partner-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pb-card-gap, 16px); }
+        }
+        @media (min-width: 1280px) {
+          .pb-partner-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+      `}</style>
+      <div className="pb-partner-grid">
+        {cards.map(c => <PartnerCard key={c.id} card={c} />)}
+      </div>
+    </>
   );
 }
