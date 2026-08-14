@@ -9,6 +9,7 @@ import {
   insertMedia, findMediaById, findMediaByHash,
   updateMedia, updateMediaFile, softDeleteMedia,
   restoreMedia, hardDeleteMedia,
+  incrementReferenceCount,
   incrementDownloadCount, incrementUsageCount,
 } from '@/lib/repositories/media_repo';
 
@@ -103,10 +104,19 @@ export class MediaServiceImpl {
     // physical file is missing (e.g. Docker volume was recreated after a redeploy).
     const existing = await findMediaByHash(hash);
     if (existing) {
+      // CASE B: record was soft-deleted — restore it before returning so callers
+      // (e.g. deposit receipt) can read it via getBuffer() without a 502.
+      if (existing.deletedAt) {
+        await restoreMedia(existing.id);
+        existing.deletedAt = null;
+        existing.isActive = true;
+      }
       const fileExists = await this.storage.exists(existing.storageKey).catch(() => false);
       if (!fileExists) {
         await this.storage.save(existing.storageKey, input.buffer, input.mimeType);
       }
+      // Track that a new business entity now references this media record.
+      await incrementReferenceCount(existing.id);
       return { record: existing, isDuplicate: true };
     }
 

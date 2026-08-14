@@ -41,6 +41,7 @@ const mockRecord = {
   lastUsedAt: null, lastUsedModule: null, downloadCount: 0, lastDownloadedAt: null,
   createdBy: 1, createdAt: '2026-07-02T00:00:00Z', updatedAt: '2026-07-02T00:00:00Z',
   isActive: true, deletedAt: null, deletedBy: null,
+  source: 'DEPOSIT_ATTACHMENT' as const,
 };
 
 beforeAll(async () => {
@@ -52,6 +53,8 @@ beforeAll(async () => {
   vi.mocked(repo.hardDeleteMedia).mockResolvedValue(true);
   vi.mocked(repo.incrementDownloadCount).mockResolvedValue();
   vi.mocked(repo.incrementUsageCount).mockResolvedValue();
+  vi.mocked(repo.incrementReferenceCount).mockResolvedValue();
+  vi.mocked(repo.restoreMedia).mockResolvedValue(mockRecord);
 });
 
 afterAll(async () => {
@@ -103,9 +106,11 @@ describe('MediaServiceImpl save', () => {
     expect(result.record.mediaType).toBe('IMAGE');
   });
 
-  it('returns isDuplicate=true when file_hash already exists', async () => {
+  it('CASE A: active dedup — returns same id, increments reference_count, skips restore', async () => {
     const service = new MediaServiceImpl(new FilesystemProvider(tmpDir));
     vi.mocked(repo.findMediaByHash).mockResolvedValueOnce(mockRecord);
+    vi.mocked(repo.restoreMedia).mockClear();
+    vi.mocked(repo.incrementReferenceCount).mockClear();
     const result = await service.save({
       buffer: Buffer.from('duplicate'),
       originalFilename: 'dup.jpg',
@@ -114,6 +119,40 @@ describe('MediaServiceImpl save', () => {
     });
     expect(result.isDuplicate).toBe(true);
     expect(result.record.id).toBe(1);
+    expect(repo.restoreMedia).not.toHaveBeenCalled();
+    expect(repo.incrementReferenceCount).toHaveBeenCalledWith(1);
+  });
+
+  it('CASE B: soft-deleted dedup — restores record, updates in-memory state, increments reference_count', async () => {
+    const deletedRecord = {
+      ...mockRecord,
+      deletedAt: '2026-07-01T00:00:00Z',
+      isActive: false,
+    };
+    // physical file still on disk (soft-delete never removes the file)
+    await fs.writeFile(path.join(tmpDir, 'abc123.jpg'), Buffer.from('existing-bytes'));
+    const service = new MediaServiceImpl(new FilesystemProvider(tmpDir));
+    vi.mocked(repo.findMediaByHash).mockResolvedValueOnce(deletedRecord);
+    // Reset accumulated cross-test call counts BEFORE the action under test
+    vi.mocked(repo.restoreMedia).mockClear();
+    vi.mocked(repo.incrementReferenceCount).mockClear();
+    vi.mocked(repo.insertMedia).mockClear();
+    const result = await service.save({
+      buffer: Buffer.from('same-bytes'),
+      originalFilename: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      uploadedBy: null,
+    });
+    expect(result.isDuplicate).toBe(true);
+    expect(result.record.id).toBe(1);
+    // in-memory fields updated
+    expect(result.record.deletedAt).toBeNull();
+    expect(result.record.isActive).toBe(true);
+    // repo calls
+    expect(repo.restoreMedia).toHaveBeenCalledWith(1);
+    expect(repo.incrementReferenceCount).toHaveBeenCalledWith(1);
+    // MUST NOT call insertMedia — would violate UNIQUE constraint on file_hash
+    expect(repo.insertMedia).not.toHaveBeenCalled();
   });
 });
 
