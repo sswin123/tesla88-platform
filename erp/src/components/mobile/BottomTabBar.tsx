@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, MessageSquare, Gamepad2, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, CreditCard, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarState } from '@/components/mobile/sidebar-context';
 import { isActive } from '@/components/sidebar-nav';
@@ -12,14 +12,14 @@ interface Props {
 }
 
 const TABS = [
-  { href: '/',               label: 'Home',    icon: LayoutDashboard, exact: true },
-  { href: '/members',        label: 'Members', icon: Users,           exact: false },
-  { href: '/livechat',       label: 'Chat',    icon: MessageSquare,   exact: false },
-  { href: '/gaming-platform', label: 'Games',  icon: Gamepad2,        exact: false },
+  { href: '/',             label: 'Home',         icon: LayoutDashboard, exact: true },
+  { href: '/members',      label: 'Members',      icon: Users,           exact: false },
+  { href: '/livechat',     label: 'Chat',         icon: MessageSquare,   exact: false },
+  { href: '/transactions', label: 'Transactions', icon: CreditCard,      exact: false },
 ] as const;
 
 export function BottomTabBar({ onOpenDrawer }: Props) {
-  const { livechatUnread } = useSidebarState();
+  const { livechatUnread, pendingCount } = useSidebarState();
   const pathname = usePathname();
 
   return (
@@ -30,7 +30,9 @@ export function BottomTabBar({ onOpenDrawer }: Props) {
     >
       {TABS.map(({ href, label, icon: Icon, exact }) => {
         const active = isActive(href, pathname, exact);
-        const badge = href === '/livechat' ? livechatUnread : 0;
+        const badge = href === '/livechat' ? livechatUnread
+                    : href === '/transactions' ? pendingCount
+                    : 0;
         return (
           <Link
             key={href}
@@ -45,7 +47,7 @@ export function BottomTabBar({ onOpenDrawer }: Props) {
               <Icon size={22} strokeWidth={active ? 2.5 : 2} />
               {badge > 0 && (
                 <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
-                  {badge > 99 ? '99+' : badge}
+                  {badge > 9 ? '9+' : badge}
                 </span>
               )}
             </div>
