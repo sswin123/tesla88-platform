@@ -67,38 +67,8 @@ export class Pussy888ApiClient {
    * Throws with "already exists" in the message when code === -1 (non-fatal duplicate).
    */
   async addUser(userName: string, nickname: string, password: string): Promise<void> {
-    const time    = this.signer.timestamp();
-    const formula = this.cfg.sign_test_formula ?? 'A';
-
-    const maskMid = (s: string, show = 4) =>
-      s.length <= show * 2 ? s : `${s.slice(0, show)}${'*'.repeat(s.length - show * 2)}${s.slice(-show)}`;
-    const ac = maskMid(this.creds.authcode);
-
-    let sign: string;
-    let formulaDesc: string;
-    let sourcePreview: string;
-
-    switch (formula) {
-      case 'B':
-        sign          = this.signer.signB(userName, password, time);
-        formulaDesc   = 'MD5((authcode+userName+PassWd+time+secretKey).toLowerCase())';
-        sourcePreview = `(${ac}+${userName}+[PassWd]+${time}+[secretKey]).toLowerCase()`;
-        break;
-      case 'C':
-        sign          = this.signer.signC(this.creds.agent, userName, time);
-        formulaDesc   = 'MD5((authcode+agent+userName+time+secretKey).toLowerCase())';
-        sourcePreview = `(${ac}+${this.creds.agent}+${userName}+${time}+[secretKey]).toLowerCase()`;
-        break;
-      case 'D':
-        sign          = this.signer.signD(this.creds.agent, userName, password, time);
-        formulaDesc   = 'MD5((authcode+agent+userName+PassWd+time+secretKey).toLowerCase())';
-        sourcePreview = `(${ac}+${this.creds.agent}+${userName}+[PassWd]+${time}+[secretKey]).toLowerCase()`;
-        break;
-      default: // 'A'
-        sign          = this.signer.sign(userName, time);
-        formulaDesc   = 'MD5((authcode+userName+time+secretKey).toLowerCase())';
-        sourcePreview = `(${ac}+${userName}+${time}+[secretKey]).toLowerCase()`;
-    }
+    const time = this.signer.timestamp();
+    const sign = this.signer.sign(userName, time);
 
     const params = new URLSearchParams({
       action:   'addUser',
@@ -114,17 +84,23 @@ export class Pussy888ApiClient {
       sign,
     });
 
-    console.log('[PUSSY888 addUser] SIGN DEBUG:', JSON.stringify({
-      formula,
-      formulaDesc,
-      sourcePreview,
-      sign,
-      agent:    this.creds.agent,
+    // ── SIGN DEBUG — remove after sign formula confirmed ──────────────────────
+    const m = (s: string, start: number, end: number) =>
+      s.length <= start + end ? s : `${s.slice(0, start)}****${end > 0 ? s.slice(-end) : ''}`;
+    console.log('[PUSSY888 ADDUSER SIGN DEBUG]', JSON.stringify({
+      formula:             'A: authcode+userName+time+secretKey',
       userName,
-      PassWd:   password.length > 0 ? `${password.slice(0, 2)}${'*'.repeat(Math.max(0, password.length - 2))}` : '(EMPTY)',
+      password_length:     password.length,
       time,
-      authcode: ac,
+      sign,
+      sign_source_preview: [
+        m(this.creds.authcode,   4, 3),
+        userName,
+        m(time,                  5, 0),
+        m(this.creds.secret_key, 4, 4),
+      ].join('+'),
     }));
+    // ── END SIGN DEBUG ────────────────────────────────────────────────────────
 
     const res = await this.fetchAccountAshxWithFallback(params);
 
