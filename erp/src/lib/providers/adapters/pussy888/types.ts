@@ -28,6 +28,15 @@ export interface Pussy888Config {
   download_url_ios?: string;
   /** Enable verbose API trace logging */
   debug: boolean;
+  /**
+   * Debug only: override which sign formula addUser uses.
+   * A = authcode+userName+time+secretKey (current default)
+   * B = authcode+userName+PassWd+time+secretKey
+   * C = authcode+agent+userName+time+secretKey
+   * D = authcode+agent+userName+PassWd+time+secretKey
+   * Remove this field once correct formula is confirmed.
+   */
+  sign_test_formula?: 'A' | 'B' | 'C' | 'D';
 }
 
 export interface ProviderAccountRow {

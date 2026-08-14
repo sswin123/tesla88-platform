@@ -20,6 +20,28 @@ export class Pussy888Signer {
     return createHash('md5').update(source, 'utf8').digest('hex');
   }
 
+  // ── addUser sign formula candidates (debug use only) ─────────────────────
+
+  /** Formula B: MD5((authcode+userName+PassWd+time+secretKey).toLowerCase()) */
+  signB(userName: string, password: string, time: string): string {
+    const source = (this.authcode + userName + password + time + this.secretKey).toLowerCase();
+    return createHash('md5').update(source, 'utf8').digest('hex');
+  }
+
+  /** Formula C: MD5((authcode+agent+userName+time+secretKey).toLowerCase()) */
+  signC(agent: string, userName: string, time: string): string {
+    const source = (this.authcode + agent + userName + time + this.secretKey).toLowerCase();
+    return createHash('md5').update(source, 'utf8').digest('hex');
+  }
+
+  /** Formula D: MD5((authcode+agent+userName+PassWd+time+secretKey).toLowerCase()) */
+  signD(agent: string, userName: string, password: string, time: string): string {
+    const source = (this.authcode + agent + userName + password + time + this.secretKey).toLowerCase();
+    return createHash('md5').update(source, 'utf8').digest('hex');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   /** Current 13-digit millisecond timestamp as a string. */
   timestamp(): string {
     return String(Date.now());
