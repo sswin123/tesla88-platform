@@ -75,7 +75,7 @@ const TEST_CFG: Pussy888Config = {
   debug:         false,
 };
 
-// Helper: build a mock fetch response envelope
+// Helper: mock fetch response for getUserInfo/setScore endpoints (isSuccess/errCode/data format)
 function mockSuccess<T>(data: T) {
   return Promise.resolve(new Response(
     JSON.stringify({ isSuccess: true, errCode: 0, msg: 'ok', data }),
@@ -86,6 +86,21 @@ function mockSuccess<T>(data: T) {
 function mockFailure(errCode: number, msg: string) {
   return Promise.resolve(new Response(
     JSON.stringify({ isSuccess: false, errCode, msg, data: null }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  ));
+}
+
+// Helper: mock fetch response for /ashx/account/account.ashx (success/code/msg format)
+function mockAddUserSuccess() {
+  return Promise.resolve(new Response(
+    JSON.stringify({ success: true, code: 0, msg: 'successful operation.', type: 2 }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  ));
+}
+
+function mockAddUserDuplicate() {
+  return Promise.resolve(new Response(
+    JSON.stringify({ success: false, code: -1, msg: 'fail operation. exist', type: 2 }),
     { status: 200, headers: { 'Content-Type': 'application/json' } },
   ));
 }
@@ -104,26 +119,37 @@ describe('Pussy888ApiClient', () => {
     fetchSpy.mockRestore();
   });
 
-  // ── createUser ──────────────────────────────────────────────────────────────
+  // ── addUser ──────────────────────────────────────────────────────────────────
 
-  describe('createUser', () => {
-    it('调用 createUser.ashx 并成功时不抛出异常', async () => {
-      fetchSpy.mockResolvedValueOnce(mockSuccess(null) as never);
+  describe('addUser', () => {
+    it('调用 /ashx/account/account.ashx?action=addUser，并在 URL 中携带必要参数', async () => {
+      fetchSpy.mockResolvedValueOnce(mockAddUserSuccess() as never);
 
-      await expect(client.createUser('PSYA333u42')).resolves.toBeUndefined();
+      await expect(client.addUser('PSYA333u42', 'TestNickname', 'Test123')).resolves.toBeUndefined();
 
       const [url] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
-      expect(url).toContain('createUser.ashx');
-      expect(url).toContain('authcode=testauthcode');
+      expect(url).toContain('/ashx/account/account.ashx');
+      expect(url).toContain('action=addUser');
+      expect(url).toContain('agent=PSYA333');
       expect(url).toContain('userName=PSYA333u42');
+      expect(url).toContain('Name=TestNickname');
+      expect(url).toContain('PassWd=Test123');
+      expect(url).toContain('UserType=1');
+      expect(url).toContain('authcode=testauthcode');
       expect(url).toMatch(/time=\d{13}/);
       expect(url).toMatch(/sign=[0-9a-f]{32}/);
     });
 
-    it('API 返回 isSuccess=false 时抛出 Error 并包含 errCode', async () => {
-      fetchSpy.mockResolvedValueOnce(mockFailure(1001, 'UserName already exists') as never);
+    it('传入 fixed password 时 PassWd 字段与传入值完全一致', async () => {
+      fetchSpy.mockResolvedValueOnce(mockAddUserSuccess() as never);
+      await client.addUser('PSYA333u1', 'Player', 'Abc123');
+      const [url] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
+      expect(url).toContain('PassWd=Abc123');
+    });
 
-      await expect(client.createUser('PSYA333u42')).rejects.toThrow('1001');
+    it('code=-1（玩家已存在）时抛出含 "already exists" 的 Error', async () => {
+      fetchSpy.mockResolvedValueOnce(mockAddUserDuplicate() as never);
+      await expect(client.addUser('PSYA333u42', 'Player', 'Test123')).rejects.toThrow('already exists');
     });
   });
 

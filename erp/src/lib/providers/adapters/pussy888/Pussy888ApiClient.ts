@@ -25,6 +25,15 @@ export interface SetScoreData {
   [key: string]: unknown;
 }
 
+// Response shape for /ashx/account/account.ashx (addUser, editUser, disable, …)
+// Distinct from the getUserInfo/setScore envelope which uses isSuccess/errCode.
+interface AddUserResponse {
+  code:    number;   // 0=success, -1=already exists, -2=bad sign, -99=illegal
+  msg:     string;
+  success: boolean;
+  type?:   number;
+}
+
 // ── Client ────────────────────────────────────────────────────────────────────
 
 export class Pussy888ApiClient {
@@ -52,11 +61,71 @@ export class Pussy888ApiClient {
   // ── Member management ─────────────────────────────────────────────────────
 
   /**
-   * Create a player account on Pussy888.
-   * Endpoint: /createUser.ashx
+   * Register a new player on Pussy888.
+   * Official endpoint: AipUrl1/ashx/account/account.ashx?action=addUser
+   * Caller must supply the password (resolved by the adapter via _resolvePassword()).
+   * Throws with "already exists" in the message when code === -1 (non-fatal duplicate).
    */
-  async createUser(userName: string): Promise<void> {
-    await this.get<null>('createUser.ashx', { userName });
+  async addUser(userName: string, nickname: string, password: string): Promise<void> {
+    const time = this.signer.timestamp();
+    const sign = this.signer.sign(userName, time);
+
+    const params = new URLSearchParams({
+      action:   'addUser',
+      agent:    this.creds.agent,
+      PassWd:   password,
+      userName,
+      Name:     nickname || userName,
+      Tel:      'N/A',
+      Memo:     'N/A',
+      UserType: '1',
+      time,
+      authcode: this.creds.authcode,
+      sign,
+    });
+
+    console.log(`[PUSSY888 API] → addUser`, JSON.stringify({ userName, Name: nickname || userName, time }));
+
+    const res = await this.fetchAccountAshxWithFallback(params);
+
+    if (res.code === -1) {
+      throw new Error(`Pussy888 addUser: player already exists (code=-1): ${userName}`);
+    }
+    if (!res.success || res.code !== 0) {
+      throw new Error(`Pussy888 addUser error code=${res.code}: ${res.msg}`);
+    }
+
+    console.log(`[PUSSY888 API] ✓ addUser ${userName} registered successfully`);
+  }
+
+  private async fetchAccountAshxWithFallback(params: URLSearchParams): Promise<AddUserResponse> {
+    const tryFetch = async (base: string): Promise<AddUserResponse> => {
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), this.cfg.timeout_ms);
+      const start = Date.now();
+      try {
+        const res = await fetch(
+          `${base}/ashx/account/account.ashx?${params.toString()}`,
+          { method: 'GET', signal: ctrl.signal },
+        );
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status} from ${base}`);
+        const data = (await res.json()) as AddUserResponse;
+        console.log(`[PUSSY888 API] ← addUser ${base} (${Date.now() - start}ms) code=${data.code} success=${data.success}`);
+        return data;
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    };
+
+    try {
+      return await tryFetch(this.baseUrl);
+    } catch (primaryErr) {
+      if (!this.baseUrl2) throw primaryErr;
+      console.warn(`[PUSSY888 API] addUser primary failed, trying fallback: ${primaryErr instanceof Error ? primaryErr.message : primaryErr}`);
+      return await tryFetch(this.baseUrl2);
+    }
   }
 
   /**

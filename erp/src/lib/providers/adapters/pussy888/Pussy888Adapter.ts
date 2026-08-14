@@ -58,9 +58,21 @@ export class Pussy888Adapter extends BaseProviderAdapter {
     }
 
     const userName = this.buildUserName(internalUserId);
-    await this.api.createUser(userName);
-    await this.upsertProviderAccount(internalUserId, userName);
+    const nickname = params.nickname ?? userName;
+    const password = this._resolvePassword();
 
+    try {
+      await this.api.addUser(userName, nickname, password);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('already exists')) {
+        console.warn(`[PUSSY888] createPlayer: player already exists on provider: ${userName}`);
+      } else {
+        throw new ProviderError(this.code, 502, `Pussy888 addUser failed: ${msg}`);
+      }
+    }
+
+    await this.upsertProviderAccount(internalUserId, userName, password);
     return { provider_player_id: userName, account_id: params.account_id };
   }
 
@@ -107,13 +119,23 @@ export class Pussy888Adapter extends BaseProviderAdapter {
 
     if (!row) {
       const userName = this.buildUserName(userId);
-      await this.api.createUser(userName);
-      await this.upsertProviderAccount(userId, userName);
+      const password = this._resolvePassword();
+      try {
+        await this.api.addUser(userName, userName, password);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('already exists')) {
+          console.warn(`[PUSSY888] launch: player already exists on provider: ${userName}`);
+        } else {
+          throw new ProviderError(this.code, 502, `Pussy888 addUser failed during launch: ${msg}`);
+        }
+      }
+      await this.upsertProviderAccount(userId, userName, password);
 
       const now = new Date().toISOString();
       row = {
         id: 0, provider_code: PUSSY888APP_CODE, user_id: userId,
-        provider_login_id: userName, provider_password: '',
+        provider_login_id: userName, provider_password: password,
         provider_user_id: null, extra: {}, created_at: now, updated_at: now,
       };
     }
@@ -124,6 +146,7 @@ export class Pussy888Adapter extends BaseProviderAdapter {
       session_token: JSON.stringify({
         provider_code:        PUSSY888APP_CODE,
         login_id:             row.provider_login_id,
+        password:             row.provider_password || undefined,
         download_url_android: this.cfg.download_url_android ?? null,
         download_url_ios:     this.cfg.download_url_ios     ?? null,
         apk_name:             'Pussy888',
@@ -257,6 +280,24 @@ export class Pussy888Adapter extends BaseProviderAdapter {
    * Format: {agent}u{userId} — e.g. "PSYA333u42"
    * Uniqueness is guaranteed by userId; agent prefix scopes to this operator.
    */
+  /** Returns fixed_password when password_mode='fixed', otherwise generates a random one. */
+  private _resolvePassword(): string {
+    if (this.cfg.password_mode === 'fixed' && this.cfg.fixed_password?.trim()) {
+      return this.cfg.fixed_password.trim();
+    }
+    return this._generatePassword(this.cfg.password_length ?? 12);
+  }
+
+  private _generatePassword(length: number): string {
+    const len   = Math.min(Math.max(length, 6), 17);
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let pw = '';
+    for (let i = 0; i < len; i++) {
+      pw += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return pw;
+  }
+
   private buildUserName(userId: number): string {
     return `${this.creds.agent}u${userId}`;
   }
@@ -275,16 +316,20 @@ export class Pussy888Adapter extends BaseProviderAdapter {
     return rows[0] ?? null;
   }
 
-  private async upsertProviderAccount(userId: number, userName: string): Promise<void> {
+  private async upsertProviderAccount(userId: number, userName: string, password = ''): Promise<void> {
     const { default: pool } = await import('@/lib/db');
     await pool.query(
       `INSERT INTO provider_accounts
          (provider_code, user_id, provider_login_id, provider_password)
-       VALUES ($1, $2, $3, '')
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (provider_code, user_id) DO UPDATE
          SET provider_login_id = EXCLUDED.provider_login_id,
+             provider_password = CASE
+               WHEN EXCLUDED.provider_password <> '' THEN EXCLUDED.provider_password
+               ELSE provider_accounts.provider_password
+             END,
              updated_at        = NOW()`,
-      [PUSSY888APP_CODE, userId, userName],
+      [PUSSY888APP_CODE, userId, userName, password],
     );
   }
 }

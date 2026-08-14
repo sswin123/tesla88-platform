@@ -248,6 +248,24 @@ const PUSSY888APP: ProviderSchema = {
         { label: 'IDR', value: 'IDR' }, { label: 'VND', value: 'VND' },
       ],
     },
+    {
+      key:  'password_mode',
+      type: 'radio_group',
+      label: 'Password Configuration',
+      required: false,
+      radioOptions: [
+        {
+          value: 'random',
+          label: 'Random Password',
+          childField: { key: 'password_length', label: 'Password Length', type: 'number', placeholder: '12', min: 6, max: 17 },
+        },
+        {
+          value: 'fixed',
+          label: 'Fixed Password',
+          childField: { key: 'fixed_password', label: 'Password', type: 'text', placeholder: 'e.g. Abc123' },
+        },
+      ],
+    },
     { key: 'timeout_ms',          label: 'Request Timeout (ms)',        type: 'number', required: false, min: 3000, max: 60000, placeholder: '15000' },
     { key: 'download_url_android', label: 'APK Download URL (Android)', type: 'url',    required: false, placeholder: 'https://...' },
     { key: 'download_url_ios',     label: 'iOS Download URL',           type: 'url',    required: false, placeholder: 'https://...' },

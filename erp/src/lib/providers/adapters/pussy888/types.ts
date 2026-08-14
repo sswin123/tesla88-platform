@@ -16,6 +16,12 @@ export interface Pussy888Config {
   currency:      string;
   /** HTTP request timeout in milliseconds (default 15000) */
   timeout_ms:    number;
+  /** 'fixed' = always use fixed_password; 'random' = generate on every new account */
+  password_mode?:   'random' | 'fixed';
+  /** Length of generated password when password_mode='random' (6–17, default 12) */
+  password_length?: number;
+  /** Plain-text password used when password_mode='fixed' */
+  fixed_password?:  string;
   /** Android app download URL (shown in launch session_token) */
   download_url_android?: string;
   /** iOS app download URL */
