@@ -84,7 +84,25 @@ export class Pussy888ApiClient {
       sign,
     });
 
-    console.log(`[PUSSY888 API] → addUser`, JSON.stringify({ userName, Name: nickname || userName, time }));
+    // ── TEMPORARY DEBUG LOG — remove after -104 diagnosis resolved ──────────
+    const maskMid = (s: string, show = 4) =>
+      s.length <= show * 2 ? s : `${s.slice(0, show)}${'*'.repeat(s.length - show * 2)}${s.slice(-show)}`;
+    console.log('[PUSSY888 addUser] FULL REQUEST PAYLOAD:', JSON.stringify({
+      action:   'addUser',
+      agent:    this.creds.agent,
+      PassWd:   password.length > 0 ? `${password.slice(0, 2)}${'*'.repeat(Math.max(0, password.length - 2))}` : '(EMPTY)',
+      userName,
+      Name:     nickname || userName,
+      Tel:      'N/A',
+      Memo:     'N/A',
+      UserType: '1',
+      time,
+      authcode: maskMid(this.creds.authcode),
+      sign:     sign,
+      sign_source_formula: `MD5((authcode+userName+time+secretKey).toLowerCase())`,
+      sign_source_preview: `(${maskMid(this.creds.authcode)}+${userName}+${time}+[secretKey]).toLowerCase()`,
+    }));
+    // ── END TEMPORARY DEBUG LOG ──────────────────────────────────────────────
 
     const res = await this.fetchAccountAshxWithFallback(params);
 
