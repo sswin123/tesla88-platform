@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type WidgetType =
-  | 'social' | 'button' | 'language' | 'partner' | 'profile' | 'divider';
+  | 'social' | 'button' | 'language' | 'partner' | 'profile' | 'divider' | 'image';
 
 export type SocialPlatform =
   | 'whatsapp' | 'telegram' | 'facebook' | 'instagram'
@@ -70,12 +70,20 @@ export interface ProfileSettings {
   tooltip?: string;
 }
 
+export interface ImageSettings {
+  media_id?: number;
+  alt?: string;
+  height?: number;
+  link_url?: string;
+  link_open?: 'same' | 'new';
+}
+
 export interface HeaderWidget {
   id: string;
   type: WidgetType;
   enabled: boolean;
   visibility: Visibility;
-  settings: SocialSettings | ButtonSettings | LanguageSettings | PartnerSettings | ProfileSettings | Record<string, never>;
+  settings: SocialSettings | ButtonSettings | LanguageSettings | PartnerSettings | ProfileSettings | ImageSettings | Record<string, never>;
 }
 
 export type HeaderLayout = 'left-logo' | 'center-logo' | 'right-logo';
@@ -181,6 +189,7 @@ function widgetLabel(w: HeaderWidget): string {
   }
   if (w.type === 'profile')  return '个人中心';
   if (w.type === 'divider')  return '分隔线';
+  if (w.type === 'image')    return '图片/GIF';
   return '组件';
 }
 
@@ -191,6 +200,7 @@ function widgetIcon(w: HeaderWidget): string {
   if (w.type === 'partner')  return '🤝';
   if (w.type === 'profile')  return '👤';
   if (w.type === 'divider')  return '│';
+  if (w.type === 'image')    return '🖼';
   return '📦';
 }
 
@@ -705,6 +715,78 @@ function ProfileEditor({ settings, onChange }: {
   );
 }
 
+// ── Image Widget Editor ────────────────────────────────────────────────────────
+
+function ImageEditor({ settings, onChange }: {
+  settings: ImageSettings; onChange: (s: ImageSettings) => void;
+}) {
+  const previewUrl = settings.media_id ? `/api/public/media/${settings.media_id}` : undefined;
+  return (
+    <div className="space-y-4">
+      <ImageUploadField
+        label="图片 / GIF"
+        mediaId={settings.media_id}
+        previewUrl={previewUrl}
+        onUpload={(mediaId) => onChange({ ...settings, media_id: mediaId })}
+        onRemove={() => onChange({ ...settings, media_id: undefined })}
+        hint={
+          <MediaUploadHint
+            rec="任意尺寸（建议高度 ≤ 200px）"
+            ratio="任意"
+            maxMB={5}
+            formats={['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF']}
+            note="GIF 动画自动保留，不裁剪"
+          />
+        }
+      />
+      <div>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">图片高度（px，可选）</label>
+        <input
+          type="number" min={10} max={200}
+          value={settings.height ?? ''}
+          onChange={e => onChange({ ...settings, height: e.target.value ? Number(e.target.value) : undefined })}
+          placeholder="32"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">Alt 文字（可选）</label>
+        <input
+          value={settings.alt ?? ''}
+          onChange={e => onChange({ ...settings, alt: e.target.value })}
+          placeholder="图片描述"
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1">点击链接（可选）</label>
+        <input
+          value={settings.link_url ?? ''}
+          onChange={e => onChange({ ...settings, link_url: e.target.value })}
+          placeholder="https://..."
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500"
+        />
+      </div>
+      {settings.link_url && (
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1">链接打开方式</label>
+          <div className="flex gap-2">
+            {(['same', 'new'] as const).map(v => (
+              <button key={v} type="button"
+                onClick={() => onChange({ ...settings, link_open: v })}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  (settings.link_open ?? 'same') === v
+                    ? 'bg-violet-600 border-violet-500 text-white'
+                    : 'bg-gray-800 border-gray-700 text-muted-foreground'
+                }`}>{v === 'same' ? '当前页' : '新窗口'}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Widget Settings Router ─────────────────────────────────────────────────────
 
 function WidgetSettingsEditor({ widget, onChange }: {
@@ -718,6 +800,7 @@ function WidgetSettingsEditor({ widget, onChange }: {
       {widget.type === 'language' && <LanguageEditor settings={widget.settings as LanguageSettings} onChange={s => upd(s)} />}
       {widget.type === 'partner'  && <PartnerEditor  settings={widget.settings as PartnerSettings}  onChange={s => upd(s)} />}
       {widget.type === 'profile'  && <ProfileEditor  settings={widget.settings as ProfileSettings}  onChange={s => upd(s)} />}
+      {widget.type === 'image'    && <ImageEditor    settings={widget.settings as ImageSettings}    onChange={s => upd(s)} />}
       {widget.type === 'divider'  && <p className="text-xs text-muted-foreground">分隔线无需配置</p>}
 
       <div className="mt-4 pt-4 border-t border-gray-700">
@@ -798,6 +881,16 @@ function HeaderPreview({ config }: { config: HeaderConfig }) {
         </div>
       );
     }
+    if (w.type === 'image') {
+      const s = w.settings as ImageSettings;
+      const imgUrl = s.media_id ? `/api/public/media/${s.media_id}` : null;
+      if (!imgUrl) return <div key={w.id} className="flex items-center px-1 text-xs text-white/40">🖼</div>;
+      return (
+        <div key={w.id} className="flex items-center shrink-0">
+          <img src={imgUrl} alt={s.alt ?? ''} style={{ height: s.height ?? 32, width: 'auto', maxWidth: 80 }} className="object-contain" />
+        </div>
+      );
+    }
     return null;
   };
 
@@ -866,6 +959,7 @@ const WIDGET_TEMPLATES: Array<{ type: WidgetType; label: string; desc: string; i
   { type: 'partner',  label: '合作伙伴',  desc: 'Partner Logo + 弹窗（支持多个）', icon: '🤝' },
   { type: 'profile',  label: '个人中心',  desc: '会员头像 / 登录按钮', icon: '👤' },
   { type: 'divider',  label: '分隔线',    desc: '组件之间的竖线分隔', icon: '│' },
+  { type: 'image',    label: '图片/GIF',  desc: '图片或 GIF 动画，支持点击链接', icon: '🖼' },
 ];
 
 function defaultSettings(type: WidgetType): HeaderWidget['settings'] {
@@ -883,8 +977,28 @@ function defaultSettings(type: WidgetType): HeaderWidget['settings'] {
     badge: '' as PartnerSettings['badge'],
   };
   if (type === 'profile')  return { action: 'profile' as ProfileAction, tooltip: '我的账户' };
+  if (type === 'image')    return {};
   return {};
 }
+
+// ── Nav Config ────────────────────────────────────────────────────────────────
+
+export interface NavItem {
+  id: string;
+  label: string;
+  icon?: string;
+  url: string;
+  open: 'same' | 'new';
+  children?: NavItem[];
+}
+
+export interface NavConfig {
+  items: NavItem[];
+}
+
+function navItemId() { return `nav-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; }
+
+const DEFAULT_NAV: NavConfig = { items: [] };
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -896,21 +1010,30 @@ export default function HeaderBuilderPage() {
   const [msg, setMsg]               = useState('');
   const [loading, setLoading]       = useState(true);
 
+  const [navConfig, setNavConfig]         = useState<NavConfig>(DEFAULT_NAV);
+  const [navSelectedId, setNavSelectedId] = useState<string | null>(null);
+  const [navSaving, setNavSaving]         = useState(false);
+  const [navMsg, setNavMsg]               = useState('');
+
   useEffect(() => {
-    fetch('/api/website/header-config')
-      .then(r => r.ok ? r.json() as Promise<HeaderConfig | null> : null)
-      .then(data => {
-        if (data) {
-          setConfig({
-            ...DEFAULT_CONFIG,
-            ...data,
-            show_profile_widget: data.show_profile_widget ?? true,
-            show_header_widgets: data.show_header_widgets ?? true,
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/website/header-config')
+        .then(r => r.ok ? r.json() as Promise<HeaderConfig | null> : null)
+        .catch(() => null),
+      fetch('/api/website/nav-config')
+        .then(r => r.ok ? r.json() as Promise<NavConfig | null> : null)
+        .catch(() => null),
+    ]).then(([headerData, navData]) => {
+      if (headerData) {
+        setConfig({
+          ...DEFAULT_CONFIG,
+          ...headerData,
+          show_profile_widget: headerData.show_profile_widget ?? true,
+          show_header_widgets: headerData.show_header_widgets ?? true,
+        });
+      }
+      if (navData) setNavConfig(navData);
+    }).finally(() => setLoading(false));
   }, []);
 
   const selectedWidget = config.widgets.find(w => w.id === selectedId) ?? null;
@@ -956,6 +1079,46 @@ export default function HeaderBuilderPage() {
     setMsg(res.ok ? '✓ 已保存，网站Header已更新' : '✗ 保存失败，请重试');
     setTimeout(() => setMsg(''), 3000);
   }
+
+  async function handleNavSave() {
+    setNavSaving(true); setNavMsg('');
+    const res = await fetch('/api/website/nav-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(navConfig),
+    });
+    setNavSaving(false);
+    setNavMsg(res.ok ? '✓ 导航已保存' : '✗ 保存失败，请重试');
+    setTimeout(() => setNavMsg(''), 3000);
+  }
+
+  function addNavItem() {
+    const item: NavItem = { id: navItemId(), label: '新菜单', url: '/', open: 'same' };
+    setNavConfig(c => ({ ...c, items: [...c.items, item] }));
+    setNavSelectedId(item.id);
+  }
+
+  function updateNavItem(updated: NavItem) {
+    setNavConfig(c => ({ ...c, items: c.items.map(it => it.id === updated.id ? updated : it) }));
+  }
+
+  function deleteNavItem(id: string) {
+    if (navSelectedId === id) setNavSelectedId(null);
+    setNavConfig(c => ({ ...c, items: c.items.filter(it => it.id !== id) }));
+  }
+
+  function moveNavItem(id: string, dir: -1 | 1) {
+    setNavConfig(c => {
+      const items = [...c.items];
+      const i = items.findIndex(it => it.id === id);
+      const j = i + dir;
+      if (j < 0 || j >= items.length) return c;
+      [items[i], items[j]] = [items[j], items[i]];
+      return { ...c, items };
+    });
+  }
+
+  const selectedNavItem = navConfig.items.find(it => it.id === navSelectedId) ?? null;
 
   const toggleOpt = (key: keyof HeaderConfig) =>
     setConfig(c => ({ ...c, [key]: !c[key as keyof HeaderConfig] }));
@@ -1152,6 +1315,114 @@ export default function HeaderBuilderPage() {
           )}
         </div>
       </div>
+
+      {/* Nav Editor */}
+      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-white">移动端导航菜单</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">配置汉堡菜单的导航项目</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {navMsg && (
+              <span className={`text-sm font-medium ${navMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{navMsg}</span>
+            )}
+            <button type="button" onClick={addNavItem}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold rounded-lg transition-colors">
+              + 添加菜单项
+            </button>
+            <button onClick={handleNavSave} disabled={navSaving}
+              className="flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
+              {navSaving ? '保存中…' : '💾 保存导航'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Nav item list */}
+          <div className="space-y-2">
+            {navConfig.items.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground border border-dashed border-gray-700 rounded-xl">
+                <p className="text-xl mb-1">📋</p>
+                <p className="text-sm">暂无导航项，点击上方添加</p>
+              </div>
+            )}
+            {navConfig.items.map((item, i) => (
+              <div key={item.id}
+                onClick={() => setNavSelectedId(navSelectedId === item.id ? null : item.id)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+                  navSelectedId === item.id
+                    ? 'border-violet-500 bg-violet-500/10'
+                    : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                }`}>
+                <span className="text-base shrink-0">{item.icon || '🔗'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{item.label || '(未命名)'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{item.url}</p>
+                </div>
+                <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                  <button type="button" disabled={i === 0} onClick={() => moveNavItem(item.id, -1)}
+                    className="text-muted-foreground hover:text-white disabled:opacity-30 text-xs leading-none">▲</button>
+                  <button type="button" disabled={i === navConfig.items.length - 1} onClick={() => moveNavItem(item.id, 1)}
+                    className="text-muted-foreground hover:text-white disabled:opacity-30 text-xs leading-none">▼</button>
+                </div>
+                <button type="button" onClick={e => { e.stopPropagation(); deleteNavItem(item.id); }}
+                  className="text-muted-foreground hover:text-red-400 text-sm shrink-0 transition-colors">✕</button>
+              </div>
+            ))}
+          </div>
+
+          {/* Nav item editor */}
+          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            {selectedNavItem ? (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">编辑菜单项</h4>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">标签文字</label>
+                  <input value={selectedNavItem.label}
+                    onChange={e => updateNavItem({ ...selectedNavItem, label: e.target.value })}
+                    placeholder="首页"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">图标 Emoji（可选）</label>
+                  <input value={selectedNavItem.icon ?? ''}
+                    onChange={e => updateNavItem({ ...selectedNavItem, icon: e.target.value })}
+                    placeholder="🏠"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">链接 URL</label>
+                  <input value={selectedNavItem.url}
+                    onChange={e => updateNavItem({ ...selectedNavItem, url: e.target.value })}
+                    placeholder="/"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">打开方式</label>
+                  <div className="flex gap-2">
+                    {(['same', 'new'] as const).map(v => (
+                      <button key={v} type="button"
+                        onClick={() => updateNavItem({ ...selectedNavItem, open: v })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          selectedNavItem.open === v
+                            ? 'bg-violet-600 border-violet-500 text-white'
+                            : 'bg-gray-700 border-gray-600 text-muted-foreground'
+                        }`}>{v === 'same' ? '当前页' : '新窗口'}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <p className="text-xl mb-2">👈</p>
+                <p className="text-sm">点击左侧菜单项进行编辑</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

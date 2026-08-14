@@ -68,14 +68,22 @@ export interface ProfileSettings {
   tooltip?: string;
 }
 
-export type WidgetType = 'social' | 'button' | 'language' | 'partner' | 'profile' | 'divider';
+export interface ImageSettings {
+  media_id?: number;
+  alt?: string;
+  height?: number;
+  link_url?: string;
+  link_open?: 'same' | 'new';
+}
+
+export type WidgetType = 'social' | 'button' | 'language' | 'partner' | 'profile' | 'divider' | 'image';
 
 export interface HeaderWidget {
   id: string;
   type: WidgetType;
   enabled: boolean;
   visibility: Visibility;
-  settings: SocialSettings | ButtonSettings | LanguageSettings | PartnerSettings | ProfileSettings | Record<string, never>;
+  settings: SocialSettings | ButtonSettings | LanguageSettings | PartnerSettings | ProfileSettings | ImageSettings | Record<string, never>;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -352,6 +360,38 @@ function ProfileWidget({ w }: { w: HeaderWidget }) {
   );
 }
 
+// ── Image Widget ───────────────────────────────────────────────────────────────
+
+function ImageWidget({ w }: { w: HeaderWidget }) {
+  const s = w.settings as ImageSettings;
+  const imgUrl = s.media_id ? `/api/public/media/${s.media_id}` : null;
+  if (!imgUrl) return null;
+
+  const visCls = w.visibility === 'desktop' ? 'hidden lg:flex' : w.visibility === 'mobile' ? 'flex lg:hidden' : 'flex';
+
+  const img = (
+    <img
+      src={imgUrl}
+      alt={s.alt ?? ''}
+      style={{ height: s.height ?? 32, width: 'auto', maxWidth: 120 }}
+      className="object-contain shrink-0"
+    />
+  );
+
+  if (s.link_url) {
+    return (
+      <a href={s.link_url}
+        target={s.link_open === 'new' ? '_blank' : undefined}
+        rel={s.link_open === 'new' ? 'noopener noreferrer' : undefined}
+        className={`items-center shrink-0 ${visCls}`}>
+        {img}
+      </a>
+    );
+  }
+
+  return <div className={`items-center shrink-0 ${visCls}`}>{img}</div>;
+}
+
 // ── Widget Router ──────────────────────────────────────────────────────────────
 
 function Widget({ w }: { w: HeaderWidget }) {
@@ -367,6 +407,7 @@ function Widget({ w }: { w: HeaderWidget }) {
   if (w.type === 'button')   return <ButtonWidget   w={w} />;
   if (w.type === 'partner')  return <PartnerWidget  w={w} />;
   if (w.type === 'profile')  return <ProfileWidget  w={w} />;
+  if (w.type === 'image')    return <ImageWidget    w={w} />;
   return null;
 }
 

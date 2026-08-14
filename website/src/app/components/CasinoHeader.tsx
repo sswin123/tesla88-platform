@@ -1,7 +1,9 @@
 import type { PublicBrand } from '@/lib/brand';
 import type { PublicAnnouncement } from '@/app/api/public/announcements/route';
 import HeaderWidgets from './HeaderWidgets';
+import MobileMenu from './MobileMenu';
 import { type HeaderConfig } from '@/lib/header-config';
+import { type NavConfig } from '@/lib/nav-config';
 
 export type { HeaderConfig };
 
@@ -9,6 +11,7 @@ interface Props {
   brand: PublicBrand;
   announcements?: PublicAnnouncement[];
   headerConfig?: HeaderConfig | null;
+  navConfig?: NavConfig | null;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -42,6 +45,7 @@ export default function CasinoHeader({
   brand,
   announcements = [],
   headerConfig,
+  navConfig,
 }: Props) {
   const logoUrl     = brand.logo_media_id ? `/api/public/media/${brand.logo_media_id}` : null;
   const logoSizeCls = LOGO_SIZE_CLASS[brand.logo_size ?? 'medium'] ?? 'h-12';
@@ -79,12 +83,9 @@ export default function CasinoHeader({
     </a>
   ) : null;
 
+  const navItems = navConfig?.items ?? [];
   const menuBtn = showMenuBtn ? (
-    <button className="lg:hidden flex flex-col gap-1.5 p-1 shrink-0" aria-label="Menu">
-      <span className="block w-5 h-px bg-white/70" />
-      <span className="block w-5 h-px bg-white/70" />
-      <span className="block w-5 h-px bg-white/70" />
-    </button>
+    <MobileMenu navItems={navItems} />
   ) : null;
 
   // When headerConfig exists, HeaderWidgets is the single source of truth.

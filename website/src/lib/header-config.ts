@@ -19,7 +19,7 @@ export const HeaderConfigSchema = z.object({
   show_header_widgets: z.boolean().default(true),
   widgets: z.array(z.object({
     id: z.string(),
-    type: z.enum(['social', 'button', 'language', 'partner', 'profile', 'divider']),
+    type: z.enum(['social', 'button', 'language', 'partner', 'profile', 'divider', 'image']),
     enabled: z.boolean(),
     visibility: z.enum(['both', 'desktop', 'mobile']),
     settings: z.record(z.string(), z.unknown()),

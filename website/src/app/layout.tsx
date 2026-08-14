@@ -6,6 +6,7 @@ import { getBrand } from '@/lib/brand';
 import { resolveDesignVars } from '@/lib/design-themes';
 import CasinoHeader from './components/CasinoHeader';
 import { parseHeaderConfig, type HeaderConfig } from '@/lib/header-config';
+import { parseNavConfig, type NavConfig } from '@/lib/nav-config';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
@@ -41,6 +42,29 @@ async function getHeaderConfig(): Promise<HeaderConfig | null> {
     return _headerConfigCache;
   } catch (e) {
     console.error(`[layout] getHeaderConfig DB error: ${Date.now() - _t}ms`, e);
+    return null;
+  }
+}
+
+let _navConfigCache: NavConfig | null | '__unset__' = '__unset__';
+let _navConfigAt = 0;
+
+async function getNavConfig(): Promise<NavConfig | null> {
+  if (_navConfigCache !== '__unset__' && Date.now() - _navConfigAt < 30_000) {
+    return _navConfigCache;
+  }
+  const _t = Date.now();
+  try {
+    const res = await pool.query<{ value: string }>(
+      "SELECT value FROM system_settings WHERE key = 'nav_config'"
+    );
+    console.log(`[layout] getNavConfig DB: ${Date.now() - _t}ms`);
+    const raw = res.rows[0]?.value;
+    _navConfigCache = raw ? parseNavConfig(raw) : null;
+    _navConfigAt = Date.now();
+    return _navConfigCache;
+  } catch (e) {
+    console.error(`[layout] getNavConfig DB error: ${Date.now() - _t}ms`, e);
     return null;
   }
 }
@@ -117,10 +141,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isPartnerPage = h.get('x-is-partner-page') === '1';
 
   const _t1 = Date.now();
-  const [brand, announcements, headerConfig] = await Promise.all([
+  const [brand, announcements, headerConfig, navConfig] = await Promise.all([
     getBrand().then(r        => { console.log(`[layout:${_rid}] getBrand: +${Date.now() - _t1}ms`);           return r; }),
     getActiveAnnouncements().then(r => { console.log(`[layout:${_rid}] getAnnouncements: +${Date.now() - _t1}ms`); return r; }),
     getHeaderConfig().then(r => { console.log(`[layout:${_rid}] getHeaderConfig: +${Date.now() - _t1}ms`);    return r; }),
+    getNavConfig().then(r    => { console.log(`[layout:${_rid}] getNavConfig: +${Date.now() - _t1}ms`);       return r; }),
   ]);
   console.log(`[layout:${_rid}] Promise.all done: +${Date.now() - _t0}ms total`);
 
@@ -170,6 +195,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             brand={brand}
             announcements={announcements}
             headerConfig={headerConfig}
+            navConfig={navConfig}
           />
 
           <div style={{ paddingTop: topOffset, paddingBottom: 'calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px))' }} className="lg:pb-0">
@@ -191,6 +217,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           brand={brand}
           announcements={announcements}
           headerConfig={headerConfig}
+          navConfig={navConfig}
         />
 
         {/* ── Page shell ──────────────────────── */}
