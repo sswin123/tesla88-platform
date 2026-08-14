@@ -1,0 +1,33 @@
+import { createHash } from 'crypto';
+
+export class Pussy888Signer {
+  constructor(
+    private readonly authcode:  string,
+    private readonly secretKey: string,
+  ) {}
+
+  /**
+   * Pussy888 API signature formula:
+   *   sign = MD5((authcode + userName + time + secretKey).toLowerCase())
+   *
+   * All parts concatenated, then the entire string lowercased before MD5.
+   *
+   * @param userName - player username (e.g. PSYA333_u42)
+   * @param time     - 13-digit millisecond timestamp
+   */
+  sign(userName: string, time: string): string {
+    const source = (this.authcode + userName + time + this.secretKey).toLowerCase();
+    return createHash('md5').update(source, 'utf8').digest('hex');
+  }
+
+  /** Current 13-digit millisecond timestamp as a string. */
+  timestamp(): string {
+    return String(Date.now());
+  }
+
+  maskSecret(): string {
+    const s = this.secretKey;
+    if (s.length <= 4) return `[${s.length}chars:****]`;
+    return `[${s.length}chars:${s.slice(0, 2)}${'*'.repeat(s.length - 4)}${s.slice(-2)}]`;
+  }
+}

@@ -217,6 +217,70 @@ const YES918: ProviderSchema = {
   ],
 };
 
+// ─── PUSSY888APP ──────────────────────────────────────────────────────────────
+
+const PUSSY888APP: ProviderSchema = {
+  code: 'PUSSY888APP',
+  displayName: 'Pussy888 App',
+  isStub: false,
+  config: [
+    {
+      key:         'api_base_url',
+      label:       'API Base URL (Primary)',
+      type:        'url',
+      required:    true,
+      placeholder: 'http://api.pussy888.com',
+      description: 'Primary Pussy888 API endpoint.',
+    },
+    {
+      key:         'api_base_url2',
+      label:       'API Base URL (Fallback)',
+      type:        'url',
+      required:    false,
+      placeholder: 'http://api2.pussy888.com',
+      description: 'Fallback endpoint used when primary is unreachable.',
+    },
+    {
+      key: 'currency', label: 'Default Currency', type: 'select', required: true,
+      options: [
+        { label: 'MYR', value: 'MYR' }, { label: 'USD', value: 'USD' },
+        { label: 'SGD', value: 'SGD' }, { label: 'THB', value: 'THB' },
+        { label: 'IDR', value: 'IDR' }, { label: 'VND', value: 'VND' },
+      ],
+    },
+    { key: 'timeout_ms',          label: 'Request Timeout (ms)',        type: 'number', required: false, min: 3000, max: 60000, placeholder: '15000' },
+    { key: 'download_url_android', label: 'APK Download URL (Android)', type: 'url',    required: false, placeholder: 'https://...' },
+    { key: 'download_url_ios',     label: 'iOS Download URL',           type: 'url',    required: false, placeholder: 'https://...' },
+    {
+      key: 'debug', label: 'Debug Mode', type: 'select', required: false,
+      options: [{ label: 'Off', value: 'false' }, { label: 'On', value: 'true' }],
+    },
+  ],
+  credentials: [
+    {
+      key:         'agent',
+      label:       'Agent Code',
+      type:        'text',
+      required:    true,
+      description: 'Your Pussy888 agent/partner code, e.g. PSYA333. Used as a prefix in player usernames.',
+    },
+    {
+      key:         'authcode',
+      label:       'AuthCode',
+      type:        'password',
+      required:    true,
+      description: 'API authentication code sent in every request as ?authcode=. From Pussy888 API settings.',
+    },
+    {
+      key:         'secret_key',
+      label:       'SecretKey',
+      type:        'password',
+      required:    true,
+      description: 'Secret key used only for MD5 signature. Never transmitted. Formula: MD5((authcode+userName+time+secretKey).toLowerCase()).',
+    },
+  ],
+};
+
 // ─── Stub helper ─────────────────────────────────────────────────────────────
 
 function stub(code: string, displayName: string): ProviderSchema {
@@ -229,6 +293,7 @@ const REGISTRY: Record<string, ProviderSchema> = {
   MEGAH5,
   MEGAAPP,
   YES918,
+  PUSSY888APP,
   KISS918:    stub('KISS918',    '918KISS'),
   '918KISS':  stub('918KISS',   '918KISS'),
   PG:         stub('PG',         'PG Soft'),

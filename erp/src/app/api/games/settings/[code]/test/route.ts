@@ -197,6 +197,127 @@ async function testKiss918H5LobbyFlow(
   };
 }
 
+// ── Pussy888 getUserInfo probe ────────────────────────────────────────────────
+//
+// Calls getUserInfo.ashx with a known-absent probe account ({agent}u0).
+// A "user not found" API response means credentials are valid and API is reachable.
+// Auth errors (sign mismatch / wrong authcode) mean the credentials are wrong.
+//
+// Three-state classification:
+//   ok          — API returned isSuccess=true (probe user unexpectedly found)
+//   configured  — API responded with JSON; user-not-found = credentials valid
+//   error       — network failure OR auth failure (sign error / wrong authcode)
+//
+// Does NOT call setScore — read-only probe only.
+import { createHash } from 'crypto';
+
+function pussy888Sign(authcode: string, userName: string, time: string, secretKey: string): string {
+  return createHash('md5')
+    .update((authcode + userName + time + secretKey).toLowerCase(), 'utf8')
+    .digest('hex');
+}
+
+async function testPussy888GetUserInfo(
+  cfg:   Record<string, string>,
+  creds: Record<string, string>,
+): Promise<UrlCheckResult> {
+  const label     = 'Pussy888 API (getUserInfo)';
+  const baseUrl   = cfg['api_base_url']?.replace(/\/$/, '');
+  const baseUrl2  = cfg['api_base_url2']?.replace(/\/$/, '');
+  const authcode  = creds['authcode']   ?? '';
+  const secretKey = creds['secret_key'] ?? '';
+  const agent     = creds['agent']      ?? '';
+
+  if (!baseUrl) {
+    return { label, url: null, state: 'error', latency_ms: null, error: 'api_base_url 未配置' };
+  }
+  if (!authcode || !secretKey || !agent) {
+    return { label, url: null, state: 'error', latency_ms: null, error: '凭证未配置 (agent / authcode / secret_key)' };
+  }
+
+  const probeUser = `${agent}u0`;
+  const time      = String(Date.now());
+  const sign      = pussy888Sign(authcode, probeUser, time, secretKey);
+  const params    = new URLSearchParams({ authcode, userName: probeUser, time, sign });
+  const endpoint  = 'getUserInfo.ashx';
+
+  // Try primary, then fallback
+  const urls = [baseUrl, ...(baseUrl2 ? [baseUrl2] : [])].map(b => `${b}/${endpoint}`);
+  let finalUrl = urls[0];
+
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+  const start = Date.now();
+
+  let res: Response | null = null;
+  let networkErr: string | null = null;
+
+  for (const url of urls) {
+    finalUrl = url;
+    try {
+      res = await fetch(`${url}?${params}`, { method: 'GET', signal: ctrl.signal });
+      break; // success
+    } catch (e) {
+      networkErr = e instanceof Error ? e.message : String(e);
+      res = null;
+    }
+  }
+  clearTimeout(timer);
+  const latency_ms = Date.now() - start;
+
+  if (!res) {
+    return {
+      label, url: finalUrl, state: 'error', latency_ms,
+      error: networkErr ?? 'Network failure',
+    };
+  }
+
+  if (!res.ok) {
+    return {
+      label, url: finalUrl, state: 'error', latency_ms,
+      http_status: res.status,
+      error: `HTTP ${res.status}`,
+    };
+  }
+
+  const body = await res.text().catch(() => '');
+  let parsed: Record<string, unknown> | null = null;
+  try { parsed = JSON.parse(body) as Record<string, unknown>; } catch { /* ignore */ }
+
+  if (!parsed) {
+    return {
+      label, url: finalUrl, state: 'configured', latency_ms,
+      note: `API 可达，但响应非 JSON（可能需要 IP 白名单）。响应前 200 字符: ${body.slice(0, 200)}`,
+    };
+  }
+
+  const errCode = parsed['errCode'] as number | undefined;
+  const msg     = String(parsed['msg'] ?? '');
+  const isSuccess = !!parsed['isSuccess'];
+
+  if (isSuccess) {
+    return { label, url: finalUrl, state: 'ok', latency_ms, note: '凭证验证成功（探针用户存在）' };
+  }
+
+  // Distinguish auth errors from "user not found"
+  const lmsg = msg.toLowerCase();
+  const isAuthErr = lmsg.includes('sign') || lmsg.includes('auth') || lmsg.includes('authcode') ||
+                    lmsg.includes('token') || lmsg.includes('forbidden') || errCode === 1001;
+
+  if (isAuthErr) {
+    return {
+      label, url: finalUrl, state: 'error', latency_ms,
+      error: `凭证验证失败 — errCode=${errCode} msg="${msg}"。检查 authcode / secret_key 是否正确。`,
+    };
+  }
+
+  // Any other error (e.g. user not found) = API reachable, credentials valid
+  return {
+    label, url: finalUrl, state: 'configured', latency_ms,
+    note: `API 连接正常。探针用户不存在（预期）— errCode=${errCode} msg="${msg}"。凭证有效。`,
+  };
+}
+
 // Per-URL-type notes for common non-2xx responses
 const URL_NOTES: Record<string, string> = {
   'H5 Game URL': 'Requires a valid session token — cannot health-check directly',
@@ -328,14 +449,18 @@ export async function POST(_req: NextRequest, { params }: Params) {
   // ── Step 4: URL checks (dynamic — no hardcoded keys) ─────────────────────
   const providerMeta = await providerRegistry.getMetadata(upperCode);
   const startAll = Date.now();
-  const urlChecks = await Promise.all(
-    result.urlConfigKeys.map(k => {
+  const urlChecks = await Promise.all([
+    ...result.urlConfigKeys.map(k => {
       if (providerMeta.supports_lobby_auth_test === true && k === 'h5_lobby_domain') {
         return testKiss918H5LobbyFlow(result.config, result.credentials);
       }
       return checkUrl(k, result.config[k]);
     }),
-  );
+    // PUSSY888APP: append a real getUserInfo API probe (read-only, no setScore)
+    ...(upperCode === 'PUSSY888APP'
+      ? [testPussy888GetUserInfo(result.config, result.credentials)]
+      : []),
+  ]);
   const totalLatency = Date.now() - startAll;
 
   // ── Step 5: Credential presence (dynamic from AdapterRegistry + DB keys) ─
