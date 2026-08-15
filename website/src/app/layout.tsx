@@ -7,6 +7,7 @@ import { resolveDesignVars } from '@/lib/design-themes';
 import CasinoHeader from './components/CasinoHeader';
 import { parseHeaderConfig, type HeaderConfig } from '@/lib/header-config';
 import { parseNavConfig, type NavConfig } from '@/lib/nav-config';
+import { parseFooterConfig, type FooterConfig } from '@/lib/footer-config';
 import BottomNav from './components/BottomNav';
 import MemberPanel from './components/MemberPanel';
 import FloatingSupport from './components/FloatingSupport';
@@ -65,6 +66,23 @@ async function getNavConfig(): Promise<NavConfig | null> {
     return _navConfigCache;
   } catch (e) {
     console.error(`[layout] getNavConfig DB error: ${Date.now() - _t}ms`, e);
+    return null;
+  }
+}
+
+// No in-memory cache here (unlike getHeaderConfig/getNavConfig above) —
+// Footer Builder's Publish action must take effect on the very next page
+// load, not after a 30s TTL window, and this is a single cheap indexed
+// key lookup so the extra per-request query is negligible.
+async function getFooterConfig(): Promise<FooterConfig | null> {
+  try {
+    const res = await pool.query<{ value: string }>(
+      "SELECT value FROM system_settings WHERE key = 'footer_config'"
+    );
+    const raw = res.rows[0]?.value;
+    return raw ? parseFooterConfig(raw) : null;
+  } catch (e) {
+    console.error('[layout] getFooterConfig DB error:', e);
     return null;
   }
 }
@@ -141,11 +159,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isPartnerPage = h.get('x-is-partner-page') === '1';
 
   const _t1 = Date.now();
-  const [brand, announcements, headerConfig, navConfig] = await Promise.all([
+  const [brand, announcements, headerConfig, navConfig, footerConfig] = await Promise.all([
     getBrand().then(r        => { console.log(`[layout:${_rid}] getBrand: +${Date.now() - _t1}ms`);           return r; }),
     getActiveAnnouncements().then(r => { console.log(`[layout:${_rid}] getAnnouncements: +${Date.now() - _t1}ms`); return r; }),
     getHeaderConfig().then(r => { console.log(`[layout:${_rid}] getHeaderConfig: +${Date.now() - _t1}ms`);    return r; }),
     getNavConfig().then(r    => { console.log(`[layout:${_rid}] getNavConfig: +${Date.now() - _t1}ms`);       return r; }),
+    getFooterConfig().then(r => { console.log(`[layout:${_rid}] getFooterConfig: +${Date.now() - _t1}ms`);    return r; }),
   ]);
   console.log(`[layout:${_rid}] Promise.all done: +${Date.now() - _t0}ms total`);
 
@@ -203,7 +222,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
 
           {/* ── Fixed bottom nav (mobile only) ── */}
-          <BottomNav />
+          <BottomNav footerConfig={footerConfig} />
         </body>
       </html>
     );
@@ -250,7 +269,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </div>
 
         {/* ── Fixed bottom nav (mobile only) ── */}
-        <BottomNav />
+        <BottomNav footerConfig={footerConfig} />
 
         {/* ── Floating support button (desktop only) ── */}
         <FloatingSupport whatsapp={brand.support_whatsapp} telegram={brand.support_telegram} />
