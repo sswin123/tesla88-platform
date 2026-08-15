@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import type { Pussy888Credentials, Pussy888Config } from './types';
 import { Pussy888Signer } from './Pussy888Signer';
 
@@ -67,12 +68,40 @@ export class Pussy888ApiClient {
    * Throws with "already exists" in the message when code === -1 (non-fatal duplicate).
    */
   async addUser(userName: string, nickname: string, password: string): Promise<void> {
-    const time = this.signer.timestamp();
-    const sign = this.signer.sign(userName, time);
+    const time    = this.signer.timestamp();
+    const formula = this.cfg.sign_test_formula ?? 'A';
+
+    // ── Formula selection (debug only — getUserInfo/setScore are unaffected) ──
+    const md5 = (src: string) => createHash('md5').update(src, 'utf8').digest('hex');
+    const ac  = this.creds.authcode;
+    const sk  = this.creds.secret_key;
+    const ag  = this.creds.agent;
+
+    let sign: string;
+    let formulaLabel: string;
+
+    switch (formula) {
+      case 'B':
+        sign         = md5((ac + userName + password + time + sk).toLowerCase());
+        formulaLabel = 'B: authcode+userName+PassWd+time+secretKey';
+        break;
+      case 'C':
+        sign         = md5((ac + ag + userName + time + sk).toLowerCase());
+        formulaLabel = 'C: authcode+agent+userName+time+secretKey';
+        break;
+      case 'D':
+        sign         = md5((ac + ag + userName + password + time + sk).toLowerCase());
+        formulaLabel = 'D: authcode+agent+userName+PassWd+time+secretKey';
+        break;
+      default: // 'A'
+        sign         = this.signer.sign(userName, time);
+        formulaLabel = 'A: authcode+userName+time+secretKey';
+    }
+    // ── End formula selection ──────────────────────────────────────────────────
 
     const params = new URLSearchParams({
       action:   'addUser',
-      agent:    this.creds.agent,
+      agent:    ag,
       PassWd:   password,
       userName,
       Name:     nickname || userName,
@@ -80,7 +109,7 @@ export class Pussy888ApiClient {
       Memo:     'N/A',
       UserType: '1',
       time,
-      authcode: this.creds.authcode,
+      authcode: ac,
       sign,
     });
 
@@ -88,17 +117,18 @@ export class Pussy888ApiClient {
     const m = (s: string, start: number, end: number) =>
       s.length <= start + end ? s : `${s.slice(0, start)}****${end > 0 ? s.slice(-end) : ''}`;
     console.log('[PUSSY888 ADDUSER SIGN DEBUG]', JSON.stringify({
-      formula:             'A: authcode+userName+time+secretKey',
+      formula:             formulaLabel,
       userName,
       password_length:     password.length,
       time,
       sign,
-      sign_source_preview: [
-        m(this.creds.authcode,   4, 3),
-        userName,
-        m(time,                  5, 0),
-        m(this.creds.secret_key, 4, 4),
-      ].join('+'),
+      sign_source_preview: formula === 'A'
+        ? [m(ac, 4, 3), userName,     m(time, 5, 0), m(sk, 4, 4)].join('+')
+        : formula === 'B'
+        ? [m(ac, 4, 3), userName,     '[PassWd]',    m(time, 5, 0), m(sk, 4, 4)].join('+')
+        : formula === 'C'
+        ? [m(ac, 4, 3), ag, userName, m(time, 5, 0), m(sk, 4, 4)].join('+')
+        : [m(ac, 4, 3), ag, userName, '[PassWd]',    m(time, 5, 0), m(sk, 4, 4)].join('+'),
     }));
     // ── END SIGN DEBUG ────────────────────────────────────────────────────────
 

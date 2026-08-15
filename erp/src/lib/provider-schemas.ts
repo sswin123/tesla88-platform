@@ -273,6 +273,16 @@ const PUSSY888APP: ProviderSchema = {
       key: 'debug', label: 'Debug Mode', type: 'select', required: false,
       options: [{ label: 'Off', value: 'false' }, { label: 'On', value: 'true' }],
     },
+    {
+      key: 'sign_test_formula', label: '[DEBUG] addUser Sign Formula', type: 'select', required: false,
+      description: 'Debug only: select sign formula for addUser. Default A. Remove after correct formula is confirmed.',
+      options: [
+        { label: 'A — authcode+userName+time+secretKey (default)', value: 'A' },
+        { label: 'B — authcode+userName+PassWd+time+secretKey',    value: 'B' },
+        { label: 'C — authcode+agent+userName+time+secretKey',     value: 'C' },
+        { label: 'D — authcode+agent+userName+PassWd+time+secretKey', value: 'D' },
+      ],
+    },
   ],
   credentials: [
     {

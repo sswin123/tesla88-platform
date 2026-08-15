@@ -28,6 +28,10 @@ AdapterRegistry.register(
       download_url_android: config['download_url_android'] || undefined,
       download_url_ios:    config['download_url_ios']    || undefined,
       debug: config['debug'] === 'true' || process.env.ENABLE_PROVIDER_DEBUG === 'true',
+      sign_test_formula: config['sign_test_formula'] === 'B' ? 'B'
+        : config['sign_test_formula'] === 'C' ? 'C'
+        : config['sign_test_formula'] === 'D' ? 'D'
+        : 'A',
     };
     return new Pussy888Adapter(c, cfg, deps.wallet, deps.eventLogger, deps.providerRepo);
   },

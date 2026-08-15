@@ -28,6 +28,8 @@ export interface Pussy888Config {
   download_url_ios?: string;
   /** Enable verbose API trace logging */
   debug: boolean;
+  /** Debug only: A/B/C/D sign formula selector for addUser. Default A. Remove once correct formula confirmed. */
+  sign_test_formula?: 'A' | 'B' | 'C' | 'D';
 }
 
 export interface ProviderAccountRow {
