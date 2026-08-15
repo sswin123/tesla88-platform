@@ -129,6 +129,7 @@ describe('Pussy888ApiClient', () => {
 
       const [url] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
       expect(url).toContain('/ashx/account/account.ashx');
+      expect(url).toContain('loginUser=');   // 官方文档要求：每个接口带 loginUser（默认空字符串）
       expect(url).toContain('action=addUser');
       expect(url).toContain('agent=PSYA333');
       expect(url).toContain('userName=PSYA333u42');

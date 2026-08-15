@@ -100,16 +100,17 @@ export class Pussy888ApiClient {
     // ── End formula selection ──────────────────────────────────────────────────
 
     const params = new URLSearchParams({
-      action:   'addUser',
-      agent:    ag,
-      PassWd:   password,
+      loginUser: '',
+      action:    'addUser',
+      agent:     ag,
+      PassWd:    password,
       userName,
-      Name:     nickname || userName,
-      Tel:      'N/A',
-      Memo:     'N/A',
-      UserType: '1',
+      Name:      nickname || userName,
+      Tel:       'N/A',
+      Memo:      'N/A',
+      UserType:  '1',
       time,
-      authcode: ac,
+      authcode:  ac,
       sign,
     });
 
