@@ -15,14 +15,13 @@ interface Pussy888Response<T> {
 
 export interface UserInfoData {
   UserName:   string;
-  ScoreNum:   number;
-  // other fields exist but only balance is needed
+  ScoreNum:   number | string;  // provider may return string e.g. "2190.00"
   [key: string]: unknown;
 }
 
 export interface SetScoreData {
   UserName: string;
-  ScoreNum: number;
+  ScoreNum: number | string;    // provider may return string e.g. "200.00"
   [key: string]: unknown;
 }
 
@@ -181,7 +180,7 @@ export class Pussy888ApiClient {
    */
   async getUserBalance(userName: string): Promise<number> {
     const data = await this.get<UserInfoData>('getUserInfo.ashx', { userName });
-    return typeof data?.ScoreNum === 'number' ? data.ScoreNum : 0;
+    return parseFloat(String(data?.ScoreNum ?? 0)) || 0;
   }
 
   /**
@@ -194,7 +193,7 @@ export class Pussy888ApiClient {
     // API requires explicit "+" sign prefix for deposits
     const scoreNum = `+${this.formatAmount(amount)}`;
     const data = await this.get<SetScoreData>('setScore.ashx', { userName, scoreNum });
-    return typeof data?.ScoreNum === 'number' ? data.ScoreNum : 0;
+    return parseFloat(String(data?.ScoreNum ?? 0)) || 0;
   }
 
   /**
@@ -206,7 +205,7 @@ export class Pussy888ApiClient {
     if (amount <= 0) throw new Error('Pussy888 withdraw amount must be positive');
     const scoreNum = `-${this.formatAmount(amount)}`;
     const data = await this.get<SetScoreData>('setScore.ashx', { userName, scoreNum });
-    return typeof data?.ScoreNum === 'number' ? data.ScoreNum : 0;
+    return parseFloat(String(data?.ScoreNum ?? 0)) || 0;
   }
 
   /**

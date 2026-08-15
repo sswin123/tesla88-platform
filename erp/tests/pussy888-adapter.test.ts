@@ -157,7 +157,7 @@ describe('Pussy888ApiClient', () => {
   // ── getUserBalance ──────────────────────────────────────────────────────────
 
   describe('getUserBalance (getUserInfo.ashx)', () => {
-    it('返回 data.ScoreNum 字段的数值', async () => {
+    it('返回 data.ScoreNum 字段的数值（number 类型）', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockSuccess({ UserName: 'PSYA333u42', ScoreNum: 123.50 }) as never,
       );
@@ -169,7 +169,23 @@ describe('Pussy888ApiClient', () => {
       expect(url).toContain('getUserInfo.ashx');
     });
 
-    it('ScoreNum 为 0 时返回 0', async () => {
+    it('ScoreNum 为 string（官方文档格式 "2190.00"）时正确解析为数字', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        mockSuccess({ UserName: 'PSYA333u42', ScoreNum: '2190.00' }) as never,
+      );
+      const balance = await client.getUserBalance('PSYA333u42');
+      expect(balance).toBe(2190);
+    });
+
+    it('ScoreNum 为 string "0" 时返回 0', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        mockSuccess({ UserName: 'PSYA333u1', ScoreNum: '0' }) as never,
+      );
+      const balance = await client.getUserBalance('PSYA333u1');
+      expect(balance).toBe(0);
+    });
+
+    it('ScoreNum 为 0（number）时返回 0', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockSuccess({ UserName: 'PSYA333u1', ScoreNum: 0 }) as never,
       );
@@ -181,7 +197,7 @@ describe('Pussy888ApiClient', () => {
   // ── deposit (setScore with positive scoreNum) ───────────────────────────────
 
   describe('deposit — setScore.ashx 存款（正数）', () => {
-    it('发送 scoreNum=+100，返回新余额', async () => {
+    it('发送 scoreNum=+100，返回新余额（number）', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockSuccess({ UserName: 'PSYA333u42', ScoreNum: 200 }) as never,
       );
@@ -192,6 +208,14 @@ describe('Pussy888ApiClient', () => {
       const [url] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
       expect(url).toContain('setScore.ashx');
       expect(url).toContain('scoreNum=%2B100'); // URL-encoded "+"
+    });
+
+    it('ScoreNum 为 string（如 "200.00"）时正确解析余额', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        mockSuccess({ UserName: 'PSYA333u42', ScoreNum: '200.00' }) as never,
+      );
+      const balance = await client.deposit('PSYA333u42', 100);
+      expect(balance).toBe(200);
     });
 
     it('小数金额格式化为 2 位小数', async () => {
@@ -214,7 +238,7 @@ describe('Pussy888ApiClient', () => {
   // ── withdraw (setScore with negative scoreNum) ──────────────────────────────
 
   describe('withdraw — setScore.ashx 取款（负数）', () => {
-    it('发送 scoreNum=-50，返回新余额', async () => {
+    it('发送 scoreNum=-50，返回新余额（number）', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockSuccess({ UserName: 'PSYA333u42', ScoreNum: 50 }) as never,
       );
@@ -225,6 +249,14 @@ describe('Pussy888ApiClient', () => {
       const [url] = fetchSpy.mock.calls[0] as [string, ...unknown[]];
       expect(url).toContain('setScore.ashx');
       expect(url).toContain('scoreNum=-50');
+    });
+
+    it('ScoreNum 为 string（如 "50.00"）时正确解析余额', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        mockSuccess({ UserName: 'PSYA333u42', ScoreNum: '50.00' }) as never,
+      );
+      const balance = await client.withdraw('PSYA333u42', 50);
+      expect(balance).toBe(50);
     });
 
     it('amount <= 0 时抛出异常，不发起请求', async () => {
